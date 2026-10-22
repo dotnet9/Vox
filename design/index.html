@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-palette="indigo" data-density="normal">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vox · 维声 · 设计原型</title>
+<link rel="icon" href="assets/vox-logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/tokens.css"><link rel="stylesheet" href="assets/palettes.css"><link rel="stylesheet" href="assets/density.css">
+<style>
+body{min-height:100dvh;overflow:auto}
+.gallery{max-width:1080px;margin:auto;padding:0 40px 40px}
+.site-header{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.site-brand{display:flex;align-items:center;gap:11px;color:var(--fg);text-decoration:none}
+.site-brand img{width:30px;height:30px;border-radius:8px}
+.site-brand strong{font-size:16px;font-weight:600}
+.site-brand span{font-size:10px;color:var(--muted);margin-left:10px;padding-left:16px;border-left:1px solid var(--line)}
+.intro{padding:56px 0 34px}
+.eyebrow{font-size:10px;letter-spacing:2.4px;color:var(--muted);margin-bottom:16px}
+.intro h1{font-size:38px;font-weight:650;letter-spacing:-1.2px;margin:0 0 14px}
+.intro h1 em{font-style:normal;background:var(--title-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{color:var(--muted);font-size:13px;line-height:1.9;margin:0}
+.page-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.page-card{display:block;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-lg);padding:20px;color:var(--fg);text-decoration:none;transition:border-color .15s}
+.page-card:hover{border-color:var(--accent);text-decoration:none}
+.page-card .ico-box{width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:14px}
+.page-card h2{font-size:14px;font-weight:600;margin:0 0 6px}
+.page-card p{font-size:11px;color:var(--muted);line-height:1.8;margin:0}
+.page-card .arrow{float:right;color:var(--muted)}
+.site-footer{border-top:1px solid var(--line);margin-top:40px;padding-top:22px;display:flex;justify-content:space-between;color:var(--muted);font-size:10px}
+@media(max-width:860px){.page-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.page-grid{grid-template-columns:1fr}.gallery{padding:0 20px 30px}}
+</style>
+</head>
+<body data-page="hub">
+<main class="gallery">
+  <header class="site-header">
+    <a class="site-brand" href="index.html"><img src="assets/vox-logo.svg" alt=""><strong>Vox · 维声</strong><span>设计原型</span></a>
+    <span class="pill" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:99px;font-size:11px;color:var(--muted)"><span class="dot" style="width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block"></span>M1 筹备 · Desktop prototype</span>
+  </header>
+  <section class="intro">
+    <div class="eyebrow">WRITE ONCE, PUBLISH EVERYWHERE</div>
+    <h1>一处落笔，<em>处处有声</em>。</h1>
+    <p>Vox 是面向本地 Markdown 内容仓库的桌面内容运营台：仓库概览、规范体检、文章管理，<br>以及一份原文的多平台预览与发布。以下是七个可交互原型页面。</p>
+  </section>
+  <section class="page-grid" aria-label="原型页面">
+    <a class="page-card" href="Vox.html">
+      <span class="ico-box"><svg class="ico" style="width:17px;height:17px"><use href="#i-home"/></svg></span>
+      <span class="arrow">↗</span><h2>概览仪表盘</h2><p>仓库概况与统计：年度 / 分类分布、专题进度、最近文章与体检摘要。</p>
+    </a>
+    <a class="page-card" href="Articles.html">
+      <span class="ico-box"><svg class="ico" style="width:17px;height:17px"><use href="#i-articles"/></svg></span>
+      <span class="arrow">↗</span><h2>文章管理</h2><p>550 篇文章的筛选列表：搜索、年份、分类、发布状态，直通编辑与删除。</p>
+    </a>
+    <a class="page-card" href="ArticleDetail.html">
+      <span class="ico-box"><svg class="ico" style="width:17px;height:17px"><use href="#i-edit"/></svg></span>
+      <span class="arrow">↗</span><h2>文章详情</h2><p>sidecar 元数据表单化编辑（slug.yml），正文预览与源码对照。</p>
+    </a>
+    <a class="page-card" href="Audit.html">
+      <span class="ico-box"><svg class="ico" style="width:17px;height:17px"><use href="#i-audit"/></svg></span>
+      <span class="arrow">↗</span><h2>规范体检</h2><p>缺封面、缺摘要、slug 不合规、图片死链……一条条列出来，逐项修复。</p>
+    </a>
+    <a class="page-card" href="Publishing.html">
+      <span class="ico-box"><svg class="ico" style="width:17px;height:17px"><use href="#i-publish"/></svg></span>
+      <span class="arrow">↗</span><h2>发布清单</h2><p>15 个平台的发布状态矩阵 + 复制助手浮动面板，30 分钟压缩到 5 分钟。</p>
+    </a>
+    <a class="page-card" href="Appearance.html">
+      <span class="ico-box"><svg class="ico" style="width:17px;height:17px"><use href="#i-appear"/></svg></span>
+      <span class="arrow">↗</span><h2>外观设置</h2><p>9 套配色 × 明暗 × 密度三档实时切换，自定义配色实时派生与校验。</p>
+    </a>
+  </section>
+  <footer class="site-footer">
+    <span>Vox · 维声 —— 一处落笔，处处有声。</span>
+    <span>© 2026 沙漠尽头的狼 / <a href="https://codewf.com" target="_blank" rel="noopener">CodeWF ↗</a> · 姊妹产品 <a href="https://github.com/dotnet9/Vex" target="_blank" rel="noopener">Vex · 维刻 ↗</a></span>
+  </footer>
+</main>
+<link rel="stylesheet" href="assets/vox/app.css">
+<script src="assets/palettes.js"></script><script src="assets/palette-rules.js"></script><script src="assets/generated/palette-rules-data.js"></script><script src="assets/project-info.js"></script><script src="assets/vox/app.js"></script>
+</body>
+</html>

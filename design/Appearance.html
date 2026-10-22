@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-palette="indigo" data-density="normal">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>外观设置 · Vox 维声</title>
+<link rel="icon" href="assets/vox-logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/tokens.css"><link rel="stylesheet" href="assets/palettes.css"><link rel="stylesheet" href="assets/density.css"><link rel="stylesheet" href="assets/vox/app.css">
+</head>
+<body data-page="appearance">
+<div class="appear-layout">
+  <aside class="appear-controls">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px"><img src="assets/vox-logo.svg" alt="" style="width:26px;height:26px;border-radius:7px"><b style="font-size:14px">外观</b><a href="Vox.html" style="margin-left:auto;font-size:11px">返回概览 ↗</a></div>
+    <p style="font-size:11px;color:var(--muted);line-height:1.8;margin:0">全部取值由《配色与排版令牌规则》附录 A 经生成器派生（ruleVersion 见状态栏），本页不手写任何色值。</p>
+
+    <h2>界面配色 · 9 套</h2>
+    <div class="palette-grid" id="palettes"></div>
+    <div class="mode-row" style="margin-top:10px">
+      <button class="btn" type="button" data-set-theme="light">浅色</button>
+      <button class="btn" type="button" data-set-theme="dark">深色</button>
+    </div>
+
+    <h2>界面密度</h2>
+    <div class="mode-row" role="group" aria-label="界面密度">
+      <button class="btn" type="button" data-set-density="compact">紧凑</button>
+      <button class="btn" type="button" data-set-density="normal">正常</button>
+      <button class="btn" type="button" data-set-density="relaxed">宽松</button>
+    </div>
+    <p>密度只影响控件（字号 / 控件高 / 间距 / 圆角，规则 §6），与正文阅读字号互相独立。</p>
+
+    <h2>自定义配色</h2>
+    <p>编写层仅 4 色（规则 §7）：纸面 / 面板 / 墨色 / 强调，状态色取全局默认，其余语义键实时派生并校验。</p>
+    <div class="custom-grid" id="custom-base">
+      <label>纸面 paper<input type="color" data-base="paper"></label>
+      <label>面板 surface<input type="color" data-base="surface"></label>
+      <label>墨色 ink<input type="color" data-base="ink"></label>
+      <label>强调 accent<input type="color" data-base="accent"></label>
+    </div>
+    <div class="custom-actions">
+      <button class="btn primary" type="button" id="apply-custom">派生并应用</button>
+      <button class="btn" type="button" id="reset-custom">恢复内置</button>
+    </div>
+    <p id="custom-report"></p>
+
+    <details><summary style="cursor:pointer;font-size:12px;padding:10px 0">资源 Key · 当前派生结果</summary>
+      <div id="resource-key-list" aria-label="派生资源键"></div>
+    </details>
+  </aside>
+  <section class="appear-preview">
+    <div style="max-width:760px;margin:auto">
+      <div class="eyebrow" style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:14px">VOX · 维声 / 实时预览</div>
+      <div class="stat-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat"><div class="num">550</div><div class="lbl">文章总数</div></div>
+        <div class="stat"><div class="num">13</div><div class="lbl">体检待处理</div></div>
+        <div class="stat"><div class="num">15</div><div class="lbl">发布平台</div></div>
+      </div>
+      <section class="card" style="margin-bottom:14px">
+        <div class="card-head"><h2>发布清单</h2><span class="badge api">API 直发</span></div>
+        <table class="table">
+          <thead><tr><th>平台</th><th>接入方式</th><th>状态</th><th class="num">字数</th></tr></thead>
+          <tbody>
+            <tr><td><b>博客园</b></td><td><span class="badge api">API 直发</span></td><td><span class="pill-status ok"><i></i>已发布</span></td><td class="num">8,412</td></tr>
+            <tr><td><b>CSDN</b></td><td><span class="badge api">API 直发</span></td><td><span class="pill-status stale"><i></i>需更新</span></td><td class="num">8,390</td></tr>
+            <tr><td><b>知乎</b></td><td><span class="badge copy">复制助手</span></td><td><span class="pill-status todo"><i></i>未发布</span></td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+        <div class="bulk-bar"><button class="btn primary" type="button"><svg class="ico"><use href="#i-send"/></svg>一键发布</button><button class="btn" type="button">打开创作页</button></div>
+      </section>
+      <section class="card" style="margin-bottom:14px">
+        <div class="card-head"><h2>表单与控件</h2><span class="badge">密度档实时生效</span></div>
+        <div class="card-body">
+          <div class="form-grid" style="grid-template-columns:88px 1fr;margin-bottom:12px">
+            <label class="field-label">slug</label><input class="input mono" value="avalonia-12-desktop-practices">
+            <label class="field-label">摘要</label><textarea class="input" rows="2">从项目创建到三平台打包发布，一篇讲透完整链路与踩坑点。</textarea>
+            <label class="field-label">draft</label><span class="switch-field"><button class="switch on" type="button"></button><small>已发布</small></span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn" type="button">默认</button>
+            <button class="btn primary" type="button"><svg class="ico"><use href="#i-save"/></svg>保存</button>
+            <button class="btn danger" type="button">删除</button>
+            <button class="btn sm" type="button">小按钮</button>
+            <span class="tag">Avalonia</span><span class="tag">C#</span>
+            <span class="pill-status ok"><i></i>已发布</span>
+            <span class="pill-status stale"><i></i>需更新</span>
+            <span class="pill-status todo"><i></i>未发布</span>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>复制助手</h2><span class="badge copy">浮动面板</span></div>
+        <div class="card-body">
+          <div class="float-field" style="max-width:420px"><span class="k"><b>标题</b>18/100</span><span class="v">Avalonia 12 桌面应用开发实战：从零到发布</span><button class="btn sm" type="button">复制</button></div>
+          <div class="float-field" style="max-width:420px;margin-top:6px"><span class="k"><b>正文</b>8,412 字</span><span class="v">平台适配后的富文本 HTML…</span><button class="btn sm" type="button">复制</button></div>
+        </div>
+      </section>
+    </div>
+  </section>
+</div>
+<script src="assets/palettes.js"></script><script src="assets/palette-rules.js"></script><script src="assets/generated/palette-rules-data.js"></script><script src="assets/project-info.js"></script><script src="assets/vox/app.js"></script>
+</body>
+</html>

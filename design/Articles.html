@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-palette="indigo" data-density="normal">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文章管理 · Vox 维声</title>
+<link rel="icon" href="assets/vox-logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/tokens.css"><link rel="stylesheet" href="assets/palettes.css"><link rel="stylesheet" href="assets/density.css"><link rel="stylesheet" href="assets/vox/app.css">
+</head>
+<body data-page="articles">
+<div class="app-window">
+  <header class="titlebar" id="tb"></header>
+  <div class="window-body">
+    <aside class="nav" id="nav"></aside>
+    <main class="main">
+      <div class="page-head">
+        <div><h1>文章管理</h1><p>筛选、编辑、删除仓库中的 550 篇文章 · 操作将写入 md / yml 并受 git 保护</p></div>
+        <div class="page-actions"><button class="btn primary" type="button"><svg class="ico"><use href="#i-plus"/></svg>新建文章</button></div>
+      </div>
+      <section class="card">
+        <div class="toolbar">
+          <span class="search"><svg class="ico"><use href="#i-search"/></svg><input id="article-q" placeholder="搜索标题或 slug…" aria-label="搜索文章"></span>
+          <select id="article-year" aria-label="年份"><option value="">全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2020</option></select>
+          <select id="article-cat" aria-label="分类"><option value="">全部分类</option><option>.NET</option><option>C#</option><option>WPF</option><option>Avalonia UI</option><option>Blazor</option><option>工程效率</option></select>
+          <span class="chips" role="group" aria-label="发布状态">
+            <button class="chip" type="button" data-status="all" aria-pressed="true">全部</button>
+            <button class="chip" type="button" data-status="published" aria-pressed="false">已发布</button>
+            <button class="chip" type="button" data-status="draft" aria-pressed="false">草稿</button>
+          </span>
+          <span class="muted" id="articles-count" style="margin-left:auto;font-size:11px"></span>
+        </div>
+        <table class="table">
+          <thead><tr><th>标题 / 路径</th><th>日期</th><th>分类</th><th>专题</th><th>标签</th><th class="num">字数</th><th>状态</th><th></th></tr></thead>
+          <tbody id="articles-body"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+  <footer class="statusbar" id="statusbar"></footer>
+</div>
+<script src="assets/palettes.js"></script><script src="assets/palette-rules.js"></script><script src="assets/generated/palette-rules-data.js"></script><script src="assets/project-info.js"></script><script src="assets/vox/app.js"></script>
+</body>
+</html>
