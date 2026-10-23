@@ -7,7 +7,7 @@
 <body class="stage">
 
 <div class="proto-bar">
-  <span class="left"><b>Vox 桌面应用原型</b>　正式实现：Avalonia + TKCode.Arc · 主窗口自绘标题栏 · 左下可切主题与强调色</span>
+  <span class="left"><b>Vox 桌面应用原型</b>　正式实现：Avalonia + TKCode.Arc · 主窗口自绘标题栏 · 主题与强调色在「设置 → 外观」切换</span>
 </div>
 
 <div class="appwin">
@@ -302,7 +302,7 @@
     <div class="setting">
       <h3>外观</h3><div class="sdesc">正式实现由 Arc 主题接管（ArcAccentPreset / 明暗 / 动效级别）</div>
       <div class="srow"><label>语言 / Language</label><div class="val"><select class="select" style="width:200px" id="selLang" onchange="toast('原型演示：国际化切换在实现中经资源文件生效（zh-CN / en-US）')"><option>简体中文（默认）</option><option>English</option></select><div class="desc">界面语言 · 主题、强调色、动效均在本页切换（原边栏底部入口已收拢至此）</div></div></div>
-      <div class="srow"><label>主题</label><div class="val"><div class="seg" id="themeSeg"><button class="active">亮色</button><button id="btnTheme">暗色</button><button>跟随系统</button></div></div></div>
+      <div class="srow"><label>主题</label><div class="val"><div class="seg" id="themeSeg"><button data-mode="light" class="active">亮色</button><button data-mode="dark">暗色</button><button data-mode="auto">跟随系统</button></div></div></div>
       <div class="srow"><label>强调色</label><div class="val"><span class="dots" style="display:inline-flex;gap:8px"><i class="dot active" data-c="violet" style="width:16px;height:16px"></i><i class="dot" data-c="blue" style="width:16px;height:16px"></i><i class="dot" data-c="emerald" style="width:16px;height:16px"></i><i class="dot" data-c="orange" style="width:16px;height:16px"></i></span></div></div>
       <div class="srow"><label>动效级别</label><div class="val"><select class="select" style="width:160px"><option>标准（ArcMotion Full）</option><option>减弱（Reduced）</option><option>关闭（Off）</option></select></div></div>
     </div>
@@ -447,7 +447,20 @@ document.querySelectorAll('.mask').forEach(m=>m.onclick=e=>{if(e.target===m)m.cl
 function bindDots(){document.querySelectorAll('.dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;
   document.querySelectorAll('.dot').forEach(x=>x.classList.toggle('active',x.dataset.c===d.dataset.c));});}
 bindDots();
-document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
+/* 主题三档：亮色 / 暗色 / 跟随系统（auto 档经 prefers-color-scheme 实时响应系统切换） */
+const themeSeg=document.getElementById('themeSeg');
+let themeMode='light',sysDark=null;
+function applyTheme(){document.documentElement.dataset.theme=themeMode==='auto'?(sysDark?'dark':'light'):themeMode;}
+function setThemeMode(mode){
+  themeMode=mode;
+  if(mode==='auto'&&sysDark===null){
+    sysDark=matchMedia('(prefers-color-scheme: dark)');
+    sysDark.addEventListener('change',e=>{sysDark=e;if(themeMode==='auto')applyTheme();});
+  }
+  applyTheme();
+  themeSeg.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+}
+themeSeg.querySelectorAll('button').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
 /* ---------- 文章数据与列表 ---------- */
 const ARTS={
 aot:{year:'2026',path:'2026/09',title:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',slug:'dotnet-native-aot-win7-skia-dependency',date:'2026-09-28 20:00',min:8,cats:['.NET'],albums:null,tags:['Native AOT','SkiaSharp','Win7'],draft:false,g:'g1',cur:15,desc:'记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。',

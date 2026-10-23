@@ -69,11 +69,11 @@ body.stage {
 .nav .repo { font-size: 10.5px; color: var(--faint); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 9px; }
 .nav .repo b { display: block; color: var(--muted); font-size: 11px; }
 .nav .themeline { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
-.nav .dots { display: flex; gap: 6px; }
-.nav .dot { width: 13px; height: 13px; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
-.nav .dot[data-c="violet"]{ background:#7c5cff; } .nav .dot[data-c="blue"]{ background:#3e7bfa; }
-.nav .dot[data-c="emerald"]{ background:#14a06a; } .nav .dot[data-c="orange"]{ background:#ee7a1c; }
-.nav .dot.active { outline: 2px solid var(--fg); outline-offset: 1px; }
+.dots { display: flex; gap: 6px; }
+.dots .dot { width: 13px; height: 13px; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
+.dots .dot[data-c="violet"]{ background:#7c5cff; } .dots .dot[data-c="blue"]{ background:#3e7bfa; }
+.dots .dot[data-c="emerald"]{ background:#14a06a; } .dots .dot[data-c="orange"]{ background:#ee7a1c; }
+.dots .dot.active { outline: 2px solid var(--fg); outline-offset: 1px; }
 
 /* ---------- 主区 ---------- */
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
