@@ -2,10 +2,8 @@
   "language": "English",
   "description": "Vox desktop application UI strings",
   "cultureName": "en-US",
-
   "Vox.Shell.Meta.Name": "Vox",
   "Vox.Shell.Menu.File": "File",
-
   "Vox.Nav.Label.Write": "Write",
   "Vox.Nav.Label.Library": "Library",
   "Vox.Nav.Label.Assets": "Images",
@@ -15,7 +13,6 @@
   "Vox.Nav.Label.Settings": "Settings",
   "Vox.Nav.Hint.Repo": "Repository",
   "Vox.Nav.Hint.NoRepo": "No repository configured",
-
   "Vox.Common.Action.Save": "Save",
   "Vox.Common.Action.Cancel": "Cancel",
   "Vox.Common.Action.Close": "Close",
@@ -39,7 +36,6 @@
   "Vox.Common.Label.None": "None",
   "Vox.Common.Label.All": "All",
   "Vox.Common.Label.Done": "Done",
-
   "Vox.Write.List.SearchPlaceholder": "Search articles…",
   "Vox.Write.List.ViewList": "List view",
   "Vox.Write.List.ViewTree": "Tree view",
@@ -59,7 +55,6 @@
   "Vox.Write.Menu.Metadata": "Article Metadata…",
   "Vox.Write.Menu.ImageIntake": "Image Intake…",
   "Vox.Write.Hint.NoArticle": "Pick an article on the left, or create a new one",
-
   "Vox.Wizard.New.Title": "New Article",
   "Vox.Wizard.New.FieldTitle": "Title",
   "Vox.Wizard.New.TitlePlaceholder": "Type a title — slug and date are generated",
@@ -71,7 +66,6 @@
   "Vox.Wizard.New.FieldDraft": "Create as draft (draft: true)",
   "Vox.Wizard.New.Confirm": "About to create",
   "Vox.Wizard.New.CreateAndOpen": "Create and Open",
-
   "Vox.Meta.Label.DialogTitle": "Article Metadata",
   "Vox.Meta.Label.TitleField": "Title",
   "Vox.Meta.Label.SlugField": "Slug",
@@ -83,7 +77,6 @@
   "Vox.Meta.Label.AuthorField": "Author",
   "Vox.Meta.Label.DraftField": "Draft",
   "Vox.Meta.Label.Saved": "Metadata written back to yml (pending commit)",
-
   "Vox.Image.Label.DialogTitle": "Image Intake",
   "Vox.Image.Label.DropHint": "Drop / click to choose / Ctrl+V paste / enter an image URL",
   "Vox.Image.Label.DropHintSub": "Remote images are downloaded locally — no hotlinking",
@@ -95,7 +88,6 @@
   "Vox.Image.Label.SetCover": "Also set as article cover",
   "Vox.Image.Label.Insert": "Insert into body",
   "Vox.Image.Label.Done": "Imported and inserted: {0}",
-
   "Vox.Library.Label.Title": "Library",
   "Vox.Library.Stats.Articles": "articles",
   "Vox.Library.Stats.Words": "words",
@@ -118,7 +110,6 @@
   "Vox.Library.Badge.Draft": "Draft",
   "Vox.Library.Badge.Stale": "Stale clue",
   "Vox.Library.Label.Empty": "No articles",
-
   "Vox.Assets.Label.Title": "Images",
   "Vox.Assets.Label.Sub": "Repo is the image CDN · domain concatenated at render time",
   "Vox.Assets.Label.OnlyOrphans": "Orphans only",
@@ -135,7 +126,6 @@
   "Vox.Assets.Label.CopyRelative": "Copy relative path",
   "Vox.Assets.Label.Delete": "Delete (via git, reversible)",
   "Vox.Assets.Label.Empty": "No images in the repository",
-
   "Vox.Audit.Label.Title": "Audit",
   "Vox.Audit.Label.Rescan": "Rescan",
   "Vox.Audit.Label.AlbumWizard": "Album Wizard",
@@ -158,7 +148,6 @@
   "Vox.Audit.Label.Filled": "Written back to {0} articles (pending commit)",
   "Vox.Audit.Label.WizardTitle": "Album Wizard · {0} articles",
   "Vox.Audit.Label.WizardHint": "Suggest albums from categories; confirm per group and write back to yml. All via git, reversible.",
-
   "Vox.Sync.Label.Title": "Sync",
   "Vox.Sync.Label.BranchAhead": "{0} commits ahead of origin/main · {1} uncommitted changes",
   "Vox.Sync.Label.BranchSynced": "In sync with remote · {0} uncommitted changes",
@@ -175,11 +164,9 @@
   "Vox.Sync.Label.NoChanges": "Working tree clean — nothing to commit",
   "Vox.Sync.Label.NeedPat": "No GitHub PAT configured — set one in Settings first",
   "Vox.Sync.Label.NeedRepo": "No content repository configured",
-
   "Vox.Site.Label.Title": "Site Data",
   "Vox.Site.Label.Sub": "zh-CN only · multilingual files deprecated",
   "Vox.Site.Label.Saved": "Written back to {0} (pending commit)",
-
   "Vox.Settings.Label.Title": "Settings",
   "Vox.Settings.Repo.Title": "Content repository",
   "Vox.Settings.Repo.Desc": "The content source repo managed by Vox; full in-memory index + incremental watching",
@@ -212,7 +199,49 @@
   "Vox.Settings.About.Title": "About",
   "Vox.Settings.About.Desc": "Vox 0.1.0-dev · by CodeWF",
   "Vox.Settings.About.Update": "Distribution via GitHub Releases (no app stores)",
-
   "Vox.Msg.Label.ConfirmDeleteTitle": "Confirm delete",
-  "Vox.Msg.Label.ConfirmDeleteDesc": "{0} will enter git deletion changes; reversible before commit & push."
+  "Vox.Msg.Label.ConfirmDeleteDesc": "{0} will enter git deletion changes; reversible before commit & push.",
+  "Vox.Sync.Label.Changes": "Changes",
+  "Vox.Sync.Label.SelectAll": "Select all",
+  "Vox.Sync.Label.SelectedOf": "{0} selected",
+  "Vox.Sync.Label.Author": "Author",
+  "Vox.Sync.Label.Changeable": "Change",
+  "Vox.Sync.Label.Summary": "Summary",
+  "Vox.Sync.Label.DescOptional": "Optional · Markdown supported",
+  "Vox.Sync.Label.AutoDetail": "✨ Insert change details",
+  "Vox.Sync.Label.CommitOnly": "Commit only",
+  "Vox.Sync.Label.PushN": "Push {0} commits",
+  "Vox.Sync.Label.Pull": "Pull",
+  "Vox.Sync.Label.OpenOnGitHub": "View commit on GitHub",
+  "Vox.Sync.Diff.Split": "Split",
+  "Vox.Sync.Diff.Unified": "Unified",
+  "Vox.Sync.Diff.Old": "Before",
+  "Vox.Sync.Diff.New": "After",
+  "Vox.Sync.Diff.NoOld": "No old version · added",
+  "Vox.Sync.Diff.Deleted": "Deleted · revertible before push",
+  "Vox.Sync.Diff.Placeholder": "Click a file to view its changes · text: split/unified · images: before vs after",
+  "Vox.Sync.Diff.Binary": "Binary file · no line diff",
+  "Vox.Sync.Diff.NoChange": "No displayable change for this file",
+  "Vox.Sync.State.AllSynced": "Everything synced",
+  "Vox.Sync.State.AllSyncedDesc": "No uncommitted changes. Keep writing, or pull remote updates.",
+  "Vox.Sync.State.Total": "{0} uncommitted changes",
+  "Vox.Sync.State.CheckedOf": "{0} / {1} checked",
+  "Vox.Sync.Phrase.Article": "update {0} articles",
+  "Vox.Sync.Phrase.Image": "adjust {0} images",
+  "Vox.Sync.Phrase.Site": "update site data",
+  "Vox.Sync.Phrase.Other": "{0} other changes",
+  "Vox.Sync.Msg.SelectFirst": "Select changes to commit first",
+  "Vox.Sync.Msg.BehindFirst": "Remote has new commits (↓{0}) — pull and fast-forward before pushing",
+  "Vox.Sync.Msg.Pulled": "Fast-forwarded {0} remote commit(s) (pull --ff-only)",
+  "Vox.Sync.Msg.UpToDate": "Already up to date",
+  "Vox.Sync.Msg.Committed": "Committed (not pushed) · click \"Push {0} commits\" later",
+  "Vox.Sync.Msg.CommittedPushed": "Committed and pushed: {0} files · the site updates shortly",
+  "Vox.Sync.Msg.DetailInserted": "Change details inserted from selection (editable)",
+  "Vox.Sync.Msg.IdentitySaved": "Commit identity saved to repository config",
+  "Vox.Sync.Hint.Summary": "docs: one-line summary",
+  "Vox.Sync.Hint.Description": "Optional details",
+  "Vox.Sync.Dialog.IdentityTitle": "Commit identity",
+  "Vox.Sync.Dialog.NameField": "Name",
+  "Vox.Sync.Dialog.EmailField": "Email",
+  "Vox.Sync.Label.Description": "Description"
 }

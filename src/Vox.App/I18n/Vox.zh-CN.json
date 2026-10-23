@@ -2,10 +2,8 @@
   "language": "简体中文",
   "description": "Vox · 维声 桌面应用界面文案",
   "cultureName": "zh-CN",
-
   "Vox.Shell.Meta.Name": "Vox · 维声",
   "Vox.Shell.Menu.File": "文件",
-
   "Vox.Nav.Label.Write": "写作",
   "Vox.Nav.Label.Library": "文章库",
   "Vox.Nav.Label.Assets": "图片库",
@@ -15,7 +13,6 @@
   "Vox.Nav.Label.Settings": "设置",
   "Vox.Nav.Hint.Repo": "当前仓库",
   "Vox.Nav.Hint.NoRepo": "未配置仓库",
-
   "Vox.Common.Action.Save": "保存",
   "Vox.Common.Action.Cancel": "取消",
   "Vox.Common.Action.Close": "关闭",
@@ -39,7 +36,6 @@
   "Vox.Common.Label.None": "无",
   "Vox.Common.Label.All": "全部",
   "Vox.Common.Label.Done": "完成",
-
   "Vox.Write.List.SearchPlaceholder": "搜索文章…",
   "Vox.Write.List.ViewList": "列表视图",
   "Vox.Write.List.ViewTree": "树形视图",
@@ -59,7 +55,6 @@
   "Vox.Write.Menu.Metadata": "文章元数据…",
   "Vox.Write.Menu.ImageIntake": "图片入库…",
   "Vox.Write.Hint.NoArticle": "从左侧选择一篇文章，或新建一篇",
-
   "Vox.Wizard.New.Title": "新建文章",
   "Vox.Wizard.New.FieldTitle": "标题",
   "Vox.Wizard.New.TitlePlaceholder": "想好标题，slug 和日期自动生成",
@@ -71,7 +66,6 @@
   "Vox.Wizard.New.FieldDraft": "以草稿创建（draft: true）",
   "Vox.Wizard.New.Confirm": "即将创建",
   "Vox.Wizard.New.CreateAndOpen": "创建并打开",
-
   "Vox.Meta.Label.DialogTitle": "文章元数据",
   "Vox.Meta.Label.TitleField": "标题",
   "Vox.Meta.Label.SlugField": "slug",
@@ -83,7 +77,6 @@
   "Vox.Meta.Label.AuthorField": "作者",
   "Vox.Meta.Label.DraftField": "草稿",
   "Vox.Meta.Label.Saved": "元数据已写回 yml（待提交）",
-
   "Vox.Image.Label.DialogTitle": "图片入库",
   "Vox.Image.Label.DropHint": "拖入图片 / 点击选择 / Ctrl+V 粘贴 / 输入网图 URL",
   "Vox.Image.Label.DropHintSub": "网图将自动下载到本地，不做外链",
@@ -95,7 +88,6 @@
   "Vox.Image.Label.SetCover": "同时设为文章封面",
   "Vox.Image.Label.Insert": "插入到正文",
   "Vox.Image.Label.Done": "已入库并插入引用：{0}",
-
   "Vox.Library.Label.Title": "文章库",
   "Vox.Library.Stats.Articles": "篇文章",
   "Vox.Library.Stats.Words": "总字数",
@@ -118,7 +110,6 @@
   "Vox.Library.Badge.Draft": "草稿",
   "Vox.Library.Badge.Stale": "过期线索",
   "Vox.Library.Label.Empty": "暂无文章",
-
   "Vox.Assets.Label.Title": "图片库",
   "Vox.Assets.Label.Sub": "仓库即图床 · CDN 渲染时拼接",
   "Vox.Assets.Label.OnlyOrphans": "只看孤儿图",
@@ -135,7 +126,6 @@
   "Vox.Assets.Label.CopyRelative": "复制相对路径",
   "Vox.Assets.Label.Delete": "删除（走 git，可回滚）",
   "Vox.Assets.Label.Empty": "仓库中没有图片",
-
   "Vox.Audit.Label.Title": "规范体检",
   "Vox.Audit.Label.Rescan": "重新扫描",
   "Vox.Audit.Label.AlbumWizard": "专辑补全向导",
@@ -158,7 +148,6 @@
   "Vox.Audit.Label.Filled": "已写回 {0} 篇（待提交）",
   "Vox.Audit.Label.WizardTitle": "专辑补全向导 · {0} 篇",
   "Vox.Audit.Label.WizardHint": "按「分类」推断建议专辑，逐组确认后批量写回 yml。全部走 git，可回滚。",
-
   "Vox.Sync.Label.Title": "同步",
   "Vox.Sync.Label.BranchAhead": "领先 origin/main {0} 个提交 · {1} 处未提交变更",
   "Vox.Sync.Label.BranchSynced": "与远端一致 · {0} 处未提交变更",
@@ -175,11 +164,9 @@
   "Vox.Sync.Label.NoChanges": "工作区干净，没有待提交的变更",
   "Vox.Sync.Label.NeedPat": "未配置 GitHub PAT，请先在设置中配置",
   "Vox.Sync.Label.NeedRepo": "尚未配置内容仓库",
-
   "Vox.Site.Label.Title": "站点数据",
   "Vox.Site.Label.Sub": "仅维护 zh-CN · 多语言文件已废弃",
   "Vox.Site.Label.Saved": "已写回 {0}（git 待提交）",
-
   "Vox.Settings.Label.Title": "设置",
   "Vox.Settings.Repo.Title": "内容仓库",
   "Vox.Settings.Repo.Desc": "Vox 管理的内容源仓库，全量内存索引 + 文件监视增量维护",
@@ -212,7 +199,49 @@
   "Vox.Settings.About.Title": "关于",
   "Vox.Settings.About.Desc": "Vox · 维声 0.1.0-dev · 出品 码坊 CodeWF",
   "Vox.Settings.About.Update": "发布通道：GitHub Releases（不走应用商店）",
-
   "Vox.Msg.Label.ConfirmDeleteTitle": "确认删除",
-  "Vox.Msg.Label.ConfirmDeleteDesc": "{0} 将进入 git 删除变更，提交推送前可撤回。"
+  "Vox.Msg.Label.ConfirmDeleteDesc": "{0} 将进入 git 删除变更，提交推送前可撤回。",
+  "Vox.Sync.Label.Changes": "Changes",
+  "Vox.Sync.Label.SelectAll": "全选",
+  "Vox.Sync.Label.SelectedOf": "已选 {0}",
+  "Vox.Sync.Label.Author": "作者",
+  "Vox.Sync.Label.Changeable": "更改",
+  "Vox.Sync.Label.Summary": "Summary",
+  "Vox.Sync.Label.DescOptional": "可选 · 支持 Markdown",
+  "Vox.Sync.Label.AutoDetail": "✨ 自动插入变更明细",
+  "Vox.Sync.Label.CommitOnly": "仅提交",
+  "Vox.Sync.Label.PushN": "推送 {0} 个提交",
+  "Vox.Sync.Label.Pull": "拉取",
+  "Vox.Sync.Label.OpenOnGitHub": "在 GitHub 查看该提交",
+  "Vox.Sync.Diff.Split": "并排",
+  "Vox.Sync.Diff.Unified": "统一",
+  "Vox.Sync.Diff.Old": "修改前",
+  "Vox.Sync.Diff.New": "修改后",
+  "Vox.Sync.Diff.NoOld": "无旧版 · 新增文件",
+  "Vox.Sync.Diff.Deleted": "已删除 · 推送前可撤回",
+  "Vox.Sync.Diff.Placeholder": "点击左侧文件查看变更 · 文本支持并排 / 统一 · 图片为前后对比",
+  "Vox.Sync.Diff.Binary": "二进制文件 · 无行级 diff",
+  "Vox.Sync.Diff.NoChange": "该文件暂无可显示的变更",
+  "Vox.Sync.State.AllSynced": "一切已同步",
+  "Vox.Sync.State.AllSyncedDesc": "没有未提交的变更。继续写作，或拉取远端更新。",
+  "Vox.Sync.State.Total": "{0} 处未提交变更",
+  "Vox.Sync.State.CheckedOf": "{0} / {1} 处已勾选",
+  "Vox.Sync.Phrase.Article": "更新 {0} 篇文章",
+  "Vox.Sync.Phrase.Image": "调整 {0} 张图片",
+  "Vox.Sync.Phrase.Site": "更新站点数据",
+  "Vox.Sync.Phrase.Other": "其他变更 {0} 项",
+  "Vox.Sync.Msg.SelectFirst": "请先勾选要提交的变更",
+  "Vox.Sync.Msg.BehindFirst": "远端有新提交（↓{0}），请先拉取快进，再推送",
+  "Vox.Sync.Msg.Pulled": "已快进合并远端 {0} 个提交（pull --ff-only）",
+  "Vox.Sync.Msg.UpToDate": "已是最新",
+  "Vox.Sync.Msg.Committed": "已提交（未推送）· 稍后可点「推送 {0} 个提交」",
+  "Vox.Sync.Msg.CommittedPushed": "已提交并推送：{0} 个文件 · 网站稍后自动更新",
+  "Vox.Sync.Msg.DetailInserted": "已按勾选项插入变更明细（可编辑）",
+  "Vox.Sync.Msg.IdentitySaved": "提交身份已写入仓库配置",
+  "Vox.Sync.Hint.Summary": "docs: 一句话说明这次提交",
+  "Vox.Sync.Hint.Description": "补充说明，可留空",
+  "Vox.Sync.Dialog.IdentityTitle": "提交身份",
+  "Vox.Sync.Dialog.NameField": "用户名",
+  "Vox.Sync.Dialog.EmailField": "邮箱",
+  "Vox.Sync.Label.Description": "Description"
 }
