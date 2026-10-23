@@ -4,19 +4,29 @@
     <AvaloniaVersion>12.1.4</AvaloniaVersion>
     <ArcVersion>0.3.0-preview.3</ArcVersion>
     <StreamMarkVersion>0.1.0-alpha.25</StreamMarkVersion>
+    <CodeWfLangVersion>12.2.3</CodeWfLangVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <!-- 与 StreamMark 依赖链同源 TextMateSharp（StreamMark.Highlighting.TextMate 用 2.0.4），编辑/预览高亮一致 -->
+    <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
+    <PackageVersion Include="TextMateSharp.Grammars" Version="2.0.4" />
     <PackageVersion Include="TKCode.Arc" Version="$(ArcVersion)" />
     <PackageVersion Include="TKCode.Arc.Fonts" Version="$(ArcVersion)" />
+    <PackageVersion Include="TKCode.Arc.Icons.Lucide" Version="$(ArcVersion)" />
     <PackageVersion Include="TKCode.StreamMark.Avalonia" Version="$(StreamMarkVersion)" />
     <PackageVersion Include="TKCode.StreamMark.Theme.AtomUI" Version="$(StreamMarkVersion)" />
+    <PackageVersion Include="CodeWF.Toolkit.Lang" Version="1.1.0" />
+    <PackageVersion Include="CodeWF.Avalonia.Lang" Version="$(CodeWfLangVersion)" />
+    <PackageVersion Include="CodeWF.Avalonia.Lang.Generator" Version="$(CodeWfLangVersion)" />
+    <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="LibGit2Sharp" Version="0.31.0" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />

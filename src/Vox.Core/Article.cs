@@ -13,4 +13,16 @@ public sealed class Article
         Title = string.Empty,
         Slug = string.Empty,
     };
+
+    /// <summary>正文文件字节数（占位文章线索用）。</summary>
+    public long BodyBytes { get; set; }
+
+    /// <summary>正文字数（CJK 逐字 + 拉丁词）。</summary>
+    public int WordCount { get; set; }
+
+    /// <summary>正文中出现的图片引用（已归一为仓库相对路径，含死链）。</summary>
+    public List<string> ImageReferences { get; set; } = [];
+
+    public string Title => Meta.Title;
+    public bool IsDraft => Meta.Draft;
 }

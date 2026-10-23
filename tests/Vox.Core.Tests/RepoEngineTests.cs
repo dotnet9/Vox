@@ -1,0 +1,285 @@
+using Vox.Core;
+using Xunit;
+
+public class YamlSidecarTests
+{
+    [Fact]
+    public void Save_and_load_roundtrips_meta()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-yml").FullName;
+        try
+        {
+            var path = Path.Combine(root, "foo.yml");
+            var meta = new ArticleMeta
+            {
+                Title = "测试文章",
+                Slug = "test-article",
+                Description = "一段简述",
+                Date = new DateTime(2026, 10, 23, 20, 0, 0),
+                LastMod = new DateTime(2026, 10, 23, 20, 0, 0),
+                Cover = "2026/10/test-cover.png",
+                Categories = [".NET"],
+                Albums = ["Native AOT 系列"],
+                Tags = ["Avalonia", "SkiaSharp"],
+                Author = "Dotnet9",
+                Draft = false,
+            };
+
+            YamlSidecar.Save(path, meta);
+            var text = File.ReadAllText(path);
+
+            Assert.Contains("title: 测试文章", text);
+            Assert.Contains("cover: 2026/10/test-cover.png", text);
+
+            var loaded = YamlSidecar.Load(path);
+            Assert.Equal(meta.Title, loaded.Title);
+            Assert.Equal(meta.Date, loaded.Date);
+            Assert.Equal(meta.Albums, loaded.Albums);
+            Assert.Equal(meta.Tags, loaded.Tags);
+            Assert.Equal(meta.Cover, loaded.Cover);
+            Assert.False(loaded.Draft);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Load_tolerates_extra_fields_and_null_collections()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-yml2").FullName;
+        try
+        {
+            var path = Path.Combine(root, "foo.yml");
+            File.WriteAllText(path, """
+                title: legacy
+                slug: legacy-post
+                date: 2022-03-01 10:00:00
+                unknown-field: whatever
+                albums:
+                tags:
+                """);
+
+            var meta = YamlSidecar.Load(path);
+
+            Assert.Equal("legacy", meta.Title);
+            Assert.Equal(new DateTime(2022, 3, 1, 10, 0, 0), meta.Date);
+            Assert.Empty(meta.Albums);
+            Assert.Empty(meta.Tags);
+            Assert.Equal("Dotnet9", meta.Author);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+public class RepoScannerTests
+{
+    private static string CreateSampleRepo()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-scan").FullName;
+        Directory.CreateDirectory(Path.Combine(root, "2026", "09"));
+        Directory.CreateDirectory(Path.Combine(root, "2026", "10"));
+        Directory.CreateDirectory(Path.Combine(root, "site"));
+
+        File.WriteAllText(Path.Combine(root, "2026", "09", "alpha.md"),
+            "# Alpha\n\n![封面](2026/09/alpha-cover.png)\n\n![外站](https://other.example/x.png)\n");
+        File.WriteAllText(Path.Combine(root, "2026", "09", "alpha.yml"), "title: Alpha\nslug: alpha\ndate: 2026-09-01 08:00:00\n");
+        File.WriteAllText(Path.Combine(root, "2026", "09", "alpha-cover.png"), "png");
+
+        File.WriteAllText(Path.Combine(root, "2026", "10", "beta.md"),
+            "# Beta\n\n![死链](2026/10/missing.png)\n\n![CDN 形态](https://img1.dotnet9.com/2026/10/beta-pic.jpg)\n");
+        File.WriteAllText(Path.Combine(root, "2026", "10", "beta.yml"), "title: Beta\nslug: beta\ndate: 2026-10-01 08:00:00\nalbums: [x]\n");
+        File.WriteAllText(Path.Combine(root, "2026", "10", "beta-pic.jpg"), "jpg");
+        File.WriteAllText(Path.Combine(root, "2026", "10", "beta-pic.webp"), "webp");
+
+        File.WriteAllText(Path.Combine(root, "site", "albums.json"),
+            """{"items":[{"cover":"https://img1.dotnet9.com/2026/09/alpha-cover.png"}]}""");
+        return root;
+    }
+
+    [Fact]
+    public void Scan_builds_index_with_references_and_dead_links()
+    {
+        var root = CreateSampleRepo();
+        try
+        {
+            var scan = RepoScanner.Scan(root);
+
+            Assert.Equal(2, scan.Articles.Count);
+            var alpha = scan.FindArticle("2026/09/alpha.md")!;
+            Assert.Single(alpha.ImageReferences); // 外站图不算仓库引用，正确排除
+
+            var cover = scan.FindImage("2026/09/alpha-cover.png")!;
+            Assert.False(cover.IsOrphan); // md 引用 + site JSON 引用
+            Assert.Equal(2, cover.ReferencedBy.Count);
+
+            var missing = scan.FindImage("2026/10/missing.png")!;
+            Assert.True(missing.IsMissing);
+
+            var betaPic = scan.FindImage("2026/10/beta-pic.jpg")!;
+            Assert.False(betaPic.IsOrphan);
+            Assert.Single(scan.SiteFiles);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+public class AuditEngineTests
+{
+    [Fact]
+    public void Run_flags_expected_rule_groups()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-audit").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2022", "01"));
+            Directory.CreateDirectory(Path.Combine(root, "2026", "01"));
+
+            var staleMd = Path.Combine(root, "2022", "01", "old-one.md");
+            File.WriteAllText(staleMd, "# Old\n\n短文。\n");
+            File.WriteAllText(Path.Combine(root, "2022", "01", "old-one.yml"), "title: Old\nslug: old-one\ndate: 2022-01-01 00:00:00\n");
+
+            var badSlugMd = Path.Combine(root, "2026", "01", "Bad Slug!.md");
+            File.WriteAllText(badSlugMd, "# Bad\n");
+            File.WriteAllText(Path.Combine(root, "2026", "01", "Bad Slug!.yml"), "title: Bad\nslug: Bad Slug!\ndate: 2026-01-01 00:00:00\nalbums: []\n");
+
+            File.WriteAllText(Path.Combine(root, "2026", "01", "lonely.png"), "png"); // 孤儿图
+
+            var scan = RepoScanner.Scan(root);
+            var issues = AuditEngine.Run(scan);
+
+            Assert.Contains(issues, i => i.Rule == AuditRule.MissingAlbums && i.Target.EndsWith("old-one.md"));
+            Assert.Contains(issues, i => i.Rule == AuditRule.PlaceholderClue && i.Target.EndsWith("old-one.md"));
+            Assert.Contains(issues, i => i.Rule == AuditRule.StaleClue && i.Target.EndsWith("old-one.md"));
+            Assert.Contains(issues, i => i.Rule == AuditRule.SlugFormat && i.Target.EndsWith("Bad Slug!.md"));
+            Assert.Contains(issues, i => i.Rule == AuditRule.OrphanImage && i.Target.EndsWith("lonely.png"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Extension_pairing_suggests_same_stem_orphan()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-pair").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2026", "01"));
+            File.WriteAllText(Path.Combine(root, "2026", "01", "post.md"),
+                "# P\n\n![图](2026/01/pic.png)\n");
+            File.WriteAllText(Path.Combine(root, "2026", "01", "post.yml"),
+                "title: P\nslug: post\ndate: 2026-01-01 00:00:00\nalbums: [a]\n");
+            File.WriteAllText(Path.Combine(root, "2026", "01", "pic.jpg"), "jpg");
+
+            var scan = RepoScanner.Scan(root);
+            var deadLink = Assert.Single(scan.Images, i => i.IsMissing);
+
+            var pairing = AuditEngine.FindExtensionPairing(scan, deadLink.RelativePath);
+
+            Assert.Equal("2026/01/pic.jpg", pairing);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+public class SlugRulesTests
+{
+    [Theory]
+    [InlineData("dotnet-native-aot", true)]
+    [InlineData("a1-b2", true)]
+    [InlineData("Bad Slug", false)]
+    [InlineData("-leading", false)]
+    [InlineData("double--dash", false)]
+    [InlineData("", false)]
+    public void IsCompliant_follows_codewf_rules(string slug, bool expected) =>
+        Assert.Equal(expected, SlugRules.IsCompliant(slug));
+
+    [Fact]
+    public void FromTitle_generates_slug_from_cjk_and_latin()
+    {
+        Assert.Equal("net-aot-实战", SlugRules.FromTitle(".NET AOT 实战！"));
+        Assert.Equal("new-article-slug", SlugRules.FromTitle("！！！"));
+    }
+}
+
+public class ArticleScaffolderTests
+{
+    [Fact]
+    public void Create_writes_md_and_yml_skeleton()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-new").FullName;
+        try
+        {
+            var article = ArticleScaffolder.Create(root, new NewArticleSpec
+            {
+                Title = "依赖链排查记",
+                Date = new DateTime(2026, 10, 23, 20, 0, 0),
+                Description = "一篇排查记",
+                Outline = ["背景", "排查过程", "总结"],
+                Draft = true,
+            });
+
+            Assert.Equal("2026/10/依赖链排查记.md", article.MarkdownPath);
+            var md = File.ReadAllText(LinkStrategy.ToLocalFile(root, article.MarkdownPath));
+            Assert.Contains("# 依赖链排查记", md);
+            Assert.Contains("## 背景", md);
+            Assert.Contains("## 总结", md);
+
+            var meta = YamlSidecar.Load(LinkStrategy.ToLocalFile(root, article.MetaPath));
+            Assert.Equal("依赖链排查记", meta.Title);
+            Assert.True(meta.Draft);
+            Assert.Empty(meta.Albums);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                ArticleScaffolder.Create(root, new NewArticleSpec { Title = "依赖链排查记", Date = new DateTime(2026, 10, 23, 20, 0, 0) }));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+public class FixOpsTests
+{
+    [Fact]
+    public void Canonicalize_rewrites_cdn_urls_to_relative()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-fix").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2026", "01"));
+            var md = Path.Combine(root, "2026", "01", "post.md");
+            File.WriteAllText(md, "# T\n\n![a](https://img1.dotnet9.com/2026/01/a.png) ![b](2026/01/b.png)\n");
+            var meta = Path.Combine(root, "2026", "01", "post.yml");
+            File.WriteAllText(meta, "title: T\nslug: post\ndate: 2026-01-01 00:00:00\nauthor: \"\"\n");
+
+            var scan = RepoScanner.Scan(root);
+            var article = scan.FindArticle("2026/01/post.md")!;
+            var count = FixOps.CanonicalizeToRelative(root, article, new LinkOptions());
+
+            Assert.Equal(1, count);
+            Assert.Contains("![a](2026/01/a.png)", File.ReadAllText(md));
+            Assert.DoesNotContain("img1.dotnet9.com", File.ReadAllText(md));
+
+            FixOps.FillAuthor(root, article);
+            Assert.Equal("Dotnet9", YamlSidecar.Load(meta).Author);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
