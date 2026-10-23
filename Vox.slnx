@@ -1,7 +1,52 @@
 <Solution>
-  <Project Path="src/Vox.Core/Vox.Core.csproj" />
-  <Project Path="src/Vox.Git/Vox.Git.csproj" />
-  <Project Path="src/Vox.App/Vox.App.csproj" />
-  <Project Path="tests/Vox.Core.Tests/Vox.Core.Tests.csproj" />
-  <Project Path="tests/Vox.Git.Tests/Vox.Git.Tests.csproj" />
+  <!-- 工程分组：与磁盘目录一致 -->
+  <Folder Name="/src/">
+    <Project Path="src/Vox.App/Vox.App.csproj" />
+    <Project Path="src/Vox.Core/Vox.Core.csproj" />
+    <Project Path="src/Vox.Git/Vox.Git.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Vox.Core.Tests/Vox.Core.Tests.csproj" />
+    <Project Path="tests/Vox.Git.Tests/Vox.Git.Tests.csproj" />
+  </Folder>
+
+  <!-- 方案项：根目录配置与品牌资产 -->
+  <Folder Name="/solution items/">
+    <File Path="README.md" />
+    <File Path="LICENSE" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="NuGet.config" />
+    <File Path=".editorconfig" />
+    <File Path="build.cmd" />
+    <File Path="logo.svg" />
+  </Folder>
+
+  <!-- 设计文档 -->
+  <Folder Name="/docs/">
+    <File Path="docs/需求.md" />
+    <File Path="docs/架构.md" />
+    <File Path="docs/信息架构.md" />
+    <File Path="docs/决策记录.md" />
+    <File Path="docs/Assets.Dotnet9体检基线.md" />
+    <File Path="docs/技术验证Spike.md" />
+    <File Path="docs/软件操作手册.md" />
+  </Folder>
+
+  <!-- 构建与发布脚本 -->
+  <Folder Name="/scripts/">
+    <File Path="scripts/build.ps1" />
+    <File Path="scripts/publish.ps1" />
+    <File Path="scripts/clean.ps1" />
+  </Folder>
+
+  <!-- 设计原型 -->
+  <Folder Name="/design/">
+    <File Path="design/Vox软件原型.html" />
+    <File Path="design/assets/tokens.css" />
+    <File Path="design/assets/app.css" />
+    <File Path="design/assets/installer.css" />
+  </Folder>
 </Solution>
