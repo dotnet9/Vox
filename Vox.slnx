@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/Vox.Core/Vox.Core.csproj" />
+  <Project Path="src/Vox.Git/Vox.Git.csproj" />
+  <Project Path="src/Vox.App/Vox.App.csproj" />
+  <Project Path="tests/Vox.Core.Tests/Vox.Core.Tests.csproj" />
+  <Project Path="tests/Vox.Git.Tests/Vox.Git.Tests.csproj" />
+</Solution>
