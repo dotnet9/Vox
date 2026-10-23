@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-accent="violet">
+<head><meta charset="utf-8"><title>卸载 · macOS（拖入废纸篓） · Vox 原型</title>
+<link rel="icon" href="../logo.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+body.stage {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 34px 20px 26px;
+  background:
+    radial-gradient(1000px 480px at 20% -10%, rgba(124,92,255,.20), transparent 55%),
+    radial-gradient(900px 460px at 85% 0%, rgba(62,123,250,.14), transparent 55%),
+    #e8e6ee;
+}
+html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 20% -10%, rgba(124,92,255,.16), transparent 55%), radial-gradient(900px 460px at 85% 0%, rgba(62,123,250,.10), transparent 55%), #0d0d12; }
+
+.proto-bar { width: min(760px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
+.proto-bar .tools { display:flex; align-items:center; gap:8px; }
+.proto-bar .dots { display:flex; gap:6px; }
+.proto-bar .dot { width:13px; height:13px; border-radius:50%; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
+.proto-bar .dot[data-c="violet"]{background:#7c5cff}.proto-bar .dot[data-c="blue"]{background:#3e7bfa}
+.proto-bar .dot[data-c="emerald"]{background:#14a06a}.proto-bar .dot[data-c="orange"]{background:#ee7a1c}
+.proto-bar .dot.active{outline:2px solid var(--fg);outline-offset:1px}
+
+/* Finder「应用程序」窗口 */
+.fin { width: min(430px,100%); height: 300px; display:flex; flex-direction:column;
+  background: var(--surface); border-radius: 11px; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(0,0,0,.35), 0 0 0 .5px rgba(0,0,0,.25); }
+.fin-tb { height: 38px; flex:none; position:relative; display:flex; align-items:center;
+  background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.fin-tb .lights { display:flex; gap:8px; padding-left:13px; }
+.fin-tb .lights i { width:12px; height:12px; border-radius:50%; }
+.fin-tb .lights i:nth-child(1){background:#ff5f57;box-shadow:inset 0 0 0 .5px #e0443e}
+.fin-tb .lights i:nth-child(2){background:#febc2e;box-shadow:inset 0 0 0 .5px #d89b22}
+.fin-tb .lights i:nth-child(3){background:#28c840;box-shadow:inset 0 0 0 .5px #1fa833}
+.fin-tb .t { position:absolute; left:50%; transform:translateX(-50%); font:600 12px var(--font-ui); color:var(--muted); }
+.fin-grid { flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:16px 18px; align-content:start; }
+.fapp { display:flex; flex-direction:column; align-items:center; gap:5px; padding:8px 2px; border-radius:9px; cursor:default; }
+.fapp.sel { background: var(--accent-soft); outline: 1.5px solid var(--accent); }
+.fapp .ic { width:42px; height:42px; border-radius:11px; display:grid; place-items:center; font-size:19px; }
+.fapp span { font-size:9.5px; color:var(--muted); max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fapp.trashing { animation: shake .4s var(--motion), fade .4s .35s var(--motion) forwards; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+@keyframes fade { to { opacity:.25; transform: scale(.9); } }
+.fin-tip { padding: 0 18px 12px; color: var(--faint); font-size:10px; }
+
+/* 右侧说明 */
+.cols { display:flex; gap:14px; width:min(760px,100%); align-items:flex-start; }
+.side { flex:1; background: var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 16px; }
+.side b.h { font-size:12px; display:block; margin-bottom:6px; }
+.side p { margin:5px 0; color:var(--muted); font-size:10.5px; line-height:1.85; }
+.side .mono { font-size:10px; }
+.term { margin-top:8px; padding:8px 11px; background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+  font:400 10px/1.8 var(--font-mono); color:var(--muted); white-space:pre-wrap; }
+
+/* 废纸篓 Dock */
+.dock { margin-top:16px; display:flex; align-items:flex-end; gap:10px; padding:8px 12px;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent); border:1px solid var(--line);
+  border-radius:16px; backdrop-filter: blur(6px); }
+.dock .d { width:40px; height:40px; border-radius:10px; display:grid; place-items:center; font-size:20px;
+  background: linear-gradient(180deg,#d7d9e0,#aeb2bd); }
+html[data-theme="dark"] .dock .d { background: linear-gradient(180deg,#3a3a41,#26262b); }
+.dock .d.trash { cursor:pointer; transition: transform .15s var(--motion); }
+.dock .d.trash:hover { transform: translateY(-4px) scale(1.06); }
+.dock .d.trash.hot { transform: translateY(-6px) scale(1.1); outline: 2.5px solid var(--danger); }
+</style>
+</head>
+<body class="stage">
+<div class="proto-bar">
+  <span class="left"><b>Vox 卸载原型 · macOS</b>　常规方式：拖入废纸篓——Vox 不内置卸载器（符合平台惯例）</span>
+  <span class="tools">
+    <button class="btn sm ghost" id="btnTheme">暗色</button>
+    <span class="dots">
+      <i class="dot active" data-c="violet"></i><i class="dot" data-c="blue"></i>
+      <i class="dot" data-c="emerald"></i><i class="dot" data-c="orange"></i>
+    </span>
+  </span>
+</div>
+
+<div class="cols">
+  <div>
+    <div class="fin">
+      <div class="fin-tb"><span class="lights"><i></i><i></i><i></i></span><span class="t">应用程序</span></div>
+      <div class="fin-grid">
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#22c1dc,#0e7490)">🧭</div><span>Safari</span></div>
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#a7abb5,#6e7480)">✉️</div><span>邮件</span></div>
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#31d158,#1a9e3c)">💬</div><span>信息</span></div>
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#ffd60a,#f0a30a)">📝</div><span>备忘录</span></div>
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#0a84ff,#0060df)">🎵</div><span>音乐</span></div>
+        <div class="fapp sel" id="voxApp"><div class="ic"><img src="../logo.svg" style="width:34px;height:34px;border-radius:9px" alt=""></div><span>Vox</span></div>
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#8e8e93,#48484a)">🖥️</div><span>终端</span></div>
+        <div class="fapp"><div class="ic" style="background:linear-gradient(135deg,#5e5ce6,#3634a3)">🧮</div><span>计算器</span></div>
+      </div>
+      <div class="fin-tip">☝ 选中 Vox，把它拖到底部 Dock 的废纸篓（或点我试一下：<a href="javascript:void(0)" id="demoBtn" style="font-weight:600">演示</a>）</div>
+    </div>
+    <div class="dock"><div class="d">🗂️</div><div class="d">🌐</div><div class="d">📁</div><div class="d trash" id="trash">🗑️</div></div>
+  </div>
+
+  <div class="side">
+    <b class="h">拖入废纸篓 = 卸载完成</b>
+    <p>这是 macOS 的常规卸载方式，Vox 不内置任何卸载程序。清空废纸篓后应用即被移除。</p>
+    <b class="h" style="margin-top:10px">会留下什么（均为用户数据，可选清理）</b>
+    <p>• 内容仓库（git clone 的目录）——<b>不受任何影响</b><br>
+       • <span class="mono">~/Library/Application Support/Vox</span> —— 文章索引、缩略图缓存<br>
+       • <span class="mono">~/Library/Caches/com.codewf.vox</span> · <span class="mono">…/Preferences/com.codewf.vox.plist</span><br>
+       • 钥匙串中的 GitHub PAT（保留则重装免配置）</p>
+    <b class="h" style="margin-top:10px">如需彻底清理（可选）</b>
+    <div class="term">rm -rf ~/Library/"Application Support"/Vox \
+  ~/Library/Caches/com.codewf.vox \
+  ~/Library/Preferences/com.codewf.vox.plist
+security delete-generic-password -s com.codewf.vox   # 钥匙串 PAT</div>
+  </div>
+</div>
+
+<script>
+const vox=document.getElementById('voxApp'),trash=document.getElementById('trash');
+let done=false;
+function doTrash(){ if(done)return; done=true;
+  trash.classList.add('hot'); vox.classList.add('trashing');
+  setTimeout(()=>{ trash.classList.remove('hot');
+    vox.querySelector('span').textContent='（已在废纸篓）'; },450);
+}
+/* 拖拽：选中 Vox 后移到废纸篓 */
+vox.addEventListener('pointerdown',()=>{ if(!done) vox.style.cursor='grabbing'; });
+vox.addEventListener('pointerenter',()=>{ if(!done) trash.classList.add('hot'); });
+vox.addEventListener('pointerleave',()=>{ if(!done) trash.classList.remove('hot'); });
+vox.addEventListener('pointerup',e=>{ if(done)return; doTrash(); });
+document.getElementById('demoBtn').onclick=doTrash;
+trash.onclick=()=>{ if(done)return; doTrash(); };
+document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
+document.querySelectorAll('.proto-bar .dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;document.querySelectorAll('.proto-bar .dot').forEach(x=>x.classList.toggle('active',x===d));});
+</script>
+</body>
+</html>

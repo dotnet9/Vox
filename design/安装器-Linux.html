@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-accent="violet">
+<head><meta charset="utf-8"><title>安装器 · Linux（软件中心） · Vox 原型</title>
+<link rel="icon" href="../logo.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+body.stage {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 34px 20px 26px;
+  background:
+    radial-gradient(1000px 480px at 25% -10%, rgba(124,92,255,.18), transparent 55%),
+    radial-gradient(900px 460px at 80% 0%, rgba(20,160,106,.10), transparent 55%),
+    #e6e4ec;
+}
+html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 25% -10%, rgba(124,92,255,.14), transparent 55%), radial-gradient(900px 460px at 80% 0%, rgba(20,160,106,.08), transparent 55%), #0d0d12; }
+
+.proto-bar { width: min(580px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
+.proto-bar .tools { display:flex; align-items:center; gap:8px; }
+.proto-bar .dots { display:flex; gap:6px; }
+.proto-bar .dot { width:13px; height:13px; border-radius:50%; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
+.proto-bar .dot[data-c="violet"]{background:#7c5cff}.proto-bar .dot[data-c="blue"]{background:#3e7bfa}
+.proto-bar .dot[data-c="emerald"]{background:#14a06a}.proto-bar .dot[data-c="orange"]{background:#ee7a1c}
+.proto-bar .dot.active{outline:2px solid var(--fg);outline-offset:1px}
+
+/* GNOME Software 窗口 */
+.gs { width: min(580px,100%); height: 430px; display:flex; flex-direction:column;
+  background: var(--surface); border-radius: 13px; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(0,0,0,.32), 0 0 0 .5px rgba(0,0,0,.22); }
+.gshb { height: 46px; flex:none; display:flex; align-items:center; gap:10px; padding: 0 12px;
+  background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.gshb .btn-r { width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
+  background: var(--surface-3); color: var(--muted); font-size:13px; cursor:default; }
+.gshb .t { font-weight: 700; font-size: 13px; }
+.gshb .spacer { flex:1; }
+.gshb .install {
+  border:0; border-radius: 99px; padding: 6px 18px; cursor: pointer;
+  background: var(--accent); color: var(--on-accent); font: 600 12px var(--font-ui);
+  transition: all var(--t-fast) var(--motion); position: relative; overflow: hidden;
+}
+.gshb .install:hover { background: var(--accent-deep); }
+.gshb .install .bar { position:absolute; left:0; top:0; bottom:0; width:0%;
+  background: rgba(255,255,255,.30); transition: width .3s var(--motion); }
+.gs-body { flex:1; overflow-y: auto; padding: 16px 18px 14px; }
+.gapp { display:flex; gap:14px; align-items:center; margin-bottom:12px; }
+.gapp img { width: 62px; height: 62px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+.gapp h2 { margin:0; font-size: 15.5px; font-weight: 700; letter-spacing: -.2px; }
+.gapp .origin { color: var(--faint); font-size: 11px; margin-top: 2px; }
+.gapp .meta { color: var(--muted); font-size: 10.5px; margin-top: 4px; display:flex; gap:10px; align-items:center; }
+.stars { color: #f0a30a; letter-spacing: 1px; font-size: 10px; }
+.banner { height: 110px; border-radius: 10px; margin-bottom: 12px;
+  background: linear-gradient(120deg, #4338ca, #6d28d9 60%, #9d5cff);
+  display:flex; align-items:center; gap:16px; padding: 0 22px; color:#fff; overflow:hidden; position:relative; }
+.banner img { width: 56px; height: 56px; border-radius: 14px; box-shadow: 0 8px 20px rgba(0,0,0,.3); }
+.banner b { font-size: 16px; letter-spacing: -.2px; display:block; }
+.banner p { margin:2px 0 0; font-size: 11px; opacity:.85; }
+.gdesc { color: var(--muted); font-size: 11.5px; line-height: 1.9; margin: 0 0 12px; }
+.gdet { display:grid; grid-template-columns:1fr 1fr; gap: 6px 18px; }
+.gdet .kv { border-bottom: 1px dashed var(--line); }
+.gsec { font-weight: 700; font-size: 12px; margin: 14px 0 6px; }
+
+/* 窗口下方说明 */
+.alts { width: min(580px,100%); margin-top: 14px; display:grid; gap:10px; }
+.alt { background: var(--surface); border:1px solid var(--line); border-radius:11px; padding:10px 14px; }
+.alt b { font-size:11.5px; display:block; margin-bottom:4px; }
+.alt .term { margin-top:6px; padding:8px 11px; background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+  font:400 10px/1.8 var(--font-mono); color:var(--muted); white-space:pre-wrap; }
+.alt p { margin:3px 0 0; color:var(--muted); font-size:10.5px; }
+</style>
+</head>
+<body class="stage">
+<div class="proto-bar">
+  <span class="left"><b>Vox 安装原型 · Linux</b>　常规方式：软件中心（GNOME Software 风）——.deb 渠道，不经应用商店的第三方源</span>
+  <span class="tools">
+    <button class="btn sm ghost" id="btnTheme">暗色</button>
+    <span class="dots">
+      <i class="dot active" data-c="violet"></i><i class="dot" data-c="blue"></i>
+      <i class="dot" data-c="emerald"></i><i class="dot" data-c="orange"></i>
+    </span>
+  </span>
+</div>
+
+<div class="gs">
+  <div class="gshb">
+    <span class="btn-r">←</span><span class="t">Vox</span>
+    <span class="spacer"></span>
+    <button class="install" id="btnInstall"><span class="bar" id="pbar"></span><span id="btnTxt">安装</span></button>
+    <span class="btn-r">⋯</span>
+  </div>
+  <div class="gs-body">
+    <div class="gapp">
+      <img src="../logo.svg" alt="">
+      <div>
+        <h2>Vox · 维声</h2>
+        <div class="origin">CodeWF · (dotnet9/Vox · GitHub Releases .deb 源)</div>
+        <div class="meta"><span class="stars">★★★★★</span> 5.0 · 12 评价<span>｜</span>内容仓库治理台</div>
+      </div>
+    </div>
+    <div class="banner">
+      <img src="../logo.svg" alt="">
+      <div><b>一处落笔，处处有声</b><p>写作、配图、元数据、体检、同步——Markdown 内容仓库的桌面闭环</p></div>
+    </div>
+    <p class="gdesc">面向本地 Markdown 内容仓库（如 Assets.Dotnet9）的桌面应用：图片拖入即入库、元数据表单化、规范体检与批量修复、内置 git 一键提交推送。自带内置 git 组件，无需安装 git。</p>
+    <div class="gsec">详细信息</div>
+    <div class="gdet">
+      <div class="kv"><span style="color:var(--faint);font-size:10.5px">版本</span><b class="mono" style="font-size:10.5px">0.1.0-preview.1</b></div>
+      <div class="kv"><span style="color:var(--faint);font-size:10.5px">大小</span><b class="mono" style="font-size:10.5px">231 MB</b></div>
+      <div class="kv"><span style="color:var(--faint);font-size:10.5px">来源</span><b class="mono" style="font-size:10.5px">github.com/dotnet9/Vox</b></div>
+      <div class="kv"><span style="color:var(--faint);font-size:10.5px">许可证</span><b class="mono" style="font-size:10.5px">MIT</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="alts">
+  <div class="alt">
+    <b>命令行渠道（同一批安装包）</b>
+    <div class="term"># Debian / Ubuntu（.deb，安装后同样出现在软件中心）
+sudo apt install ./vox_0.1.0-preview.1_amd64.deb
+# Fedora / RHEL（.rpm）
+sudo dnf install ./vox-0.1.0-preview.1.x86_64.rpm
+# 通用包（免安装）
+chmod +x Vox-0.1.0-preview.1-linux-x64.AppImage && ./Vox-*.AppImage</div>
+    <p>更新由应用内「检查更新」完成：从 GitHub Releases 下载替换，不经系统应用商店。</p>
+  </div>
+</div>
+
+<script>
+const btn=document.getElementById('btnInstall'),txt=document.getElementById('btnTxt'),bar=document.getElementById('pbar');
+let stage=0;
+btn.onclick=()=>{
+  if(stage===0){
+    stage=1;txt.textContent='安装中…';
+    let p=0;const t=setInterval(()=>{p=Math.min(100,p+7+Math.random()*9);bar.style.width=p+'%';
+      if(p>=100){clearInterval(t);stage=2;bar.style.width='0%';txt.textContent='打开';}},240);
+  }else if(stage===2){ window.location.href='Vox软件原型.html'; }
+};
+document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
+document.querySelectorAll('.proto-bar .dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;document.querySelectorAll('.proto-bar .dot').forEach(x=>x.classList.toggle('active',x===d));});
+</script>
+</body>
+</html>

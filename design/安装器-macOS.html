@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-accent="violet">
+<head><meta charset="utf-8"><title>安装器 · macOS（DMG） · Vox 原型</title>
+<link rel="icon" href="../logo.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+body.stage {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 34px 20px 26px;
+  background:
+    radial-gradient(1000px 480px at 20% -10%, rgba(124,92,255,.20), transparent 55%),
+    radial-gradient(900px 460px at 85% 0%, rgba(62,123,250,.14), transparent 55%),
+    #e8e6ee;
+}
+[data-theme="dark"] body.stage, body.stage:has(html[data-theme="dark"]) { }
+html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 20% -10%, rgba(124,92,255,.16), transparent 55%), radial-gradient(900px 460px at 85% 0%, rgba(62,123,250,.10), transparent 55%), #0d0d12; }
+
+.proto-bar { width: min(620px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
+.proto-bar .tools { display:flex; align-items:center; gap:8px; }
+.proto-bar .dots { display:flex; gap:6px; }
+.proto-bar .dot { width:13px; height:13px; border-radius:50%; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
+.proto-bar .dot[data-c="violet"]{background:#7c5cff}.proto-bar .dot[data-c="blue"]{background:#3e7bfa}
+.proto-bar .dot[data-c="emerald"]{background:#14a06a}.proto-bar .dot[data-c="orange"]{background:#ee7a1c}
+.proto-bar .dot.active{outline:2px solid var(--fg);outline-offset:1px}
+
+/* DMG 窗口（Finder 风格） */
+.dmg { width: min(600px,100%); height: 330px; display:flex; flex-direction:column;
+  background: var(--surface); border-radius: 11px; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(0,0,0,.35), 0 0 0 .5px rgba(0,0,0,.25); }
+.dmg-tb { height: 38px; flex:none; position: relative; display:flex; align-items:center;
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent); border-bottom: 1px solid var(--line); }
+.dmg-tb .lights { display:flex; gap:8px; padding-left:13px; }
+.dmg-tb .lights i { width:12px; height:12px; border-radius:50%; }
+.dmg-tb .lights i:nth-child(1){background:#ff5f57;box-shadow:inset 0 0 0 .5px #e0443e}
+.dmg-tb .lights i:nth-child(2){background:#febc2e;box-shadow:inset 0 0 0 .5px #d89b22}
+.dmg-tb .lights i:nth-child(3){background:#28c840;box-shadow:inset 0 0 0 .5px #1fa833}
+.dmg-tb .t { position:absolute; left:50%; transform:translateX(-50%); font:600 12.5px var(--font-ui); color: var(--muted); }
+.dmg-body { flex:1; position:relative; display:flex; align-items:center; justify-content:center; gap:56px;
+  background-image: radial-gradient(color-mix(in srgb, var(--fg) 7%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px; }
+.ditem { display:flex; flex-direction:column; align-items:center; gap:8px; user-select:none; }
+.ditem .ico { width:76px; height:76px; border-radius:18px; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+.ditem.appl .ico { position:relative; width:78px; height:70px; border-radius:0; box-shadow:none;
+  background:linear-gradient(180deg,#6cbcf7,#2b8fe0); border-radius:8px 8px 10px 10px; }
+.ditem.appl .ico::before { content:""; position:absolute; top:-7px; left:12px; width:54px; height:12px;
+  background:#8ecdf9; border-radius:5px 5px 0 0; }
+.ditem span { font: 500 11.5px var(--font-ui); color: var(--muted); }
+.ditem .drag-ok { display:none; }
+.ditem.dragging .ico { opacity:.55; transform:scale(.94); }
+.ditem.target .ico { outline: 3px solid var(--accent); outline-offset: 3px; border-radius:12px; }
+.darrow { font-size:30px; color: var(--faint); user-select:none; }
+.dmg-cap { position:absolute; bottom:14px; left:0; right:0; text-align:center;
+  font: 500 11.5px var(--font-ui); color: var(--muted); }
+.dmg-cap.done { color: var(--ok); font-weight:600; }
+
+/* 说明区 */
+.notes { width: min(600px,100%); display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.note-c { background: var(--surface); border:1px solid var(--line); border-radius:11px; padding:11px 14px; }
+.note-c b { font-size:11.5px; display:block; margin-bottom:4px; }
+.note-c p { margin:0; color:var(--muted); font-size:10.5px; line-height:1.8; }
+.note-c .mono { font-size:10px; }
+</style>
+</head>
+<body class="stage">
+<div class="proto-bar">
+  <span class="left"><b>Vox 安装原型 · macOS</b>　常规方式：DMG 拖拽安装（品牌位=DMG 背景图，符合平台惯例）</span>
+  <span class="tools">
+    <button class="btn sm ghost" id="btnTheme">暗色</button>
+    <span class="dots">
+      <i class="dot active" data-c="violet"></i><i class="dot" data-c="blue"></i>
+      <i class="dot" data-c="emerald"></i><i class="dot" data-c="orange"></i>
+    </span>
+  </span>
+</div>
+
+<div class="dmg">
+  <div class="dmg-tb"><span class="lights"><i></i><i></i><i></i></span><span class="t">Vox</span></div>
+  <div class="dmg-body" id="dmgBody">
+    <div class="ditem" id="voxIcon"><img class="ico" src="../logo.svg" alt="Vox" draggable="false"><span>Vox</span></div>
+    <div class="darrow">→</div>
+    <div class="ditem appl" id="appFolder"><div class="ico"></div><span>Applications</span></div>
+    <div class="dmg-cap" id="dmgCap">将「Vox」拖入右侧「Applications」文件夹即可安装（试着拖一下）</div>
+  </div>
+</div>
+
+<div class="notes">
+  <div class="note-c"><b>📦 产物与分发</b><p>Vox_0.1.0-preview.1_universal.dmg · 84 MB<br>下载自 GitHub Releases，不经 App Store。DMG 背景为品牌图（Vox 唯一品牌位）。</p></div>
+  <div class="note-c"><b>✓ 首次启动（签名 + 公证）</b><p>应用已 Developer ID 签名并通过公证，双击即开。若被浏览器标记，右键 →「打开」一次即可。推送 PAT 存入钥匙串。</p></div>
+</div>
+
+<script>
+/* DMG 拖拽演示 */
+const vox=document.getElementById('voxIcon'),folder=document.getElementById('appFolder'),
+      cap=document.getElementById('dmgCap'),body=document.getElementById('dmgBody');
+let drag=null;
+vox.addEventListener('pointerdown',e=>{
+  if(cap.classList.contains('done'))return;
+  drag=vox;vox.classList.add('dragging');vox.setPointerCapture(e.pointerId);
+});
+vox.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const r=body.getBoundingClientRect();
+  vox.style.position='absolute';vox.style.zIndex=5;
+  vox.style.left=(e.clientX-r.left-38)+'px';vox.style.top=(e.clientY-r.top-52)+'px';
+  const f=folder.getBoundingClientRect();
+  folder.classList.toggle('target',e.clientX>f.left&&e.clientX<f.right&&e.clientY>f.top&&e.clientY<f.bottom);
+});
+vox.addEventListener('pointerup',e=>{
+  if(!drag)return;
+  folder.classList.remove('target');vox.classList.remove('dragging');
+  const f=folder.getBoundingClientRect();
+  if(e.clientX>f.left&&e.clientX<f.right&&e.clientY>f.top&&e.clientY<f.bottom){
+    vox.style.display='none';
+    cap.innerHTML='✓ 已拷贝到「Applications」· <a href="Vox软件原型.html"><b>▶ 启动 Vox</b></a>';
+    cap.classList.add('done');
+  }else{
+    vox.style.position='';vox.style.left='';vox.style.top='';
+  }
+  drag=null;
+});
+document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
+document.querySelectorAll('.proto-bar .dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;document.querySelectorAll('.proto-bar .dot').forEach(x=>x.classList.toggle('active',x===d));});
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+/* ============================================================
+   Vox 安装器 / 卸载器原型共享样式（三平台全 Arc 品牌风）
+   分发只走 GitHub Releases，安装器为 Vox 自绘品牌向导。
+   窗体规格：460 × 320（紧凑型，2026-10-23 按评审意见缩小一半）
+   ============================================================ */
+
+body.stage {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 30px 20px 24px;
+  background:
+    radial-gradient(900px 420px at 50% -10%, var(--accent-soft), transparent 60%),
+    var(--bg);
+}
+
+/* 评审工具条 */
+.proto-bar {
+  width: min(460px, 100%);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; color: var(--muted); font-size: 10.5px;
+}
+.proto-bar .left b { color: var(--fg); font-weight: 600; }
+.proto-bar .tools { display: flex; align-items: center; gap: 8px; }
+.proto-bar .dots { display: flex; gap: 6px; }
+.proto-bar .dot { width: 13px; height: 13px; border-radius: 50%; cursor: pointer; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.proto-bar .dot[data-c="violet"]{ background:#7c5cff; } .proto-bar .dot[data-c="blue"]{ background:#3e7bfa; }
+.proto-bar .dot[data-c="emerald"]{ background:#14a06a; } .proto-bar .dot[data-c="orange"]{ background:#ee7a1c; }
+.proto-bar .dot.active { outline: 2px solid var(--fg); outline-offset: 1px; }
+
+/* 应用窗口（紧凑） */
+.window {
+  width: min(460px, 100%); height: 320px;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow-win);
+  overflow: hidden;
+}
+.titlebar {
+  height: 38px; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  -webkit-user-select: none; user-select: none;
+}
+.titlebar img { width: 17px; height: 17px; border-radius: 5px; }
+.titlebar .t { font: 600 11.5px var(--font-ui); }
+.titlebar .sub { color: var(--faint); font-size: 10px; margin-left: 2px; padding-left: 10px; border-left: 1px solid var(--line); }
+.titlebar .spacer { flex: 1; }
+
+/* 窗口控制钮：Windows 样式（最小化 / 最大化 / 关闭） */
+.wc { display: flex; align-self: stretch; align-items: stretch; margin: 0 -12px 0 0; }
+.wc i { width: 36px; display: grid; place-items: center; color: var(--muted); font-style: normal;
+  transition: background var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
+.wc i:hover { background: var(--surface-3); color: var(--fg); }
+.wc i.close:hover { background: #e81123; color: #fff; }
+.wc svg { width: 10px; height: 10px; display: block; }
+
+.win-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* 步骤栏（顶部横条，适配窄窗） */
+.rail {
+  flex: none; display: flex; align-items: center; gap: 3px;
+  padding: 7px 12px; border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  overflow-x: auto; scrollbar-width: none;
+}
+.rail::-webkit-scrollbar { display: none; }
+.rail .step-i {
+  display: flex; align-items: center; gap: 5px; flex: none;
+  padding: 2px 7px; border-radius: 7px;
+  color: var(--faint); font-size: 10px; white-space: nowrap;
+  transition: all var(--t-fast) var(--motion);
+}
+.rail .step-i .n {
+  width: 14px; height: 14px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--line-strong);
+  font: 600 8.5px var(--font-mono);
+}
+.rail .step-i.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail .step-i.active .n { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.rail .step-i.done { color: var(--muted); }
+.rail .step-i.done .n { border-color: var(--ok); background: var(--ok); color: #fff; }
+.rail .foot-note { display: none; }
+
+/* 内容区与步骤 */
+.pane { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 14px 18px 8px; overflow: hidden; }
+.steps { flex: 1; position: relative; min-height: 0; }
+.step { position: absolute; inset: 0; overflow-y: auto; padding-right: 6px; display: none; }
+.step.active { display: block; animation: stepin var(--t-med) var(--motion); }
+@keyframes stepin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.step h1 { font-size: 14.5px; font-weight: 650; letter-spacing: -.2px; margin: 2px 0 4px; }
+.step h2 { font-size: 12.5px; font-weight: 600; margin: 10px 0 4px; }
+.step p.lead { color: var(--muted); margin: 0 0 10px; font-size: 11px; }
+.step p { color: var(--muted); margin: 5px 0; font-size: 11px; }
+
+.win-foot {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-top: 1px solid var(--line); background: var(--surface-2);
+}
+.win-foot .hint { color: var(--faint); font-size: 9.5px; }
+.win-foot .spacer { flex: 1; }
+
+/* 常用部件（紧凑尺度） */
+.field { margin: 9px 0; }
+.field > label { display: block; font-weight: 600; font-size: 11px; margin-bottom: 4px; }
+.field .desc { color: var(--faint); font-size: 10px; margin-top: 3px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.grow { flex: 1; }
+
+.opt {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px;
+  margin: 5px 0; cursor: pointer; transition: all var(--t-fast) var(--motion);
+}
+.opt:hover { border-color: var(--line-strong); background: var(--surface-2); }
+.opt input { margin: 2px 0 0; accent-color: var(--accent); }
+.opt b { font-size: 11px; font-weight: 600; display: block; }
+.opt .d { color: var(--muted); font-size: 10px; }
+
+.note {
+  display: flex; gap: 8px; padding: 7px 10px;
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 8px; background: var(--accent-soft);
+  color: var(--muted); font-size: 10.5px; margin: 8px 0; line-height: 1.7;
+}
+.note.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+
+.lic {
+  height: 104px; overflow-y: auto; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface-2); font-size: 10px; color: var(--muted); line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.progress { height: 7px; border-radius: 99px; background: var(--surface-3); overflow: hidden; margin: 10px 0 6px; }
+.progress > i { display: block; height: 100%; width: 0%; border-radius: 99px; background: var(--accent); transition: width .5s var(--motion); }
+
+.term {
+  height: 92px; overflow-y: auto; padding: 8px 10px;
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+  font: 400 10px/1.8 var(--font-mono); color: var(--muted);
+}
+.term .ok { color: var(--ok); } .term .hl { color: var(--fg); }
+
+.hero {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 14px 0 2px;
+}
+.hero img { width: 52px; height: 52px; border-radius: 14px; box-shadow: var(--shadow-pop); }
+.hero h1 { margin: 10px 0 2px !important; }
+.hero .ver { color: var(--faint); font-size: 10px; font-family: var(--font-mono); }
+
+.result { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 8px; }
+.result .ico {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ok-soft); color: var(--ok); font-size: 19px; margin-bottom: 8px;
+}
+.result .ico.warn { background: var(--warn-soft); color: var(--warn); }

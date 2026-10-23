@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-accent="violet">
+<head><meta charset="utf-8"><title>卸载器 · Windows · Vox 原型</title>
+<link rel="icon" href="../logo.svg">
+<link rel="stylesheet" href="assets/tokens.css"><link rel="stylesheet" href="assets/installer.css">
+</head>
+<body class="stage">
+<div class="proto-bar">
+  <span class="left"><b>Vox 卸载器原型 · Windows</b>　从「设置 → 应用」或开始菜单程序组进入</span>
+  <span class="tools">
+    <button class="btn sm ghost" id="btnTheme">暗色</button>
+    <span class="dots">
+      <i class="dot active" data-c="violet"></i><i class="dot" data-c="blue"></i>
+      <i class="dot" data-c="emerald"></i><i class="dot" data-c="orange"></i>
+    </span>
+  </span>
+</div>
+
+<div class="window">
+  <div class="titlebar">
+    <img src="../logo.svg" alt=""><span class="t">Vox 卸载向导</span><span class="sub">维声 · 内容仓库治理台</span>
+    <span class="spacer"></span>
+    <span class="wc"><i><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></i><i><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></i><i class="close"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></i></span>
+  </div>
+  <div class="win-body">
+    <aside class="rail">
+      <div class="step-i active"><span class="n">1</span>概览</div>
+      <div class="step-i"><span class="n">2</span>卸载选项</div>
+      <div class="step-i"><span class="n">3</span>卸载</div>
+      <div class="step-i"><span class="n">4</span>完成</div>
+      <div class="foot-note">Vox 0.1.0-preview.1<br>win-x64<br>卸载不影响内容仓库</div>
+    </aside>
+    <main class="pane"><div class="steps">
+
+      <section class="step active">
+        <div class="hero">
+          <img src="../logo.svg" alt="Vox">
+          <h1>准备卸载 Vox</h1>
+          <div class="ver">0.1.0-preview.1 · win-x64 · 安装于 2026-10-23</div>
+        </div>
+        <div class="field"><label>安装信息</label>
+          <div class="opt" style="cursor:default"><span class="grow"><b class="mono" style="font-weight:500">C:\Users\liu64\AppData\Local\Programs\Vox</b><span class="d">安装位置 · 占用 224 MB（含内置 git 组件 MinGit）</span></span></div>
+        </div>
+        <div class="note warn">卸载只移除程序本身。<b>你的内容仓库（Assets.Dotnet9）不受任何影响</b>——它保存在仓库自己的位置。</div>
+      </section>
+
+      <section class="step">
+        <h1>卸载选项</h1>
+        <p class="lead">选择卸载时如何处理用户数据。</p>
+        <label class="opt"><input type="radio" name="data" checked><span><b>保留用户数据（推荐）</b><span class="d">凭据（系统凭据管理器中的 GitHub PAT）、设置与图片缓存原样保留，重装后一切如初</span></span></label>
+        <label class="opt"><input type="radio" name="data"><span><b>移除全部用户数据</b><span class="d">同时删除 %APPDATA%\Vox（设置与缓存）并清除凭据管理器中的 Vox 条目，需在下方二次确认</span></span></label>
+        <div class="field" id="confirmBox" style="display:none">
+          <label class="opt"><input type="checkbox" id="confirmDel"><span><b>我确认删除全部用户数据</b><span class="d">包括已保存的 GitHub 访问令牌</span></span></label>
+        </div>
+        <label class="opt"><input type="checkbox" checked><span><b>卸载后打开内容仓库所在文件夹</b><span class="d">方便确认仓库文件完好</span></span></label>
+      </section>
+
+      <section class="step">
+        <h1>正在卸载</h1>
+        <p class="lead">请稍候…</p>
+        <div class="progress"><i id="bar"></i></div>
+        <div class="term" id="term"><div>准备卸载…</div></div>
+      </section>
+
+      <section class="step">
+        <div class="result">
+          <div class="ico">✓</div>
+          <h1>已卸载 Vox</h1>
+          <p>程序文件已移除，内容仓库完好无损。</p>
+        </div>
+        <div class="note">如果将来重装：从 GitHub Releases 下载安装包，用户数据仍在，无需重新配置。</div>
+      </section>
+
+    </div></main>
+  </div>
+  <footer class="win-foot">
+    <span class="hint">删除前已自动创建还原点描述：Vox 0.1.0-preview.1</span><span class="spacer"></span>
+    <button class="btn" id="btnPrev" style="visibility:hidden">上一步</button>
+    <button class="btn danger" id="btnNext">卸载</button>
+  </footer>
+</div>
+
+<script>
+const steps=[...document.querySelectorAll('.step')],rail=[...document.querySelectorAll('.rail .step-i')];
+let cur=0,timer=null;
+const nextLabel=['卸载','卸载','正在卸载…','完成'];
+function go(i){cur=Math.max(0,Math.min(i,steps.length-1));
+  steps.forEach((s,k)=>s.classList.toggle('active',k===cur));
+  rail.forEach((r,k)=>{r.classList.toggle('active',k===cur);r.classList.toggle('done',k<cur);});
+  document.getElementById('btnPrev').style.visibility=cur===0?'hidden':'visible';
+  document.getElementById('btnNext').textContent=nextLabel[cur];
+  if(cur===2)run();
+}
+function run(){
+  const bar=document.getElementById('bar'),term=document.getElementById('term');
+  bar.style.width='0%';term.innerHTML='<div>准备卸载…</div>';clearInterval(timer);
+  const keep=document.querySelector('input[name="data"]:checked').value===''||true;
+  const keepData=!document.getElementById('confirmDel').checked;
+  const lines=['移除 .md 文件关联…','删除开始菜单与桌面快捷方式…']
+    .concat(keepData?['保留用户数据（%APPDATA%\\Vox 与系统凭据）…']:['清除用户数据与凭据管理器条目…'])
+    .concat(['移除程序文件与内置 git 组件 MinGit…']);
+  let p=0;timer=setInterval(()=>{p=Math.min(100,p+10+Math.random()*12);bar.style.width=p+'%';
+    const i=Math.min(lines.length-1,Math.floor(p/100*lines.length));
+    if(!term.querySelector('[data-i="'+i+'"]')){const d=document.createElement('div');d.dataset.i=i;d.innerHTML=lines[i]+' <span class="ok">✓</span>';term.appendChild(d);term.scrollTop=term.scrollHeight;}
+    if(p>=100){clearInterval(timer);setTimeout(()=>go(3),450);}
+  },300);
+}
+document.querySelectorAll('input[name="data"]').forEach(r=>r.onchange=()=>{
+  document.getElementById('confirmBox').style.display=r.checked&&r.parentElement.textContent.includes('移除全部')?'block':'none';
+  updateBtn();
+});
+function updateBtn(){
+  const wipe=document.getElementById('confirmBox').style.display==='block';
+  document.getElementById('btnNext').disabled=wipe&&!document.getElementById('confirmDel').checked;
+}
+document.getElementById('confirmDel').onchange=updateBtn;
+document.getElementById('btnPrev').onclick=()=>go(cur-1);
+document.getElementById('btnNext').onclick=()=>go(cur+1);
+document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
+document.querySelectorAll('.proto-bar .dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;document.querySelectorAll('.proto-bar .dot').forEach(x=>x.classList.toggle('active',x===d));});
+</script>
+</body>
+</html>
