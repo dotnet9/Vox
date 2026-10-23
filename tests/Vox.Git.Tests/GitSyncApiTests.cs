@@ -115,6 +115,65 @@ public class GitSyncApiTests
     }
 
     [Fact]
+    public void Discard_restores_modified_and_deleted_files()
+    {
+        var (root, svc) = CreateRepo();
+        try
+        {
+            var mdPath = Path.Combine(root, "2026", "01", "a.md");
+            File.AppendAllText(mdPath, "edited\n");
+            svc.Discard("2026/01/a.md");
+            Assert.Equal("line1\nline2\n", File.ReadAllText(mdPath).Replace("\r\n", "\n"));
+
+            File.Delete(mdPath);
+            svc.Discard("2026/01/a.md");
+            Assert.True(File.Exists(mdPath));
+            Assert.Equal("line1\nline2\n", File.ReadAllText(mdPath).Replace("\r\n", "\n"));
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Fact]
+    public void Discard_removes_added_file()
+    {
+        var (root, svc) = CreateRepo();
+        try
+        {
+            var png = Path.Combine(root, "2026", "01", "new.png");
+            File.WriteAllText(png, "png");
+            svc.Discard("2026/01/new.png");
+            Assert.False(File.Exists(png));
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Fact]
+    public void AddToGitignore_appends_once_and_skips_duplicates()
+    {
+        var (root, svc) = CreateRepo();
+        try
+        {
+            svc.AddToGitignore("*.tmp");
+            svc.AddToGitignore("*.tmp");
+            svc.AddToGitignore("*.log");
+            var text = File.ReadAllText(Path.Combine(root, ".gitignore"));
+            Assert.Contains("*.tmp", text);
+            Assert.Contains("*.log", text);
+            Assert.Equal(1, text.Split(new[] { "\n", "\r" }, StringSplitOptions.None).Count(l => l.Trim() == "*.tmp"));
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Fact]
     public void Identity_roundtrips()
     {
         var (root, svc) = CreateRepo();

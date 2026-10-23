@@ -243,5 +243,19 @@
   "Vox.Sync.Dialog.IdentityTitle": "Commit identity",
   "Vox.Sync.Dialog.NameField": "Name",
   "Vox.Sync.Dialog.EmailField": "Email",
-  "Vox.Sync.Label.Description": "Description"
+  "Vox.Sync.Label.Description": "Description",
+  "Vox.Sync.Label.Discard": "Discard changes",
+  "Vox.Sync.Msg.DiscardTitle": "Discard changes",
+  "Vox.Sync.Msg.DiscardDesc": "Uncommitted changes of {0} will be reverted to the last commit (added files are deleted). Not recorded in git history and cannot be undone from Vox.",
+  "Vox.Sync.Msg.Discarded": "Discarded changes: {0}",
+  "Vox.Sync.Menu.Ignore": "Ignore file (add to .gitignore)",
+  "Vox.Sync.Menu.IgnoreAll": "Ignore all .{0} files (add to .gitignore)",
+  "Vox.Sync.Menu.CopyFullPath": "Copy file path",
+  "Vox.Sync.Menu.CopyRelative": "Copy relative file path",
+  "Vox.Sync.Menu.ShowInExplorer": "Show in Explorer",
+  "Vox.Sync.Menu.OpenInVsCode": "Open in Visual Studio Code",
+  "Vox.Sync.Menu.OpenDefault": "Open with default program",
+  "Vox.Sync.Msg.NoVsCode": "VS Code not found (the code command is not on PATH)",
+  "Vox.Sync.Msg.Ignored": "Added to .gitignore: {0}",
+  "Vox.Sync.Msg.Copied": "Copied: {0}"
 }

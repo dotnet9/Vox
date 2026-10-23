@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using System.Diagnostics;
 using TKCode.Arc;
 using Vox.App.Infrastructure;
 using Vox.Core;
@@ -428,6 +429,7 @@ public sealed class SyncPage : UserControl
             RenderChangeList();
             RenderDiff();
         };
+        panel.ContextMenu = BuildRowMenu(row);
         return panel;
     }
 
@@ -609,6 +611,16 @@ public sealed class SyncPage : UserControl
             ? T(Sync.Diff.Deleted)
             : T(Sync.Diff.New) + " · " + FormatSize(File.Exists(localFile) ? new FileInfo(localFile).Length : null);
 
+        var imageHeader = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Margin = new Thickness(10, 8, 10, 0),
+            Children =
+            {
+                new TextBlock { Text = entry.Path, FontSize = 11, FontWeight = FontWeight.SemiBold, FontFamily = MonoFont, VerticalAlignment = VerticalAlignment.Center },
+            },
+        };
         var grid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto,*"),
@@ -621,7 +633,7 @@ public sealed class SyncPage : UserControl
         var afterSide = ImageSide(after, newCaption, entry.Kind == ChangeKind.Deleted);
         grid.Children.Add(afterSide);
         Grid.SetColumn(afterSide, 2);
-        return grid;
+        return new StackPanel { Children = { imageHeader, grid } };
     }
 
     private Control ImageSide(IImage? image, string caption, bool ghost) => new StackPanel
@@ -799,6 +811,137 @@ public sealed class SyncPage : UserControl
             Feedback(ex.Message);
         }
         await Task.CompletedTask;
+    }
+
+    /// <summary>行右键菜单（对齐 GitHub Desktop）：放弃 / 忽略 / 复制路径 / 定位 / 打开。</summary>
+    private Avalonia.Controls.ContextMenu BuildRowMenu(Row row)
+    {
+        var repoRoot = AppState.Instance.CurrentRepoRoot;
+        var full = repoRoot != null ? LinkStrategy.ToLocalFile(repoRoot, row.Entry.Path) : null;
+        var exists = full != null && File.Exists(full);
+        var ext = System.IO.Path.GetExtension(row.Entry.Path).TrimStart('.');
+
+        return new Avalonia.Controls.ContextMenu
+        {
+            Items =
+            {
+                RowMenuItem(T(Sync.Label.Discard) + "…", () => DiscardAsync(row.Entry.Path)),
+                new Separator(),
+                RowMenuItem(T(Sync.Menu.Ignore), () => IgnoreAsync(row.Entry.Path)),
+                RowMenuItem(T(Sync.Menu.IgnoreAll).Replace("{0}", ext), () => IgnoreAsync("*." + ext)),
+                new Separator(),
+                RowMenuItem(T(Sync.Menu.CopyFullPath), () => CopyTextAsync(full ?? row.Entry.Path)),
+                RowMenuItem(T(Sync.Menu.CopyRelative), () => CopyTextAsync(row.Entry.Path)),
+                new Separator(),
+                RowMenuItem(T(Sync.Menu.ShowInExplorer), () => { RevealInFileManager(full!); return Task.CompletedTask; }, exists && full != null),
+                RowMenuItem(T(Sync.Menu.OpenInVsCode), () => { OpenInVsCode(full!); return Task.CompletedTask; }, exists && full != null),
+                RowMenuItem(T(Sync.Menu.OpenDefault), () => { OpenWithDefaultProgram(full!); return Task.CompletedTask; }, exists && full != null),
+            },
+        };
+    }
+
+    private static MenuItem RowMenuItem(string header, Func<Task> action, bool enabled = true)
+    {
+        var item = new MenuItem { Header = header, IsEnabled = enabled };
+        item.Click += async (_, _) => await action();
+        return item;
+    }
+
+    private async Task IgnoreAsync(string pattern)
+    {
+        try
+        {
+            AppState.Instance.Git()?.AddToGitignore(pattern);
+            Feedback(T(Sync.Msg.Ignored).Replace("{0}", pattern));
+            AppState.Instance.NotifyRepoChanged();
+        }
+        catch (Exception ex)
+        {
+            Feedback(ex.Message);
+        }
+        await Task.CompletedTask;
+    }
+
+    private async Task CopyTextAsync(string text)
+    {
+        if (TopLevel.GetTopLevel(this) is { } top)
+        {
+            await top.Clipboard.SetTextAsync(text);
+            Feedback(T(Sync.Msg.Copied).Replace("{0}", text));
+        }
+    }
+
+    private void RevealInFileManager(string fullPath)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe") { Arguments = "/select,\"" + fullPath + "\"" });
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start("open", "-R \"" + fullPath + "\"");
+            }
+            else
+            {
+                var opener = new ProcessStartInfo("xdg-open");
+                opener.ArgumentList.Add(System.IO.Path.GetDirectoryName(fullPath) ?? ".");
+                Process.Start(opener);
+            }
+        }
+        catch (Exception ex)
+        {
+            Feedback(ex.Message);
+        }
+    }
+
+    private void OpenInVsCode(string fullPath)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("code", "\"" + fullPath + "\""));
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Feedback(T(Sync.Msg.NoVsCode));
+        }
+        catch (Exception ex)
+        {
+            Feedback(ex.Message);
+        }
+    }
+
+    private void OpenWithDefaultProgram(string fullPath)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(fullPath) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Feedback(ex.Message);
+        }
+    }
+
+    private async Task DiscardAsync(string path)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window window) return;
+        var confirmed = await Dialog.ConfirmAsync(window, T(Sync.Msg.DiscardTitle),
+            T(Sync.Msg.DiscardDesc).Replace("{0}", path),
+            confirmText: T(Common.Action.Confirm), cancelText: T(Common.Action.Cancel), isDanger: true);
+        if (!confirmed) return;
+        try
+        {
+            AppState.Instance.Git()?.Discard(path);
+            _selectedPath = null;
+            AppState.Instance.NotifyRepoChanged();
+            Feedback(T(Sync.Msg.Discarded).Replace("{0}", path));
+        }
+        catch (Exception ex)
+        {
+            Feedback(ex.Message);
+        }
     }
 
     private (string? Branch, int? AheadBy, int? BehindBy) SafeBranchState()

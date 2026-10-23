@@ -572,6 +572,43 @@ function newSlug(t){const s=(t||'新文章').toLowerCase().replace(/[^\w\u4e00-\
   return '2026/10/'+s+'.md + '+s+'.yml';}
 let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);}
+/* ---------- 同步 v4：文件行右键菜单（GitHub Desktop 同款） ---------- */
+const ctxMenu=document.createElement('div');ctxMenu.className='ctxmenu';ctxMenu.style.display='none';document.body.appendChild(ctxMenu);
+function closeCtx(){ctxMenu.style.display='none';}
+document.addEventListener('click',closeCtx);
+document.addEventListener('scroll',closeCtx,true);
+function ctxItem(label,action,danger,disabled){
+  const d=document.createElement('div');d.className='it'+(danger?' danger':'')+(disabled?' disabled':'');
+  d.textContent=label;
+  if(!disabled)d.onclick=e=>{e.stopPropagation();closeCtx();action();};
+  return d;
+}
+function ctxSep(){const s=document.createElement('div');s.className='sep';return s;}
+function openCtxMenu(e,item){
+  ctxMenu.innerHTML='';
+  const ext=(item.path.split('.').pop()||'').toLowerCase();
+  ctxMenu.appendChild(ctxItem('放弃更改…',()=>{
+    if(!confirm('放弃对「'+item.name+'」的更改？此操作不经 git 历史，无法撤销。'))return;
+    CHANGES.forEach(g=>{g.items=g.items.filter(x=>x.id!==item.id);});
+    CHANGES=CHANGES.filter(g=>g.items.length>0);
+    selId=null;renderSync();toast('已放弃更改：'+item.name);
+  },true));
+  ctxMenu.appendChild(ctxSep());
+  ctxMenu.appendChild(ctxItem('忽略此文件（加入 .gitignore）',()=>toast('已加入 .gitignore：'+item.path)));
+  ctxMenu.appendChild(ctxItem('忽略所有 .'+ext+' 文件（加入 .gitignore）',()=>toast('已加入 .gitignore：*.'+ext)));
+  ctxMenu.appendChild(ctxSep());
+  ctxMenu.appendChild(ctxItem('复制文件路径',()=>{navigator.clipboard&&navigator.clipboard.writeText(item.path);toast('已复制文件路径');}));
+  ctxMenu.appendChild(ctxItem('复制相对路径',()=>{navigator.clipboard&&navigator.clipboard.writeText(item.path);toast('已复制相对路径');}));
+  ctxMenu.appendChild(ctxSep());
+  ctxMenu.appendChild(ctxItem(item.s==='D'?'在资源管理器中显示':'在资源管理器中显示',()=>toast('已在资源管理器中定位文件'),false,item.s==='D'));
+  ctxMenu.appendChild(ctxItem('在 VS Code 中打开',()=>toast('正在用 VS Code 打开…'),false,item.s==='D'));
+  ctxMenu.appendChild(ctxItem('用默认程序打开',()=>toast('正在用默认程序打开…'),false,item.s==='D'));
+  ctxMenu.style.display='block';
+  const w=250,h=ctxMenu.offsetHeight||230;
+  ctxMenu.style.left=Math.min(e.clientX,window.innerWidth-w-8)+'px';
+  ctxMenu.style.top=Math.min(e.clientY,window.innerHeight-h-8)+'px';
+}
+
 /* ---------- 同步 v3：勾选暂存 / 并排·统一 diff / 图片前后对比 / Summary·Description ---------- */
 const SYNC_INIT=[
  {label:'文章',ph:'更新 {n} 篇文章',items:[
@@ -739,6 +776,7 @@ function renderSync(){
         +'<span class="pth">'+esc(it.path)+'</span>';
       r.querySelector('input').onclick=e=>{e.stopPropagation();it.chk=e.target.checked;sumDirty=false;renderSync();};
       r.onclick=e=>{if(e.target.tagName==='INPUT')return;selId=it.id;renderSync();renderDiff();};
+      r.oncontextmenu=e=>{e.preventDefault();openCtxMenu(e,it);};
       list.appendChild(r);
     });
   });

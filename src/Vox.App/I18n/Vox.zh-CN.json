@@ -243,5 +243,19 @@
   "Vox.Sync.Dialog.IdentityTitle": "提交身份",
   "Vox.Sync.Dialog.NameField": "用户名",
   "Vox.Sync.Dialog.EmailField": "邮箱",
-  "Vox.Sync.Label.Description": "Description"
+  "Vox.Sync.Label.Description": "Description",
+  "Vox.Sync.Label.Discard": "放弃更改",
+  "Vox.Sync.Msg.DiscardTitle": "放弃更改",
+  "Vox.Sync.Msg.DiscardDesc": "{0} 的未提交更改将还原到上次提交（新增文件会被删除）。此操作不进入 git 历史，无法从 Vox 撤销。",
+  "Vox.Sync.Msg.Discarded": "已放弃更改：{0}",
+  "Vox.Sync.Menu.Ignore": "忽略此文件（加入 .gitignore）",
+  "Vox.Sync.Menu.IgnoreAll": "忽略所有 .{0} 文件（加入 .gitignore）",
+  "Vox.Sync.Menu.CopyFullPath": "复制文件路径",
+  "Vox.Sync.Menu.CopyRelative": "复制相对路径",
+  "Vox.Sync.Menu.ShowInExplorer": "在资源管理器中显示",
+  "Vox.Sync.Menu.OpenInVsCode": "在 VS Code 中打开",
+  "Vox.Sync.Menu.OpenDefault": "用默认程序打开",
+  "Vox.Sync.Msg.NoVsCode": "未检测到 VS Code（code 命令不在 PATH 中）",
+  "Vox.Sync.Msg.Ignored": "已加入 .gitignore：{0}",
+  "Vox.Sync.Msg.Copied": "已复制：{0}"
 }

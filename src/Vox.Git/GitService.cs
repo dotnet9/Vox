@@ -198,6 +198,33 @@ public sealed class GitService
         return repo.Commit(message, signature, signature);
     }
 
+    /// <summary>把模式追加到仓库根 .gitignore（已存在则跳过）。</summary>
+    public void AddToGitignore(string pattern)
+    {
+        var file = System.IO.Path.Combine(_repoRoot, ".gitignore");
+        var lines = File.Exists(file) ? File.ReadAllLines(file).ToList() : [];
+        if (lines.Any(l => string.Equals(l.Trim(), pattern.Trim(), StringComparison.Ordinal))) return;
+        if (lines.Count > 0 && lines[^1].Trim().Length > 0) lines.Add(string.Empty);
+        lines.Add(pattern);
+        File.WriteAllLines(file, lines);
+    }
+
+    /// <summary>放弃一个文件的未提交更改：HEAD 中存在则还原（含暂存态），新增文件从索引与磁盘移除。</summary>
+    public void Discard(string path)
+    {
+        using var repo = new Repository(_repoRoot);
+        var inHead = repo.Head.Tip?.Tree[path] != null;
+        if (inHead)
+        {
+            repo.CheckoutPaths("HEAD", new[] { path }, new CheckoutOptions { CheckoutModifiers = CheckoutModifiers.Force });
+            return;
+        }
+        try { repo.Index.Remove(path); }
+        catch (ArgumentException) { /* 未被暂存，忽略 */ }
+        var full = System.IO.Path.Combine(_repoRoot, path.Replace('/', System.IO.Path.DirectorySeparatorChar));
+        if (File.Exists(full)) File.Delete(full);
+    }
+
     /// <summary>拉取并仅允许快进合并；远端分叉时抛出可读异常。</summary>
     public int PullFastForward(string authorName, string authorEmail)
     {

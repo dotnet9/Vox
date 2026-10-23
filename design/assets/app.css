@@ -463,3 +463,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .img-none { width: 200px; height: 128px; border: 1.5px dashed var(--line-strong); border-radius: 10px; display: grid; place-items: center; color: var(--faint); font-size: 10.5px; text-align: center; padding: 8px; background: var(--surface-2); box-sizing: border-box; }
 .imgcap { font-size: 10.5px; color: var(--muted); }
 .imgarrow { font-size: 20px; color: var(--faint); align-self: center; }
+
+/* ---------- 同步 v4：行右键菜单 ---------- */
+.ctxmenu { position: fixed; display: none; z-index: 80; min-width: 250px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-pop); padding: 5px; }
+.ctxmenu .it { padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; color: var(--fg); }
+.ctxmenu .it:hover { background: var(--surface-2); }
+.ctxmenu .it.danger { color: var(--danger); }
+.ctxmenu .it.disabled { color: var(--faint); cursor: default; background: none; }
+.ctxmenu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
