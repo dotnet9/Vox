@@ -1,16 +1,40 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <!-- Arc 依赖链要求：输入框/选择器依赖区域性数据格式化，不可启用 InvariantGlobalization -->
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.AvaloniaEdit" />
+    <PackageReference Include="AvaloniaEdit.TextMate" />
+    <PackageReference Include="TextMateSharp.Grammars" />
     <PackageReference Include="TKCode.Arc" />
     <PackageReference Include="TKCode.Arc.Fonts" />
+    <PackageReference Include="TKCode.Arc.Icons.Lucide" />
     <PackageReference Include="TKCode.StreamMark.Avalonia" />
     <PackageReference Include="TKCode.StreamMark.Theme.AtomUI" />
+    <PackageReference Include="CodeWF.Toolkit.Lang" />
+    <PackageReference Include="CodeWF.Avalonia.Lang" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vox.Core\Vox.Core.csproj" />
+    <ProjectReference Include="..\Vox.Git\Vox.Git.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 编译期从语言 JSON 生成强类型 ResourceKeys（CodeWF.Avalonia.Lang.Generator） -->
+    <PackageReference Include="CodeWF.Avalonia.Lang.Generator">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <AdditionalFiles Include="I18n\*.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 应用语言 JSON 随包拷贝到输出 I18n/，JsonLangPlugin 按目录扫描加载 -->
+    <Content Include="I18n\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
