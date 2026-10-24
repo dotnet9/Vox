@@ -3,12 +3,14 @@ using System.Text.RegularExpressions;
 using Vox.Core;
 
 // 一次性工具：对内容仓库跑 Vox.Core 扫描与体检引擎，产出手工治理用的底账报告。
-// 用法：dotnet run --project tools/RepoReport -- <仓库根> <输出 md> [--canonicalize]
-//   --canonicalize：整库规范化——正文 md 中的 img1 CDN 绝对 URL 全部改写为仓库相对路径（D6 修订第一步）。
+// 用法：dotnet run --project tools/RepoReport -- <仓库根> <输出 md> [--canonicalize|--relativize]
+//   --canonicalize：正文 md 中的 img1 CDN 绝对 URL 全部改写为「相对 md 文件目录」的路径（D6 修订）。
+//   --relativize：把正文中「仓库根相对」的 YYYY/MM/ 引用修正为「相对 md 文件目录」的路径（../ 形态跨目录）。
 
 var repoRoot = args.Length > 0 ? args[0] : ".";
 var outFile = args.Length > 1 ? args[1] : "report.md";
 var canonicalize = args.Any(a => string.Equals(a, "--canonicalize", StringComparison.OrdinalIgnoreCase));
+var relativize = args.Any(a => string.Equals(a, "--relativize", StringComparison.OrdinalIgnoreCase));
 
 const string CdnPattern = @"https?://img1\.dotnet9\.com/";
 
@@ -16,24 +18,88 @@ if (canonicalize)
 {
     return Canonicalize(repoRoot);
 }
+if (relativize)
+{
+    return Relativize(repoRoot);
+}
+
+/// <summary>把正文引用上下文（](…) 与 src="…"）中的 YYYY/MM/ 仓库根相对路径改写为相对 md 目录的路径。</summary>
+static int Relativize(string repoRoot)
+{
+    Console.WriteLine($"相对路径修正（文件相对）：{Path.GetFullPath(repoRoot)}");
+    var fullRoot = Path.GetFullPath(repoRoot);
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var changed = new List<string>();
+    var totalRefs = 0;
+    // 仅命中引用上下文：](path) 或 src="path"/src='path'，且 path 以 YYYY/MM/ 开头
+    var refPattern = new Regex(@"(\]\(|src=[""'])((?:20\d{2}/\d{2}/)[^)""'\s]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
+    {
+        var relative = Path.GetRelativePath(fullRoot, md).Replace('\\', '/');
+        if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
+        if (!CodeWfRepoProfile.TryGetArticleRelativePath(relative, out _, out _, out _)) continue;
+
+        var text = File.ReadAllText(md);
+        var matches = refPattern.Matches(text);
+        if (matches.Count == 0) continue;
+
+        var mdDir = Path.GetDirectoryName(md)!;
+        var next = refPattern.Replace(text, match =>
+        {
+            var targetRepoRelative = match.Groups[2].Value;
+            var rel = Path.GetRelativePath(mdDir, Path.GetFullPath(Path.Combine(fullRoot, targetRepoRelative.Replace('/', Path.DirectorySeparatorChar))));
+            totalRefs++;
+            return match.Groups[1].Value + PathText.ToForwardSlashes(rel);
+        });
+        File.WriteAllText(md, next, new UTF8Encoding(false));
+        changed.Add(relative);
+    }
+    sw.Stop();
+
+    // 复核：不应再有引用上下文里的 YYYY/MM/ 仓库根相对形态
+    var remaining = 0;
+    foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
+    {
+        var relative = Path.GetRelativePath(fullRoot, md).Replace('\\', '/');
+        if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
+        if (!CodeWfRepoProfile.TryGetArticleRelativePath(relative, out _, out _, out _)) continue;
+        remaining += refPattern.Matches(File.ReadAllText(md)).Count;
+    }
+
+    Console.WriteLine($"改写文件：{changed.Count} · 修正引用：{totalRefs} · 复核残留：{remaining} · 耗时 {sw.ElapsedMilliseconds} ms");
+    Console.WriteLine("--- 改写文件清单 ---");
+    foreach (var f in changed) Console.WriteLine(f);
+    return remaining == 0 ? 0 : 1;
+}
+
 
 static int Canonicalize(string repoRoot)
 {
-    Console.WriteLine($"整库规范化：{Path.GetFullPath(repoRoot)}");
+    Console.WriteLine($"整库规范化（→ 相对 md 文件目录）：{Path.GetFullPath(repoRoot)}");
+    var fullRoot = Path.GetFullPath(repoRoot);
     var sw = System.Diagnostics.Stopwatch.StartNew();
     var changed = new List<string>();
     var totalUrls = 0;
+    // 域名 + 路径整体命中，改写为相对 md 目录的路径（同年月折叠为文件名，跨目录 ../ 形态）
+    var urlPattern = new Regex(CdnPattern + @"([^\s)""'<>]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
     {
-        var relative = Path.GetRelativePath(repoRoot, md).Replace('\\', '/');
+        var relative = Path.GetRelativePath(fullRoot, md).Replace('\\', '/');
         if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
         var text = File.ReadAllText(md);
-        var matches = Regex.Matches(text, CdnPattern, RegexOptions.IgnoreCase);
+        var matches = urlPattern.Matches(text);
         if (matches.Count == 0) continue;
-        var next = Regex.Replace(text, CdnPattern, string.Empty, RegexOptions.IgnoreCase);
+        var mdDir = Path.GetDirectoryName(md)!;
+        var next = urlPattern.Replace(text, match =>
+        {
+            totalUrls++;
+            var repoRel = match.Groups[1].Value;
+            var rel = Path.GetRelativePath(mdDir, Path.GetFullPath(Path.Combine(fullRoot, repoRel.Replace('/', Path.DirectorySeparatorChar))));
+            return PathText.ToForwardSlashes(rel);
+        });
         File.WriteAllText(md, next, new UTF8Encoding(false));
         changed.Add(relative);
-        totalUrls += matches.Count;
     }
     sw.Stop();
 
@@ -41,7 +107,7 @@ static int Canonicalize(string repoRoot)
     var remaining = 0;
     foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
     {
-        var relative = Path.GetRelativePath(repoRoot, md).Replace('\\', '/');
+        var relative = Path.GetRelativePath(fullRoot, md).Replace('\\', '/');
         if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
         remaining += Regex.Matches(File.ReadAllText(md), CdnPattern, RegexOptions.IgnoreCase).Count;
     }

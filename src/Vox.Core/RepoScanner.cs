@@ -91,8 +91,11 @@ public static class RepoScanner
             article.BodyBytes = new FileInfo(md).Length;
             article.WordCount = TextMetrics.CountWords(body);
             article.CjkCount = TextMetrics.CountCjkOnly(body);
-            // 剥离 ``` / ~~~ 围栏代码块再提取引用：教程里的示例代码（![占位](./x.png) 等）不是真实图片引用。
-            article.ImageReferences = ExtractMarkdownImages(StripFencedCode(body), link).ToList();
+            // 剥离 ``` / ~~~ 围栏代码块再提取引用：教程里的示例代码（![占位](./x.png) 等）不是真实引用。
+            // 正文引用是「相对于 md 文件所在目录」的路径（D6 修订），这里归一为仓库相对路径入索引。
+            var mdDir = Path.GetDirectoryName(relative) ?? string.Empty;
+            article.ImageReferences = ExtractMarkdownImages(StripFencedCode(body), link, scan.RepoRoot, mdDir)
+                .ToList();
             scan.Articles.Add(article);
         }
 
@@ -143,26 +146,32 @@ public static class RepoScanner
     public static string StripFencedCode(string text) =>
         Regex.Replace(text, @"(?ms)^[ \t]*(```|~~~).*?^[ \t]*\1[\w-]*[ \t]*$", string.Empty);
 
-    /// <summary>markdown 正文的图片引用（md 语法 + img 标签），归一为仓库相对路径。</summary>
-    public static IEnumerable<string> ExtractMarkdownImages(string text, LinkOptions link)
+    /// <summary>markdown 正文的图片引用（md 语法 + img 标签），归一为仓库相对路径。mdDir = md 所在目录（仓库相对）。</summary>
+    public static IEnumerable<string> ExtractMarkdownImages(string text, LinkOptions link, string repoRoot, string mdDir)
     {
         foreach (Match match in MarkdownImageRegex.Matches(text))
         {
             var raw = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-            var path = NormalizeReference(raw, link);
+            var path = NormalizeReference(raw, link, repoRoot, mdDir);
             if (path != null) yield return path;
         }
     }
 
-    /// <summary>任意 URL / 路径 → 仓库相对路径；无法归属仓库的（外站图、data: 等）返回 null。</summary>
-    public static string? NormalizeReference(string url, LinkOptions link)
+    /// <summary>
+    /// 任意 URL / 路径 → 仓库相对路径；无法归属仓库的（外站图、data: 等）返回 null。
+    /// 正文相对引用以 md 文件所在目录为基准（D6 修订），经 mdDir 归一；CDN URL 按域名映射反解。
+    /// </summary>
+    public static string? NormalizeReference(string url, LinkOptions link, string repoRoot, string mdDir = "")
     {
         url = Uri.UnescapeDataString(url.Trim());
         if (url.Length == 0 || url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return null;
         var relative = LinkStrategy.ToRelativePath(url, link.CdnBase);
         if (relative != null) return relative;
         if (Uri.TryCreate(url, UriKind.Absolute, out _)) return null;
-        return PathText.ToForwardSlashes(url);
+        if (string.IsNullOrEmpty(mdDir)) return PathText.ToForwardSlashes(url);
+        var mdDirFull = Path.GetFullPath(Path.Combine(repoRoot, mdDir.Replace('/', Path.DirectorySeparatorChar)));
+        var combined = Path.GetFullPath(Path.Combine(mdDirFull, url));
+        return PathText.ToForwardSlashes(Path.GetRelativePath(repoRoot, combined));
     }
 
     /// <summary>site/*.json 中的裸文本也按“可能指向图片”抽取（引用面含 site 数据，防孤儿图误报——基线 D6）。</summary>

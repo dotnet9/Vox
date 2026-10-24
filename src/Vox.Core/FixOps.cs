@@ -39,12 +39,16 @@ public static class FixOps
         return count;
     }
 
-    /// <summary>正文 CDN URL → 相对路径（链接规范化的核心，D6 修订：正文唯一规范形态是相对路径）。</summary>
+    /// <summary>
+    /// 正文 CDN URL → 相对路径（D6 修订：正文唯一规范形态是「相对于 md 文件所在目录」的路径）。
+    /// 目标与文章同年月时直接写文件名，跨目录生成 ../ 形态。
+    /// </summary>
     public static int CanonicalizeToRelative(string repoRoot, Article article, LinkOptions link)
     {
         var file = LinkStrategy.ToLocalFile(repoRoot, article.MarkdownPath);
         var body = File.ReadAllText(file);
         var count = 0;
+        var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(repoRoot, article.MarkdownPath))!;
         var mapped = Regex.Replace(
             body,
             @"(\]\(\s*<?)(https?://[^)<>\s]+)",
@@ -53,11 +57,19 @@ public static class FixOps
                 var relative = LinkStrategy.ToRelativePath(match.Groups[2].Value, link.CdnBase);
                 if (relative == null) return match.Value;
                 count++;
-                return match.Groups[1].Value + relative;
+                return match.Groups[1].Value + ToArticleRelative(mdDir, repoRoot, relative);
             },
             RegexOptions.IgnoreCase);
         if (count > 0) File.WriteAllText(file, mapped);
         return count;
+    }
+
+    /// <summary>仓库相对路径 → 相对 md 目录的引用（同年月折叠为文件名，跨目录 ../ 形态）。</summary>
+    public static string ToArticleRelative(string mdDirFullPath, string repoRoot, string repoRelativeTarget)
+    {
+        var targetFull = LinkStrategy.ToLocalFile(repoRoot, repoRelativeTarget);
+        var rel = Path.GetRelativePath(mdDirFullPath, targetFull);
+        return PathText.ToForwardSlashes(rel);
     }
 
     private static int ReplaceAllForms(ref string body, string deadPath, string replacementPath)

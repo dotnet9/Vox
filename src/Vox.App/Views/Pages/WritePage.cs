@@ -267,6 +267,7 @@ public sealed class WritePage : UserControl
             Links = StreamMark.Avalonia.Extensions.LinkPolicy.Default,
         };
         MarkdownServices.SetServices(this, services);
+        // 图片引用是「相对 md 文件所在目录」的路径（D6 修订），打开文章时切换基准目录；仓库根仅作初始值。
         MarkdownServices.SetImageBaseUri(this, _repoRoot);
         InstallTextMate();
 
@@ -312,6 +313,8 @@ public sealed class WritePage : UserControl
             {
                 _textMate.SetGrammar(_registry!.GetScopeByLanguageId("markdown"));
             }
+            // 正文图片引用相对 md 目录：预览的解析基准切到本文所在目录（须在设 Markdown 前更新）。
+            MarkdownServices.SetImageBaseUri(this, Path.GetDirectoryName(file)!);
             _emptyHint.IsVisible = false;
             _preview.Markdown = _editor.Text;
             RebuildOutline();
@@ -472,8 +475,11 @@ public sealed class WritePage : UserControl
             if (_current == null || _repoRoot == null || TopLevel.GetTopLevel(this) is not Window window) return;
             var relative = await ImageIntakeDialog.ShowAsync(window, _repoRoot, _current, AppState.Instance.Settings.Link);
             if (relative == null) return;
+            // 插入「相对 md 文件所在目录」的引用（D6 修订）：同年月折叠为文件名，跨目录 ../ 形态。
+            var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath))!;
+            var articleRelative = FixOps.ToArticleRelative(mdDir, _repoRoot, relative);
             var caret = _editor.TextArea.Caret.Offset;
-            var snippet = $"![{Path.GetFileNameWithoutExtension(relative)}]({relative})";
+            var snippet = $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})";
             _editor.Document.Insert(caret, snippet);
             SaveCurrent();
         };

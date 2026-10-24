@@ -86,12 +86,12 @@ public class RepoScannerTests
         Directory.CreateDirectory(Path.Combine(root, "site"));
 
         File.WriteAllText(Path.Combine(root, "2026", "09", "alpha.md"),
-            "# Alpha\n\n![封面](2026/09/alpha-cover.png)\n\n![外站](https://other.example/x.png)\n");
+            "# Alpha\n\n![封面](alpha-cover.png)\n\n![外站](https://other.example/x.png)\n");
         File.WriteAllText(Path.Combine(root, "2026", "09", "alpha.yml"), "title: Alpha\nslug: alpha\ndate: 2026-09-01 08:00:00\n");
         File.WriteAllText(Path.Combine(root, "2026", "09", "alpha-cover.png"), "png");
 
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta.md"),
-            "# Beta\n\n![死链](2026/10/missing.png)\n\n![CDN 形态](https://img1.dotnet9.com/2026/10/beta-pic.jpg)\n");
+            "# Beta\n\n![死链](missing.png)\n\n![CDN 形态](https://img1.dotnet9.com/2026/10/beta-pic.jpg)\n");
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta.yml"), "title: Beta\nslug: beta\ndate: 2026-10-01 08:00:00\nalbums: [x]\n");
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta-pic.jpg"), "jpg");
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta-pic.webp"), "webp");
@@ -175,7 +175,7 @@ public class AuditEngineTests
         {
             Directory.CreateDirectory(Path.Combine(root, "2026", "01"));
             File.WriteAllText(Path.Combine(root, "2026", "01", "post.md"),
-                "# P\n\n![图](2026/01/pic.png)\n");
+                "# P\n\n![图](pic.png)\n");
             File.WriteAllText(Path.Combine(root, "2026", "01", "post.yml"),
                 "title: P\nslug: post\ndate: 2026-01-01 00:00:00\nalbums: [a]\n");
             File.WriteAllText(Path.Combine(root, "2026", "01", "pic.jpg"), "jpg");
@@ -258,6 +258,30 @@ public class ArticleScaffolderTests
 public class FixOpsTests
 {
     [Fact]
+    public void Canonicalize_cross_month_reference_uses_parent_form()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-fix2").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2026", "01"));
+            var md = Path.Combine(root, "2026", "01", "post.md");
+            File.WriteAllText(md, "# T\n\n![a](https://img1.dotnet9.com/2025/06/old.png)\n");
+            File.WriteAllText(Path.Combine(root, "2026", "01", "post.yml"),
+                "title: T\nslug: post\ndate: 2026-01-01 00:00:00\n");
+
+            var scan = RepoScanner.Scan(root);
+            var article = scan.FindArticle("2026/01/post.md")!;
+            FixOps.CanonicalizeToRelative(root, article, new LinkOptions());
+
+            Assert.Contains("![a](../../2025/06/old.png)", File.ReadAllText(md));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Canonicalize_rewrites_cdn_urls_to_relative()
     {
         var root = Directory.CreateTempSubdirectory("vox-fix").FullName;
@@ -274,7 +298,7 @@ public class FixOpsTests
             var count = FixOps.CanonicalizeToRelative(root, article, new LinkOptions());
 
             Assert.Equal(1, count);
-            Assert.Contains("![a](2026/01/a.png)", File.ReadAllText(md));
+            Assert.Contains("![a](a.png)", File.ReadAllText(md)); // 同年月折叠为文件名（相对 md 目录）
             Assert.DoesNotContain("img1.dotnet9.com", File.ReadAllText(md));
 
             FixOps.FillAuthor(root, article);
