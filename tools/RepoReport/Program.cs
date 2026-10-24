@@ -3,10 +3,54 @@ using System.Text.RegularExpressions;
 using Vox.Core;
 
 // 一次性工具：对内容仓库跑 Vox.Core 扫描与体检引擎，产出手工治理用的底账报告。
-// 用法：dotnet run --project tools/RepoReport -- <仓库根> <输出 md>
+// 用法：dotnet run --project tools/RepoReport -- <仓库根> <输出 md> [--canonicalize]
+//   --canonicalize：整库规范化——正文 md 中的 img1 CDN 绝对 URL 全部改写为仓库相对路径（D6 修订第一步）。
 
 var repoRoot = args.Length > 0 ? args[0] : ".";
 var outFile = args.Length > 1 ? args[1] : "report.md";
+var canonicalize = args.Any(a => string.Equals(a, "--canonicalize", StringComparison.OrdinalIgnoreCase));
+
+const string CdnPattern = @"https?://img1\.dotnet9\.com/";
+
+if (canonicalize)
+{
+    return Canonicalize(repoRoot);
+}
+
+static int Canonicalize(string repoRoot)
+{
+    Console.WriteLine($"整库规范化：{Path.GetFullPath(repoRoot)}");
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var changed = new List<string>();
+    var totalUrls = 0;
+    foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
+    {
+        var relative = Path.GetRelativePath(repoRoot, md).Replace('\\', '/');
+        if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
+        var text = File.ReadAllText(md);
+        var matches = Regex.Matches(text, CdnPattern, RegexOptions.IgnoreCase);
+        if (matches.Count == 0) continue;
+        var next = Regex.Replace(text, CdnPattern, string.Empty, RegexOptions.IgnoreCase);
+        File.WriteAllText(md, next, new UTF8Encoding(false));
+        changed.Add(relative);
+        totalUrls += matches.Count;
+    }
+    sw.Stop();
+
+    // 复核：改写后正文中不应再有任何 CDN 绝对 URL
+    var remaining = 0;
+    foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
+    {
+        var relative = Path.GetRelativePath(repoRoot, md).Replace('\\', '/');
+        if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
+        remaining += Regex.Matches(File.ReadAllText(md), CdnPattern, RegexOptions.IgnoreCase).Count;
+    }
+
+    Console.WriteLine($"改写文件：{changed.Count} · 替换 URL：{totalUrls} · 复核残留：{remaining} · 耗时 {sw.ElapsedMilliseconds} ms");
+    Console.WriteLine("--- 改写文件清单 ---");
+    foreach (var f in changed) Console.WriteLine(f);
+    return remaining == 0 ? 0 : 1;
+}
 
 Console.WriteLine($"扫描 {Path.GetFullPath(repoRoot)} …");
 var sw = System.Diagnostics.Stopwatch.StartNew();

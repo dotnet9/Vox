@@ -1,4 +1,4 @@
-# Assets.Dotnet9 体检报告（2026-10-24 20:37 快照）
+# Assets.Dotnet9 体检报告（2026-10-24 20:48 快照）
 
 > 由 Vox.Core 扫描引擎（tools/RepoReport）生成，供手工治理当底账；数字与 [体检基线](Assets.Dotnet9体检基线.md)（2026-10-23）对照。
 
@@ -23,7 +23,7 @@
 | 缺 author | 122 | 122 | 可一键批量补 Dotnet9 |
 | 图片死链 | 22 | 58 | 部分可扩展名配对 |
 | 孤儿图 | 597 | 527 | 删除走 git |
-| 疑似占位（md 文件 <2KB） | 24 | 5 | 口径：基线按正文字数；此处按整文件字节 |
+| 疑似占位（md 文件 <2KB） | 29 | 5 | 口径：基线按正文字数；此处按整文件字节 |
 | slug 不合规 | 3 | — | 规则=空白/URL 不安全字符；Pascal 与 CJK slug 均属合法 |
 | 过期线索（<2023 且引擎字数 <4000） | 315 | 31 | 口径宽于基线（基线含关键词），规则待对齐（开放问题 #3） |
 
@@ -42,8 +42,8 @@
 
 ## 四、CDN → 相对路径 规范化影响面（D6 修订）
 
-- 正文含 `img1.dotnet9.com` 绝对 URL 的文章：**429 篇**（共 3783 处 URL）
-- 正文不含 CDN URL 的文章：**107 篇**（其中正文完全无图片引用 106 篇）
+- 正文含 `img1.dotnet9.com` 绝对 URL 的文章：**0 篇**（共 0 处 URL）
+- 正文不含 CDN URL 的文章：**536 篇**（其中正文完全无图片引用 106 篇）
 - site JSON 中的图片引用：有效 0 处；失效 0 处
 
 > 规范化 = 每处 `https://img1.dotnet9.com/<路径>` → `<路径>`，站点渲染时按域名拼接（决策 D6 修订）。建议单独一个提交完成，可回滚。
@@ -1405,30 +1405,35 @@
 
 | 文章 | 大小 | 字数 |
 | --- | --- | --- |
-| VS 2026提供下载了（`2025/09/vs-2026-provided-download.md`） | 425 B | 60 |
+| VS 2026提供下载了（`2025/09/vs-2026-provided-download.md`） | 350 B | 60 |
 | 分享PC微信多开的方法（`2022/03/Share-the-method-of-opening-more-PC-WeChat.md`） | 435 B | 105 |
-| 一个WPF开发的、界面简洁漂亮的音频播放器（`2023/07/A-simple-and-beautiful-audio-player-developed-by-WPF.md`） | 921 B | 223 |
-| 分享VS的两个技巧（`2022/05/Share-two-tips-for-using-vs.md`） | 966 B | 195 |
-| 2025 年度语言：C#（`2026/01/language-of-the-year-2025-csharp.md`） | 993 B | 224 |
-| 这个开源WPF UI设计项目的8个界面不错（`2020/07/The-8-interfaces-of-this-open-source-WPF-UI-design-project-are-good.md`） | 1015 B | 164 |
-| (24/30)大家一起学Blazor：<AuthorizeRouteView>运用（`2021/12/24-of-30-let-us-learn-blazor-together-authorizetouteview.md`） | 1074 B | 273 |
-| .NET Core全部视频录完了，全免费，无套路（`2022/03/All-videos-of-dotNet-core-are-recorded-for-free-without-routine.md`） | 1109 B | 198 |
-| Avalonia小窍门之DataGrid添加取消排序（`2025/07/avalonia-datagrid-cancel-sorting.md`） | 1258 B | 184 |
-| EF Core使用Simple Logging输出日志（`2022/05/EF-core-uses-simple-logging-to-output-logs.md`） | 1371 B | 307 |
+| 这个开源WPF UI设计项目的8个界面不错（`2020/07/The-8-interfaces-of-this-open-source-WPF-UI-design-project-are-good.md`） | 790 B | 164 |
+| 分享VS的两个技巧（`2022/05/Share-two-tips-for-using-vs.md`） | 816 B | 195 |
+| 一个WPF开发的、界面简洁漂亮的音频播放器（`2023/07/A-simple-and-beautiful-audio-player-developed-by-WPF.md`） | 871 B | 223 |
+| 2025 年度语言：C#（`2026/01/language-of-the-year-2025-csharp.md`） | 893 B | 224 |
+| .NET Core全部视频录完了，全免费，无套路（`2022/03/All-videos-of-dotNet-core-are-recorded-for-free-without-routine.md`） | 1009 B | 198 |
+| (24/30)大家一起学Blazor：<AuthorizeRouteView>运用（`2021/12/24-of-30-let-us-learn-blazor-together-authorizetouteview.md`） | 1024 B | 273 |
+| Avalonia小窍门之DataGrid添加取消排序（`2025/07/avalonia-datagrid-cancel-sorting.md`） | 1208 B | 184 |
+| EF Core使用Simple Logging输出日志（`2022/05/EF-core-uses-simple-logging-to-output-logs.md`） | 1346 B | 307 |
 | 支持.NET6！EF Core中批量执行更新、删除、插入数据的框架Zack.EFCore.Batch（`2021/12/dotnet6-support-zack-efcore-batch-a-framework-for-batch-updating-deleting-and-inserting-data-in-ef-core.md`） | 1403 B | 306 |
 | C#-基于ip2region的离线IP定位库（`2022/07/Csharp-offline-IP-location-Library-Based-on-ip2region.md`） | 1433 B | 313 |
-| 经过一天一夜，网站又重构上线！（`2022/10/After-one-day-and-one-night-the-website-has-been-reconstructed-and-launched-again.md`） | 1570 B | 273 |
-| 我开发了一个对.NET程序进行瘦身的工具（`2021/12/i-developed-a-tool-to-slim-down-dotnet-programs.md`） | 1577 B | 473 |
-| .NET 8 SDK安装包可以下载了（`2022/08/Dotnet8-SDK-available-for-release-download.md`） | 1658 B | 372 |
-| 开箱即用，基于 C# 和 Blazor 开发的前后端分离快速开发框架（`2023/07/Out-of-the-box-fast-development-framework-for-front-end-and-back-end-separation-based-on-Csharp-and-Blazor-development.md`） | 1736 B | 449 |
-| 一套Flutter代码多端运行（`2021/07/a-set-of-flutter-code-runs-at-multiple-ends.md`） | 1742 B | 235 |
-| 国庆学go，完成了博客基本功能，迫不及待的发布上线了（`2022/10/Learn-go-on-National-Day-and-complete-the-basic-functions-of-blog.md`） | 1795 B | 420 |
-| Dotnet9 网站新添 AI 小工具，赋能创作超给力！（`2024/11/dotnet9-website-adds-ai-tools-empowering-creation.md`） | 1883 B | 539 |
-| 怎么实现WPF多语言动态切换？（`2021/02/how-to-realize-multi-language-dynamic-switching-of-wpf.md`） | 1890 B | 355 |
-| .NET 最好用的开源 FTP 客户端库（`2023/07/The-Best-Open-Source-FTP-Client-Library-for-dotNET.md`） | 1974 B | 354 |
+| .NET 8 SDK安装包可以下载了（`2022/08/Dotnet8-SDK-available-for-release-download.md`） | 1483 B | 372 |
+| 一套Flutter代码多端运行（`2021/07/a-set-of-flutter-code-runs-at-multiple-ends.md`） | 1517 B | 235 |
+| 经过一天一夜，网站又重构上线！（`2022/10/After-one-day-and-one-night-the-website-has-been-reconstructed-and-launched-again.md`） | 1520 B | 273 |
+| 我开发了一个对.NET程序进行瘦身的工具（`2021/12/i-developed-a-tool-to-slim-down-dotnet-programs.md`） | 1552 B | 473 |
+| 开箱即用，基于 C# 和 Blazor 开发的前后端分离快速开发框架（`2023/07/Out-of-the-box-fast-development-framework-for-front-end-and-back-end-separation-based-on-Csharp-and-Blazor-development.md`） | 1561 B | 449 |
+| 国庆学go，完成了博客基本功能，迫不及待的发布上线了（`2022/10/Learn-go-on-National-Day-and-complete-the-basic-functions-of-blog.md`） | 1645 B | 420 |
+| 怎么实现WPF多语言动态切换？（`2021/02/how-to-realize-multi-language-dynamic-switching-of-wpf.md`） | 1790 B | 355 |
+| Dotnet9 网站新添 AI 小工具，赋能创作超给力！（`2024/11/dotnet9-website-adds-ai-tools-empowering-creation.md`） | 1833 B | 539 |
+| 开源WPF控件库：ModernWpf（`2020/09/Open-source-WPF-control-library-recommendation-modernwpf.md`） | 1938 B | 269 |
+| .NET 最好用的开源 FTP 客户端库（`2023/07/The-Best-Open-Source-FTP-Client-Library-for-dotNET.md`） | 1949 B | 354 |
+| Avalonia自定义标题栏在Windows 7环境下的适配方案（`2025/07/avalonia-win7-custom-titlebar-solution.md`） | 1964 B | 472 |
+| 基于 C# 开源一个 Windows 屏幕工具箱（`2024/03/open-source-a-windows-screen-toolbox-based-on-csharp.md`） | 1970 B | 526 |
+| 【中间件】C#/.NET使用GZY.Quartz.MUI搭建可视化的定时任务面板（`2022/05/Middleware-Csharp-dotNET-uses-GZY_Quartz_MUI-to-build-a-visual-timing-task-panel.md`） | 1971 B | 400 |
+| WPF：播放GIF很伤神！（`2021/07/wpf-it-hurts-to-play-gif.md`） | 1973 B | 337 |
 | .NET Core程序瘦身器发布，压缩程序尺寸到1/3（`2022/03/The-dotNet-core-program-slimmer-is-released-compressing-the-program-size-to-1-to-3.md`） | 1983 B | 543 |
-| Avalonia自定义标题栏在Windows 7环境下的适配方案（`2025/07/avalonia-win7-custom-titlebar-solution.md`） | 2039 B | 472 |
-| 【中间件】C#/.NET使用GZY.Quartz.MUI搭建可视化的定时任务面板（`2022/05/Middleware-Csharp-dotNET-uses-GZY_Quartz_MUI-to-build-a-visual-timing-task-panel.md`） | 2046 B | 400 |
+| .NET 8.0 AOT DebugView（`2023/08/dotnet8_AOT_DebugView.md`） | 2014 B | 465 |
+| 大佬用 WinUI 3 和 WPF 做了一个开源的动态壁纸软件（`2022/04/The-boss-made-an-open-source-dynamic-Wallpaper-software-with-winui-3-and-WPF.md`） | 2032 B | 486 |
 
 ### slug 不合规
 
@@ -1490,4 +1495,4 @@
 （无）
 
 ---
-生成：2026-10-24 20:37 · 扫描 467 ms · Vox.Core 引擎
+生成：2026-10-24 20:48 · 扫描 449 ms · Vox.Core 引擎
