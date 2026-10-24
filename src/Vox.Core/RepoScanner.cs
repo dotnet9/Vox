@@ -90,7 +90,9 @@ public static class RepoScanner
             var body = ReadText(md);
             article.BodyBytes = new FileInfo(md).Length;
             article.WordCount = TextMetrics.CountWords(body);
-            article.ImageReferences = ExtractMarkdownImages(body, link).ToList();
+            article.CjkCount = TextMetrics.CountCjkOnly(body);
+            // 剥离 ``` / ~~~ 围栏代码块再提取引用：教程里的示例代码（![占位](./x.png) 等）不是真实图片引用。
+            article.ImageReferences = ExtractMarkdownImages(StripFencedCode(body), link).ToList();
             scan.Articles.Add(article);
         }
 
@@ -136,6 +138,10 @@ public static class RepoScanner
 
         return scan;
     }
+
+    /// <summary>剥离 ``` / ~~~ 围栏代码块（教程代码示例里的图片语法不是真实引用）。</summary>
+    public static string StripFencedCode(string text) =>
+        Regex.Replace(text, @"(?ms)^[ \t]*(```|~~~).*?^[ \t]*\1[\w-]*[ \t]*$", string.Empty);
 
     /// <summary>markdown 正文的图片引用（md 语法 + img 标签），归一为仓库相对路径。</summary>
     public static IEnumerable<string> ExtractMarkdownImages(string text, LinkOptions link)
@@ -199,9 +205,20 @@ public static class RepoScanner
     }
 }
 
-/// <summary>字数统计：CJK 字符逐字计数 + 非空白拉丁词计数，与站点阅读时长口径近似。</summary>
+/// <summary>字数统计：CountWords = CJK 逐字 + 拉丁词（含代码）；CountCjkOnly = 纯中日韩字符（站点口径）。</summary>
 public static class TextMetrics
 {
+    public static int CountCjkOnly(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+        var count = 0;
+        foreach (var ch in text)
+        {
+            if (ch is >= '\u4e00' and <= '\u9fff' or >= '\u3400' and <= '\u4dbf') count++;
+        }
+        return count;
+    }
+
     public static int CountWords(string text)
     {
         if (string.IsNullOrEmpty(text)) return 0;

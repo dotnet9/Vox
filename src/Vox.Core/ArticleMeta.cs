@@ -12,6 +12,6 @@ public sealed class ArticleMeta
     public List<string> Categories { get; set; } = [];
     public List<string> Albums { get; set; } = [];
     public List<string> Tags { get; set; } = [];
-    public string Author { get; set; } = "Dotnet9";
+    public string Author { get; set; } = string.Empty; // 缺 author 是体检项，不默认填充
     public bool Draft { get; set; }
 }

@@ -67,7 +67,7 @@ public class YamlSidecarTests
             Assert.Equal(new DateTime(2022, 3, 1, 10, 0, 0), meta.Date);
             Assert.Empty(meta.Albums);
             Assert.Empty(meta.Tags);
-            Assert.Equal("Dotnet9", meta.Author);
+            Assert.Equal(string.Empty, meta.Author); // author 键缺失不默认填充，留给体检规则暴露
         }
         finally
         {
@@ -200,6 +200,9 @@ public class SlugRulesTests
     [InlineData("dotnet-native-aot", true)]
     [InlineData("a1-b2", true)]
     [InlineData("Bad Slug", false)]
+    [InlineData("Bad!Slug", false)]
+    [InlineData("Uses-fluent-validation-in-WPF", true)] // 存量 Pascal 风格 slug 合法（2019-2021 既成规范）
+    [InlineData("qtzu-3d-英语学习游戏", true)] // CJK slug 合法
     [InlineData("-leading", false)]
     [InlineData("double--dash", false)]
     [InlineData("", false)]

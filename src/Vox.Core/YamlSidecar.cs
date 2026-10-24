@@ -110,7 +110,8 @@ public static class ArticleMetaExtensions
         meta.Slug = meta.Slug?.Trim() ?? string.Empty;
         meta.Description = meta.Description?.Trim();
         meta.Cover = string.IsNullOrWhiteSpace(meta.Cover) ? null : meta.Cover!.Trim();
-        meta.Author = string.IsNullOrWhiteSpace(meta.Author) ? "Dotnet9" : meta.Author!.Trim();
+        // 注意：不默认 author——「缺 author」是体检项（基线 122 篇），默认值会遮蔽线索；展示层自行兜底。
+        meta.Author = meta.Author?.Trim() ?? string.Empty;
         meta.Categories ??= [];
         meta.Albums ??= [];
         meta.Tags ??= [];

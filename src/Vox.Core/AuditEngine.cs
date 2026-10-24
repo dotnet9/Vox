@@ -71,8 +71,9 @@ public static class AuditEngine
             }
             if (string.IsNullOrWhiteSpace(article.Meta.Author))
             {
-                issues.Add(new AuditIssue(AuditRule.MissingAuthor, AuditSeverity.Fixable, article.MarkdownPath,
-                    "author 为空", "Dotnet9"));
+                // 信息项：站点渲染默认站长（CodeWF 侧规则），数据保真不填充，仅列出供作者知悉。
+                issues.Add(new AuditIssue(AuditRule.MissingAuthor, AuditSeverity.Clue, article.MarkdownPath,
+                    "author 为空（站点默认渲染为站长 Dotnet9）", "Dotnet9"));
             }
             if (!SlugRules.IsCompliant(article.Slug))
             {
@@ -168,14 +169,21 @@ public static class AuditEngine
             : string.Empty;
 }
 
-/// <summary>slug 规范（CodeWF CONTENT_GUIDE 约定）：小写字母、数字、连字符；不以连字符开头/结尾。</summary>
+/// <summary>
+/// slug 规范：字母（存量仓库有 Pascal 风格 slug，大小写皆合法）、数字、连字符、CJK；
+/// 禁止空白与 URL 不安全字符（空格/!/？等需转义的），不以连字符开头/结尾、无连续连字符。
+/// </summary>
 public static class SlugRules
 {
     public static bool IsCompliant(string slug)
     {
         if (string.IsNullOrEmpty(slug)) return false;
-        return slug.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-')
-            && !slug.StartsWith('-')
+        if (slug.Any(char.IsWhiteSpace)) return false;
+        var safe = slug.All(c => char.IsAsciiLetterOrDigit(c)
+            || c is '-' or '.' or '_' or '~'
+            || (c >= '一' && c <= '鿿'));
+        if (!safe) return false;
+        return !slug.StartsWith('-')
             && !slug.EndsWith('-')
             && !slug.Contains("--");
     }
