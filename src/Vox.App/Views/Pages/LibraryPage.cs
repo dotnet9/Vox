@@ -1,216 +1,357 @@
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Vox.Core;
-using static Vox.App.Infrastructure.I18n;
-using ArcButton = TKCode.Arc.Button;
-using Avalonia;
 using Vox.App.Infrastructure;
-using TKCode.Arc;
+using Vox.App.Services;
+using Vox.App.Views;
+using Vox.Core;
+using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
 
-/// <summary>文章库：统计条 + 筛选 + 全库列表；双击进写作页编辑（同页切换，不开新窗口）。</summary>
+/// <summary>文章库页（原型 #view-library）：统计条 + 筛选 + 平台状态表格 + 分页。</summary>
 public sealed class LibraryPage : UserControl
 {
-    private readonly StackPanel _stats = new() { Orientation = Orientation.Horizontal, Spacing = 24 };
-    private readonly ComboBox _yearBox = new() { MinWidth = 120 };
-    private readonly ComboBox _categoryBox = new() { MinWidth = 140 };
-    private readonly ComboBox _albumBox = new() { MinWidth = 140 };
-    private readonly ComboBox _statusBox = new() { MinWidth = 110 };
-    private readonly TextBox _searchBox = new() { MinWidth = 200, Watermark = T(Library.Label.SearchPlaceholder) };
-    private readonly ListBox _list = new();
+    private readonly MainWindow _shell;
+    private StackPanel _statsHost = new();
+    private StackPanel _tableHost = new();
+    private readonly Controls.MiniSelect _yearFilter = new() { Title = "年份" };
+    private readonly Controls.MiniSelect _categoryFilter = new() { Title = "分类" };
+    private readonly Controls.MiniSelect _statusFilter = new() { Title = "状态" };
+    private readonly Controls.MiniSelect _platformFilter = new() { Title = "平台状态" };
+    private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 220, Watermark = "标题 / slug / 正文全文…" };
+    private readonly TextBlock _footInfo = new();
+    private readonly StackPanel _pagerHost = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+    private const int PageSize = 15;
+    private int _page;
 
-    public LibraryPage()
+    public LibraryPage(MainWindow shell)
     {
-        foreach (var box in new[] { _yearBox, _categoryBox, _albumBox, _statusBox })
+        _shell = shell;
+        BuildLayout();
+        AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            box.SelectionChanged += (_, _) => Reload();
-        }
-        _searchBox.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == TextBox.TextProperty) Reload();
-        };
-        _list.ItemTemplate = new FuncDataTemplate<Article>((a, _) => Row(a), true);
-        _list.DoubleTapped += (_, _) =>
-        {
-            // 浏览态与编辑态同页切换：双击跳到写作页（编辑选择由写作页处理）。
-            if (_list.SelectedItem is Article && TopLevel.GetTopLevel(_list) is MainWindow window)
-            {
-                window.ShowPage("write");
-            }
-        };
+            PublishHub.Invalidate();
+            Rebuild();
+        });
+        Rebuild();
+    }
 
-        var filters = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Margin = new Thickness(0, 10, 0, 10),
-            Children = { _yearBox, _categoryBox, _albumBox, _statusBox, _searchBox },
-        };
+    private void BuildLayout()
+    {
+        var scroll = new ScrollViewer { Padding = new Thickness(18) };
+        var host = new StackPanel { Spacing = 14 };
 
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*") };
-        var headerRow = new Grid { ColumnDefinitions = new ColumnDefinitions("3*,80,120,140,180,80,90,70") };
-        foreach (var (text, i) in new[]
+        // 统计条（4 卡）
+        _statsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        host.Children.Add(_statsHost);
+
+        // 筛选行
+        var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        foreach (var (select, allLabel) in new[]
                  {
-                     (T(Library.Column.Title), 0), (T(Library.Column.Date), 1), (T(Library.Column.Category), 2),
-                     (T(Library.Column.Album), 3), (T(Library.Column.Tags), 4), (T(Library.Column.Words), 5),
-                     (T(Library.Column.Status), 6),
+                     (_yearFilter, "全部年份"), (_categoryFilter, "全部分类"),
+                     (_statusFilter, "全部状态"), (_platformFilter, "全平台状态"),
                  })
         {
-            headerRow.Children.Add(new TextBlock
-            {
-                Text = text,
-                FontWeight = FontWeight.SemiBold,
-                FontSize = 12,
-                Opacity = 0.7,
-                Margin = new Thickness(8, 6, 0, 6),
-            });
-            Grid.SetColumn(headerRow.Children[^1], i);
+            select.Items = new[] { allLabel };
+            select.Selected = allLabel;
+            select.SelectionChanged += _ => { _page = 0; RebuildTable(); };
+            filters.Children.Add(select);
         }
-
-        Content = new DockPanel
+        filters.Children.Add(new Border { Width = 10 });
+        filters.Children.Add(_search);
+        _search.PropertyChanged += (_, e) =>
         {
-            Margin = new Thickness(16, 12, 16, 12),
-            Children =
+            if (e.Property == TextBox.TextProperty)
             {
-                _stats.Dock(Dock.Top),
-                filters.Dock(Dock.Top),
-                headerRow.Dock(Dock.Top),
-                new Border { Height = 1, Opacity = 0.15, Margin = new Thickness(0, 0, 0, 4) }.Dock(Dock.Top),
-                _list,
-            },
-        };
-
-        AttachedToVisualTree += (_, _) => ReloadFull();
-        AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(ReloadFull);
-    }
-
-    private void ReloadFull()
-    {
-        var scan = AppState.Instance.Scan;
-        _stats.Children.Clear();
-        if (scan == null)
-        {
-            _list.ItemsSource = null;
-            _yearBox.ItemsSource = null;
-            _categoryBox.ItemsSource = null;
-            _albumBox.ItemsSource = null;
-            return;
-        }
-
-        long words = scan.Articles.Sum(a => (long)a.WordCount);
-        var issues = 0; // 体检问题数由体检页计算，这里用规则数近似——避免重复全量扫描
-        _stats.Children.Add(Stat(scan.Articles.Count.ToString(), T(Library.Stats.Articles)));
-        _stats.Children.Add(Stat(words.ToString("N0"), T(Library.Stats.Words)));
-        _stats.Children.Add(Stat(scan.Images.Count(i => !i.IsMissing).ToString(), T(Library.Stats.Images)));
-        _stats.Children.Add(Stat(issues.ToString(), T(Library.Stats.Issues)));
-
-        var selection = (_yearBox.SelectedItem as string, _categoryBox.SelectedItem as string, _albumBox.SelectedItem as string);
-
-        _yearBox.ItemsSource = scan.Articles.Select(a => a.Year).Distinct().OrderByDescending(y => y).ToList();
-        _categoryBox.ItemsSource = scan.Articles.SelectMany(a => a.Meta.Categories).Distinct().Order().ToList();
-        _albumBox.ItemsSource = scan.Articles.SelectMany(a => a.Meta.Albums).Distinct().Order().ToList();
-
-        if (selection.Item1 != null && _yearBox.Items.Contains(selection.Item1)) _yearBox.SelectedItem = selection.Item1;
-        if (selection.Item2 != null && _categoryBox.Items.Contains(selection.Item2)) _categoryBox.SelectedItem = selection.Item2;
-        if (selection.Item3 != null && _albumBox.Items.Contains(selection.Item3)) _albumBox.SelectedItem = selection.Item3;
-
-        Reload();
-    }
-
-    private void Reload()
-    {
-        var scan = AppState.Instance.Scan;
-        if (scan == null) return;
-
-        var year = _yearBox.SelectedItem as string;
-        var category = _categoryBox.SelectedItem as string;
-        var album = _albumBox.SelectedItem as string;
-        var status = _statusBox.SelectedIndex; // 0 全部 / 1 已发布 / 2 草稿
-        var query = _searchBox.Text?.Trim();
-
-        var items = scan.Articles.Where(a =>
-                (year == null || a.Year == year)
-                && (category == null || a.Meta.Categories.Contains(category))
-                && (album == null || a.Meta.Albums.Contains(album))
-                && (status != 1 || !a.IsDraft) && (status != 2 || a.IsDraft)
-                && (query == null
-                    || a.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || a.Slug.Contains(query, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(a => a.Meta.Date)
-            .ToList();
-
-        _list.ItemsSource = items;
-    }
-
-    private static Control Stat(string value, string label) => new StackPanel
-    {
-        Children =
-        {
-            new TextBlock { Text = value, FontSize = 20, FontWeight = FontWeight.Bold },
-            new TextBlock { Text = label, FontSize = 11, Opacity = 0.6 },
-        },
-    };
-
-    private static Control Row(Article a)
-    {
-        var grid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("3*,80,120,140,180,80,90,70"),
-            Margin = new Thickness(0, 6, 0, 6),
-        };
-
-        void Cell(Control content, int col)
-        {
-            content.Margin = new Thickness(8, 0, 0, 0);
-            grid.Children.Add(content);
-            Grid.SetColumn(content, col);
-        }
-
-        Cell(new TextBlock { Text = a.Title, TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeight.Medium }, 0);
-        Cell(new TextBlock { Text = $"{a.Year}/{a.Month}", Opacity = 0.7, FontSize = 12 }, 1);
-        Cell(new TextBlock { Text = string.Join(" / ", a.Meta.Categories), Opacity = 0.8, FontSize = 12 }, 2);
-        Cell(Badge(a.Meta.Albums.Count > 0 ? string.Join(" / ", a.Meta.Albums) : T(Library.Badge.Missing),
-                a.Meta.Albums.Count > 0 ? null : Color.FromRgb(217, 119, 6)), 3);
-        Cell(new TextBlock { Text = string.Join(" · ", a.Meta.Tags), Opacity = 0.7, FontSize = 12 }, 4);
-        Cell(new TextBlock { Text = a.WordCount.ToString("N0"), Opacity = 0.7, FontSize = 12 }, 5);
-        Cell(Badge(a.IsDraft ? T(Library.Badge.Draft) : T(Library.Badge.Published),
-                a.IsDraft ? Color.FromRgb(60, 110, 240) : null), 6);
-
-        var edit = new ArcButton
-        {
-            Content = T(Common.Action.Edit),
-            Variant = ButtonVariant.Ghost,
-            Padding = new Thickness(8, 2, 8, 2),
-            MinHeight = 24,
-        };
-        edit.Click += (_, _) =>
-        {
-            if (TopLevel.GetTopLevel(edit) is MainWindow window)
-            {
-                window.ShowPage("write");
+                _page = 0;
+                RebuildTable();
             }
         };
-        Cell(edit, 7);
-        return grid;
+        host.Children.Add(filters);
+
+        // 表格 + 分页脚
+        var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
+        Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
+        Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
+        tableWrap.BorderThickness = new Thickness(1);
+        _tableHost = new StackPanel();
+        tableWrap.Child = _tableHost;
+
+        var foot = new Border { Padding = new Thickness(14, 9) };
+        Res(foot, Border.BackgroundProperty, "VoxSurface2");
+        var footRow = new DockPanel
+        {
+            Children =
+            {
+                _pagerHost.Dock(Dock.Right),
+                _footInfo,
+            },
+        };
+        Res(_footInfo, TextBlock.ForegroundProperty, "VoxFaint");
+        _footInfo.FontSize = 11;
+        foot.Child = footRow;
+
+        var tableWithFoot = new StackPanel { Children = { tableWrap, foot } };
+        host.Children.Add(tableWithFoot);
+
+        scroll.Content = host;
+        Content = scroll;
     }
 
-    private static Control Badge(string text, Color? tint) => new Border
+    private void Rebuild()
     {
-        Background = tint != null
-            ? new SolidColorBrush(Color.FromArgb(30, tint.Value.R, tint.Value.G, tint.Value.B))
-            : null,
-        CornerRadius = new CornerRadius(99),
-        Padding = new Thickness(7, 1, 7, 1),
-        HorizontalAlignment = HorizontalAlignment.Left,
-        Child = new TextBlock
+        RebuildStats();
+        RebuildFilters();
+        RebuildTable();
+    }
+
+    private void RebuildStats()
+    {
+        var scan = AppState.Instance.Scan;
+        _statsHost.Children.Clear();
+
+        var articles = scan?.Articles.Count ?? 0;
+        var years = scan is { } s ? $"{s.Articles.Min(a => a.Year)}–{s.Articles.Max(a => a.Year)}" : "—";
+        var words = scan?.Articles.Sum(a => a.WordCount) ?? 0;
+        var images = scan?.Images.Count(i => !i.IsMissing) ?? 0;
+        var pending = scan is null ? 0 : PublishHub.Rows().Sum(r => r.Channels.Count(c => c.Status is PublishStatus.Stale or PublishStatus.Off or PublishStatus.Error));
+
+        _statsHost.Children.Add(StatCard($"{articles}", $"篇文章 · 跨 {years}"));
+        _statsHost.Children.Add(StatCard(FormatWords(words), "总字数（引擎口径）"));
+        _statsHost.Children.Add(StatCard($"{images}", "张图片"));
+        _statsHost.Children.Add(StatCard($"{pending}", "待发布 / 需更新（全平台）"));
+    }
+
+    private static string FormatWords(int words) => words >= 10000
+        ? $"{words / 10000.0:F1} 万"
+        : $"{words}";
+
+    private Border StatCard(string number, string label)
+    {
+        var card = new Border
         {
-            Text = text,
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(16, 12),
+            MinWidth = 200,
+        };
+        Res(card, Border.BackgroundProperty, "VoxSurface");
+        Res(card, Border.BorderBrushProperty, "VoxLine");
+        card.BorderThickness = new Thickness(1);
+        var labelBlock = new TextBlock { Text = label, FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0) };
+        Res(labelBlock, TextBlock.ForegroundProperty, "VoxFaint");
+        card.Child = new StackPanel
+        {
+            Children =
+            {
+                new TextBlock { Text = number, FontSize = 19, FontWeight = FontWeight.Bold },
+                labelBlock,
+            },
+        };
+        return card;
+    }
+
+    private void RebuildFilters()
+    {
+        var scan = AppState.Instance.Scan;
+        var years = scan?.Articles.Select(a => a.Year).Distinct().OrderByDescending(y => y).ToList() ?? [];
+        var categories = scan?.Articles.SelectMany(a => a.Meta.Categories).Distinct().OrderBy(c => c).ToList() ?? [];
+
+        _yearFilter.Items = new[] { "全部年份" }.Concat(years).ToList();
+        _categoryFilter.Items = new[] { "全部分类" }.Concat(categories).ToList();
+        _statusFilter.Items = new[] { "全部状态", "已发布", "草稿" };
+        _platformFilter.Items = new[] { "全平台状态", "待发布", "需更新", "失败" };
+    }
+
+    private List<Article> Filtered()
+    {
+        var scan = AppState.Instance.Scan;
+        if (scan == null) return [];
+
+        IEnumerable<Article> query = scan.Articles;
+        if (_yearFilter.Selected is { Length: > 0 } year && year != "全部年份") query = query.Where(a => a.Year == year);
+        if (_categoryFilter.Selected is { Length: > 0 } cat && cat != "全部分类") query = query.Where(a => a.Meta.Categories.Contains(cat));
+        if (_statusFilter.Selected == "已发布") query = query.Where(a => !a.IsDraft);
+        if (_statusFilter.Selected == "草稿") query = query.Where(a => a.IsDraft);
+
+        var term = _search.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(a => a.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || a.Slug.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
+        if (_platformFilter.Selected == "待发布") query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Off));
+        if (_platformFilter.Selected == "需更新") query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Stale));
+        if (_platformFilter.Selected == "失败") query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Error));
+
+        return query.OrderByDescending(a => a.Meta.Date).ToList();
+    }
+
+    private void RebuildTable()
+    {
+        _tableHost.Children.Clear();
+        var all = Filtered();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(all.Count / (double)PageSize));
+        _page = Math.Clamp(_page, 0, totalPages - 1);
+        var pageItems = all.Skip(_page * PageSize).Take(PageSize).ToList();
+
+        // 表头
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,90,110,150,70,44,44,44,44,120") };
+        foreach (var (text, index) in new[] { "标题", "年月", "分类", "标签", "字数", "网站", "公众号", "博客园", "CSDN", "" }.Select((t, i) => (t, i)))
+        {
+            var cell = new TextBlock { Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold };
+            Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
+            if (index >= 5 && index < 9) cell.HorizontalAlignment = HorizontalAlignment.Center;
+            header.Children.Add(cell);
+            Grid.SetColumn(cell, index);
+        }
+        var headerBorder = new Border
+        {
+            Padding = new Thickness(14, 9),
+            Child = header,
+        };
+        Res(headerBorder, Border.BackgroundProperty, "VoxSurface2");
+        Res(headerBorder, Border.BorderBrushProperty, "VoxLine");
+        headerBorder.BorderThickness = new Thickness(0, 0, 0, 1);
+        _tableHost.Children.Add(headerBorder);
+
+        // 行
+        var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
+        foreach (var article in pageItems)
+        {
+            var row = BuildRow(article, rows.GetValueOrDefault(article.MarkdownPath));
+            _tableHost.Children.Add(row);
+        }
+        if (pageItems.Count == 0)
+        {
+            var empty = new TextBlock
+            {
+                Text = "没有符合条件的文章", FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 24),
+            };
+            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
+            _tableHost.Children.Add(empty);
+        }
+
+        // 分页
+        _footInfo.Text = all.Count == 0
+            ? "共 0 篇"
+            : $"显示 {_page * PageSize + 1}–{_page * PageSize + pageItems.Count} 篇 · 共 {all.Count} 篇";
+        _pagerHost.Children.Clear();
+        _pagerHost.Children.Add(PagerButton("‹", () => { if (_page > 0) { _page--; RebuildTable(); } }));
+        for (var i = 0; i < totalPages && i < 8; i++)
+        {
+            var index = i;
+            _pagerHost.Children.Add(PagerButton($"{i + 1}", () => { _page = index; RebuildTable(); }, current: i == _page));
+        }
+        if (totalPages > 8) _pagerHost.Children.Add(PagerButton("…", () => { }));
+        _pagerHost.Children.Add(PagerButton("›", () => { if (_page < totalPages - 1) { _page++; RebuildTable(); } }));
+    }
+
+    private Button PagerButton(string label, Action action, bool current = false)
+    {
+        var button = new Button
+        {
+            Classes = { "btn", "sm", current ? "primary" : string.Empty },
+            Content = label,
+            MinWidth = 26, Height = 24, Padding = new Thickness(6, 0),
             FontSize = 11,
-            Foreground = tint != null ? new SolidColorBrush(tint.Value) : null,
-            Opacity = tint == null ? 0.75 : 1,
-        },
-    };
+        };
+        button.Click += (_, _) => action();
+        return button;
+    }
+
+    private Border BuildRow(Article article, ArticlePublishRow? row)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,90,110,150,70,44,44,44,44,120") };
+
+        var title = new TextBlock
+        {
+            Text = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
+            FontWeight = FontWeight.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        AddCell(grid, 0, title);
+
+        var meta = new TextBlock { Text = $"{article.Year}/{article.Month}", FontSize = 12 };
+        AddCell(grid, 1, meta);
+        AddCell(grid, 2, new TextBlock { Text = string.Join("、", article.Meta.Categories), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
+        AddCell(grid, 3, new TextBlock { Text = string.Join(" · ", article.Meta.Tags), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
+        AddCell(grid, 4, new TextBlock { Text = article.WordCount.ToString("N0"), FontSize = 12 });
+
+        // 平台状态列（site/wx/cnb/csdn）
+        for (var column = 0; column < 4; column++)
+        {
+            var channel = (PublishChannel)column;
+            var cell = new TextBlock
+            {
+                Text = "—",
+                Classes = { "pm-st" },
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            if (row != null)
+            {
+                var (status, note) = row.Channels[column];
+                cell.Text = StatusGlyph(status);
+                cell.Classes.Add(status switch
+                {
+                    PublishStatus.Ok => "ok",
+                    PublishStatus.Stale => "stale",
+                    PublishStatus.Error => "err",
+                    _ => "off",
+                });
+                ToolTip.SetTip(cell, $"{ChannelName(channel)}：{StatusText(status)} · {note}");
+                var captured = article;
+                cell.PointerReleased += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, captured));
+            }
+            AddCell(grid, 5 + column, cell);
+        }
+
+        // 操作
+        var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
+        var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = "编辑" };
+        edit.Click += async (_, _) => await EditAsync(article);
+        var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = "发布…" };
+        publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, article));
+        ops.Children.Add(edit);
+        ops.Children.Add(publish);
+        AddCell(grid, 9, ops);
+
+        var rowBorder = new Border
+        {
+            Padding = new Thickness(14, 9),
+            Child = grid,
+            Cursor = new Cursor(StandardCursorType.Hand),
+        };
+        Res(rowBorder, Border.BorderBrushProperty, "VoxLine");
+        rowBorder.BorderThickness = new Thickness(0, 0, 0, 1);
+        rowBorder.PointerEntered += (_, _) => Res(rowBorder, Border.BackgroundProperty, "VoxSurface2");
+        rowBorder.PointerExited += (_, _) =>
+        {
+            rowBorder[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxSurface");
+        };
+        rowBorder.DoubleTapped += async (_, _) => await EditAsync(article);
+        return rowBorder;
+    }
+
+    private static void AddCell(Grid grid, int column, Control cell)
+    {
+        grid.Children.Add(cell);
+        Grid.SetColumn(cell, column);
+        cell.VerticalAlignment = VerticalAlignment.Center;
+        cell.Margin = new Thickness(column == 0 ? 0 : 8, 0, 0, 0);
+    }
+
+    private async Task EditAsync(Article article)
+    {
+        _shell.ShowPage("write");
+        if (_shell.PageHost.Content is WritePage write)
+        {
+            await write.OpenArticleAsync(article);
+        }
+    }
 }
