@@ -60,7 +60,22 @@ public static class Modal
                 Children = { header.Dock(Dock.Top), footerBorder.Dock(Dock.Bottom), bodyScroll },
             },
         };
+        Skin(modal);
         return (modal, body, footer, close);
+    }
+
+    /// <summary>
+    /// 把 .modal 类样式的外观以本地值落到弹层控件上：
+    /// 代码构造、后挂到 ModalHost 的 Border 依赖类样式时背景/描边可能不渲染（类样式不命中），
+    /// 本地动态资源值保证必然绘制且跟随主题。
+    /// </summary>
+    public static void Skin(Border dialog)
+    {
+        WritePage.Res(dialog, Border.BackgroundProperty, "VoxSurface");
+        WritePage.Res(dialog, Border.BorderBrushProperty, "VoxLine");
+        dialog.BorderThickness = new Thickness(1);
+        dialog.CornerRadius = new CornerRadius(16);
+        dialog.BoxShadow = Avalonia.Media.BoxShadows.Parse("0 24 70 0 #29000000, 0 4 16 0 #14000000");
     }
 
     public static TextBlock Label(string text) => new()

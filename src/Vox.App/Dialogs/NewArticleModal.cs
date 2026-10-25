@@ -42,8 +42,10 @@ public sealed class NewArticleModal : Border
         Classes.AddRange(modal.Classes);
         Width = modal.Width;
         MaxHeight = modal.MaxHeight;
-        Background = modal.Background;
-        Child = modal.Child;
+        Modal.Skin(this); // 类样式对代码构造的 Border 不可靠：外观以本地值落地
+        var skeleton = modal.Child;
+        modal.Child = null; // 先断开骨架 Border 的逻辑父级，再借用其内容（否则「已有父级」崩溃）
+        Child = skeleton;
         close.Click += (_, _) => shell.CloseModal();
 
         // 步骤条

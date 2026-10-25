@@ -10,6 +10,9 @@ using Vox.App.Infrastructure;
 using Vox.App.Services;
 using static Vox.App.Infrastructure.I18n;
 using Vox.App.Views.Pages;
+using Vox.App.Dialogs;
+using Vox.App.Services;
+using Vox.Core;
 
 namespace Vox.App.Views;
 
@@ -63,6 +66,269 @@ public partial class MainWindow : Window
         {
             Dispatcher.UIThread.Post(() => AppState.Instance.Rescan());
         }
+
+        BuildTitlebarExtras();
+    }
+
+    // ---------- 标题栏三钮（外观/语言/搜索，原型 v25 口径） ----------
+
+    private void BuildTitlebarExtras()
+    {
+        var densitySeg = Seg(new[] { ("紧凑", VoxTheme.DensityCompact), ("标准", VoxTheme.DensityNormal), ("宽松", VoxTheme.DensityRoomy) },
+            AppState.Instance.Settings.Density, ThemeService.ChangeDensity);
+        var themeSeg = Seg(new[] { ("亮色", "light"), ("暗色", "dark"), ("跟随系统", "auto") }, CurrentDarkKey(),
+            mode => ThemeService.ChangeDark(mode switch { "dark" => true, "auto" => (bool?)null, _ => false }));
+
+        var swatches = new WrapPanel { Margin = new Thickness(2, 2, 2, 4) };
+        var current = ThemeService.NormalizeAccentName(AppState.Instance.Settings.Accent);
+        foreach (var (name, lightHex, _) in VoxTheme.Accents)
+        {
+            var dot = new Border
+            {
+                Width = 26, Height = 26, CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(Color.Parse(lightHex)),
+                Margin = new Thickness(0, 0, 8, 8),
+                Cursor = new Cursor(StandardCursorType.Hand),
+                Tag = name,
+            };
+            if (name == current)
+            {
+                dot.BorderBrush = TryBrush("VoxFg");
+                dot.BorderThickness = new Thickness(2);
+            }
+            var captured = name;
+            dot.PointerReleased += (_, _) =>
+            {
+                ThemeService.ChangeAccent(captured);
+                foreach (var child in swatches.Children.OfType<Border>())
+                {
+                    var on = (string)child.Tag == captured;
+                    child.BorderThickness = new Thickness(on ? 2 : 0);
+                    child.BorderBrush = on ? TryBrush("VoxFg") : null;
+                }
+            };
+            swatches.Children.Add(dot);
+        }
+
+        var pop = new StackPanel { Width = 268 };
+        pop.Children.Add(PopTitle("界面密度", 0));
+        pop.Children.Add(densitySeg);
+        pop.Children.Add(PopTitle("明暗模式", 12));
+        pop.Children.Add(themeSeg);
+        pop.Children.Add(PopTitle("界面配色 · Arc 预设", 12));
+        pop.Children.Add(swatches);
+        BtnTbLook.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(pop) };
+
+        var lang = new StackPanel();
+        foreach (var (label, code) in new[] { ("简体中文", "zh-CN"), ("English", "en-US"), ("繁體中文", "zh-TW"), ("日本語", "ja-JP") })
+        {
+            var item = new Button { Classes = { "mnuitem" }, Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, Tag = code };
+            item.Classes.Set("active", AppState.Instance.Settings.Language == code);
+            var captured = (label, code);
+            item.Click += (_, _) =>
+            {
+                if (captured.code is "zh-CN" or "en-US")
+                {
+                    var settings = AppState.Instance.Settings;
+                    settings.Language = captured.code;
+                    AppState.Instance.SaveSettings();
+                    CodeWF.Toolkit.Lang.I18nManager.Instance.Culture = System.Globalization.CultureInfo.GetCultureInfo(captured.code);
+                    ShowToast("界面语言：" + captured.label);
+                }
+                else
+                {
+                    ShowToast(captured.label + " 语言资源待补充（当前支持 简体中文 / English）");
+                }
+                BtnTbLang.Flyout?.Hide();
+            };
+            lang.Children.Add(item);
+        }
+        BtnTbLang.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(lang) };
+
+        BtnTbSearch.Click += (_, _) => OpenSearch();
+        SearchClose.Click += (_, _) => CloseSearch();
+        SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
+        SearchInput.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) RenderSearchResults(); };
+        KeyDown += OnHotkeys;
+    }
+
+    private void OnHotkeys(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.K && (e.KeyModifiers & KeyModifiers.Control) != 0) { OpenSearch(); e.Handled = true; }
+        else if (e.Key == Key.Escape && SearchOverlay.IsVisible) { CloseSearch(); e.Handled = true; }
+    }
+
+    private static string CurrentDarkKey() => AppState.Instance.Settings.IsDark switch { true => "dark", null => "auto", _ => "light" };
+
+    private static Border WrapPop(Control content) => new()
+    {
+        Classes = { "mnu" }, Padding = new Thickness(14, 12, 14, 14), Child = content,
+    };
+
+    private static TextBlock PopTitle(string text, double marginTop) => new()
+    {
+        Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold,
+        Foreground = TryBrush("VoxMuted"), Margin = new Thickness(2, marginTop, 0, 6),
+    };
+
+    private static IBrush? TryBrush(string key) =>
+        Application.Current!.TryFindResource(key, out var v) && v is IBrush b ? b : null;
+
+    private static Border Seg((string Label, string Value)[] options, string current, Action<string> apply)
+    {
+        var host = new Border { Classes = { "seg" } };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        host.Child = row;
+        foreach (var (label, value) in options)
+        {
+            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Content = label, Tag = value, MinWidth = 70 };
+            var captured = value;
+            button.Click += (_, _) =>
+            {
+                foreach (var child in row.Children.OfType<Button>())
+                {
+                    child.Classes.Set("active", (string?)child.Tag == captured);
+                }
+                apply(captured);
+            };
+            row.Children.Add(button);
+        }
+        return host;
+    }
+
+    // ---------- 全局搜索 ----------
+
+    private string _searchTab = "all";
+
+    private void OpenSearch()
+    {
+        BuildSearchTabs();
+        SearchInput.Text = string.Empty;
+        SearchOverlay.IsVisible = true;
+        SearchInput.Focus();
+        RenderSearchResults();
+    }
+
+    private void CloseSearch() => SearchOverlay.IsVisible = false;
+
+    private void BuildSearchTabs()
+    {
+        SearchTabs.Children.Clear();
+        foreach (var (label, key) in new[] { ("全部", "all"), ("文章", "art"), ("操作", "op") })
+        {
+            var button = new Button { Classes = { "segbtn", key == _searchTab ? "active" : string.Empty }, Content = label, Tag = key };
+            var captured = key;
+            button.Click += (_, _) =>
+            {
+                _searchTab = captured;
+                foreach (var child in SearchTabs.Children.OfType<Button>())
+                {
+                    child.Classes.Set("active", (string?)child.Tag == captured);
+                }
+                RenderSearchResults();
+            };
+            SearchTabs.Children.Add(button);
+        }
+    }
+
+    private sealed record SearchRow(string Kind, string Title, string Meta, Action Open);
+
+    private void RenderSearchResults()
+    {
+        var host = new StackPanel();
+        SearchList.Content = host;
+        var query = SearchInput.Text?.Trim().ToLowerInvariant() ?? string.Empty;
+        var rows = new List<SearchRow>();
+
+        if (_searchTab is "all" or "art" && AppState.Instance.Scan is { } scan)
+        {
+            foreach (var article in scan.Articles)
+            {
+                var a = article;
+                if (query.Length > 0 && !a.Title.Contains(query, StringComparison.OrdinalIgnoreCase) && !a.Slug.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                rows.Add(new SearchRow("art", string.IsNullOrEmpty(a.Title) ? a.Slug : a.Title,
+                    a.Year + "/" + a.Month + " · " + a.WordCount.ToString("N0") + " 字",
+                    () => { CloseSearch(); ShowPage("write"); if (PageHost.Content is WritePage w) _ = w.OpenArticleAsync(a); }));
+            }
+        }
+        if (_searchTab is "all" or "op")
+        {
+            rows.AddRange(new[]
+            {
+                new SearchRow("op", "提交并推送（发布中心 → 网站 git）", "发布中心", () => { CloseSearch(); ShowPage("publish"); }),
+                new SearchRow("op", "重新扫描内容仓库", "设置", () => { CloseSearch(); AppState.Instance.Rescan(); Services.PublishHub.Invalidate(); ShowToast("已重新扫描"); }),
+            }.Where(r => query.Length == 0 || r.Title.Contains(query, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var lastKind = string.Empty;
+        var shown = rows.Take(9).ToList();
+        foreach (var row in shown)
+        {
+            if (row.Kind != lastKind)
+            {
+                lastKind = row.Kind;
+                host.Children.Add(new TextBlock
+                {
+                    Text = row.Kind == "art" ? "文章" : "操作",
+                    FontSize = 9.5, FontWeight = FontWeight.SemiBold,
+                    Foreground = TryBrush("VoxFaint"), Margin = new Thickness(10, 9, 0, 4),
+                });
+            }
+            var item = new Button
+            {
+                Classes = { "sp-it" },
+                Content = new DockPanel
+                {
+                    Children =
+                    {
+                        new TextBlock { Text = row.Meta, FontSize = 10.5, Foreground = TryBrush("VoxFaint") }.Dock(Dock.Right),
+                        new TextBlock { Text = row.Title, FontSize = 12.5, TextTrimming = TextTrimming.CharacterEllipsis },
+                    },
+                },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            };
+            var captured = row;
+            item.Click += (_, _) => captured.Open();
+            host.Children.Add(item);
+        }
+        if (shown.Count == 0)
+        {
+            host.Children.Add(new TextBlock
+            {
+                Text = "没有匹配的结果", FontSize = 12, Margin = new Thickness(12, 16), Foreground = TryBrush("VoxFaint"),
+            });
+        }
+    }
+
+    // ---------- 文件名行（写作页联动） ----------
+
+    public void SetCurrentFile(Article? article, string fileName, IReadOnlyList<(PublishStatus Status, string Note)> badges)
+    {
+        FileDot.IsVisible = article != null;
+        FileNameText.IsVisible = article != null;
+        FileNameText.Text = fileName;
+        FileBadges.Children.Clear();
+        FileBadges.IsVisible = article != null;
+        if (article == null) return;
+        foreach (var (status, _) in badges)
+        {
+            var key = status switch
+            {
+                PublishStatus.Ok => "VoxOk",
+                PublishStatus.Stale => "VoxWarn",
+                PublishStatus.Error => "VoxDanger",
+                _ => "VoxFaint",
+            };
+            FileBadges.Children.Add(new Avalonia.Controls.Shapes.Ellipse
+            {
+                Width = 8, Height = 8, Opacity = status == PublishStatus.Off ? 0.5 : 1,
+                VerticalAlignment = VerticalAlignment.Center,
+                [!Avalonia.Controls.Shapes.Ellipse.FillProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(key),
+            });
+        }
+        var notes = string.Join("\n", badges.Select((b, i) => WritePage.ChannelName((PublishChannel)i) + "：" + WritePage.StatusText(b.Status) + " · " + b.Note));
+        ToolTip.SetTip(FileBadges, notes);
     }
 
     // ---------- 标题栏 ----------
@@ -90,10 +356,10 @@ public partial class MainWindow : Window
         AddNavItem(NavItems, "library", LucideIconKind.ChartColumn, T(Nav.Label.Library));
         AddNavItem(NavItems, "publish", LucideIconKind.GitBranch, T(Nav.Label.Publish));
         AddNavItem(NavItems, "site", LucideIconKind.Braces, T(Nav.Label.SiteData));
-        AddNavItem(NavFoot, "settings", LucideIconKind.Settings, T(Nav.Label.Settings));
+        AddNavItem(NavItems, "settings", LucideIconKind.Settings, T(Nav.Label.Settings));
 
         MiNew.Click += (_, _) => WriteCommand(p => p.OpenNewArticle());
-        MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMetaTab());
+        MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
         MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
     }
 

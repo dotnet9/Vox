@@ -12,7 +12,6 @@ namespace Vox.App.Infrastructure;
 
 /// <summary>
 /// 外观应用：明暗 + 强调色 + 动效级别，全部经 AtomUI ThemeManager 热切换（Arc 的 GalleryTheme 同款管线）。
-/// StreamMark 预览的 Md.* 经 Theme.AtomUI 映射到 AtomUI token，自动跟随，无需单独处理。
 /// </summary>
 public static class ThemeService
 {
@@ -21,20 +20,50 @@ public static class ThemeService
         ApplyDarkAsync(settings.IsDark);
         ApplyAccent(settings.Accent);
         ApplyMotion(settings.MotionLevel);
-        // Vox 自绘界面的像素级令牌（原型 tokens.css 口径）：明暗 + 四组强调色。
+        // Vox 自绘界面令牌（原型 tokens.css 口径）：明暗 + Arc 八色 + 密度（字号/圆角）。
+        VoxTheme.SetDensity(settings.Density);
         VoxTheme.Apply(settings.IsDark == true, NormalizeAccentName(settings.Accent));
     }
 
-    /// <summary>设置存的是 Arc 预设名（Violet/…），VoxTheme 用小写口径（violet/…）。</summary>
-    public static string NormalizeAccentName(string accent) =>
-        accent.ToLowerInvariant() switch
-        {
-            "violet" => VoxTheme.AccentViolet,
-            "blue" => VoxTheme.AccentBlue,
-            "green" or "emerald" => VoxTheme.AccentEmerald,
-            "orange" => VoxTheme.AccentOrange,
-            _ => VoxTheme.AccentViolet,
-        };
+    /// <summary>设置存的是 Arc 预设名（Violet/…），VoxTheme 用小写口径（violet/…，Arc 八色全名）。</summary>
+    public static string NormalizeAccentName(string accent)
+    {
+        var lower = accent.ToLowerInvariant();
+        return VoxTheme.AccentToArcPreset.ContainsKey(lower == "emerald" ? "green" : lower)
+            ? (lower == "emerald" ? VoxTheme.AccentGreen : lower)
+            : VoxTheme.AccentViolet;
+    }
+
+    /// <summary>Arc 侧最近似预设名。</summary>
+    public static string ArcPresetOf(string voxAccent) =>
+        VoxTheme.AccentToArcPreset.GetValueOrDefault(voxAccent, "Violet");
+
+    // ---------- 标题栏外观弹层的即时切换（同时持久化） ----------
+    public static void ChangeAccent(string voxAccentName)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.Accent = ArcPresetOf(voxAccentName);
+        AppState.Instance.SaveSettings();
+        VoxTheme.Apply(settings.IsDark == true, voxAccentName);
+        ApplyAccent(settings.Accent);
+    }
+
+    public static void ChangeDark(bool? isDark)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.IsDark = isDark;
+        AppState.Instance.SaveSettings();
+        VoxTheme.Apply(isDark == true, NormalizeAccentName(settings.Accent));
+        ApplyDarkAsync(isDark);
+    }
+
+    public static void ChangeDensity(string density)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.Density = density;
+        AppState.Instance.SaveSettings();
+        VoxTheme.SetDensity(density);
+    }
 
     public static void ApplyDarkAsync(bool? isDark)
     {

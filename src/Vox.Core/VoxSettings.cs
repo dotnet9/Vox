@@ -16,6 +16,9 @@ public sealed class VoxSettings
     /// <summary>站点地址（发布对话框「查看线上」用）。</summary>
     public string SiteBase { get; set; } = "https://dotnet9.com";
 
+    /// <summary>界面密度：compact / normal / roomy（字号 + 面板圆角三档）。</summary>
+    public string Density { get; set; } = "normal";
+
     /// <summary>界面语言（zh-CN / en-US）。</summary>
     public string Language { get; set; } = "zh-CN";
 
@@ -27,6 +30,12 @@ public sealed class VoxSettings
 
     /// <summary>ArcMotionLevel 名称（Full/Reduced/Off）。</summary>
     public string MotionLevel { get; set; } = "Full";
+
+    /// <summary>预览渲染密度基准字号（13 紧凑 / 15 正常 / 17 宽松）。</summary>
+    public int MarkdownSize { get; set; } = 15;
+
+    /// <summary>预览排版主题（CodeWF MarkdownTypographyThemes 键：Simple/Basic/InkBlack/TechnologyBlue/WeChatFormat）。</summary>
+    public string MarkdownTheme { get; set; } = "Simple";
 
     [JsonIgnore]
     public LinkOptions Link => new() { CdnBase = string.IsNullOrWhiteSpace(CdnBase) ? LinkStrategy.DefaultCdnBase : CdnBase };

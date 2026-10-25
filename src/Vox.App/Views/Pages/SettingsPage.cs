@@ -1,11 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
-using System.Globalization;
-using CodeWF.Toolkit.Lang;
-using TKCode.Arc.Icons.Lucide;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
@@ -15,7 +11,7 @@ using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
 
-/// <summary>设置页（原型 #view-settings）：仓库 / 链接 / git / 平台账户 / 外观 / 关于 六段。</summary>
+/// <summary>设置页（原型 #view-settings）：仓库 / 链接 / git / 平台账户 / 关于 五段（外观移标题栏弹层）。</summary>
 public sealed class SettingsPage : UserControl
 {
     private readonly MainWindow _shell;
@@ -23,10 +19,6 @@ public sealed class SettingsPage : UserControl
     private readonly TextBlock _indexInfo = new();
     private readonly TextBox _cdnInput = new() { Classes = { "vinput" }, Width = 280, FontSize = 11 };
     private readonly TextBlock _patInfo = new();
-    private readonly Controls.MiniSelect _langSelect = new();
-    private readonly Controls.MiniSelect _motionSelect = new();
-    private readonly Button[] _themeButtons = new Button[3];
-    private readonly Ellipse[] _accentDots = new Ellipse[4];
 
     public SettingsPage(MainWindow shell)
     {
@@ -117,95 +109,6 @@ public sealed class SettingsPage : UserControl
         platCard.Add(PlatformRow("CSDN", "OpenAPI", PlatformAccounts.LoadCsdn() is { IsConfigured: true }));
         platCard.Add(Row("复制型平台", Desc("知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布")));
         host.Children.Add(platCard.Host);
-
-        // ---------- 外观 ----------
-        var appearCard = Card("外观", "正式实现由 Arc 主题接管（ArcAccentPreset / 明暗 / 动效级别）");
-        _langSelect.Items = new[] { "简体中文（默认）", "English" };
-        _langSelect.Selected = AppState.Instance.Settings.Language == "en-US" ? "English" : "简体中文（默认）";
-        _langSelect.SelectionChanged += value =>
-        {
-            var lang = value == "English" ? "en-US" : "zh-CN";
-            SaveSetting(s => s.Language = lang);
-            I18nManager.Instance.Culture = CultureInfo.GetCultureInfo(lang);
-            _shell.ShowToast(lang == "zh-CN" ? "界面语言：简体中文" : "UI language: English");
-        };
-        appearCard.Add(Row("语言 / Language", _langSelect));
-
-        var themeSeg = new Border { Classes = { "seg" }, Child = new StackPanel { Orientation = Orientation.Horizontal } };
-        foreach (var (label, index) in new[] { "亮色", "暗色", "跟随系统" }.Select((l, i) => (l, i)))
-        {
-            var button = new Button
-            {
-                Classes = { "segbtn" },
-                Content = label,
-            };
-            var captured = index;
-            button.Click += (_, _) =>
-            {
-                for (var i = 0; i < 3; i++) _themeButtons[i].Classes.Set("active", i == captured);
-                bool? dark = captured switch { 1 => true, 2 => null, _ => false };
-                SaveSetting(s => s.IsDark = dark);
-                ThemeService.Apply(AppState.Instance.Settings);
-            };
-            _themeButtons[index] = button;
-            ((StackPanel)themeSeg.Child!).Children.Add(button);
-        }
-        var currentDark = AppState.Instance.Settings.IsDark;
-        _themeButtons[currentDark == true ? 1 : currentDark == null ? 2 : 0].Classes.Add("active");
-        appearCard.Add(Row("主题", themeSeg));
-
-        var dotsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var accents = new[] { ("violet", "Violet"), ("blue", "Blue"), ("emerald", "Green"), ("orange", "Orange") };
-        for (var i = 0; i < accents.Length; i++)
-        {
-            var (voxName, arcName) = accents[i];
-            var color = voxName switch
-            {
-                "violet" => Color.Parse("#7C5CFF"),
-                "blue" => Color.Parse("#3E7BFA"),
-                "emerald" => Color.Parse("#14A06A"),
-                _ => Color.Parse("#EE7A1C"),
-            };
-            var dot = new Ellipse
-            {
-                Width = 16, Height = 16, Fill = new SolidColorBrush(color),
-                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
-                StrokeThickness = 1,
-            };
-            Res(dot, Ellipse.StrokeProperty, "VoxLine");
-            var capturedArc = arcName;
-            dot.PointerReleased += (_, _) =>
-            {
-                SaveSetting(s => s.Accent = capturedArc);
-                ThemeService.Apply(AppState.Instance.Settings);
-                RefreshAccentDots();
-            };
-            _accentDots[i] = dot;
-            dotsHost.Children.Add(dot);
-        }
-        RefreshAccentDots();
-        appearCard.Add(Row("强调色", dotsHost));
-
-        _motionSelect.Items = new[] { "标准（Full）", "减弱（Reduced）", "关闭（Off）" };
-        _motionSelect.Selected = AppState.Instance.Settings.MotionLevel switch
-        {
-            "Reduced" => "减弱（Reduced）",
-            "Off" => "关闭（Off）",
-            _ => "标准（Full）",
-        };
-        _motionSelect.SelectionChanged += value =>
-        {
-            var level = value switch
-            {
-                "减弱（Reduced）" => "Reduced",
-                "关闭（Off）" => "Off",
-                _ => "Full",
-            };
-            SaveSetting(s => s.MotionLevel = level);
-            ThemeService.Apply(AppState.Instance.Settings);
-        };
-        appearCard.Add(Row("动效级别", _motionSelect));
-        host.Children.Add(appearCard.Host);
 
         // ---------- 关于 ----------
         var aboutCard = Card("关于", "Vox · 维声 0.1.0-preview.1 · 出品 码坊 CodeWF");
@@ -308,20 +211,6 @@ public sealed class SettingsPage : UserControl
             ? $"已配置 {pat[..Math.Min(8, pat.Length)]}**** · 存于系统凭据管理器"
             : "未配置（HTTPS 推送时提示输入）";
         Res(_patInfo, TextBlock.ForegroundProperty, "VoxMuted");
-    }
-
-    private void RefreshAccentDots()
-    {
-        var active = AppState.Instance.Settings.Accent.ToLowerInvariant() switch
-        {
-            "blue" => 1, "green" or "emerald" => 2, "orange" => 3, _ => 0,
-        };
-        for (var i = 0; i < _accentDots.Length; i++)
-        {
-            _accentDots[i].StrokeThickness = i == active ? 2.5 : 1;
-            _accentDots[i].Width = i == active ? 18 : 16;
-            _accentDots[i].Height = i == active ? 18 : 16;
-        }
     }
 
     private void SaveSetting(Action<VoxSettings> mutate)

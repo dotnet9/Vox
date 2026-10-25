@@ -1,69 +1,114 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
 using Shapes = Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AvaloniaEdit;
-using AvaloniaEdit.Document;
-using AvaloniaEdit.TextMate;
-using StreamMark.Avalonia;
-using StreamMark.Avalonia.Extensions;
-using StreamMark.Avalonia.Images;
-using StreamMark.Avalonia.Selection;
-using TextMateSharp.Grammars;
+using CodeWF.Avalonia.Markdown.Controls;
+using CodeWF.Avalonia.Markdown.Editor.Controls;
+using CodeWF.Avalonia.Markdown.Shared.Rendering;
+using CodeWF.Avalonia.MindView;
+using CodeWF.Avalonia.MindView.Controls;
+using CodeWF.Avalonia.MindView.Markdown;
+using Markdig;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.Core;
-using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Views.Pages;
 
 /// <summary>
-/// 写作页（默认页）：文章列表(列表/树) ｜ 文件栏+发布徽标 + 源码(AvaloniaEdit)/预览(StreamMark) + 浮动模式钮 ｜
-/// 文章面板三页签（元数据/大纲/图片）。像素结构对齐原型 #view-write。
+/// 写作页（默认页）：文章列表卡 ｜ 源码卡 / 预览卡 / 导图卡（四态） ｜ 大纲面板卡。
+/// 全部区块为圆角卡片（VoxSurface + VoxLine + VoxRadius 动态资源，密度切换跟随），
+/// 三条 GridSplitter 可拖，悬浮模式条骑视图区底边。像素结构对齐原型 #view-write。
 /// </summary>
 public sealed class WritePage : UserControl
 {
     private readonly MainWindow _shell;
 
-    // 左列
+    // 左列（列表卡）
     private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 116, MinWidth = 0 };
     private readonly StackPanel _articleHost = new();
     private bool _treeMode;
 
-    // 中列
-    private readonly TextEditor _editor = new();
-    private readonly MarkdownView _preview = new();
+    // 中列（源码卡 | 预览卡 | 导图卡）
+    private readonly MarkdownEditorView _editorView = new();
+    private TextEditor Editor => _editorView.Editor;
+    private readonly MarkdownViewer _preview = new();
     private readonly ScrollViewer _previewScroll = new();
-    private readonly TextBlock _fileName = new();
-    private readonly StackPanel _badges = new();
+    private readonly MarkdownMindMapView _mapView = new();
+    private Border _srcCard = null!;
+    private Border _prevCard = null!;
+    private Border _mapCard = null!;
+    private readonly Panel _viewWrap = new();
     private readonly ColumnDefinition _editorCol = new() { Width = new GridLength(1, GridUnitType.Star) };
     private readonly ColumnDefinition _previewCol = new() { Width = new GridLength(1, GridUnitType.Star) };
+    private GridSplitter _srcSplitter = null!;
+    private Button _typoBtn = null!;
+    private Button _mapStyleBtn = null!;
+    private TextBlock _typoLabel = null!;
+    private TextBlock _mapStyleLabel = null!;
+    /// <summary>当前打开的页内弹层（排版/导图样式），点外部任意处关闭（原型 document click 口径）。</summary>
+    private FlyoutBase? _openFlyout;
+
+    // 右列（大纲面板卡）
     private readonly Border _panel = new();
     private GridSplitter _panelSplitter = null!;
-    private readonly ColumnDefinition _panelColumn = new() { Width = new GridLength(292) };
+    private StackPanel _outlineHost = null!;
+    private Button _panelHandle = null!;
+    private double _lastPanelWidth = 292;
+
+    // 模式条（源码/分屏/预览/导图）
+    private int _mode;
+    private readonly StackPanel _modeButtons = new() { Orientation = Orientation.Horizontal };
+
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(450) };
 
-    // 面板三页签
-    private readonly Button[] _tabButtons = new Button[3];
-    private readonly ScrollViewer[] _tabPages = new ScrollViewer[3];
-    private Button _panelToggle = null!;
-
-    private AvaloniaEdit.TextMate.TextMate.Installation? _textMate;
-    private RegistryOptions? _registry;
     private Article? _current;
     private string? _repoRoot;
     private bool _loading;
     private bool _dirty;
 
-    private readonly Dictionary<string, IImage> _thumbCache = new();
+    /// <summary>大纲/跳转共用的解析管线（与 MarkdownViewer 内置管线同口径 + YAML front matter）。</summary>
+    private static readonly MarkdownPipeline OutlinePipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .UseYamlFrontMatter()
+        .Build();
+
+    private static readonly (string Label, string Sub, string Key)[] TypoThemes =
+    [
+        ("简约 Minimal", "无装饰 · 无衬线 · 1.9 行距", "Simple"),
+        ("文档 Document", "H2 底部细线 · 蓝色 accent", "Basic"),
+        ("书卷 Book", "衬线字体 · 段落首行缩进两字符", "InkBlack"),
+        ("技术 Technical", "H2 左竖线 + 浅底 · 等宽代码", "TechnologyBlue"),
+        ("刊物 Editorial", "标题居中上下细线 · 杂志排版", "WeChatFormat"),
+    ];
+
+    private static readonly (string Label, string Sub, string Key)[] MapLayouts =
+    [
+        ("单侧树形", "一级分支排右侧", "Right"),
+        ("双侧平衡", "按子树负载分左右", "Balanced"),
+        ("中心放射", "分支呈放射展开", "Radial"),
+        ("向下树形", "层级自上而下展开", "Down"),
+        ("目录树", "按深度缩进纵向列表", "Outline"),
+        ("鱼骨图", "分支沿主脊上下交替", "Fishbone"),
+    ];
+
+    private static readonly (string Label, string Sub, string Key)[] MapStyles =
+    [
+        ("清雅", "默认 · 轻描边卡片", "Quiet"),
+        ("缤纷", "分支底色高饱和变体", "Colorful"),
+        ("线框", "透明底 + 描边卡片", "Outline"),
+        ("胶囊", "全圆角卡片", "Capsule"),
+        ("脉络", "无底卡片 + 下划线", "Underline"),
+        ("黑白", "去彩度的灰阶卡片", "Mono"),
+    ];
 
     public WritePage(MainWindow shell)
     {
@@ -74,22 +119,28 @@ public sealed class WritePage : UserControl
 
         BuildLayout();
 
-        _editor.TextChanged += (_, _) =>
+        _editorView.MarkdownChanged += (_, _) =>
         {
             if (_loading) return;
             _dirty = true;
             _debounce.Stop();
             _debounce.Start();
         };
-        _editor.KeyDown += OnEditorKey;
-        // issue #7：任务勾选交互是 opt-in（默认关），开启后点击/空格触发 TaskToggleRequested 由宿主回写源码。
-        _preview.IsTaskInteractionEnabled = true;
-        _preview.TaskToggleRequested += (_, e) =>
+        Editor.KeyDown += OnEditorKey;
+        // 预览里的任务勾选回写源码（库返回新 Markdown 与变更区间，整串应用即可）。
+        _preview.TaskWriteBackRequested += (_, e) =>
         {
             if (_current == null) return;
-            _editor.Text = e.ApplyTo(_editor.Text);
-            SaveCurrent();
+            _editorView.Text = e.Markdown;
+            SaveCurrent(silent: true);
         };
+
+        // 预览排版：设置持久化（MarkdownSize/MarkdownTheme），构造即应用。
+        var settings = AppState.Instance.Settings;
+        _preview.TypographyTheme = settings.MarkdownTheme;
+        _preview.ParagraphFontSize = Math.Clamp(settings.MarkdownSize, 12, 22);
+        _preview.ParagraphLineHeight = Math.Round(_preview.ParagraphFontSize * 1.8);
+        UpdateTypoLabel();
 
         AttachedToVisualTree += (_, _) => OnRepoReady();
         AppState.Instance.ScanChanged += () => Dispatcher.UIThread.Post(() =>
@@ -108,21 +159,16 @@ public sealed class WritePage : UserControl
         columns[0].MinWidth = 180;
         columns[0].MaxWidth = 360;
         var root = new Grid { ColumnDefinitions = columns };
+        Res(root, Panel.BackgroundProperty, "VoxBg");
+        // 页内弹层（排版/导图样式）点外部关闭：隧道阶段截获页面内的按下，
+        // 弹层内部的按下不经过页面根（弹层宿主在窗口覆盖层），天然排除。
+        root.AddHandler(PointerPressedEvent, OnPagePointerPressed, RoutingStrategies.Tunnel);
 
-        var list = BuildListPane();
-        root.Children.Add(list);
-        Grid.SetColumn(list, 0);
+        var listCard = ListCard();
+        root.Children.Add(listCard);
+        Grid.SetColumn(listCard, 0);
 
-        var listSplitter = new GridSplitter
-        {
-            Background = Brushes.Transparent,
-            MinWidth = 6,
-            Cursor = new Cursor(StandardCursorType.SizeWestEast),
-            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
-        };
-        Res(listSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
-        listSplitter.PointerEntered += (_, _) => Res(listSplitter, GridSplitter.BackgroundProperty, "VoxAccentSoft");
-        listSplitter.PointerExited += (_, _) => Res(listSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        var listSplitter = MakeSplitter();
         root.Children.Add(listSplitter);
         Grid.SetColumn(listSplitter, 1);
 
@@ -132,13 +178,9 @@ public sealed class WritePage : UserControl
         Content = root;
     }
 
-    private Control BuildListPane()
+    /// <summary>列表卡：圆角卡片（margin 10/2/10/10），头为搜索行，体为文章宿主。</summary>
+    private Border ListCard()
     {
-        var pane = new Border();
-        Res(pane, Border.BorderBrushProperty, "VoxLine");
-        pane.BorderThickness = new Thickness(0, 0, 1, 0);
-        Res(pane, Border.BackgroundProperty, "VoxSurface");
-
         var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var viewseg = new Border { Classes = { "viewseg" }, Child = segButtons };
         foreach (var (icon, tooltip, tree) in new[]
@@ -180,15 +222,8 @@ public sealed class WritePage : UserControl
             BorderThickness = new Thickness(0, 0, 0, 1),
             Child = new StackPanel
             {
-                Spacing = 8,
-                Children =
-                {
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal, Spacing = 6,
-                        Children = { _search, viewseg, newButton },
-                    },
-                },
+                Orientation = Orientation.Horizontal, Spacing = 6,
+                Children = { _search, viewseg, newButton },
             },
         };
         Res(head, Border.BorderBrushProperty, "VoxLine");
@@ -197,11 +232,10 @@ public sealed class WritePage : UserControl
             if (e.Property == TextBox.TextProperty) ReloadArticles();
         };
 
-        pane.Child = new DockPanel
+        return Card(new DockPanel
         {
             Children = { head.Dock(Dock.Top), new ScrollViewer { Content = _articleHost } },
-        };
-        return pane;
+        }, new Thickness(10, 10, 2, 10));
     }
 
     private void ReloadArticles()
@@ -346,125 +380,80 @@ public sealed class WritePage : UserControl
 
     private Control BuildMainPane()
     {
-        var dot = new Shapes.Ellipse { Width = 7, Height = 7 };
-        Res(dot, Shapes.Ellipse.FillProperty, "VoxWarn");
-        _fileName.Classes.Add("mono");
-        _fileName.FontSize = 10.5;
-        Res(_fileName, TextBlock.ForegroundProperty, "VoxMuted");
-        _badges.Spacing = 4;
-        _badges.Orientation = Orientation.Horizontal;
-        _badges.Margin = new Thickness(10, 0, 0, 0);
-        _badges.Cursor = new Cursor(StandardCursorType.Hand);
-        _badges.PointerReleased += (_, _) => OpenPublishDialog();
+        // 源码卡：CodeWF.Avalonia.Markdown 编辑器（AvaloniaEdit 宿主 + Markdown 语法着色内置）。
+        _srcCard = Card(_editorView, new Thickness(2, 10, 2, 10));
 
-        var edhead = new Border
-        {
-            Padding = new Thickness(12, 5),
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            Child = new StackPanel
-            {
-                Orientation = Orientation.Horizontal, Spacing = 8,
-                Children = { dot, _fileName, _badges },
-            },
-        };
-        Res(edhead, Border.BackgroundProperty, "VoxSurface2");
-        Res(edhead, Border.BorderBrushProperty, "VoxLine");
-
-        // 编辑器（AvaloniaEdit + TextMate，行号/行高对齐原型口径）
-        _editor.TextArea.LeftMargins.Add(new AvaloniaEdit.Editing.LineNumberMargin());
-        _editor.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
-        _editor.FontSize = 11.5;
-        _editor.TextArea.Padding = new Thickness(0, 12, 0, 12);
-        _editor.Background = Brushes.Transparent;
-
-        // 预览（StreamMark，相对路径图片按 md 目录解析）
+        // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
+        // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
         _previewScroll.Content = _preview;
         _previewScroll.Padding = new Thickness(30, 26, 30, 26);
-        Res(_previewScroll, ScrollViewer.BackgroundProperty, "VoxBg");
+        _previewScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        _preview.ScrollHost = _previewScroll;
+        BindPreviewBrushes();
+        _prevCard = Card(new Panel { Children = { _previewScroll, BuildTypoButton() } }, new Thickness(2, 10, 2, 10));
 
-        var srcPane = new Border
+        // 导图卡：MarkdownMindMapView 全宽画布（第四态），右上角导图样式钮。
+        BindMapBrushes();
+        _mapCard = Card(new Panel { Children = { _mapView, BuildMapStyleButton() } }, new Thickness(10, 10, 10, 10));
+        Grid.SetColumnSpan(_mapCard, 3);
+
+        // 源码 | 分隔条 | 预览（分屏态专用分隔条）
+        var center = new Grid
         {
-            BorderThickness = new Thickness(0, 0, 1, 0),
-            Child = _editor,
+            ColumnDefinitions = new ColumnDefinitions { _editorCol, new ColumnDefinition(new GridLength(6)), _previewCol },
         };
-        Res(srcPane, Border.BorderBrushProperty, "VoxLine");
+        center.Children.Add(_srcCard);
+        _srcSplitter = MakeSplitter();
+        center.Children.Add(_srcSplitter);
+        Grid.SetColumn(_srcSplitter, 1);
+        center.Children.Add(_prevCard);
+        Grid.SetColumn(_prevCard, 2);
+        center.Children.Add(_mapCard);
 
-        var center = new Grid { ColumnDefinitions = new ColumnDefinitions { _editorCol, _previewCol } };
-        center.Children.Add(srcPane);
-        center.Children.Add(_previewScroll);
-        Grid.SetColumn(_previewScroll, 1);
-
-        // 浮动模式钮（内容区底部居中，原型 .modeseg-float）
-        var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
-        var modeSeg = new Border { Classes = { "seg" }, CornerRadius = new CornerRadius(11), Padding = new Thickness(3), Child = segButtons };
-        Res(modeSeg, Border.BackgroundProperty, "VoxSurface");
-        foreach (var (label, mode) in new[] { ("源码", 0), ("分屏", 1), ("预览", 2) })
+        // 浮动模式条（四态：源码/分屏/预览/导图，骑视图区底边居中）
+        foreach (var (label, mode) in new[] { ("源码", 0), ("分屏", 1), ("预览", 2), ("导图", 3) })
         {
             var button = new Button { Classes = { "segbtn", mode == 0 ? "active" : string.Empty }, Content = label };
             var captured = mode;
             button.Click += (_, _) =>
             {
-                foreach (var child in segButtons.Children.OfType<Button>())
+                foreach (var child in _modeButtons.Children.OfType<Button>())
                 {
                     child.Classes.Set("active", ReferenceEquals(child, button));
                 }
                 SetMode(captured);
             };
-            segButtons.Children.Add(button);
+            _modeButtons.Children.Add(button);
         }
-
-        var centerWrap = new Panel();
-        centerWrap.Children.Add(center);
+        var modeSeg = new Border { Classes = { "seg" }, CornerRadius = new CornerRadius(11), Padding = new Thickness(3), Child = _modeButtons };
+        Res(modeSeg, Border.BackgroundProperty, "VoxSurface");
         var floatHost = new Panel
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 0, 16),
+            Margin = new Thickness(0, 0, 0, -6),
+            ZIndex = 30,
         };
         floatHost.Children.Add(modeSeg);
-        centerWrap.Children.Add(floatHost);
 
-        // 面板折叠钮（骑在分隔线上）
-        var panelIcon = new Shapes.Path
-        {
-            Data = StreamGeometry.Parse("M 15 18 L 9 12 L 15 6"),
-            StrokeThickness = 2, StrokeLineCap = PenLineCap.Round, Width = 12, Height = 12,
-        };
-        Res(panelIcon, Shapes.Path.StrokeProperty, "VoxMuted");
-        var panelToggle = new Button
-        {
-            Classes = { "edge-btn" },
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 3, 17),
-            Content = panelIcon,
-        };
-        ToolTip.SetTip(panelToggle, "收起 / 展开文章面板");
-        panelToggle.Click += (_, _) => SetPanelVisible(!_panel.IsVisible);
-        centerWrap.Children.Add(panelToggle);
-        _panelToggle = panelToggle;
+        BuildPanelHandle();
+        _viewWrap.Children.Add(center);
+        _viewWrap.Children.Add(floatHost);
+        MovePanelHandle(intoPanel: false); // 默认收起：把手骑视图区右缘垂直居中（最后加入保证置顶）
 
         BuildPanel();
         _panel.IsVisible = false;
 
-        // 编辑区 | 可拖分隔条 | 文章面板（宽 292，拖动 240–460）
+        // 视图区 | 可拖分隔条 | 大纲面板卡（宽 292，拖动 240–460）
         var contentColumns = new ColumnDefinitions("*,6,292");
         contentColumns[0].MinWidth = 320;
         contentColumns[2].MinWidth = 240;
         contentColumns[2].MaxWidth = 460;
         var content = new Grid { ColumnDefinitions = contentColumns };
-        content.Children.Add(centerWrap);
+        content.Children.Add(_viewWrap);
+        Grid.SetColumn(_viewWrap, 0);
 
-        _panelSplitter = new GridSplitter
-        {
-            Background = Brushes.Transparent,
-            MinWidth = 6,
-            Cursor = new Cursor(StandardCursorType.SizeWestEast),
-            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
-        };
-        Res(_panelSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
-        _panelSplitter.PointerEntered += (_, _) => Res(_panelSplitter, GridSplitter.BackgroundProperty, "VoxAccentSoft");
-        _panelSplitter.PointerExited += (_, _) => Res(_panelSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        _panelSplitter = MakeSplitter();
         Grid.SetColumn(_panelSplitter, 1);
         content.Children.Add(_panelSplitter);
         content.Children.Add(_panel);
@@ -474,66 +463,365 @@ public sealed class WritePage : UserControl
         _panelSplitter.IsVisible = false;
         content.ColumnDefinitions[2].Width = new GridLength(0);
 
-        var main = new DockPanel();
-        main.Children.Add(edhead.Dock(Dock.Top));
-        main.Children.Add(content);
-        return main;
+        SetMode(0);
+        return content;
     }
+
+    /// <summary>页内弹层点外部关闭（把手钮自身除外，保留 Flyout 的开关切换）。</summary>
+    private void OnPagePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_openFlyout == null) return;
+        for (Visual? node = e.Source as Visual; node != null; node = node.Parent as Visual)
+        {
+            if (ReferenceEquals(node, _typoBtn) || ReferenceEquals(node, _mapStyleBtn)) return;
+        }
+        _openFlyout.Hide();
+    }
+
+    /// <summary>挂接弹层开关跟踪（Opened/Closed 维护 _openFlyout）。</summary>
+    private void TrackFlyout(Flyout flyout)
+    {
+        flyout.Opened += (_, _) => _openFlyout = flyout;
+        flyout.Closed += (_, _) => { if (_openFlyout == flyout) _openFlyout = null; };
+    }
+
+    /// <summary>圆角区块卡片：VoxSurface 底 + VoxLine 描边 + VoxRadius（动态资源，密度切换跟随）。</summary>
+    private static Border Card(Control child, Thickness margin)
+    {
+        var border = new Border
+        {
+            Child = child,
+            Margin = margin,
+            BorderThickness = new Thickness(1),
+            ClipToBounds = true,
+        };
+        Res(border, Border.BackgroundProperty, "VoxSurface");
+        Res(border, Border.BorderBrushProperty, "VoxLine");
+        Res(border, Border.CornerRadiusProperty, "VoxRadius");
+        return border;
+    }
+
+    /// <summary>透明底 6px 可拖分隔条，悬停 VoxAccentSoft。</summary>
+    private static GridSplitter MakeSplitter()
+    {
+        var splitter = new GridSplitter
+        {
+            Background = Brushes.Transparent,
+            MinWidth = 6,
+            Cursor = new Cursor(StandardCursorType.SizeWestEast),
+            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
+        };
+        Res(splitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        splitter.PointerEntered += (_, _) => Res(splitter, GridSplitter.BackgroundProperty, "VoxAccentSoft");
+        splitter.PointerExited += (_, _) => Res(splitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        return splitter;
+    }
+
+    private void BindPreviewBrushes()
+    {
+        // 预览排版色接 Vox 令牌：明暗/强调色热切换即时跟随。
+        Res(_preview, MarkdownViewer.TextBrushProperty, "VoxFg");
+        Res(_preview, MarkdownViewer.MutedTextBrushProperty, "VoxMuted");
+        Res(_preview, MarkdownViewer.AccentBrushProperty, "VoxAccent");
+        Res(_preview, MarkdownViewer.AccentForegroundBrushProperty, "VoxOnAccent");
+        Res(_preview, MarkdownViewer.BorderLineBrushProperty, "VoxLine");
+        Res(_preview, MarkdownViewer.QuoteBackgroundBrushProperty, "VoxAccentSoft");
+        Res(_preview, MarkdownViewer.CodeBackgroundBrushProperty, "VoxCodeBg");
+        Res(_preview, MarkdownViewer.InlineCodeBackgroundBrushProperty, "VoxCodeBg");
+        Res(_preview, MarkdownViewer.TableHeaderBackgroundBrushProperty, "VoxSurface2");
+    }
+
+    private void BindMapBrushes()
+    {
+        Res(_mapView, MarkdownMindMapView.CardBrushProperty, "VoxSurface");
+        Res(_mapView, MarkdownMindMapView.TextBrushProperty, "VoxFg");
+        Res(_mapView, MarkdownMindMapView.LineBrushProperty, "VoxLine");
+        Res(_mapView, MarkdownMindMapView.DotBrushProperty, "VoxLine");
+        _mapView.CanvasBrush = Brushes.Transparent;
+        _mapView.PreserveViewportOnRootChange = true;
+    }
+
+    // ---------- 预览排版（「排版 ▾」弹层） ----------
+
+    private Button BuildTypoButton()
+    {
+        _typoLabel = new TextBlock { Text = "简约", FontWeight = FontWeight.SemiBold };
+        _typoBtn = new Button
+        {
+            Classes = { "btn", "sm", "ghost" },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 12, 14, 0),
+            ZIndex = 5,
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 5,
+                Children = { new TextBlock { Text = "排版" }, _typoLabel, new TextBlock { Text = "▾", FontSize = 9, Opacity = 0.6 } },
+            },
+        };
+        ToolTip.SetTip(_typoBtn, "正文排版");
+        _typoBtn.Flyout = BuildTypoFlyout();
+        TrackFlyout((Flyout)_typoBtn.Flyout);
+        return _typoBtn;
+    }
+
+    private Flyout BuildTypoFlyout()
+    {
+        var currentSize = Math.Clamp(AppState.Instance.Settings.MarkdownSize, 12, 22);
+        var density = Seg(new[]
+        {
+            ("紧凑 13", "13"), ("正常 15", "15"), ("宽松 17", "17"),
+        }, currentSize.ToString(), value =>
+        {
+            var size = int.TryParse(value, out var parsed) ? parsed : 15;
+            var settings = AppState.Instance.Settings;
+            settings.MarkdownSize = size;
+            AppState.Instance.SaveSettings();
+            _preview.ParagraphFontSize = size;
+            _preview.ParagraphLineHeight = Math.Round(size * 1.8);
+            _shell.ShowToast($"渲染密度：{size}px 基准字号");
+        });
+
+        var cards = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
+        var currentTheme = AppState.Instance.Settings.MarkdownTheme;
+        foreach (var (label, sub, key) in TypoThemes)
+        {
+            var card = new Button
+            {
+                Classes = { "btn", "ghost" },
+                Width = 148,
+                Margin = new Thickness(0, 0, 8, 8),
+                Padding = new Thickness(10, 8),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Tag = key,
+                Content = new StackPanel
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock { Text = label, FontSize = 12, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+                        new TextBlock { Text = sub, FontSize = 10, Opacity = 0.72, TextWrapping = TextWrapping.Wrap, MinHeight = 26 },
+                    },
+                },
+            };
+            MarkChoiceSelected(card, key == currentTheme);
+            var captured = key;
+            card.Click += (_, _) =>
+            {
+                foreach (var child in cards.Children.OfType<Button>())
+                {
+                    MarkChoiceSelected(child, ReferenceEquals(child, card));
+                }
+                var settings = AppState.Instance.Settings;
+                settings.MarkdownTheme = captured;
+                AppState.Instance.SaveSettings();
+                _preview.TypographyTheme = captured;
+                UpdateTypoLabel();
+                _shell.ShowToast("排版：" + captured);
+            };
+            cards.Children.Add(card);
+        }
+
+        var pop = new StackPanel { Width = 480 };
+        pop.Children.Add(new TextBlock { Text = "正文排版", FontSize = 13.5, FontWeight = FontWeight.SemiBold });
+        pop.Children.Add(PopLabel("渲染密度"));
+        pop.Children.Add(density);
+        pop.Children.Add(PopLabel("排版主题"));
+        pop.Children.Add(cards);
+
+        return new Flyout
+        {
+            Placement = PlacementMode.Bottom,
+            ShowMode = FlyoutShowMode.Standard,
+            Content = PopWrap(pop),
+        };
+    }
+
+    private void UpdateTypoLabel()
+    {
+        var key = AppState.Instance.Settings.MarkdownTheme;
+        _typoLabel.Text = Array.Find(TypoThemes, t => t.Key == key) is { } found ? found.Label.Split(' ')[0] : key;
+    }
+
+    // ---------- 导图（第四态） ----------
+
+    private Button BuildMapStyleButton()
+    {
+        _mapStyleLabel = new TextBlock { Text = "导图样式", FontWeight = FontWeight.SemiBold };
+        _mapStyleBtn = new Button
+        {
+            Classes = { "btn", "sm", "ghost" },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 12, 14, 0),
+            ZIndex = 5,
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 5,
+                Children = { _mapStyleLabel, new TextBlock { Text = "▾", FontSize = 9, Opacity = 0.6 } },
+            },
+        };
+        ToolTip.SetTip(_mapStyleBtn, "导图样式");
+        _mapStyleBtn.Flyout = BuildMapStyleFlyout();
+        TrackFlyout((Flyout)_mapStyleBtn.Flyout);
+        return _mapStyleBtn;
+    }
+
+    private Flyout BuildMapStyleFlyout()
+    {
+        var structGrid = ChoiceGrid(MapLayouts, _mapView.LayoutKind.ToString(), value =>
+        {
+            if (Enum.TryParse<MindMapLayoutKind>(value, ignoreCase: true, out var layout)) _mapView.LayoutKind = layout;
+        });
+        var styleGrid = ChoiceGrid(MapStyles, _mapView.StyleKind.ToString(), value =>
+        {
+            if (Enum.TryParse<MindMapStyleKind>(value, ignoreCase: true, out var style)) _mapView.StyleKind = style;
+        });
+        var pages = new Panel();
+        pages.Children.Add(structGrid);
+        pages.Children.Add(styleGrid);
+        styleGrid.IsVisible = false;
+
+        var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        var seg = new Border { Classes = { "seg" }, HorizontalAlignment = HorizontalAlignment.Left, Child = segButtons };
+        foreach (var (label, index) in new (string Label, int Index)[] { ("结构", 0), ("风格", 1) })
+        {
+            var button = new Button { Classes = { "segbtn", index == 0 ? "active" : string.Empty }, Content = label };
+            var captured = index;
+            button.Click += (_, _) =>
+            {
+                foreach (var child in segButtons.Children.OfType<Button>())
+                {
+                    child.Classes.Set("active", ReferenceEquals(child, button));
+                }
+                structGrid.IsVisible = captured == 0;
+                styleGrid.IsVisible = captured == 1;
+            };
+            segButtons.Children.Add(button);
+        }
+
+        var pop = new StackPanel { Width = 470 };
+        pop.Children.Add(new TextBlock { Text = "导图样式", FontSize = 13.5, FontWeight = FontWeight.SemiBold });
+        pop.Children.Add(seg);
+        pop.Children.Add(pages);
+
+        return new Flyout
+        {
+            Placement = PlacementMode.Bottom,
+            ShowMode = FlyoutShowMode.Standard,
+            Content = PopWrap(pop),
+        };
+    }
+
+    /// <summary>选择卡片网格：选中态描边强调色，点击即改视图属性。</summary>
+    private WrapPanel ChoiceGrid((string Label, string Sub, string Key)[] options, string current, Action<string> apply)
+    {
+        var wrap = new WrapPanel();
+        foreach (var (label, sub, key) in options)
+        {
+            var card = new Button
+            {
+                Classes = { "btn", "ghost" },
+                Width = 142,
+                Margin = new Thickness(0, 0, 8, 8),
+                Padding = new Thickness(10, 8),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Tag = key,
+                Content = new StackPanel
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock { Text = label, FontSize = 12, FontWeight = FontWeight.SemiBold },
+                        new TextBlock { Text = sub, FontSize = 10, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis },
+                    },
+                },
+            };
+            MarkChoiceSelected(card, string.Equals(key, current, StringComparison.OrdinalIgnoreCase));
+            var captured = key;
+            card.Click += (_, _) =>
+            {
+                foreach (var child in wrap.Children.OfType<Button>())
+                {
+                    MarkChoiceSelected(child, ReferenceEquals(child, card));
+                }
+                apply(captured);
+                _mapStyleLabel.Text = "导图样式";
+            };
+            wrap.Children.Add(card);
+        }
+        return wrap;
+    }
+
+    private static void MarkChoiceSelected(Button card, bool selected)
+    {
+        card.BorderThickness = new Thickness(selected ? 1.5 : 1);
+        Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
+    }
+
+    private void RebuildMap()
+    {
+        var text = _editorView.Text;
+        if (string.IsNullOrWhiteSpace(text) || _current == null)
+        {
+            _mapView.Root = null;
+            return;
+        }
+        var title = string.IsNullOrEmpty(_current.Title) ? _current.Slug : _current.Title;
+        _mapView.Root = MarkdownMindMapDocument.Parse(text, title, new MarkdownMindMapOptions());
+    }
+
+    // ---------- 大纲面板卡（仅大纲内容，无页签头） ----------
 
     private void BuildPanel()
     {
         _panel.MinWidth = 0;
         Res(_panel, Border.BackgroundProperty, "VoxSurface");
-        _panel.BorderThickness = new Thickness(0);
+        Res(_panel, Border.BorderBrushProperty, "VoxLine");
+        Res(_panel, Border.CornerRadiusProperty, "VoxRadius");
+        _panel.BorderThickness = new Thickness(1);
+        _panel.Margin = new Thickness(2, 10, 10, 10);
+        _panel.ClipToBounds = true;
 
-        var tabNames = new[] { "元数据", "大纲", "图片" };
-        var tabHost = new StackPanel { Orientation = Orientation.Horizontal };
-        for (var i = 0; i < 3; i++)
-        {
-            var index = i;
-            var tab = new Button
-            {
-                Classes = { "wtabbtn", i == 0 ? "active" : string.Empty },
-                Content = tabNames[i],
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-            };
-            tab.Click += (_, _) => SelectTab(index);
-            _tabButtons[i] = tab;
-            tabHost.Children.Add(tab);
-        }
-        var tabsBorder = new Border
-        {
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            Child = tabHost,
-        };
-        Res(tabsBorder, Border.BorderBrushProperty, "VoxLine");
-
-        var pages = new Grid();
-        for (var i = 0; i < 3; i++)
-        {
-            _tabPages[i] = new ScrollViewer
-            {
-                Padding = new Thickness(14),
-                IsVisible = i == 0,
-                Content = new StackPanel(),
-            };
-            pages.Children.Add(_tabPages[i]);
-        }
-
-        var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
-        grid.Children.Add(tabsBorder);
-        grid.Children.Add(pages);
-        Grid.SetRow(tabsBorder, 0);
-        Grid.SetRow(pages, 1);
-        _panel.Child = grid;
+        _outlineHost = new StackPanel();
+        var outlineScroll = new ScrollViewer { Padding = new Thickness(14), Content = _outlineHost };
+        _panel.Child = new Panel { Children = { outlineScroll } };
     }
 
-    private void SelectTab(int index)
+    /// <summary>面板折叠把手：展开时面板卡内左下角，收起时骑视图区右缘垂直居中。</summary>
+    private void BuildPanelHandle()
     {
-        for (var i = 0; i < 3; i++)
+        var icon = new Shapes.Path
         {
-            _tabButtons[i].Classes.Set("active", i == index);
-            _tabPages[i].IsVisible = i == index;
+            Data = StreamGeometry.Parse("M 15 18 L 9 12 L 15 6"),
+            StrokeThickness = 2, StrokeLineCap = PenLineCap.Round, Width = 12, Height = 12,
+        };
+        Res(icon, Shapes.Path.StrokeProperty, "VoxMuted");
+        _panelHandle = new Button { Classes = { "edge-btn" }, Content = icon, ZIndex = 40 };
+        ToolTip.SetTip(_panelHandle, "收起 / 展开文章面板");
+        _panelHandle.Click += (_, _) => SetPanelVisible(!_panel.IsVisible);
+    }
+
+    private void MovePanelHandle(bool intoPanel)
+    {
+        if (_panelHandle.Parent is Panel host) host.Children.Remove(_panelHandle);
+        if (intoPanel)
+        {
+            _panelHandle.HorizontalAlignment = HorizontalAlignment.Left;
+            _panelHandle.VerticalAlignment = VerticalAlignment.Bottom;
+            _panelHandle.Margin = new Thickness(8, 0, 0, 8);
+            ((Panel)_panel.Child!).Children.Add(_panelHandle);
+        }
+        else
+        {
+            _panelHandle.HorizontalAlignment = HorizontalAlignment.Right;
+            _panelHandle.VerticalAlignment = VerticalAlignment.Center;
+            _panelHandle.Margin = new Thickness(0, 0, -12, 0);
+            _viewWrap.Children.Add(_panelHandle);
+        }
+        if (_panelHandle.Content is Shapes.Path path)
+        {
+            path.Data = StreamGeometry.Parse(intoPanel ? "M 9 18 L 15 12 L 9 6" : "M 15 18 L 9 12 L 15 6");
         }
     }
 
@@ -556,20 +844,31 @@ public sealed class WritePage : UserControl
                 : 292;
             grid.ColumnDefinitions[2].Width = new GridLength(0);
         }
-        if (_panelToggle.Content is Shapes.Path path)
-        {
-            path.Data = StreamGeometry.Parse(visible ? "M 15 18 L 9 12 L 15 6" : "M 9 18 L 15 12 L 9 6");
-        }
+        MovePanelHandle(visible);
     }
-
-    private double _lastPanelWidth = 292;
 
     private void SetMode(int mode)
     {
-        _editorCol.Width = mode == 2 ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        _previewCol.Width = mode == 0 ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        _editor.IsVisible = mode != 2;
-        _previewScroll.IsVisible = mode != 0;
+        _mode = mode;
+        var map = mode == 3;
+        _mapCard.IsVisible = map;
+        _srcCard.IsVisible = !map && mode != 2;
+        _prevCard.IsVisible = !map && mode != 0;
+        _srcSplitter.IsVisible = mode == 1;
+        if (map)
+        {
+            // 导图态：星号列保持满宽（都归零会把网格塌成分隔条宽），仅隐藏源码/预览卡。
+            _editorCol.Width = new GridLength(1, GridUnitType.Star);
+            _previewCol.Width = new GridLength(1, GridUnitType.Star);
+            // 动效级别在标题栏弹层可改：进导图态时按当前设置取值。
+            _mapView.EnableMotion = AppState.Instance.Settings.MotionLevel == "Full";
+            RebuildMap();
+        }
+        else
+        {
+            _editorCol.Width = mode == 2 ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+            _previewCol.Width = mode == 0 ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        }
     }
 
     // ---------- 仓库 / 打开 / 保存 ----------
@@ -583,34 +882,15 @@ public sealed class WritePage : UserControl
         if (_repoRoot == null)
         {
             _articleHost.Children.Clear();
+            _current = null;
             _preview.Markdown = null;
+            _outlineHost.Children.Clear();
+            _mapView.Root = null;
+            UpdateBadges();
             return;
         }
 
-        var services = new MarkdownServices
-        {
-            Images = new ImagePipeline { Policy = ImagePolicy.Default with { AllowedFileRoots = [_repoRoot] } },
-        };
-        MarkdownServices.SetServices(this, services);
-        MarkdownServices.SetImageBaseUri(this, _repoRoot);
-        InstallTextMate();
         ReloadArticles();
-    }
-
-    private void InstallTextMate()
-    {
-        if (_textMate != null) return;
-        try
-        {
-            var dark = Application.Current?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark;
-            _registry = new RegistryOptions(dark ? ThemeName.DarkPlus : ThemeName.LightPlus);
-            _textMate = _editor.InstallTextMate(_registry);
-            _textMate.SetGrammar(_registry.GetScopeByLanguageId("markdown"));
-        }
-        catch
-        {
-            _textMate = null;
-        }
     }
 
     public async Task OpenArticleAsync(Article article)
@@ -625,21 +905,17 @@ public sealed class WritePage : UserControl
             if (!File.Exists(file)) return;
 
             _current = article;
-            _fileName.Text = Path.GetFileName(article.MarkdownPath);
             using var reader = new StreamReader(file, System.Text.Encoding.UTF8, true);
-            _editor.Document = new TextDocument(await reader.ReadToEndAsync());
-            if (_textMate != null)
-            {
-                _textMate.SetGrammar(_registry!.GetScopeByLanguageId("markdown"));
-            }
-            MarkdownServices.SetImageBaseUri(this, Path.GetDirectoryName(file)!);
-            _preview.Markdown = _editor.Text;
+            var text = await reader.ReadToEndAsync();
+            _editorView.Text = text;
+            // 相对路径图片按 md 文件目录解析。
+            _preview.ImageBasePath = Path.GetDirectoryName(file);
+            _preview.Markdown = text;
             _dirty = false;
 
             UpdateBadges();
-            FillMetaTab();
             RebuildOutline();
-            FillImagesTab();
+            RebuildMap();
             ReloadArticles();
         }
         finally
@@ -667,7 +943,7 @@ public sealed class WritePage : UserControl
         if (_current == null || _repoRoot == null) return;
         try
         {
-            File.WriteAllText(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath), _editor.Text);
+            File.WriteAllText(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath), _editorView.Text);
             _dirty = false;
             if (!silent) _shell.ShowToast("已保存");
             Services.PublishHub.Invalidate();
@@ -683,24 +959,25 @@ public sealed class WritePage : UserControl
     private void RefreshPreview()
     {
         if (_current == null) return;
-        _preview.RefreshMarkdown(_editor.Text);
+        _preview.Markdown = _editorView.Text; // 增量渲染（Markdown 赋值即调度）
         RebuildOutline();
+        RebuildMap();
     }
 
     private void RebuildOutline()
     {
-        var host = (StackPanel)_tabPages[1].Content!;
+        var host = _outlineHost;
         host.Children.Clear();
         try
         {
-            foreach (var item in _preview.GetOutline())
+            var text = _editorView.Text ?? string.Empty;
+            foreach (var item in MarkdownOutlineExtractor.Extract(MarkdownParser.Parse(text, OutlinePipeline)))
             {
-                var level = item.Level;
-                var prefix = level >= 3 ? string.Empty : "· ";
+                var prefix = item.Level >= 3 ? string.Empty : "· ";
                 var button = new Button
                 {
-                    Classes = { "outl", level >= 3 ? "l3" : string.Empty },
-                    Content = new TextBlock { Text = $"{prefix}{item.Text}" },
+                    Classes = { "outl", item.Level >= 3 ? "l3" : string.Empty },
+                    Content = new TextBlock { Text = $"{prefix}{item.Title}" },
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
                 var captured = item;
@@ -713,9 +990,9 @@ public sealed class WritePage : UserControl
             // 大纲提取失败不影响编辑。
         }
 
-        var text = _editor.Text ?? string.Empty;
-        var total = System.Text.RegularExpressions.Regex.Matches(text, @"^[-*]\s+\[[ xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
-        var done = System.Text.RegularExpressions.Regex.Matches(text, @"^[-*]\s+\[[xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
+        var source = _editorView.Text ?? string.Empty;
+        var total = System.Text.RegularExpressions.Regex.Matches(source, @"^[-*]\s+\[[ xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
+        var done = System.Text.RegularExpressions.Regex.Matches(source, @"^[-*]\s+\[[xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
         if (total > 0)
         {
             host.Children.Add(FieldLabel("正文任务"));
@@ -723,453 +1000,34 @@ public sealed class WritePage : UserControl
         }
     }
 
-    private void JumpToOutline(OutlineItem item)
+    private void JumpToOutline(MarkdownOutlineItem item)
     {
-        var range = _preview.GetSourceRange(item.Target);
-        if (range is not { } source) return;
-        var text = _editor.Text ?? string.Empty;
-        var line = 0;
-        for (var i = 0; i < source.Start && i < text.Length; i++)
+        var line = Math.Clamp(item.Line, 1, Math.Max(1, Editor.Document.LineCount));
+        Editor.ScrollToLine(line); // AvaloniaEdit 行号 1 起
+        Editor.TextArea.Caret.Line = line;
+        // 预览可见时同步滚动到对应渲染块。
+        if (_mode is 1 or 2 && _preview.TryGetSourceLineBounds(line, out var bounds)
+            && _preview.TranslatePoint(new Point(0, bounds.Top), _previewScroll) is { } point)
         {
-            if (text[i] == '\n') line++;
+            _previewScroll.Offset = new Vector(_previewScroll.Offset.X, Math.Max(0, _previewScroll.Offset.Y + point.Y - 14));
         }
-        _editor.ScrollToLine(Math.Max(0, line));
-        _editor.TextArea.Caret.Line = Math.Max(1, line + 1);
-        _ = _preview.ScrollToSourceOffset(source.Start);
     }
 
     public void UpdateBadges()
     {
-        _badges.Children.Clear();
-        if (_current == null) return;
-        var notes = new List<string>();
+        // 文件名行与发布徽标在标题栏（MainWindow.SetCurrentFile）。
+        if (_current == null)
+        {
+            _shell.SetCurrentFile(null, string.Empty, Array.Empty<(PublishStatus Status, string Note)>());
+            return;
+        }
+        var badges = new List<(PublishStatus Status, string Note)>();
         foreach (var channel in new[] { PublishChannel.Site, PublishChannel.WeChat, PublishChannel.Cnblogs, PublishChannel.Csdn })
         {
             var (status, note) = Services.PublishHub.EvaluateArticle(_current.MarkdownPath, channel);
-            notes.Add($"{ChannelName(channel)}：{StatusText(status)} · {note}");
-            var key = status switch
-            {
-                PublishStatus.Ok => "VoxOk",
-                PublishStatus.Stale => "VoxWarn",
-                PublishStatus.Error => "VoxDanger",
-                _ => "VoxFaint",
-            };
-            var dot = new Shapes.Ellipse
-            {
-                Width = 8, Height = 8,
-                Opacity = status == PublishStatus.Off ? 0.5 : 1,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            Res(dot, Shapes.Ellipse.FillProperty, key);
-            _badges.Children.Add(dot);
+            badges.Add((status, note));
         }
-        ToolTip.SetTip(_badges, string.Join("\n", notes));
-    }
-
-    // ---------- 元数据页签 ----------
-
-    private void FillMetaTab()
-    {
-        var host = (StackPanel)_tabPages[0].Content!;
-        host.Children.Clear();
-        if (_current == null) return;
-        var meta = _current.Meta;
-
-        var cover = new Border { Height = 118, CornerRadius = new CornerRadius(11), ClipToBounds = true };
-        var coverGrid = new Grid();
-        cover.Child = coverGrid;
-        var loaded = false;
-        if (!string.IsNullOrWhiteSpace(meta.Cover) && _repoRoot != null
-            && !meta.Cover.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-        {
-            var coverPath = LinkStrategy.ToLocalFile(_repoRoot, meta.Cover);
-            if (File.Exists(coverPath))
-            {
-                try
-                {
-                    Bitmap? coverImage;
-                    using (var coverStream = File.OpenRead(coverPath))
-                    {
-                        coverImage = Bitmap.DecodeToWidth(coverStream, 320);
-                    }
-                    coverGrid.Children.Add(new global::Avalonia.Controls.Image { Source = coverImage, Stretch = Stretch.UniformToFill });
-                    loaded = true;
-                }
-                catch
-                {
-                    // 解码失败走占位。
-                }
-            }
-        }
-        if (!loaded)
-        {
-            cover.Background = new LinearGradientBrush
-            {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-                GradientStops =
-                {
-                    new GradientStop(Color.Parse("#4338CA"), 0),
-                    new GradientStop(Color.Parse("#6D28D9"), 1),
-                },
-            };
-            coverGrid.Children.Add(new TextBlock
-            {
-                Text = "◈ 封面预览", Foreground = Brushes.White, FontSize = 12,
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-            });
-        }
-        var ops = new StackPanel
-        {
-            Orientation = Orientation.Horizontal, Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(8),
-        };
-        foreach (var label in new[] { "更换", "从正文选" })
-        {
-            var op = new Button { Classes = { "btn", "sm" }, Content = label };
-            op.Click += async (_, _) => await ChangeCoverAsync(label == "更换");
-            ops.Children.Add(op);
-        }
-        coverGrid.Children.Add(ops);
-        host.Children.Add(cover);
-
-        host.Children.Add(FieldLabel("标题"));
-        host.Children.Add(MetaInput(meta.Title, v => meta.Title = v));
-
-        host.Children.Add(FieldLabel("slug"));
-        host.Children.Add(MetaInput(meta.Slug, v => meta.Slug = v, mono: true));
-
-        host.Children.Add(FieldLabel("简述 description"));
-        host.Children.Add(MetaInput(meta.Description ?? string.Empty, v => meta.Description = v, multiline: true));
-
-        host.Children.Add(FieldLabel("日期（自动）"));
-        host.Children.Add(MetaInput(meta.Date.ToString(YamlSidecar.Date_format), v =>
-        {
-            if (DateTime.TryParse(v, out var date)) meta.Date = date;
-        }, mono: true));
-
-        host.Children.Add(FieldLabel("分类"));
-        host.Children.Add(ChipsEditor(meta.Categories));
-
-        host.Children.Add(FieldLabel("标签"));
-        host.Children.Add(ChipsEditor(meta.Tags));
-
-        host.Children.Add(FieldLabel("作者 / 状态"));
-        var authorRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        authorRow.Children.Add(MetaInput(meta.Author ?? string.Empty, v => meta.Author = v, width: 110));
-        var statusLabel = new TextBlock
-        {
-            Text = meta.Draft ? "草稿" : "已发布",
-            FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center,
-        };
-        Res(statusLabel, TextBlock.ForegroundProperty, "VoxMuted");
-        var draftSwitch = new ToggleButton
-        {
-            Classes = { "vswitch" },
-            IsChecked = !meta.Draft,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        draftSwitch.Click += (_, _) =>
-        {
-            meta.Draft = draftSwitch.IsChecked != true;
-            statusLabel.Text = meta.Draft ? "草稿" : "已发布";
-            CommitMeta();
-        };
-        authorRow.Children.Add(draftSwitch);
-        authorRow.Children.Add(statusLabel);
-        host.Children.Add(authorRow);
-    }
-
-    private async Task ChangeCoverAsync(bool pickFile)
-    {
-        if (_current == null || _repoRoot == null) return;
-        string? repoRelative = null;
-
-        if (pickFile)
-        {
-            var provider = TopLevel.GetTopLevel(this)?.StorageProvider;
-            if (provider == null) return;
-            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "选择封面图片",
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("图片") { Patterns = RepoScanner.ImageExtensions.Select(e => "*" + e).ToArray() },
-                },
-                AllowMultiple = false,
-            });
-            if (files.Count == 0) return;
-            var source = files[0].TryGetLocalPath();
-            if (source == null) return;
-
-            var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath))!;
-            var name = $"{_current.Slug}-cover{Path.GetExtension(source).ToLowerInvariant()}";
-            var target = Path.Combine(mdDir, name);
-            File.Copy(source, target, overwrite: true);
-            repoRelative = PathText.ToForwardSlashes(Path.GetRelativePath(_repoRoot, target));
-        }
-        else if (_current.ImageReferences.Count > 0)
-        {
-            repoRelative = _current.ImageReferences[0];
-        }
-
-        if (repoRelative == null)
-        {
-            _shell.ShowToast(pickFile ? "未选择图片" : "正文没有图片可选");
-            return;
-        }
-
-        CommitMeta(meta => meta.Cover = repoRelative);
-        FillMetaTab();
-    }
-
-    private Control MetaInput(string value, Action<string> apply, bool mono = false, bool multiline = false, double width = double.NaN)
-    {
-        var box = new TextBox
-        {
-            Classes = { "vinput" },
-            Text = value,
-            AcceptsReturn = multiline,
-            TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
-            Width = width,
-            FontSize = mono ? 11 : 12.5,
-        };
-        if (mono) box.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
-
-        void Commit()
-        {
-            if (box.Text == null || box.Text.Trim() == value) return;
-            apply(box.Text.Trim());
-            CommitMeta();
-        }
-        box.LostFocus += (_, _) => Commit();
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key is Key.Enter or Key.Tab && !multiline)
-            {
-                Commit();
-            }
-        };
-        return box;
-    }
-
-    private Border Badge(string text, string tone = "")
-    {
-        var badge = new Border { Child = new TextBlock { Text = text } };
-        badge.Classes.Add("badge");
-        if (tone.Length > 0) badge.Classes.Add(tone);
-        return badge;
-    }
-
-    private TextBlock FieldLabel(string label) => new()
-    {
-        Text = label, Classes = { "flabel" }, Margin = new Thickness(0, 13, 0, 5),
-    };
-
-    /// <summary>chips 编辑器：值 × 删除 + ＋ 内联输入添加。</summary>
-    private Control ChipsEditor(List<string> values)
-    {
-        var wrap = new WrapPanel();
-        void Rebuild()
-        {
-            wrap.Children.Clear();
-            foreach (var value in values.ToList())
-            {
-                var chip = new Border
-                {
-                    Classes = { "chip" },
-                    Margin = new Thickness(0, 0, 6, 6),
-                    Cursor = new Cursor(StandardCursorType.Hand),
-                    Child = new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal, Spacing = 5,
-                        Children =
-                        {
-                            new TextBlock { Text = value },
-                            new TextBlock { Text = "×", Opacity = 0.6 },
-                        },
-                    },
-                };
-                var captured = value;
-                chip.PointerReleased += (_, _) =>
-                {
-                    values.Remove(captured);
-                    Rebuild();
-                    CommitMeta();
-                };
-                wrap.Children.Add(chip);
-            }
-
-            var add = new Border
-            {
-                Classes = { "chip", "add" }, Margin = new Thickness(0, 0, 6, 6),
-                Child = new TextBlock { Text = "＋" },
-                Cursor = new Cursor(StandardCursorType.Hand),
-            };
-            add.PointerReleased += (_, e) =>
-            {
-                var input = new TextBox
-                {
-                    Classes = { "vinput" }, Width = 104, FontSize = 11, MinHeight = 22, Watermark = "回车添加",
-                };
-                wrap.Children.Add(input);
-                input.Focus();
-                input.KeyDown += (_, ke) =>
-                {
-                    if (ke.Key == Key.Enter && !string.IsNullOrWhiteSpace(input.Text))
-                    {
-                        var v = input.Text.Trim();
-                        if (!values.Contains(v)) values.Add(v);
-                        Rebuild();
-                        CommitMeta();
-                    }
-                    else if (ke.Key == Key.Escape)
-                    {
-                        Rebuild();
-                    }
-                };
-                input.LostFocus += (_, _) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(input.Text))
-                    {
-                        var v = input.Text.Trim();
-                        if (!values.Contains(v))
-                        {
-                            values.Add(v);
-                            CommitMeta();
-                        }
-                    }
-                    Rebuild();
-                };
-                e.Handled = true;
-            };
-            wrap.Children.Add(add);
-        }
-        Rebuild();
-        return wrap;
-    }
-
-    private void CommitMeta(Action<ArticleMeta>? mutate = null)
-    {
-        if (_current == null || _repoRoot == null) return;
-        var meta = _current.Meta;
-        try
-        {
-            YamlSidecar.RewriteMarkdown(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath), m =>
-            {
-                m.Title = meta.Title; m.Slug = meta.Slug; m.Description = meta.Description;
-                m.Date = meta.Date; m.LastMod = DateTime.Now; m.Cover = meta.Cover;
-                m.Categories = meta.Categories; m.Tags = meta.Tags; m.Author = meta.Author; m.Draft = meta.Draft;
-                mutate?.Invoke(m);
-                return m;
-            });
-            Services.PublishHub.Invalidate();
-            AppState.Instance.NotifyRepoChanged();
-        }
-        catch (Exception ex)
-        {
-            _shell.ShowToast($"元数据保存失败：{ex.Message}");
-        }
-    }
-
-    // ---------- 图片页签 ----------
-
-    private async void FillImagesTab()
-    {
-        var host = (StackPanel)_tabPages[2].Content!;
-        host.Children.Clear();
-        if (_current == null || _repoRoot == null) return;
-
-        var drop = new Border
-        {
-            Classes = { "drop" },
-            Child = new StackPanel
-            {
-                Children =
-                {
-                    new TextBlock { Text = "拖入 / 点击上传 / 粘贴图片", TextAlignment = TextAlignment.Center },
-                    new TextBlock
-                    {
-                        Text = $"自动命名为 slug 前缀，落入 {_current.Year}/{_current.Month}",
-                        TextAlignment = TextAlignment.Center, FontSize = 10.5, Opacity = 0.7,
-                    },
-                },
-            },
-        };
-        drop.PointerReleased += (_, _) => OpenImageIntake();
-        host.Children.Add(drop);
-
-        var scan = AppState.Instance.Scan;
-        var grid = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-        host.Children.Add(grid);
-
-        foreach (var reference in _current.ImageReferences.Take(12))
-        {
-            var image = scan?.FindImage(reference);
-            var fileName = Path.GetFileName(reference);
-            var thumb = new Border
-            {
-                Classes = { "thumb" },
-                Width = 128, Margin = new Thickness(0, 0, 8, 8),
-                ClipToBounds = true,
-                Child = new DockPanel(),
-            };
-            var panel = (DockPanel)thumb.Child!;
-
-            if (image is { IsMissing: false })
-            {
-                var path = LinkStrategy.ToLocalFile(_repoRoot, reference);
-                if (_thumbCache.TryGetValue(path, out var cached))
-                {
-                    var img = new global::Avalonia.Controls.Image { Source = cached, Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top };
-                    DockPanel.SetDock(img, Dock.Top);
-                    panel.Children.Add(img);
-                }
-                else
-                {
-                    var placeholder = new Border { VerticalAlignment = VerticalAlignment.Stretch, Height = 58 };
-                    Res(placeholder, Border.BackgroundProperty, "VoxSurface3");
-                    panel.Children.Add(placeholder);
-                    var local = path;
-                    await Task.Run(() =>
-                    {
-                        try
-                        {
-                            var bitmap = DecodeThumb(local);
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                _thumbCache[local] = bitmap;
-                                if (!panel.Children.Contains(placeholder)) return;
-                                var loaded = new global::Avalonia.Controls.Image { Source = bitmap, Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top };
-                                DockPanel.SetDock(loaded, Dock.Top);
-                                panel.Children.Remove(placeholder);
-                                panel.Children.Insert(0, loaded);
-                            });
-                        }
-                        catch
-                        {
-                            // 解码失败保留占位。
-                        }
-                    });
-                }
-            }
-            else
-            {
-                var dead = new Border { VerticalAlignment = VerticalAlignment.Stretch, Height = 58 };
-                Res(dead, Border.BackgroundProperty, "VoxDangerSoft");
-                panel.Children.Add(dead);
-            }
-
-            var label = new TextBlock { Classes = { "tlabel" }, Text = fileName };
-            DockPanel.SetDock(label, Dock.Bottom);
-            panel.Children.Add(label);
-            ToolTip.SetTip(thumb, image is { IsMissing: true } ? "死链：文件不存在" : reference);
-            grid.Children.Add(thumb);
-        }
-
-        host.Children.Add(FieldLabel("引用形态（相对本文目录）"));
-        host.Children.Add(Badge("相对路径（唯一规范形态）", "accent"));
+        _shell.SetCurrentFile(_current, Path.GetFileName(_current.MarkdownPath), badges);
     }
 
     // ---------- 弹层入口 ----------
@@ -1191,11 +1049,16 @@ public sealed class WritePage : UserControl
         }));
     }
 
-    public void OpenMetaTab()
+    /// <summary>文章元数据弹层（原面板元数据页签迁移为 MetaModal）。</summary>
+    public void OpenMeta()
     {
+        if (_current == null || _repoRoot == null)
+        {
+            _shell.ShowToast("先选择一篇文章");
+            return;
+        }
         SetPanelVisible(true);
-        SelectTab(0);
-        if (_current == null) _shell.ShowToast("先选择一篇文章");
+        _shell.ShowModal(new MetaModal(_shell, _repoRoot, _current));
     }
 
     public void OpenImageIntake()
@@ -1209,10 +1072,9 @@ public sealed class WritePage : UserControl
         {
             var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot!, _current.MarkdownPath))!;
             var articleRelative = FixOps.ToArticleRelative(mdDir, _repoRoot!, relative);
-            _editor.Document.Insert(_editor.TextArea.Caret.Offset,
+            Editor.Document.Insert(Editor.TextArea.Caret.Offset,
                 $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})");
             SaveCurrent(silent: true);
-            FillImagesTab();
         }));
     }
 
@@ -1228,17 +1090,51 @@ public sealed class WritePage : UserControl
 
     // ---------- 共享小件 ----------
 
-    private static Bitmap? DecodeThumb(string path)
+    private TextBlock FieldLabel(string label) => new()
     {
-        try
+        Text = label, Classes = { "flabel" }, Margin = new Thickness(0, 13, 0, 5),
+    };
+
+    private Border Badge(string text, string tone = "")
+    {
+        var badge = new Border { Child = new TextBlock { Text = text } };
+        badge.Classes.Add("badge");
+        if (tone.Length > 0) badge.Classes.Add(tone);
+        return badge;
+    }
+
+    private static Border PopWrap(Control content) => new()
+    {
+        Classes = { "mnu" }, Padding = new Thickness(14, 12, 14, 14), Child = content,
+    };
+
+    private static TextBlock PopLabel(string text) => new()
+    {
+        Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold,
+        Margin = new Thickness(2, 12, 0, 6),
+    };
+
+    /// <summary>分段选择（同 MainWindow 标题栏弹层口径）：active 类由代码维护。</summary>
+    private static Border Seg((string Label, string Value)[] options, string current, Action<string> apply)
+    {
+        var host = new Border { Classes = { "seg" } };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        host.Child = row;
+        foreach (var (label, value) in options)
         {
-            using var stream = File.OpenRead(path);
-            return Bitmap.DecodeToWidth(stream, 240);
+            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Content = label, Tag = value, MinWidth = 64 };
+            var captured = value;
+            button.Click += (_, _) =>
+            {
+                foreach (var child in row.Children.OfType<Button>())
+                {
+                    child.Classes.Set("active", (string?)child.Tag == captured);
+                }
+                apply(captured);
+            };
+            row.Children.Add(button);
         }
-        catch
-        {
-            return null;
-        }
+        return host;
     }
 
     /// <summary>动态资源绑定（主题/强调色热切换跟随）。</summary>
