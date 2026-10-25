@@ -47,6 +47,19 @@ public partial class MainWindow : Window
 
         Topbar.PointerPressed += OnTopbarPressed;
         Topbar.DoubleTapped += (_, _) => ToggleMaximize();
+        // 状态变化即记录（WindowState 属性变更）：进最大化时记正常宽度，退出最大化时取消监视。
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property != WindowStateProperty) return;
+            if (WindowState == WindowState.Maximized)
+            {
+                _lastNormalWidth = Bounds.Width > 0 ? Bounds.Width : _lastNormalWidth;
+            }
+            else if (_maxDragTracking)
+            {
+                EndMaximizedDragWatch();
+            }
+        };
         ModalMask.PointerReleased += OnModalMaskReleased;
 
         BuildNav();
@@ -133,18 +146,12 @@ public partial class MainWindow : Window
             var captured = (label, code);
             item.Click += (_, _) =>
             {
-                if (captured.code is "zh-CN" or "en-US")
-                {
-                    var settings = AppState.Instance.Settings;
-                    settings.Language = captured.code;
-                    AppState.Instance.SaveSettings();
-                    CodeWF.Toolkit.Lang.I18nManager.Instance.Culture = System.Globalization.CultureInfo.GetCultureInfo(captured.code);
-                    ShowToast("界面语言：" + captured.label);
-                }
-                else
-                {
-                    ShowToast(captured.label + " 语言资源待补充（当前支持 简体中文 / English）");
-                }
+                // 四语全量支持：持久化 + SetCulture（CultureChanged → RebuildForAppearance 整体重建）。
+                var settings = AppState.Instance.Settings;
+                settings.Language = captured.code;
+                AppState.Instance.SaveSettings();
+                CodeWF.Toolkit.Lang.I18nManager.Instance.Culture = System.Globalization.CultureInfo.GetCultureInfo(captured.code);
+                ShowToast("界面语言：" + captured.label);
                 BtnTbLang.Flyout?.Hide();
             };
             lang.Children.Add(item);
@@ -154,7 +161,14 @@ public partial class MainWindow : Window
         BtnTbSearch.Click += (_, _) => OpenSearch();
         SearchClose.Click += (_, _) => CloseSearch();
         SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
-        SearchInput.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) RenderSearchResults(); };
+        SearchInput.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == TextBox.TextProperty)
+            {
+                SearchPlaceholder.IsVisible = string.IsNullOrEmpty(SearchInput.Text);
+                RenderSearchResults();
+            }
+        };
         KeyDown += OnHotkeys;
     }
 
@@ -222,7 +236,7 @@ public partial class MainWindow : Window
         SearchTabs.Children.Clear();
         foreach (var (label, key) in new[] { ("全部", "all"), ("文章", "art"), ("操作", "op") })
         {
-            var button = new Button { Classes = { "segbtn", key == _searchTab ? "active" : string.Empty }, Content = label, Tag = key };
+            var button = new Button { Classes = { "sptab", key == _searchTab ? "active" : string.Empty }, Content = label, Tag = key };
             var captured = key;
             button.Click += (_, _) =>
             {
@@ -276,21 +290,28 @@ public partial class MainWindow : Window
                 host.Children.Add(new TextBlock
                 {
                     Text = row.Kind == "art" ? "文章" : "操作",
-                    FontSize = 9.5, FontWeight = FontWeight.SemiBold,
-                    Foreground = TryBrush("VoxFaint"), Margin = new Thickness(10, 9, 0, 4),
+                    FontSize = 9.5, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.4,
+                    Foreground = TryBrush("VoxFaint"), Margin = new Thickness(10, 9, 10, 4),
                 });
             }
+            // .sp-it：左图标（文章 FileText / 操作 Send，原型同款）+ 标题 + 右侧 meta 灰字。
+            var icon = new LucideIcon
+            {
+                Kind = row.Kind == "art" ? LucideIconKind.FileText : LucideIconKind.Send,
+                Width = 15, Height = 15, StrokeThickness = 2,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0),
+                Foreground = TryBrush("VoxMuted"),
+            }.Dock(Dock.Left);
+            var meta = new TextBlock
+            {
+                Text = row.Meta, FontSize = 10.5, Foreground = TryBrush("VoxFaint"),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
+            }.Dock(Dock.Right);
             var item = new Button
             {
                 Classes = { "sp-it" },
-                Content = new DockPanel
-                {
-                    Children =
-                    {
-                        new TextBlock { Text = row.Meta, FontSize = 10.5, Foreground = TryBrush("VoxFaint") }.Dock(Dock.Right),
-                        new TextBlock { Text = row.Title, FontSize = 12.5, TextTrimming = TextTrimming.CharacterEllipsis },
-                    },
-                },
+                Content = new DockPanel { Children = { icon, meta, new TextBlock { Text = row.Title, FontSize = 12.5, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center } } },
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
             };
@@ -339,12 +360,83 @@ public partial class MainWindow : Window
 
     // ---------- 标题栏 ----------
 
+    // 最大化态拖拽还原（Win11 口径）：按下不立即拖动，光标水平位移超过阈值才还原，
+    // 还原后让光标落在标题栏水平中部，再进入拖动。
+    private const double MaximizedDragThreshold = 30;
+    private bool _maxDragTracking;
+    private Point _maxDragStart;
+    private PointerPressedEventArgs? _maxDragArgs;
+    private double _lastNormalWidth = 1280; // 进入最大化时记录的正常宽度（还原定位用）
+
     private void OnTopbarPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && WindowState == WindowState.Normal)
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if (WindowState == WindowState.Maximized)
+        {
+            BeginMaximizedDragWatch(e);
+        }
+        else
         {
             BeginMoveDrag(e);
         }
+    }
+
+    /// <summary>最大化态按下：捕获指针，进入“位移达标即还原”的监视。</summary>
+    private void BeginMaximizedDragWatch(PointerPressedEventArgs e)
+    {
+        _maxDragTracking = true;
+        _maxDragStart = e.GetPosition(this);
+        _maxDragArgs = e;
+        e.Pointer.Capture(Topbar);
+        Topbar.PointerMoved += OnMaximizedDragMoved;
+        Topbar.PointerReleased += OnMaximizedDragReleased;
+        Topbar.PointerCaptureLost += OnMaximizedDragCaptureLost;
+    }
+
+    private void EndMaximizedDragWatch()
+    {
+        _maxDragTracking = false;
+        _maxDragArgs = null;
+        Topbar.PointerMoved -= OnMaximizedDragMoved;
+        Topbar.PointerReleased -= OnMaximizedDragReleased;
+        Topbar.PointerCaptureLost -= OnMaximizedDragCaptureLost;
+    }
+
+    private void OnMaximizedDragMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_maxDragTracking || WindowState != WindowState.Maximized) return;
+        var position = e.GetPosition(this);
+        if (Math.Abs(position.X - _maxDragStart.X) < MaximizedDragThreshold) return;
+
+        // 还原前先记录：按下的 PointerPressedEventArgs（BeginMoveDrag 需要）、光标屏幕位置
+        // 与光标在（最大化）窗口宽度中的比例。
+        var args = _maxDragArgs;
+        EndMaximizedDragWatch();
+        if (args == null) return;
+
+        var cursorScreen = this.PointToScreen(position);
+        var ratio = Bounds.Width > 0 ? position.X / Bounds.Width : 0.5;
+        var scaling = RenderScaling;
+
+        WindowState = WindowState.Normal;
+        // 还原后立即设置窗口 Left/Top：光标位于标题栏中部（水平按记录的比例，垂直压回标题栏内），
+        // 保证光标落在自绘标题栏上再进入拖动。宽度用进入最大化前记录的正常宽度（此刻 Bounds 可能仍是最大化值）。
+        var restoredWidth = _lastNormalWidth * scaling;
+        var topbarHeight = Topbar.Bounds.Height > 0 ? Topbar.Bounds.Height : 42;
+        Position = new PixelPoint(
+            (int)Math.Round(cursorScreen.X - restoredWidth * Math.Clamp(ratio, 0, 1)),
+            (int)Math.Round(cursorScreen.Y - topbarHeight * scaling / 2));
+        BeginMoveDrag(args);
+    }
+
+    private void OnMaximizedDragReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_maxDragTracking) EndMaximizedDragWatch();
+    }
+
+    private void OnMaximizedDragCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (_maxDragTracking) EndMaximizedDragWatch();
     }
 
     private void ToggleMaximize() =>
@@ -420,8 +512,11 @@ public partial class MainWindow : Window
     private void ApplyNavMode()
     {
         NavRail.Width = _navCollapsed ? 56 : 196;
-        // 折叠钮：折叠态指向右（展开），展开态指向左（收起）。
-        BtnNavIcon.Data = StreamGeometry.Parse(_navCollapsed ? "M 9 18 L 15 12 L 9 6" : "M 15 18 L 9 12 L 15 6");
+        // 折叠钮：折叠态指向右（展开），展开态指向左（收起）。Lucide 几何以 24 画布居中，圆内几何居中。
+        if (BtnNavIcon is LucideIcon navGlyph)
+        {
+            navGlyph.Kind = _navCollapsed ? LucideIconKind.ChevronRight : LucideIconKind.ChevronLeft;
+        }
         BtnNav.Margin = new Thickness(_navCollapsed ? 44 : 184, 0, 0, 17);
         foreach (var (btn, _) in _navButtons)
         {

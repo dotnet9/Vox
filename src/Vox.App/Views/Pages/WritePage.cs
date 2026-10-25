@@ -62,6 +62,7 @@ public sealed class WritePage : UserControl
     private readonly Border _panel = new();
     private GridSplitter _panelSplitter = null!;
     private StackPanel _outlineHost = null!;
+    private TextBlock _outlineEmpty = null!;
     private Button _panelHandle = null!;
     private double _lastPanelWidth = 292;
 
@@ -149,6 +150,8 @@ public sealed class WritePage : UserControl
             OnRepoReady();
             ReloadArticles();
         });
+
+        SetPanelVisible(false); // 构造器末尾统一收起：面板隐藏 + 列宽/MinWidth 归零 + 把手骑视图区右缘
     }
 
     // ---------- 布局 ----------
@@ -445,10 +448,10 @@ public sealed class WritePage : UserControl
         BuildPanel();
         _panel.IsVisible = false;
 
-        // 视图区 | 可拖分隔条 | 大纲面板卡（宽 292，拖动 240–460）
+        // 视图区 | 可拖分隔条 | 大纲面板卡（展开宽 292，拖动 240–460）
         var contentColumns = new ColumnDefinitions("*,6,292");
         contentColumns[0].MinWidth = 320;
-        contentColumns[2].MinWidth = 240;
+        contentColumns[2].MinWidth = 0; // 默认收起：MinWidth 必须一并归零，否则空列仍占 240px 白底
         contentColumns[2].MaxWidth = 460;
         var content = new Grid { ColumnDefinitions = contentColumns };
         content.Children.Add(_viewWrap);
@@ -786,19 +789,39 @@ public sealed class WritePage : UserControl
 
         _outlineHost = new StackPanel();
         var outlineScroll = new ScrollViewer { Padding = new Thickness(14), Content = _outlineHost };
-        _panel.Child = new Panel { Children = { outlineScroll } };
+        // 无文章 / 无标题时的占位提示（居中，主题跟随）。
+        _outlineEmpty = new TextBlock
+        {
+            Text = "选择一篇文章后查看大纲",
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = false,
+            Margin = new Thickness(14),
+        };
+        Res(_outlineEmpty, TextBlock.ForegroundProperty, "VoxMuted");
+        _panel.Child = new Panel { Children = { outlineScroll, _outlineEmpty } };
     }
 
-    /// <summary>面板折叠把手：展开时面板卡内左下角，收起时骑视图区右缘垂直居中。</summary>
+    /// <summary>面板折叠把手：展开时面板卡内左下角，收起时骑视图区右缘垂直居中。
+    /// 图标用 Viewbox + LucideIcon（24 画布整体等比缩放居中），替代手绘 Path 保证圆内几何居中。</summary>
     private void BuildPanelHandle()
     {
-        var icon = new Shapes.Path
+        _panelHandle = new Button
         {
-            Data = StreamGeometry.Parse("M 15 18 L 9 12 L 15 6"),
-            StrokeThickness = 2, StrokeLineCap = PenLineCap.Round, Width = 12, Height = 12,
+            Classes = { "edge-btn" },
+            Content = new Viewbox
+            {
+                Width = 12, Height = 12,
+                Child = new LucideIcon { Kind = LucideIconKind.ChevronLeft, Width = 24, Height = 24, StrokeThickness = 2 },
+            },
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            ZIndex = 40,
         };
-        Res(icon, Shapes.Path.StrokeProperty, "VoxMuted");
-        _panelHandle = new Button { Classes = { "edge-btn" }, Content = icon, ZIndex = 40 };
         ToolTip.SetTip(_panelHandle, "收起 / 展开文章面板");
         _panelHandle.Click += (_, _) => SetPanelVisible(!_panel.IsVisible);
     }
@@ -817,12 +840,13 @@ public sealed class WritePage : UserControl
         {
             _panelHandle.HorizontalAlignment = HorizontalAlignment.Right;
             _panelHandle.VerticalAlignment = VerticalAlignment.Center;
-            _panelHandle.Margin = new Thickness(0, 0, -12, 0);
+            // 面板收起后分隔条列（6px）仍在，把手右缘内收 2px 骑在编辑器卡右缘上，完整可见不裁切。
+            _panelHandle.Margin = new Thickness(0, 0, 2, 0);
             _viewWrap.Children.Add(_panelHandle);
         }
-        if (_panelHandle.Content is Shapes.Path path)
+        if (_panelHandle.Content is Viewbox { Child: LucideIcon glyph })
         {
-            path.Data = StreamGeometry.Parse(intoPanel ? "M 9 18 L 15 12 L 9 6" : "M 15 18 L 9 12 L 15 6");
+            glyph.Kind = intoPanel ? LucideIconKind.ChevronRight : LucideIconKind.ChevronLeft;
         }
     }
 
@@ -830,20 +854,23 @@ public sealed class WritePage : UserControl
     {
         _panel.IsVisible = visible;
         _panelSplitter.IsVisible = visible;
-        if (visible)
+        if (_panel.Parent is Grid { } grid && grid.ColumnDefinitions.Count == 3)
         {
-            var parent = _panel.Parent as Grid;
-            if (parent != null && parent.ColumnDefinitions.Count == 3)
+            var col = grid.ColumnDefinitions[2];
+            if (visible)
             {
-                parent.ColumnDefinitions[2].Width = new GridLength(Math.Max(240, _lastPanelWidth));
+                col.MinWidth = 240;
+                col.MaxWidth = 460;
+                col.Width = new GridLength(Math.Max(240, _lastPanelWidth));
+                RebuildOutline(); // 展开即刷新，保证有文章时大纲有内容、无文章时显示占位。
             }
-        }
-        else if (_panel.Parent is Grid { } grid && grid.ColumnDefinitions.Count == 3)
-        {
-            _lastPanelWidth = grid.ColumnDefinitions[2].Width.IsAbsolute
-                ? grid.ColumnDefinitions[2].Width.Value
-                : 292;
-            grid.ColumnDefinitions[2].Width = new GridLength(0);
+            else
+            {
+                // 记忆展开宽度（跳过收起态的 0 宽），MinWidth 一并归零才能真正塌缩空列。
+                if (col.Width.IsAbsolute && col.Width.Value > 0) _lastPanelWidth = col.Width.Value;
+                col.MinWidth = 0;
+                col.Width = new GridLength(0);
+            }
         }
         MovePanelHandle(visible);
     }
@@ -886,6 +913,7 @@ public sealed class WritePage : UserControl
             _current = null;
             _preview.Markdown = null;
             _outlineHost.Children.Clear();
+            _outlineEmpty.IsVisible = true;
             _mapView.Root = null;
             UpdateBadges();
             return;
@@ -908,10 +936,12 @@ public sealed class WritePage : UserControl
             _current = article;
             using var reader = new StreamReader(file, System.Text.Encoding.UTF8, true);
             var text = await reader.ReadToEndAsync();
-            _editorView.Text = text;
+            // 编辑器与预览只放正文：front matter（元数据）剥离，不进源码视图、不参与渲染。
+            YamlSidecar.TrySplitFrontMatter(text, out _, out var body);
+            _editorView.Text = body;
             // 相对路径图片按 md 文件目录解析。
             _preview.ImageBasePath = Path.GetDirectoryName(file);
-            _preview.Markdown = text;
+            _preview.Markdown = body;
             _dirty = false;
 
             UpdateBadges();
@@ -944,7 +974,18 @@ public sealed class WritePage : UserControl
         if (_current == null || _repoRoot == null) return;
         try
         {
-            File.WriteAllText(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath), _editorView.Text);
+            var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+            // 保存前重读磁盘剥离最新 front matter（元数据弹层可能改过），
+            // 与编辑器正文按库存格式拼接回写：---\n{yaml}\n---\n\n{body}（见 YamlSidecar.SerializeInline）；
+            // 正文仅去掉头部空行（避免与分隔符拼出双空行且逐次漂移），其余原样保留。
+            var frontMatter = string.Empty;
+            if (File.Exists(file))
+            {
+                YamlSidecar.TrySplitFrontMatter(File.ReadAllText(file), out frontMatter, out _);
+            }
+            var body = _editorView.Text.TrimStart('\r', '\n');
+            var content = frontMatter.Length > 0 ? $"---\n{frontMatter}\n---\n\n{body}" : body;
+            File.WriteAllText(file, content);
             _dirty = false;
             if (!silent) _shell.ShowToast("已保存");
             Services.PublishHub.Invalidate();
@@ -969,36 +1010,80 @@ public sealed class WritePage : UserControl
     {
         var host = _outlineHost;
         host.Children.Clear();
+        var text = _editorView.Text ?? string.Empty;
+
+        // 库管线（Markdig AST）优先；空/异常时退化为正则扫描标题行，保证打开文章后大纲必有内容。
+        var items = new List<MarkdownOutlineItem>();
         try
         {
-            var text = _editorView.Text ?? string.Empty;
-            foreach (var item in MarkdownOutlineExtractor.Extract(MarkdownParser.Parse(text, OutlinePipeline)))
-            {
-                var prefix = item.Level >= 3 ? string.Empty : "· ";
-                var button = new Button
-                {
-                    Classes = { "outl", item.Level >= 3 ? "l3" : string.Empty },
-                    Content = new TextBlock { Text = $"{prefix}{item.Title}" },
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
-                var captured = item;
-                button.Click += (_, _) => JumpToOutline(captured);
-                host.Children.Add(button);
-            }
+            items.AddRange(MarkdownOutlineExtractor.Extract(MarkdownParser.Parse(text, OutlinePipeline)));
         }
         catch
         {
             // 大纲提取失败不影响编辑。
         }
-
-        var source = _editorView.Text ?? string.Empty;
-        var total = System.Text.RegularExpressions.Regex.Matches(source, @"^[-*]\s+\[[ xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
-        var done = System.Text.RegularExpressions.Regex.Matches(source, @"^[-*]\s+\[[xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
-        if (total > 0)
+        if (items.Count == 0 && text.Length > 0)
         {
-            host.Children.Add(FieldLabel("正文任务"));
-            host.Children.Add(Badge($"{done} / {total} 已完成", "ok"));
+            items.AddRange(ExtractHeadingsFallback(text));
         }
+
+        var added = 0;
+        foreach (var item in items)
+        {
+            var prefix = item.Level >= 3 ? string.Empty : "· ";
+            var button = new Button
+            {
+                Classes = { "outl", item.Level >= 3 ? "l3" : string.Empty },
+                Content = new TextBlock { Text = $"{prefix}{item.Title}" },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            var captured = item;
+            button.Click += (_, _) => JumpToOutline(captured);
+            host.Children.Add(button);
+            added++;
+        }
+
+        try
+        {
+            var total = System.Text.RegularExpressions.Regex.Matches(text, @"^[-*]\s+\[[ xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
+            var done = System.Text.RegularExpressions.Regex.Matches(text, @"^[-*]\s+\[[xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
+            if (total > 0)
+            {
+                host.Children.Add(FieldLabel("正文任务"));
+                host.Children.Add(Badge($"{done} / {total} 已完成", "ok"));
+            }
+        }
+        catch
+        {
+            // 任务徽标失败不影响大纲。
+        }
+
+        // 无文章 / 无标题时显示占位提示。
+        _outlineEmpty.IsVisible = added == 0;
+    }
+
+    /// <summary>正则退化解析：逐行匹配 ^#{1,3}\s 标题行（跳过围栏代码块），行号 1 起与编辑器行号一致。</summary>
+    private static List<MarkdownOutlineItem> ExtractHeadingsFallback(string text)
+    {
+        var items = new List<MarkdownOutlineItem>();
+        var inFence = false;
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            if (line.TrimStart().StartsWith("```") || line.TrimStart().StartsWith("~~~"))
+            {
+                inFence = !inFence;
+                continue;
+            }
+            if (inFence) continue;
+            var match = System.Text.RegularExpressions.Regex.Match(line, @"^(#{1,3})\s+(.+?)\s*#*\s*$");
+            if (!match.Success) continue;
+            var title = match.Groups[2].Value.Trim();
+            if (title.Length == 0) continue;
+            items.Add(new MarkdownOutlineItem(match.Groups[1].Value.Length, title, i + 1));
+        }
+        return items;
     }
 
     private void JumpToOutline(MarkdownOutlineItem item)
