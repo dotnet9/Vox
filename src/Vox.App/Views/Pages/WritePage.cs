@@ -36,7 +36,6 @@ public sealed class WritePage : UserControl
     // 左列
     private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 116, MinWidth = 0 };
     private readonly StackPanel _articleHost = new();
-    private readonly TextBlock _wstatus = new();
     private bool _treeMode;
 
     // 中列
@@ -48,6 +47,8 @@ public sealed class WritePage : UserControl
     private readonly ColumnDefinition _editorCol = new() { Width = new GridLength(1, GridUnitType.Star) };
     private readonly ColumnDefinition _previewCol = new() { Width = new GridLength(1, GridUnitType.Star) };
     private readonly Border _panel = new();
+    private GridSplitter _panelSplitter = null!;
+    private readonly ColumnDefinition _panelColumn = new() { Width = new GridLength(292) };
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(450) };
 
     // 面板三页签
@@ -61,7 +62,6 @@ public sealed class WritePage : UserControl
     private string? _repoRoot;
     private bool _loading;
     private bool _dirty;
-    private DateTime? _lastSavedAt;
 
     private readonly Dictionary<string, IImage> _thumbCache = new();
 
@@ -103,13 +103,32 @@ public sealed class WritePage : UserControl
 
     private void BuildLayout()
     {
-        var root = new Grid { ColumnDefinitions = new ColumnDefinitions("250,*") };
+        // 文章列表(250) | 可拖分隔条 | 编辑区；列表宽 180–360
+        var columns = new ColumnDefinitions("250,6,*");
+        columns[0].MinWidth = 180;
+        columns[0].MaxWidth = 360;
+        var root = new Grid { ColumnDefinitions = columns };
+
         var list = BuildListPane();
         root.Children.Add(list);
         Grid.SetColumn(list, 0);
+
+        var listSplitter = new GridSplitter
+        {
+            Background = Brushes.Transparent,
+            MinWidth = 6,
+            Cursor = new Cursor(StandardCursorType.SizeWestEast),
+            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
+        };
+        Res(listSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        listSplitter.PointerEntered += (_, _) => Res(listSplitter, GridSplitter.BackgroundProperty, "VoxAccentSoft");
+        listSplitter.PointerExited += (_, _) => Res(listSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        root.Children.Add(listSplitter);
+        Grid.SetColumn(listSplitter, 1);
+
         var main = BuildMainPane();
         root.Children.Add(main);
-        Grid.SetColumn(main, 1);
+        Grid.SetColumn(main, 2);
         Content = root;
     }
 
@@ -178,19 +197,9 @@ public sealed class WritePage : UserControl
             if (e.Property == TextBox.TextProperty) ReloadArticles();
         };
 
-        Res(_wstatus, TextBlock.ForegroundProperty, "VoxFaint");
-        _wstatus.FontSize = 10;
-        var status = new Border
-        {
-            Padding = new Thickness(13, 7),
-            BorderThickness = new Thickness(0, 1, 0, 0),
-            Child = _wstatus,
-        };
-        Res(status, Border.BorderBrushProperty, "VoxLine");
-
         pane.Child = new DockPanel
         {
-            Children = { head.Dock(Dock.Top), status.Dock(Dock.Bottom), new ScrollViewer { Content = _articleHost } },
+            Children = { head.Dock(Dock.Top), new ScrollViewer { Content = _articleHost } },
         };
         return pane;
     }
@@ -201,7 +210,12 @@ public sealed class WritePage : UserControl
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
-            _wstatus.Text = "未配置内容仓库（设置 → 内容仓库）";
+            _articleHost.Children.Add(new TextBlock
+            {
+                Text = "未配置内容仓库（设置 → 内容仓库）",
+                FontSize = 11, Margin = new Thickness(14, 10),
+                TextWrapping = TextWrapping.Wrap,
+            });
             return;
         }
 
@@ -239,11 +253,12 @@ public sealed class WritePage : UserControl
             }
         }
 
-        var savedText = _dirty ? "有未保存修改" : "已保存";
-        var when = _lastSavedAt is { } at && (DateTime.Now - at).TotalMinutes < 1
-            ? "刚刚"
-            : _lastSavedAt is { } older ? $"{(DateTime.Now - older).TotalMinutes:F0} 分钟前" : "—";
-        _wstatus.Text = $"{scan.Articles.Count} 篇 · {savedText} · {when}";
+        var count = new TextBlock
+        {
+            Text = $"共 {scan.Articles.Count} 篇", FontSize = 10, Margin = new Thickness(14, 8, 0, 8),
+        };
+        Res(count, TextBlock.ForegroundProperty, "VoxFaint");
+        _articleHost.Children.Add(count);
     }
 
     private Button ArticleItem(Article article)
@@ -432,10 +447,32 @@ public sealed class WritePage : UserControl
         BuildPanel();
         _panel.IsVisible = false;
 
-        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        // 编辑区 | 可拖分隔条 | 文章面板（宽 292，拖动 240–460）
+        var contentColumns = new ColumnDefinitions("*,6,292");
+        contentColumns[0].MinWidth = 320;
+        contentColumns[2].MinWidth = 240;
+        contentColumns[2].MaxWidth = 460;
+        var content = new Grid { ColumnDefinitions = contentColumns };
         content.Children.Add(centerWrap);
+
+        _panelSplitter = new GridSplitter
+        {
+            Background = Brushes.Transparent,
+            MinWidth = 6,
+            Cursor = new Cursor(StandardCursorType.SizeWestEast),
+            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
+        };
+        Res(_panelSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        _panelSplitter.PointerEntered += (_, _) => Res(_panelSplitter, GridSplitter.BackgroundProperty, "VoxAccentSoft");
+        _panelSplitter.PointerExited += (_, _) => Res(_panelSplitter, GridSplitter.BackgroundProperty, "VoxTransparent");
+        Grid.SetColumn(_panelSplitter, 1);
+        content.Children.Add(_panelSplitter);
         content.Children.Add(_panel);
-        Grid.SetColumn(_panel, 1);
+        Grid.SetColumn(_panel, 2);
+
+        // 默认收起：列宽归零，展开时恢复记忆宽度（SetPanelVisible）
+        _panelSplitter.IsVisible = false;
+        content.ColumnDefinitions[2].Width = new GridLength(0);
 
         var main = new DockPanel();
         main.Children.Add(edhead.Dock(Dock.Top));
@@ -445,10 +482,9 @@ public sealed class WritePage : UserControl
 
     private void BuildPanel()
     {
-        _panel.Width = 292;
+        _panel.MinWidth = 0;
         Res(_panel, Border.BackgroundProperty, "VoxSurface");
-        _panel.BorderThickness = new Thickness(1, 0, 0, 0);
-        Res(_panel, Border.BorderBrushProperty, "VoxLine");
+        _panel.BorderThickness = new Thickness(0);
 
         var tabNames = new[] { "元数据", "大纲", "图片" };
         var tabHost = new StackPanel { Orientation = Orientation.Horizontal };
@@ -504,11 +540,29 @@ public sealed class WritePage : UserControl
     private void SetPanelVisible(bool visible)
     {
         _panel.IsVisible = visible;
+        _panelSplitter.IsVisible = visible;
+        if (visible)
+        {
+            var parent = _panel.Parent as Grid;
+            if (parent != null && parent.ColumnDefinitions.Count == 3)
+            {
+                parent.ColumnDefinitions[2].Width = new GridLength(Math.Max(240, _lastPanelWidth));
+            }
+        }
+        else if (_panel.Parent is Grid { } grid && grid.ColumnDefinitions.Count == 3)
+        {
+            _lastPanelWidth = grid.ColumnDefinitions[2].Width.IsAbsolute
+                ? grid.ColumnDefinitions[2].Width.Value
+                : 292;
+            grid.ColumnDefinitions[2].Width = new GridLength(0);
+        }
         if (_panelToggle.Content is Shapes.Path path)
         {
             path.Data = StreamGeometry.Parse(visible ? "M 15 18 L 9 12 L 15 6" : "M 9 18 L 15 12 L 9 6");
         }
     }
+
+    private double _lastPanelWidth = 292;
 
     private void SetMode(int mode)
     {
@@ -615,7 +669,6 @@ public sealed class WritePage : UserControl
         {
             File.WriteAllText(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath), _editor.Text);
             _dirty = false;
-            _lastSavedAt = DateTime.Now;
             if (!silent) _shell.ShowToast("已保存");
             Services.PublishHub.Invalidate();
             AppState.Instance.NotifyRepoChanged();
