@@ -75,8 +75,8 @@ public static class ArticleScaffolder
             throw new InvalidOperationException($"文章已存在：{scaffolded.MarkdownPath}");
         }
         Directory.CreateDirectory(Path.GetDirectoryName(mdFile)!);
-        File.WriteAllText(mdFile, scaffolded.Markdown);
-        YamlSidecar.Save(ymlFile, scaffolded.Meta);
+        File.WriteAllText(mdFile, scaffolded.Markdown, new System.Text.UTF8Encoding(false));
+        YamlSidecar.SaveToMarkdown(mdFile, scaffolded.Meta);
         return scaffolded;
     }
 }

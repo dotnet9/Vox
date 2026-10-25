@@ -9,21 +9,21 @@ namespace Vox.Core;
 public static class FixOps
 {
     public static void FillAuthor(string repoRoot, Article article, string author = "Dotnet9") =>
-        YamlSidecar.Rewrite(LinkStrategy.ToLocalFile(repoRoot, article.MetaPath), meta =>
+        YamlSidecar.RewriteMarkdown(LinkStrategy.ToLocalFile(repoRoot, article.MarkdownPath), meta =>
         {
             meta.Author = author;
             return meta;
         });
 
     public static void FillAlbums(string repoRoot, Article article, IReadOnlyList<string> albums) =>
-        YamlSidecar.Rewrite(LinkStrategy.ToLocalFile(repoRoot, article.MetaPath), meta =>
+        YamlSidecar.RewriteMarkdown(LinkStrategy.ToLocalFile(repoRoot, article.MarkdownPath), meta =>
         {
             meta.Albums = albums.Distinct().ToList();
             return meta;
         });
 
     public static void AddAlbum(string repoRoot, Article article, string album) =>
-        YamlSidecar.Rewrite(LinkStrategy.ToLocalFile(repoRoot, article.MetaPath), meta =>
+        YamlSidecar.RewriteMarkdown(LinkStrategy.ToLocalFile(repoRoot, article.MarkdownPath), meta =>
         {
             if (!meta.Albums.Contains(album)) meta.Albums.Add(album);
             return meta;

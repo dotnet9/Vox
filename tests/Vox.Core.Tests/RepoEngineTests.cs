@@ -9,7 +9,7 @@ public class YamlSidecarTests
         var root = Directory.CreateTempSubdirectory("vox-yml").FullName;
         try
         {
-            var path = Path.Combine(root, "foo.yml");
+            var path = Path.Combine(root, "foo.md");
             var meta = new ArticleMeta
             {
                 Title = "测试文章",
@@ -25,13 +25,16 @@ public class YamlSidecarTests
                 Draft = false,
             };
 
-            YamlSidecar.Save(path, meta);
+            File.WriteAllText(path, "# 正文\n");
+            YamlSidecar.SaveToMarkdown(path, meta);
             var text = File.ReadAllText(path);
 
+            Assert.StartsWith("---\n", text);
             Assert.Contains("title: 测试文章", text);
             Assert.Contains("cover: 2026/10/test-cover.png", text);
+            Assert.EndsWith("# 正文\n", text);
 
-            var loaded = YamlSidecar.Load(path);
+            var loaded = YamlSidecar.LoadFromMarkdown(path);
             Assert.Equal(meta.Title, loaded.Title);
             Assert.Equal(meta.Date, loaded.Date);
             Assert.Equal(meta.Albums, loaded.Albums);
@@ -155,7 +158,6 @@ public class AuditEngineTests
             var scan = RepoScanner.Scan(root);
             var issues = AuditEngine.Run(scan);
 
-            Assert.Contains(issues, i => i.Rule == AuditRule.MissingAlbums && i.Target.EndsWith("old-one.md"));
             Assert.Contains(issues, i => i.Rule == AuditRule.PlaceholderClue && i.Target.EndsWith("old-one.md"));
             Assert.Contains(issues, i => i.Rule == AuditRule.StaleClue && i.Target.EndsWith("old-one.md"));
             Assert.Contains(issues, i => i.Rule == AuditRule.SlugFormat && i.Target.EndsWith("Bad Slug!.md"));
@@ -220,7 +222,7 @@ public class SlugRulesTests
 public class ArticleScaffolderTests
 {
     [Fact]
-    public void Create_writes_md_and_yml_skeleton()
+    public void Create_writes_md_with_inline_front_matter()
     {
         var root = Directory.CreateTempSubdirectory("vox-new").FullName;
         try
@@ -235,12 +237,16 @@ public class ArticleScaffolderTests
             });
 
             Assert.Equal("2026/10/依赖链排查记.md", article.MarkdownPath);
+            Assert.False(File.Exists(LinkStrategy.ToLocalFile(root, article.MetaPath))); // 不再落 sidecar
             var md = File.ReadAllText(LinkStrategy.ToLocalFile(root, article.MarkdownPath));
+            Assert.StartsWith("---\n", md);
+            Assert.Contains("title: 依赖链排查记", md);
+            Assert.Contains("draft: true", md);
             Assert.Contains("# 依赖链排查记", md);
             Assert.Contains("## 背景", md);
             Assert.Contains("## 总结", md);
 
-            var meta = YamlSidecar.Load(LinkStrategy.ToLocalFile(root, article.MetaPath));
+            var meta = YamlSidecar.LoadFromMarkdown(LinkStrategy.ToLocalFile(root, article.MarkdownPath));
             Assert.Equal("依赖链排查记", meta.Title);
             Assert.True(meta.Draft);
             Assert.Empty(meta.Albums);
@@ -289,9 +295,7 @@ public class FixOpsTests
         {
             Directory.CreateDirectory(Path.Combine(root, "2026", "01"));
             var md = Path.Combine(root, "2026", "01", "post.md");
-            File.WriteAllText(md, "# T\n\n![a](https://img1.dotnet9.com/2026/01/a.png) ![b](2026/01/b.png)\n");
-            var meta = Path.Combine(root, "2026", "01", "post.yml");
-            File.WriteAllText(meta, "title: T\nslug: post\ndate: 2026-01-01 00:00:00\nauthor: \"\"\n");
+            File.WriteAllText(md, "---\ntitle: T\nslug: post\ndate: 2026-01-01 00:00:00\nauthor: \"\"\n---\n\n# T\n\n![a](https://img1.dotnet9.com/2026/01/a.png) ![b](b.png)\n");
 
             var scan = RepoScanner.Scan(root);
             var article = scan.FindArticle("2026/01/post.md")!;
@@ -302,7 +306,7 @@ public class FixOpsTests
             Assert.DoesNotContain("img1.dotnet9.com", File.ReadAllText(md));
 
             FixOps.FillAuthor(root, article);
-            Assert.Equal("Dotnet9", YamlSidecar.Load(meta).Author);
+            Assert.Equal("Dotnet9", YamlSidecar.LoadFromMarkdown(md).Author);
         }
         finally
         {

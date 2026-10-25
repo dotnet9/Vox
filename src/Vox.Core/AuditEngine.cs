@@ -63,12 +63,8 @@ public static class AuditEngine
 
         foreach (var article in scan.Articles)
         {
-            if (article.Meta.Albums.Count == 0)
-            {
-                issues.Add(new AuditIssue(AuditRule.MissingAlbums, AuditSeverity.Clue, article.MarkdownPath,
-                    $"albums 为空（分类：{string.Join(" / ", article.Meta.Categories)}）",
-                    SuggestAlbum(article)));
-            }
+            // 专辑体系已随内容清理整体下线（2026-10-24），不再产出缺专辑问题
+            _ = article;
             if (string.IsNullOrWhiteSpace(article.Meta.Author))
             {
                 // 信息项：站点渲染默认站长（CodeWF 侧规则），数据保真不填充，仅列出供作者知悉。
@@ -150,14 +146,6 @@ public static class AuditEngine
             }
         }
         return fallback?.RelativePath;
-    }
-
-    /// <summary>专辑建议（缺专辑批量补全向导的核心）：分类即专辑候选，其次取首标签。</summary>
-    public static string? SuggestAlbum(Article article)
-    {
-        var category = article.Meta.Categories.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
-        if (category != null) return category;
-        return article.Meta.Tags.FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
     }
 
     private static bool LooksLikeRepoImage(string reference) =>

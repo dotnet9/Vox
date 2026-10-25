@@ -35,9 +35,15 @@ public static class CodeWfRepoProfile
             if (relative.StartsWith("site/")) continue;
             if (!TryGetArticleRelativePath(relative, out var year, out var month, out var slug)) continue;
             var metaPath = MetaPathFor(relative);
-            if (!File.Exists(Path.Combine(repoRoot, metaPath)))
+            var hasSidecar = File.Exists(Path.Combine(repoRoot, metaPath));
+            var hasInline = false;
+            if (!hasSidecar)
             {
-                missing.Add(new MissingMeta(relative, "缺少 sidecar 元数据 slug.yml"));
+                hasInline = YamlSidecar.TrySplitFrontMatter(File.ReadAllText(md), out _, out _);
+            }
+            if (!hasSidecar && !hasInline)
+            {
+                missing.Add(new MissingMeta(relative, "缺少元数据（sidecar yml 或 md 内联 front matter）"));
                 continue;
             }
             articles.Add(new Article

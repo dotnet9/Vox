@@ -62,9 +62,18 @@ public static class RepoScanner
             if (!CodeWfRepoProfile.TryGetArticleRelativePath(relative, out var year, out var month, out var slug)) continue;
 
             var metaPath = CodeWfRepoProfile.MetaPathFor(relative);
-            if (!File.Exists(Path.Combine(repoRoot, metaPath)))
+            var mdFullPath = Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+            // 元数据两种载体：sidecar yml（旧）或 md 内联 front matter（规范形态）；两者都无才算缺失
+            var hasSidecar = File.Exists(Path.Combine(repoRoot, metaPath));
+            var hasInline = false;
+            if (!hasSidecar)
             {
-                scan.Missing.Add(new MissingMeta(relative, "missing-sidecar"));
+                var probe = File.ReadAllText(mdFullPath);
+                hasInline = YamlSidecar.TrySplitFrontMatter(probe, out _, out _);
+            }
+            if (!hasSidecar && !hasInline)
+            {
+                scan.Missing.Add(new MissingMeta(relative, "missing-metadata"));
                 continue;
             }
 
@@ -77,7 +86,7 @@ public static class RepoScanner
                 Slug = slug!,
             };
 
-            if (YamlSidecar.TryLoad(Path.Combine(repoRoot, metaPath), out var meta, out var error))
+            if (YamlSidecar.TryLoadFromMarkdown(mdFullPath, out var meta, out var error))
             {
                 article.Meta = meta!;
             }
@@ -96,6 +105,12 @@ public static class RepoScanner
             var mdDir = Path.GetDirectoryName(relative) ?? string.Empty;
             article.ImageReferences = ExtractMarkdownImages(StripFencedCode(body), link, scan.RepoRoot, mdDir)
                 .ToList();
+            // 引用面含 yml cover（存量 cover 为 CDN 形态，也归一入索引）——漏了会把封面图误判为孤儿。
+            if (!string.IsNullOrWhiteSpace(article.Meta.Cover))
+            {
+                var coverPath = NormalizeReference(article.Meta.Cover, link, scan.RepoRoot, mdDir);
+                if (coverPath != null) article.ImageReferences.Add(coverPath);
+            }
             scan.Articles.Add(article);
         }
 

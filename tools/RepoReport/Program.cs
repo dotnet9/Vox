@@ -11,6 +11,10 @@ var repoRoot = args.Length > 0 ? args[0] : ".";
 var outFile = args.Length > 1 ? args[1] : "report.md";
 var canonicalize = args.Any(a => string.Equals(a, "--canonicalize", StringComparison.OrdinalIgnoreCase));
 var relativize = args.Any(a => string.Equals(a, "--relativize", StringComparison.OrdinalIgnoreCase));
+var prune = args.Any(a => string.Equals(a, "--prune", StringComparison.OrdinalIgnoreCase));
+var finish = args.Any(a => string.Equals(a, "--finish", StringComparison.OrdinalIgnoreCase));
+var mergeFrontMatter = args.Any(a => string.Equals(a, "--merge-frontmatter", StringComparison.OrdinalIgnoreCase));
+var apply = args.Any(a => string.Equals(a, "--apply", StringComparison.OrdinalIgnoreCase));
 
 const string CdnPattern = @"https?://img1\.dotnet9\.com/";
 
@@ -21,6 +25,294 @@ if (canonicalize)
 if (relativize)
 {
     return Relativize(repoRoot);
+}
+if (mergeFrontMatter)
+{
+    return MergeFrontMatter(repoRoot, apply);
+}
+if (finish)
+{
+    return Finish(repoRoot, apply);
+}
+
+/// <summary>
+/// 收尾清理：① 死链扩展名配对修复（把正文死链引用改写到同名词孤儿图）；② 删除孤儿图
+/// （引用面 = 正文 + yml cover + site 数据；排除当月 2026/10 在途资产）。默认 dry-run，--apply 落删。
+/// </summary>
+static int Finish(string repoRoot, bool apply)
+{
+    Console.WriteLine($"收尾清理（{(apply ? "APPLY" : "DRY-RUN")}）：{Path.GetFullPath(repoRoot)}");
+    var fullRoot = Path.GetFullPath(repoRoot);
+    var scan = RepoScanner.Scan(repoRoot);
+    var link = LinkOptions.Default;
+
+    // ① 死链配对修复：仅处理引擎给出配对建议的死链
+    var issues = AuditEngine.Run(scan, link: link);
+    var pairable = issues.Where(i => i.Rule == AuditRule.DeadLink && i.Suggestion != null).ToList();
+    var fixedCount = 0;
+    Console.WriteLine($"死链 {issues.Count(i => i.Rule == AuditRule.DeadLink)} 条，其中可配对修复 {pairable.Count} 条：");
+    foreach (var issue in pairable)
+    {
+        var article = scan.FindArticle(issue.Target);
+        if (article == null || issue.Suggestion == null) continue;
+        var deadRef = issue.Detail.Replace("引用的图片不存在：", string.Empty).Trim();
+        var n = apply ? FixOps.FixExtensionPair(fullRoot, article, deadRef, issue.Suggestion) : 0;
+        Console.WriteLine($"  [{(apply ? "已修" : "将修")}] {issue.Target}：{deadRef} → {issue.Suggestion}");
+        if (apply && n > 0) fixedCount += n;
+    }
+    foreach (var issue in issues.Where(i => i.Rule == AuditRule.DeadLink && i.Suggestion == null))
+    {
+        Console.WriteLine($"  [无法配对，留待人工] {issue.Target}：{issue.Detail}");
+    }
+
+    // ② 孤儿清理：引用面（正文 + cover + site）为零的实物图；排除 2026/10 在途月份
+    if (apply && fixedCount > 0)
+    {
+        scan = RepoScanner.Scan(repoRoot); // 配对修复后引用面变化，重扫
+    }
+    var orphans = scan.Images
+        .Where(i => !i.IsMissing && i.IsOrphan && !i.RelativePath.StartsWith("2026/10/", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(i => i.RelativePath)
+        .ToList();
+    var heldBack = scan.Images.Count(i => !i.IsMissing && i.IsOrphan && i.RelativePath.StartsWith("2026/10/", StringComparison.OrdinalIgnoreCase));
+    Console.WriteLine($"孤儿图 {scan.Images.Count(i => !i.IsMissing && i.IsOrphan)} 张：待删 {orphans.Count} · 2026/10 在途保留 {heldBack} 张");
+    foreach (var g in orphans.GroupBy(o => o.YearMonth).OrderBy(g => g.Key))
+    {
+        Console.WriteLine($"  {g.Key}：{g.Count()} 张（{FormatBytes(g.Sum(x => x.Bytes))}）");
+    }
+
+    if (!apply)
+    {
+        Console.WriteLine("DRY-RUN 结束（加 --apply 执行）");
+        return 0;
+    }
+
+    var deleted = 0;
+    foreach (var image in orphans)
+    {
+        var file = LinkStrategy.ToLocalFile(fullRoot, image.RelativePath);
+        if (File.Exists(file)) { File.Delete(file); deleted++; }
+    }
+    foreach (var dir in Directory.EnumerateDirectories(fullRoot, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+    {
+        var relative = Path.GetRelativePath(fullRoot, dir).Replace('\\', '/');
+        if (relative.StartsWith("site") || relative.StartsWith(".git")) continue;
+        if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
+    }
+
+    Console.WriteLine($"配对修复引用：{fixedCount} 处 · 已删除孤儿图：{deleted}");
+    return 0;
+}
+
+/// <summary>
+/// 清理清单（2026-10-24 作者圈定）：按 年/月 删除文章，Keep 为保留的 slug。
+/// 未列出的月份整月保留（2020/10、2021/05）。
+/// </summary>
+(string Year, string Month, string[] Keep)[] pruneSpec =
+    [
+    ("2019", "12", ["Accelerider-Windows"]),
+    ("2020", "01", []), ("2020", "02", []), ("2020", "03", []), ("2020", "04", []), ("2020", "05", []),
+    ("2020", "06", []), ("2020", "07", []), ("2020", "08", []), ("2020", "09", []),
+    ("2020", "11", ["Uses-fluent-email-to-send-mail-in-dotnet-core"]),
+    ("2020", "12", []),
+    ("2021", "01", []), ("2021", "02", []), ("2021", "03", []), ("2021", "04", []),
+    ("2021", "06", []), ("2021", "07", []), ("2021", "08", []), ("2021", "09", []),
+    ("2021", "10", []), ("2021", "11", []), ("2021", "12", []),
+    ("2022", "01", []), ("2022", "02", []), ("2022", "03", []), ("2022", "04", []),
+    ("2022", "05", []), ("2022", "06", []), ("2022", "07", []), ("2022", "08", []), ("2022", "09", []),
+    ("2022", "10", ["Start-a-WPF-Blazor-chat-application-from-0"]),
+    ("2022", "11", ["one-of-the-best-choices-for-dotnet-cross-platform-frameworks-avalonia-ui"]),
+    ("2022", "12", []),
+    // 2023（2026-10-24 第二批）：3/9/12 月部分保留，其余全删
+    ("2023", "01", []), ("2023", "02", []), ("2023", "04", []), ("2023", "05", []),
+    ("2023", "06", []), ("2023", "07", []), ("2023", "08", []), ("2023", "10", []), ("2023", "11", []),
+    ("2023", "03",
+    [
+        "A-WPF-open-source-project-that-can-quickly-build-and-customize-network-topology-maps-NodeNetwork",
+        "Can-robots-talk-about-the-commission-and-events-of-Csharp-in-ten-thousand-words",
+    ]),
+    ("2023", "09",
+    [
+        "Intercept-tamper-with-and-forge-classes-and-methods-in-the-dotNET-class-library-that-are-not-limited-to-public",
+        "Simulate-scenarios-using-third-party-dotNET-libraries-for-debugging-interception-decompilation-and-compatibility-solutions-for-multiple-versions-of-one-library",
+    ]),
+    ("2023", "12",
+    [
+        "deep-analysis-of-csharp-million-object-serialization-how-to-achieve-a-perfect-balance-between-speed-and-volume-in-network-transmission",
+    ]),
+    // 2024（2026-10-24 第三批）：1/2/10/12 月部分保留（12 月只删 linqpad），3/4/5/8/11 全删；6/7/9 整月保留
+    ("2024", "01",
+    [
+        "csharp-object-binary-serialization-optimization-implementing-extreme-compression-with-bit-field-technology",
+        "each-version-of-the-operating-system-is-correct-dotnet-support",
+        "its-confirmed-that-csharp-is-the-programming-language-for-2023",
+    ]),
+    ("2024", "02",
+    [
+        "Csharp-Advanced-Dynamic-registration-of-third-party-library-events-easy-to-handle-Attached-with-detailed-steps-and-demo",
+    ]),
+    ("2024", "03", []), ("2024", "04", []), ("2024", "05", []), ("2024", "08", []),
+    ("2024", "10", ["summary-of-aot-usage-experience"]),
+    ("2024", "11", []),
+    // 2025（2026-10-24 第四批）：1/2/5/6/7/8/9/12 全删；3 月只留 image-to-icon；4/10/11 整月保留
+    ("2025", "01", []), ("2025", "02", []), ("2025", "05", []), ("2025", "06", []),
+    ("2025", "07", []), ("2025", "08", []), ("2025", "09", []), ("2025", "12", []),
+    ("2025", "03", ["image-to-icon-converter-development"]),
+    // 2026（2026-10-24 第五批）：1/4/5 月部分保留、7 月全删；2/3/6/8/9/10 整月保留
+    ("2026", "01", ["language-of-the-year-2025-csharp"]),
+    ("2026", "04", ["dotnet-cross-platform-native-library"]),
+    ("2026", "05",
+    [
+        "vex-avalonia-markdown-editor",
+        "zhijian-avalonia-mind-map-editor",
+    ]),
+    ("2026", "07", []),
+    ];
+
+if (mergeFrontMatter)
+{
+    return MergeFrontMatter(repoRoot, apply);
+}
+if (prune)
+{
+    return Prune(repoRoot, apply, pruneSpec);
+}
+
+
+/// <summary>删除圈定文章（md+yml）与仅被它们引用的图片；保留篇目与被幸存文章/site 数据引用的图片。默认 dry-run，--apply 落删。</summary>
+static int Prune(string repoRoot, bool apply, (string Year, string Month, string[] Keep)[] pruneSpec)
+{
+    Console.WriteLine($"清理（{(apply ? "APPLY" : "DRY-RUN")}）：{Path.GetFullPath(repoRoot)}");
+    var scan = RepoScanner.Scan(repoRoot);
+
+    // 保留篇目必须真实存在，防止拼错 slug 误删保留文章
+    var missingKeepers = new List<string>();
+    foreach (var (year, month, keep) in pruneSpec)
+    {
+        foreach (var slug in keep)
+        {
+            if (scan.FindArticle($"{year}/{month}/{slug}.md") == null)
+            {
+                missingKeepers.Add($"{year}/{month}/{slug}.md");
+            }
+        }
+    }
+    if (missingKeepers.Count > 0)
+    {
+        Console.WriteLine("中止：保留篇目不存在 —— " + string.Join("、", missingKeepers));
+        return 1;
+    }
+
+    // "2024/12 只删 linqpad" 是反向语义（删除指定、保留其余），特例处理
+    const string DeleteOnly_2024_12 = "playground-for-dotnet_programmers_linqpad";
+    var doomedArticles = scan.Articles.Where(a =>
+    {
+        if (a.Year == "2024" && a.Month == "12") return a.Slug == DeleteOnly_2024_12;
+        return pruneSpec.Any(s => a.Year == s.Year && a.Month == s.Month && !s.Keep.Contains(a.Slug));
+    }).ToList();
+    var doomedSet = doomedArticles.Select(a => a.MarkdownPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var survivors = scan.Articles.Where(a => !doomedSet.Contains(a.MarkdownPath)).ToList();
+
+    // 幸存引用面：幸存文章 + site 数据
+    var survivingRefs = survivors.SelectMany(a => a.ImageReferences).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    foreach (var siteFile in scan.SiteFiles)
+    {
+        foreach (var path in RepoScanner.ExtractPathLikes(siteFile.RawJson))
+        {
+            survivingRefs.Add(path);
+        }
+    }
+
+    // 待删图片：实物、被圈定文章引用过、且不被任何幸存引用面引用
+    var doomedImages = scan.Images
+        .Where(i => !i.IsMissing
+            && i.ReferencedBy.Count > 0
+            && i.ReferencedBy.Any(r => doomedSet.Contains(r))
+            && !i.ReferencedBy.Any(r => !doomedSet.Contains(r) || r.StartsWith("site/", StringComparison.OrdinalIgnoreCase)))
+        .OrderBy(i => i.RelativePath)
+        .ToList();
+
+    Console.WriteLine($"圈定文章：{doomedArticles.Count}（幸存 {survivors.Count}）· 待删图片：{doomedImages.Count}");
+    foreach (var g in doomedArticles.GroupBy(a => $"{a.Year}/{a.Month}").OrderBy(g => g.Key))
+    {
+        Console.WriteLine($"  {g.Key}：删 {g.Count()} 篇");
+    }
+    Console.WriteLine("--- 待删文章 ---");
+    foreach (var a in doomedArticles.OrderBy(a => a.MarkdownPath)) Console.WriteLine("A " + a.MarkdownPath);
+    Console.WriteLine("--- 待删图片 ---");
+    foreach (var i in doomedImages) Console.WriteLine("I " + i.RelativePath);
+
+    if (!apply)
+    {
+        Console.WriteLine("DRY-RUN 结束（加 --apply 执行删除）");
+        return 0;
+    }
+
+    var deleted = 0;
+    foreach (var article in doomedArticles)
+    {
+        foreach (var path in new[] { article.MarkdownPath, article.MetaPath })
+        {
+            var file = LinkStrategy.ToLocalFile(repoRoot, path);
+            if (File.Exists(file)) { File.Delete(file); deleted++; }
+        }
+    }
+    foreach (var image in doomedImages)
+    {
+        var file = LinkStrategy.ToLocalFile(repoRoot, image.RelativePath);
+        if (File.Exists(file)) { File.Delete(file); deleted++; }
+    }
+
+    // 清空目录
+    foreach (var dir in Directory.EnumerateDirectories(repoRoot, "*", SearchOption.AllDirectories)
+                 .OrderByDescending(d => d.Length))
+    {
+        var relative = Path.GetRelativePath(repoRoot, dir).Replace('\\', '/');
+        if (relative.StartsWith("site") || relative.StartsWith(".git")) continue;
+        if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
+    }
+
+    Console.WriteLine($"已删除文件：{deleted}");
+    return 0;
+}
+
+
+/// <summary>
+/// yml → md 内联 front matter 合并（Hugo/Jekyll 标准形态）：yml 原文直嵌为 --- 块（保留字段顺序），
+/// 正文剥离已有内联块后拼接，随后删除 sidecar yml。站点 BlogPostFileService 已支持内联解析，零改动读取。
+/// </summary>
+static int MergeFrontMatter(string repoRoot, bool apply)
+{
+    Console.WriteLine($"yml → 内联 front matter 合并（{(apply ? "APPLY" : "DRY-RUN")}）：{Path.GetFullPath(repoRoot)}");
+    var fullRoot = Path.GetFullPath(repoRoot);
+    var merged = new List<string>();
+    var skipped = new List<string>();
+    foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
+    {
+        var relative = Path.GetRelativePath(fullRoot, md).Replace('\\', '/');
+        if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
+        var yml = Path.ChangeExtension(md, ".yml");
+        if (!File.Exists(yml)) continue; // 已是内联形态或无 sidecar
+
+        var text = File.ReadAllText(md);
+        if (text.StartsWith("---", StringComparison.Ordinal))
+        {
+            skipped.Add(relative + "（md 已含内联 front matter，需人工核对）");
+            continue;
+        }
+        var yaml = File.ReadAllText(yml).TrimEnd();
+        merged.Add(relative);
+        if (apply)
+        {
+            File.WriteAllText(md, "---\n" + yaml + "\n---\n\n" + text.TrimStart(), new UTF8Encoding(false));
+            File.Delete(yml);
+        }
+    }
+
+    Console.WriteLine($"合并文章：{merged.Count} · 跳过（需人工）：{skipped.Count} · sidecar yml 将删除：{merged.Count}");
+    foreach (var s2 in skipped) Console.WriteLine("  [跳过] " + s2);
+    foreach (var s2 in merged) Console.WriteLine("  " + s2);
+    return 0;
 }
 
 /// <summary>把正文引用上下文（](…) 与 src="…"）中的 YYYY/MM/ 仓库根相对路径改写为相对 md 目录的路径。</summary>
@@ -247,7 +539,7 @@ md.AppendLine("| 文章 | 年月 | 分类 | 标签 | 建议专辑 |");
 md.AppendLine("| --- | --- | --- | --- | --- |");
 foreach (var a in missingAlbums.OrderBy(a => a.Meta.Date))
 {
-    var suggest = AuditEngine.SuggestAlbum(a) ?? "—";
+    var suggest = a.Meta.Categories.FirstOrDefault() ?? a.Meta.Tags.FirstOrDefault() ?? "—";
     md.AppendLine($"| {a.Title} | {a.Year}/{a.Month} | {string.Join("/", a.Meta.Categories)} | {string.Join("/", a.Meta.Tags)} | {suggest} |");
 }
 md.AppendLine();
