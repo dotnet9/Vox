@@ -50,7 +50,7 @@ jobs:
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: scripts/installer/Vox.Setup.iss
-          options: |
+          options: >-
             /DAppVersion=${{ env.APP_VERSION }}
             /DSourceDir=${{ github.workspace }}\artifacts\publish\Vox.App-win-x64
             /DOutputDir=${{ github.workspace }}\artifacts\release
