@@ -951,10 +951,12 @@ public sealed class WritePage : UserControl
         else
         {
             _panelHandle.HorizontalAlignment = HorizontalAlignment.Right;
+            // 收起态与列表把手同参照系（页根垂直居中），文件列表/右边栏都收起时两把手必然同线。
             _panelHandle.VerticalAlignment = VerticalAlignment.Center;
-            // 面板收起后分隔条列（6px）仍在，把手右缘内收 2px 骑在编辑器卡右缘上，完整可见不裁切。
+            // 页根第 2 列右缘（Grid 子项默认落第 0 列，会骑到列表头上），右缘内收 2px 骑编辑器卡右缘。
+            Grid.SetColumn(_panelHandle, 2);
             _panelHandle.Margin = new Thickness(0, 0, 2, 0);
-            _viewWrap.Children.Add(_panelHandle);
+            _pageRoot.Children.Add(_panelHandle);
         }
         if (_panelHandle.Content is Viewbox { Child: LucideIcon glyph })
         {

@@ -93,6 +93,7 @@ public partial class MainWindow : Window
             });
         }
         HookStartupTarget(); // 命令行目录/文件入口：首个索引完成后定位打开
+        WireChromeCommands(); // XAML 固定控件事件一次性挂接（重建链路不重复挂接）
 
         BuildTitlebarExtras();
     }
@@ -159,24 +160,18 @@ public partial class MainWindow : Window
                 settings.Language = captured.code;
                 AppState.Instance.SaveSettings();
                 CodeWF.Toolkit.Lang.I18nManager.Instance.Culture = System.Globalization.CultureInfo.GetCultureInfo(captured.code);
+                // 语言切换不再整页重建：菜单项 active 态自行维护。
+                foreach (var child in lang.Children.OfType<Button>())
+                {
+                    child.Classes.Set("active", (string?)child.Tag == captured.code);
+                }
                 ShowToast(TF("Vox.Shell.Toast.LanguageSet", captured.label));
                 BtnTbLang.Flyout?.Hide();
             };
             lang.Children.Add(item);
         }
         BtnTbLang.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(lang) };
-
-        BtnTbSearch.Click += (_, _) => OpenSearch();
-        SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
-        SearchInput.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == TextBox.TextProperty)
-            {
-                SearchPlaceholder.IsVisible = string.IsNullOrEmpty(SearchInput.Text);
-                RenderSearchResults();
-            }
-        };
-        KeyDown += OnHotkeys;
+        // 搜索浮层/热键等固定控件事件在 WireChromeCommands 一次性挂接（本方法随密度重建反复执行）。
     }
 
     /// <summary>标题栏与搜索浮层固定文案：全部接 I18n 动态绑定（初始即取当前语言，切换自动跟随）。</summary>
@@ -499,7 +494,11 @@ public partial class MainWindow : Window
         AddNavItem(NavItems, "publish", LucideIconKind.GitBranch, Nav.Label.Publish);
         AddNavItem(NavItems, "site", LucideIconKind.Braces, Nav.Label.SiteData);
         AddNavItem(NavItems, "settings", LucideIconKind.Settings, Nav.Label.Settings);
+    }
 
+    /// <summary>XAML 固定控件的事件只挂一次（构造器调用）；重建链路只重建动态内容，避免命令重复执行。</summary>
+    private void WireChromeCommands()
+    {
         MiNew.Click += (_, _) => WriteCommand(p => p.OpenNewArticle());
         MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
         MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
@@ -531,6 +530,18 @@ public partial class MainWindow : Window
             });
             if (files.Count > 0) LaunchVox(files[0].Path.LocalPath);
         };
+
+        BtnTbSearch.Click += (_, _) => OpenSearch();
+        SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
+        SearchInput.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == TextBox.TextProperty)
+            {
+                SearchPlaceholder.IsVisible = string.IsNullOrEmpty(SearchInput.Text);
+                RenderSearchResults();
+            }
+        };
+        KeyDown += OnHotkeys;
     }
 
     /// <summary>拉起新 Vox 进程承载所选目标（环境为单文件发布时 Environment.ProcessPath 即可执行文件）。</summary>
@@ -655,7 +666,8 @@ public partial class MainWindow : Window
         {
             navGlyph.Kind = _navCollapsed ? LucideIconKind.ChevronRight : LucideIconKind.ChevronLeft;
         }
-        BtnNav.Margin = new Thickness(_navCollapsed ? 44 : 184, 0, 0, 17);
+        // bottom 8 与列表/面板折叠钮同线（原型 .nav>.edge-btn{right:8,bottom:8} 口径）。
+        BtnNav.Margin = new Thickness(_navCollapsed ? 44 : 184, 0, 0, 8);
         foreach (var (btn, _) in _navButtons)
         {
             if (btn.Content is not Panel { Children.Count: 2 } pair) continue;

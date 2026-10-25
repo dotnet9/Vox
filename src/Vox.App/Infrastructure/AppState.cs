@@ -22,23 +22,23 @@ public static class AppBootstrap
 
     public static void Initialize(string[]? args = null)
     {
-        var settings = SettingsStore.Load();
+        var settings = SettingsStore.Load(); // 仅用于语言初始化取值
         OriginalRepoPath = settings.RepoPath;
 
         // 启动参数口径：--empty=空白进程（不加载仓库）；目录=本进程管理该目录；
-        // 文件=管理所在目录并定位到该文件。均为会话级覆盖，不写入全局设置。
+        // 文件=管理所在目录并定位到该文件。覆盖在 AppState.LoadSettings 之后经
+        // ApplySessionOverride 应用（App.Initialize 会重载设置），均为会话级，不写入全局设置。
         foreach (var raw in args ?? Array.Empty<string>())
         {
             if (raw == "--empty")
             {
-                settings.RepoPath = null;
+                SessionRepoPath = null;
                 RepoOverridden = true;
                 break;
             }
             if (Directory.Exists(raw))
             {
                 SessionRepoPath = Path.GetFullPath(raw);
-                settings.RepoPath = SessionRepoPath;
                 RepoOverridden = true;
                 break;
             }
@@ -46,7 +46,6 @@ public static class AppBootstrap
             {
                 SessionOpenFile = Path.GetFullPath(raw);
                 SessionRepoPath = Path.GetDirectoryName(SessionOpenFile);
-                settings.RepoPath = SessionRepoPath;
                 RepoOverridden = true;
                 break;
             }
@@ -58,6 +57,12 @@ public static class AppBootstrap
         };
         I18nManager.Instance.Register(plugin, CultureInfo.GetCultureInfo(settings.Language));
         I18nManager.Instance.Culture = CultureInfo.GetCultureInfo(settings.Language);
+    }
+
+    /// <summary>设置从磁盘加载后应用会话级仓库覆盖（--empty / 目录 / 文件）。</summary>
+    public static void ApplySessionOverride(VoxSettings settings)
+    {
+        if (RepoOverridden) settings.RepoPath = SessionRepoPath;
     }
 }
 
@@ -77,7 +82,11 @@ public sealed class AppState
 
     public bool HasRepo => !string.IsNullOrWhiteSpace(Settings.RepoPath) && Directory.Exists(Settings.RepoPath);
 
-    public void LoadSettings() => Settings = SettingsStore.Load();
+    public void LoadSettings()
+    {
+        Settings = SettingsStore.Load();
+        AppBootstrap.ApplySessionOverride(Settings); // --empty / 目录 / 文件的会话级覆盖
+    }
 
     /// <summary>持久化设置；会话级仓库覆盖生效时，回写文件用原仓库路径（覆盖目录不入全局配置）。</summary>
     public void SaveSettings()
