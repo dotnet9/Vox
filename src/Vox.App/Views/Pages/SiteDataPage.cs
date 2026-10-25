@@ -72,9 +72,6 @@ public sealed class SiteDataPage : UserControl
         _contentHost.Children.Add(_contentTitle);
         content.Child = new ScrollViewer { Content = _contentHost, MaxHeight = 560 };
 
-        var split = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
-        split.Children.Add(nav);
-        split.Children.Add(content);
         DockPanel.SetDock(nav, Dock.Left);
 
         var body = new DockPanel { Children = { nav, content } };

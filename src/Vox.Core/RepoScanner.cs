@@ -59,44 +59,48 @@ public static class RepoScanner
         {
             var relative = PathText.ToForwardSlashes(Path.GetRelativePath(repoRoot, md));
             if (relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase)) continue;
-            if (!CodeWfRepoProfile.TryGetArticleRelativePath(relative, out var year, out var month, out var slug)) continue;
 
             var metaPath = CodeWfRepoProfile.MetaPathFor(relative);
             var mdFullPath = Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
-            // 元数据两种载体：sidecar yml（旧）或 md 内联 front matter（规范形态）；两者都无才算缺失
+            var text = ReadText(md);
+            var hasInline = YamlSidecar.TrySplitFrontMatter(text, out _, out var body);
+
+            // 两种形态都入索引：仓库档案（YYYY/MM/slug.md，年月取自目录）与自由 md
+            //（任意目录，类 Vex 纯 Markdown 编辑器用法，年月取文件时间、slug 取文件名）。
+            // 档案文件缺元数据仍记入 Missing 供体检，但不再排除出索引。
+            var profileShaped = CodeWfRepoProfile.TryGetArticleRelativePath(relative, out var profileYear, out var profileMonth, out var profileSlug);
             var hasSidecar = File.Exists(Path.Combine(repoRoot, metaPath));
-            var hasInline = false;
-            if (!hasSidecar)
-            {
-                var probe = File.ReadAllText(mdFullPath);
-                hasInline = YamlSidecar.TrySplitFrontMatter(probe, out _, out _);
-            }
-            if (!hasSidecar && !hasInline)
+            if (profileShaped && !hasSidecar && !hasInline)
             {
                 scan.Missing.Add(new MissingMeta(relative, "missing-metadata"));
-                continue;
             }
 
-            var article = new Article
-            {
-                MarkdownPath = relative,
-                MetaPath = metaPath,
-                Year = year!,
-                Month = month!,
-                Slug = slug!,
-            };
-
-            if (YamlSidecar.TryLoadFromMarkdown(mdFullPath, out var meta, out var error))
-            {
-                article.Meta = meta!;
-            }
-            else
+            if (!YamlSidecar.TryLoadFromMarkdown(mdFullPath, out var meta, out var error))
             {
                 scan.Errors.Add(new MetaError(metaPath, error ?? "parse-error"));
                 continue;
             }
 
-            var body = ReadText(md);
+            // 自由形态补默认值：标题 front matter → 正文首个 H1 → 文件名；日期取文件最后写入时间。
+            if (string.IsNullOrWhiteSpace(meta!.Title))
+            {
+                meta.Title = ExtractH1Title(text) ?? Path.GetFileNameWithoutExtension(relative);
+            }
+            if (string.IsNullOrWhiteSpace(meta.Slug)) meta.Slug = profileShaped ? profileSlug! : Path.GetFileNameWithoutExtension(relative);
+            if (meta.Date == default) meta.Date = File.GetLastWriteTime(mdFullPath);
+            var year = profileShaped ? profileYear! : meta.Date.Year.ToString();
+            var month = profileShaped ? profileMonth! : meta.Date.Month.ToString("00");
+
+            var article = new Article
+            {
+                MarkdownPath = relative,
+                MetaPath = metaPath,
+                Year = year,
+                Month = month,
+                Slug = meta.Slug,
+                Meta = meta,
+            };
+
             article.BodyBytes = new FileInfo(md).Length;
             article.WordCount = TextMetrics.CountWords(body);
             article.CjkCount = TextMetrics.CountCjkOnly(body);
@@ -155,6 +159,20 @@ public static class RepoScanner
         }
 
         return scan;
+    }
+
+    /// <summary>取正文首个 ATX H1 文本（跳过 front matter；遇到首个非标题行即停）。</summary>
+    public static string? ExtractH1Title(string markdown)
+    {
+        YamlSidecar.TrySplitFrontMatter(markdown, out _, out var body);
+        foreach (var rawLine in body.Split('\n'))
+        {
+            var line = rawLine.TrimStart();
+            if (line.Length == 0) continue;
+            if (!line.StartsWith('#')) return null;
+            if (line.StartsWith("# ")) return line[2..].Trim().TrimEnd('#').Trim();
+        }
+        return null;
     }
 
     /// <summary>剥离 ``` / ~~~ 围栏代码块（教程代码示例里的图片语法不是真实引用）。</summary>
