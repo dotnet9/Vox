@@ -1,0 +1,587 @@
+<!-- ============================================================
+     Vox 控件样式：design/assets/app.css + tokens.css 的 Avalonia 翻译。
+     全部类作用域（不覆盖全局默认主题，避免与 AtomUI/Arc 控件主题打架）。
+     颜色引用 VoxTheme.Apply 注入的 DynamicResource 画刷。
+     ============================================================ -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ap="clr-namespace:Avalonia.Controls.Presenters;assembly=Avalonia.Controls">
+
+  <Styles.Resources>
+    <FontFamily x:Key="VoxFontUi">Geist, Inter, $Default, Segoe UI, Microsoft YaHei UI</FontFamily>
+    <FontFamily x:Key="VoxFontMono">Geist Mono, Cascadia Code, Consolas, monospace</FontFamily>
+      <ControlTheme x:Key="VoxInputTheme" TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="9"/>
+        <Setter Property="Padding" Value="11,7"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource VoxAccentSoft}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource VoxAccent}"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Name="PART_Border"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{TemplateBinding CornerRadius}"
+                    Padding="{TemplateBinding Padding}"
+                    MinWidth="1" MinHeight="1">
+              <ap:TextPresenter Name="PART_TextPresenter"
+                                Text="{TemplateBinding Text}"
+                                TextWrapping="{TemplateBinding TextWrapping}"
+                                PasswordChar="{TemplateBinding PasswordChar}"
+                                TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"
+                                CaretBrush="{TemplateBinding CaretBrush}"
+                                SelectionBrush="{TemplateBinding SelectionBrush}"
+                                SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+                                Background="Transparent"
+                                VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+      </ControlTheme>
+    
+      <ControlTheme x:Key="VoxSwitchTheme" TargetType="ToggleButton">
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Panel>
+              <Border CornerRadius="99" Background="{DynamicResource VoxSurface3}"/>
+              <Border Name="PART_Dot" Width="16" Height="16" CornerRadius="99" Margin="2,0,0,0"
+                      HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Background="#FFFFFF" BoxShadow="0 1 3 #4D000000"/>
+            </Panel>
+          </ControlTemplate>
+        </Setter>
+      </ControlTheme>
+    
+      <ControlTheme x:Key="VoxCheckTheme" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="7" Background="Transparent">
+              <Panel Width="15" Height="15" VerticalAlignment="Center">
+                <Border Name="PART_Box" Width="14" Height="14" CornerRadius="4"
+                        BorderThickness="1.5" BorderBrush="{DynamicResource VoxLineStrong}"
+                        Background="Transparent"/>
+                <TextBlock Name="PART_Mark" Text="✓" FontSize="10" Foreground="#FFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="False"/>
+              </Panel>
+              <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                VerticalAlignment="Center" RecognizesAccessKey="False"/>
+            </StackPanel>
+          </ControlTemplate>
+        </Setter>
+      </ControlTheme>
+  </Styles.Resources>
+
+  <!-- ══════════ .btn（tokens.css 基类 + app.css 变体） ══════════ -->
+  <Style Selector="Button.btn">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="14,7"/>
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+  </Style>
+  <Style Selector="Button.btn:pressed">
+    <Setter Property="Opacity" Value="0.85"/>
+  </Style>
+  <Style Selector="Button.btn.primary">
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxOnAccent}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Button.btn.primary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentDeep}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccentDeep}"/>
+  </Style>
+  <Style Selector="Button.btn.ghost">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+  </Style>
+  <Style Selector="Button.btn.ghost:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.btn.danger">
+    <Setter Property="Background" Value="{DynamicResource VoxDangerSoft}"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxDanger}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Button.btn.sm">
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="MinHeight" Value="24"/>
+  </Style>
+
+  <!-- ══════════ .input（TextBox 类主题：vinput） ══════════ -->
+  <Style Selector="TextBox.vinput">
+    <Setter Property="Theme" Value="{StaticResource VoxInputTheme}"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="TextBox.vinput:focus /template/ Border#PART_Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="TextBox.vinput:disabled">
+    <Setter Property="Opacity" Value="0.55"/>
+  </Style>
+
+  <!-- ══════════ .switch（34×20 圆点开关） ══════════ -->
+  <Style Selector="ToggleButton.vswitch">
+    <Setter Property="Theme" Value="{StaticResource VoxSwitchTheme}"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.22"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.vswitch:checked /template/ Border#PART_Dot">
+    <Setter Property="Margin" Value="0,0,2,0"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+  </Style>
+
+  <!-- ══════════ .badge（Border 容器 + 继承前景的文本） ══════════ -->
+  <Style Selector="Border.badge">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="CornerRadius" Value="99"/>
+    <Setter Property="Padding" Value="8,1"/>
+    <Setter Property="TextElement.FontSize" Value="10.5"/>
+    <Setter Property="TextElement.FontWeight" Value="Medium"/>
+  </Style>
+  <Style Selector="Border.badge.accent">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Border.badge.ok">
+    <Setter Property="Background" Value="{DynamicResource VoxOkSoft}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxOk}"/>
+  </Style>
+  <Style Selector="Border.badge.warn">
+    <Setter Property="Background" Value="{DynamicResource VoxWarnSoft}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxWarn}"/>
+  </Style>
+  <Style Selector="Border.badge.danger">
+    <Setter Property="Background" Value="{DynamicResource VoxDangerSoft}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxDanger}"/>
+  </Style>
+
+  <!-- ══════════ .chip ══════════ -->
+  <Style Selector="Border.chip">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="99"/>
+    <Setter Property="Padding" Value="10,3"/>
+    <Setter Property="TextElement.FontSize" Value="11"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxMuted}"/>
+  </Style>
+  <Style Selector="Border.chip.add">
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <!-- ══════════ .seg 分段控件容器与按钮（active 类由代码维护，同原型 JS） ══════════ -->
+  <Style Selector="Border.seg">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="2"/>
+  </Style>
+  <Style Selector="Border.seg Button.segbtn">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Padding" Value="12,4"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="MinHeight" Value="24"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.seg Button.segbtn.active">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+
+  <!-- ══════════ .navit 导航项（nav .it） ══════════ -->
+  <Style Selector="Button.navit">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="10,8"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.navit:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.navit.active">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Button.navit Border.navcnt">
+    <Setter Property="TextElement.FontSize" Value="10"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxFaint}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="CornerRadius" Value="99"/>
+    <Setter Property="Padding" Value="7,0"/>
+    <Setter Property="Height" Value="17"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.navit.active Border.navcnt">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+
+  <!-- ══════════ 标题栏按钮（wbtn / tb-ico / tb-txt / edge-btn） ══════════ -->
+  <Style Selector="Button.wbtn">
+    <Setter Property="Width" Value="42"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.wbtn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.wbtn.close:pointerover">
+    <Setter Property="Background" Value="#E81123"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector="Button.tb-ico">
+    <Setter Property="Width" Value="30"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.tb-ico:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.tb-txt">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.tb-txt:pointerover /template/ ContentPresenter">
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.tb-txt:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.edge-btn">
+    <Setter Property="Width" Value="24"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="CornerRadius" Value="99"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="ZIndex" Value="20"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.edge-btn:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+
+  <!-- ══════════ .mnu 下拉菜单 ══════════ -->
+  <Style Selector="Border.mnu">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="5"/>
+    <Setter Property="BoxShadow" Value="0 12 32 0 #1E000000, 0 2 8 0 #0F000000"/>
+    <Setter Property="MinWidth" Value="150"/>
+  </Style>
+  <Style Selector="Border.mnu Button.mnuitem">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Padding" Value="10,7"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.1"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.mnu Button.mnuitem:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+
+  <!-- ══════════ 弹层 .mask / .modal ══════════ -->
+  <Style Selector="Border.mask">
+    <Setter Property="Background" Value="{DynamicResource VoxMaskBg}"/>
+    <Setter Property="ZIndex" Value="50"/>
+  </Style>
+  <Style Selector="Border.modal">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="16"/>
+    <Setter Property="BoxShadow" Value="0 24 70 0 #29000000, 0 4 16 0 #14000000"/>
+    <Setter Property="Width" Value="560"/>
+    <Setter Property="MaxHeight" Value="700"/>
+  </Style>
+
+  <!-- ══════════ .toast ══════════ -->
+  <Style Selector="Border.toast">
+    <Setter Property="Background" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxBg}"/>
+    <Setter Property="CornerRadius" Value="99"/>
+    <Setter Property="Padding" Value="18,9"/>
+    <Setter Property="TextElement.FontSize" Value="12"/>
+    <Setter Property="TextElement.FontWeight" Value="Medium"/>
+    <Setter Property="ZIndex" Value="99"/>
+    <Setter Property="IsVisible" Value="False"/>
+    <Setter Property="VerticalAlignment" Value="Bottom"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="0,0,0,26"/>
+  </Style>
+
+  <!-- ══════════ 平台状态点 .pm-st ══════════ -->
+  <Style Selector="TextBlock.pm-st">
+    <Setter Property="Width" Value="22"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="TextBlock.pm-st.ok"><Setter Property="Foreground" Value="{DynamicResource VoxOk}"/></Style>
+  <Style Selector="TextBlock.pm-st.stale"><Setter Property="Foreground" Value="{DynamicResource VoxWarn}"/></Style>
+  <Style Selector="TextBlock.pm-st.off"><Setter Property="Foreground" Value="{DynamicResource VoxFaint}"/></Style>
+  <Style Selector="TextBlock.pm-st.err"><Setter Property="Foreground" Value="{DynamicResource VoxDanger}"/></Style>
+
+  <!-- ══════════ 通用卡片 / 统计 ══════════ -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
+  </Style>
+  <Style Selector="TextBlock.flabel">
+    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="Margin" Value="0,13,0,5"/>
+  </Style>
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{DynamicResource VoxFontMono}"/>
+  </Style>
+
+  <!-- ══════════ 复选框（vcheck：14×14 圆角小方框） ══════════ -->
+  <Style Selector="CheckBox.vcheck">
+    <Setter Property="Theme" Value="{StaticResource VoxCheckTheme}"/>
+  </Style>
+  <Style Selector="CheckBox.vcheck:checked /template/ Border#PART_Box">
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="CheckBox.vcheck:checked /template/ TextBlock#PART_Mark">
+    <Setter Property="IsVisible" Value="True"/>
+  </Style>
+
+
+  <!-- ══════════ 写作页（app.css .wit/.viewseg/.wtabs/.outl/.drop/.thumb） ══════════ -->
+  <Style Selector="Button.wit">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="Padding" Value="14,10"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.wit:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="Button.wit.active">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+  </Style>
+
+  <Style Selector="Border.viewseg">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="2"/>
+  </Style>
+  <Style Selector="Border.viewseg Button.vsegbtn">
+    <Setter Property="Width" Value="26"/>
+    <Setter Property="Height" Value="22"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFaint}"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Border.viewseg Button.vsegbtn.active">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+
+  <Style Selector="Button.wtabbtn">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Padding" Value="0,9"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0,0,0,2"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.wtabbtn.active">
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+
+  <Style Selector="Button.outl">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="Padding" Value="4,2"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.outl:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Button.outl.l3">
+    <Setter Property="Padding" Value="16,2"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+
+  <Style Selector="Border.drop">
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+    <Setter Property="BorderThickness" Value="1.5"/>
+    <Setter Property="CornerRadius" Value="11"/>
+    <Setter Property="Padding" Value="12,18"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="TextElement.FontSize" Value="11.5"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Border.drop:pointerover">
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+  </Style>
+
+  <Style Selector="Border.thumb">
+    <Setter Property="Height" Value="58"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Border.thumb TextBlock.tlabel">
+    <Setter Property="FontSize" Value="8.5"/>
+    <Setter Property="FontFamily" Value="{DynamicResource VoxFontMono}"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="Background" Value="#73000000"/>
+    <Setter Property="Padding" Value="5,2"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="TextAlignment" Value="Left"/>
+  </Style>
+
+</Styles>

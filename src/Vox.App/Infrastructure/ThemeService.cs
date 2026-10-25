@@ -21,7 +21,20 @@ public static class ThemeService
         ApplyDarkAsync(settings.IsDark);
         ApplyAccent(settings.Accent);
         ApplyMotion(settings.MotionLevel);
+        // Vox 自绘界面的像素级令牌（原型 tokens.css 口径）：明暗 + 四组强调色。
+        VoxTheme.Apply(settings.IsDark == true, NormalizeAccentName(settings.Accent));
     }
+
+    /// <summary>设置存的是 Arc 预设名（Violet/…），VoxTheme 用小写口径（violet/…）。</summary>
+    public static string NormalizeAccentName(string accent) =>
+        accent.ToLowerInvariant() switch
+        {
+            "violet" => VoxTheme.AccentViolet,
+            "blue" => VoxTheme.AccentBlue,
+            "green" or "emerald" => VoxTheme.AccentEmerald,
+            "orange" => VoxTheme.AccentOrange,
+            _ => VoxTheme.AccentViolet,
+        };
 
     public static void ApplyDarkAsync(bool? isDark)
     {

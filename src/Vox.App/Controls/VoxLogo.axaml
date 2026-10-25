@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Vox.App.Controls.VoxLogo">
+  <!-- logo.svg 的矢量重绘：渐变圆角块 + 四根白色音量柱 + 高光点；Viewbox 缩放任意尺寸 -->
+  <Viewbox Stretch="Uniform">
+    <Panel Width="256" Height="256">
+      <Border Width="224" Height="224" CornerRadius="52" Margin="16">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0" Color="#4338CA"/>
+            <GradientStop Offset="1" Color="#6D28D9"/>
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
+      <Border Width="20" Height="48" CornerRadius="10" Background="#FFFFFF" Margin="64,112,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+      <Border Width="20" Height="104" CornerRadius="10" Background="#FFFFFF" Margin="100,84,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+      <Border Width="20" Height="72" CornerRadius="10" Background="#FFFFFF" Margin="136,100,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+      <Border Width="20" Height="24" CornerRadius="10" Background="#FFFFFF" Margin="172,124,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+      <Ellipse Width="20" Height="20" Fill="#8CFFFFFF" Margin="64,78,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+    </Panel>
+  </Viewbox>
+</UserControl>

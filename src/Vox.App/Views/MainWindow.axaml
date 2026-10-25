@@ -1,10 +1,95 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="clr-namespace:Vox.App.Controls"
         x:Class="Vox.App.Views.MainWindow"
-        Title="Vox" Width="1280" Height="800" MinWidth="960" MinHeight="620">
-  <Grid ColumnDefinitions="212,*">
-    <Border Grid.Column="0" x:Name="NavHost" />
-    <ContentControl Grid.Column="1" x:Name="ContentHost" HorizontalContentAlignment="Stretch"
-                    VerticalContentAlignment="Stretch" />
+        Title="Vox · 维声"
+        Width="1280" Height="830" MinWidth="1080" MinHeight="660"
+        FontFamily="{DynamicResource VoxFontUi}" FontSize="13"
+        Foreground="{DynamicResource VoxFg}"
+        Background="{DynamicResource VoxSurface}">
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- ============ 标题栏（原型 .topbar：42px，拖动区 + 文件菜单 + 窗口控制钮） ============ -->
+    <Border x:Name="Topbar" Grid.Row="0" Height="42" Background="{DynamicResource VoxSurface2}"
+            BorderBrush="{DynamicResource VoxLine}" BorderThickness="0,0,0,1"
+            Padding="10,0,8,0" ZIndex="10">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+        <ctl:VoxLogo Grid.Column="0" Width="18" Height="18"
+                     Margin="4,0,4,0" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="1" Text="Vox · 维声" FontWeight="SemiBold" FontSize="12.5"
+                   VerticalAlignment="Center" Margin="0,0,2,0"/>
+        <!-- 文件菜单 -->
+        <Panel Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center">
+          <Button x:Name="BtnFileMenu" Classes="tb-txt" Content="文件">
+            <Button.Flyout>
+              <Flyout Placement="Bottom" ShowMode="Standard">
+                <Border Classes="mnu">
+                  <StackPanel>
+                    <Button x:Name="MiNew" Classes="mnuitem" Content="新建文章"/>
+                    <Button x:Name="MiMeta" Classes="mnuitem" Content="文章元数据…"/>
+                    <Button x:Name="MiImg" Classes="mnuitem" Content="图片入库…"/>
+                  </StackPanel>
+                </Border>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Panel>
+        <Panel Grid.Column="4">
+          <StackPanel Orientation="Horizontal">
+            <Button Classes="wbtn" Click="OnMinimize" ToolTip.Tip="最小化">
+              <Panel Width="10" Height="10">
+                <Line StartPoint="0,5" EndPoint="10,5" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"/>
+              </Panel>
+            </Button>
+            <Button Classes="wbtn" Click="OnMaximize" ToolTip.Tip="最大化">
+              <Border Width="9" Height="9" BorderThickness="1" CornerRadius="1.5"
+                      BorderBrush="{Binding $parent[Button].Foreground}"/>
+            </Button>
+            <Button Classes="wbtn,close" Click="OnClose" ToolTip.Tip="关闭">
+              <Panel Width="10" Height="10">
+                <Line StartPoint="0,0" EndPoint="10,10" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"/>
+                <Line StartPoint="10,0" EndPoint="0,10" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"/>
+              </Panel>
+            </Button>
+          </StackPanel>
+        </Panel>
+      </Grid>
+    </Border>
+
+    <!-- ============ 应用主体（导航 + 主区） ============ -->
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+      <!-- 左侧导航（原型 .nav：196px，折叠 56px；默认折叠纯图标） -->
+      <Border x:Name="NavRail" Background="{DynamicResource VoxSurface}"
+              BorderBrush="{DynamicResource VoxLine}" BorderThickness="0,0,1,0"
+              Width="56">
+        <Grid RowDefinitions="*,Auto">
+          <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="NavItems" Margin="8,12" Spacing="2"/>
+          </ScrollViewer>
+          <StackPanel x:Name="NavFoot" Grid.Row="1" Margin="8,8,8,12" Spacing="2"/>
+        </Grid>
+      </Border>
+
+      <!-- 折叠钮：骑在右边框上、与底部设置对齐 -->
+      <Button x:Name="BtnNav" Classes="edge-btn" Grid.Column="0"
+              HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="44,0,0,17"
+              ZIndex="20" Click="OnToggleNav" ToolTip.Tip="收起 / 展开边栏">
+        <Path x:Name="BtnNavIcon" StrokeThickness="2" StrokeLineCap="Round"
+              Stroke="{Binding $parent[Button].Foreground}"
+              Data="M 9 18 L 15 12 L 9 6" Width="12" Height="12"/>
+      </Button>
+
+      <!-- 主区：页面宿主 + 弹层遮罩 + toast -->
+      <Panel Grid.Column="1">
+        <ContentControl x:Name="PageHost"/>
+        <!-- 弹层遮罩（.mask + .modal 宿主） -->
+        <Border x:Name="ModalMask" Classes="mask" IsVisible="False" IsHitTestVisible="False">
+          <ContentControl x:Name="ModalHost" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <Border x:Name="Toast" Classes="toast">
+          <TextBlock x:Name="ToastText"/>
+        </Border>
+      </Panel>
+    </Grid>
   </Grid>
 </Window>
