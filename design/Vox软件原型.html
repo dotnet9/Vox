@@ -12,6 +12,7 @@
 <header class="topbar">
   <img class="tb-logo" src="../logo.svg" alt=""><span class="tb-name">Vox · 维声</span>
   <span class="tb-menu"><button class="tb-txt" id="mFileBtn">文件</button><div class="mnu" id="mFile"><a id="miNew">新建文章</a><a id="miMeta">文章元数据…</a><a id="miImg">图片入库…</a></div></span>
+<span class="tb-menu"><button class="tb-txt" id="mHelpBtn">帮助</button><div class="mnu" id="mHelp"><a id="miUpdate">检查更新…</a><a id="miAbout">关于 Vox</a></div></span>
           <span class="tb-file"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span></span>
   <span class="spacer"></span>
           <span class="tb-extras" id="tbExtras">
@@ -475,6 +476,29 @@ draft: true
     <div class="map-choice-grid" id="mapStyleGrid" role="tabpanel" hidden></div>
   </section>
 
+<div class="mask" id="mUpdate"><div class="modal" style="width:480px">
+  <div class="mh"><h3>检查更新</h3><span class="x" onclick="closeModal('mUpdate')">×</span></div>
+  <div class="mb">
+    <div class="kv"><span>当前版本</span><b>0.1.0-preview.1</b></div>
+    <div class="kv"><span>发布通道</span><b>GitHub Releases（dotnet9/Vox）</b></div>
+    <div id="updResult" style="margin-top:12px"></div>
+  </div>
+  <div class="mf">
+    <button class="btn" id="btnGoRelease" style="display:none" onclick="toast('打开 GitHub Releases 下载新版本')">前往下载</button>
+    <button class="btn primary" id="btnCheckUpdate" onclick="doCheckUpdate(this)">检查更新</button>
+  </div>
+</div></div>
+
+<div class="mask" id="mAbout"><div class="modal" style="width:420px">
+  <div class="mh"><h3>关于 Vox</h3><span class="x" onclick="closeModal('mAbout')">×</span></div>
+  <div class="mb" style="text-align:center">
+    <img src="../logo.svg" style="width:64px;height:64px;border-radius:16px;margin:6px auto 10px;display:block">
+    <b style="font-size:15px">Vox · 维声</b>
+    <p style="color:var(--muted);margin:6px 0 0">一处落笔，处处有声。<br>0.1.0-preview.1 · MIT © 沙漠尽头的狼 (codewf.com)</p>
+  </div>
+  <div class="mf"><button class="btn" onclick="closeModal('mAbout')">关闭</button></div>
+</div></div>
+
 <div id="toast"></div>
 
 <script>
@@ -662,12 +686,22 @@ function setPanel(open){
 bp.addEventListener('click',()=>setPanel(document.getElementById('wpanel').classList.contains('off')));
 function panelTo(tab){setPanel(true);const btn=document.querySelector('.wtabs button[data-tab="'+tab+'"]');if(btn)btn.click();}
 $('btnNav').onclick=()=>{navEl.classList.toggle('collapsed');$('btnNav').innerHTML=navEl.classList.contains('collapsed')?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';};
-$('mFileBtn').onclick=e=>{e.stopPropagation();$('mFile').classList.toggle('open');};
-document.addEventListener('click',()=>closeModal2());
+$('mFileBtn').onclick=e=>{e.stopPropagation();$('mFile').classList.toggle('open');$('mHelp').classList.remove('open');};
+$('mHelpBtn').onclick=e=>{e.stopPropagation();$('mHelp').classList.toggle('open');$('mFile').classList.remove('open');};
+function closeMenus(){$('mFile').classList.remove('open');$('mHelp').classList.remove('open');}
+document.addEventListener('click',()=>{closeModal2();closeMenus();});
 function closeModal2(){$('mFile').classList.remove('open');}
 $('miNew').onclick=()=>{closeModal2();openModal('mNew');};
 $('miMeta').onclick=()=>{closeModal2();openModal('mMeta');};
 $('miImg').onclick=()=>{closeModal2();openModal('mImg');};
+$('miUpdate').onclick=()=>{closeModal2();openModal('mUpdate');resetUpdate();};
+$('miAbout').onclick=()=>{closeModal2();openModal('mAbout');};
+function resetUpdate(){$('updResult').innerHTML='';$('btnGoRelease').style.display='none';$('btnCheckUpdate').disabled=false;$('btnCheckUpdate').textContent='检查更新';}
+function doCheckUpdate(btn){btn.disabled=true;btn.textContent='检查中…';
+  $('updResult').innerHTML='<div style="color:var(--faint)">正在查询 GitHub Releases…</div>';
+  setTimeout(()=>{ // 演示：发现新版本（实现中对比 releases/latest 的 tag 与当前版本）
+    $('updResult').innerHTML='<div class="note"><span>⬆</span><span>发现新版本 <b>0.1.0-preview.2</b><br>· 修复安装包在部分系统的关联注册<br>· 写作页大纲跳转更顺滑</span></div>';
+    $('btnGoRelease').style.display='inline-flex';btn.disabled=false;btn.textContent='重新检查';},900);}
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
 document.querySelectorAll('.acard').forEach(w=>w.onclick=()=>{document.querySelectorAll('.acard').forEach(x=>x.classList.toggle('sel',x===w))});

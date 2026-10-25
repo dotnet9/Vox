@@ -178,6 +178,9 @@ public partial class MainWindow : Window
     private void ApplyChrome()
     {
         BtnFileMenu[!Button.ContentProperty] = I18n.Bind("Vox.Shell.Menu.File");
+        BtnHelpMenu[!Button.ContentProperty] = I18n.Bind("Vox.Shell.Menu.Help");
+        MiUpdate[!Button.ContentProperty] = I18n.Bind("Vox.Help.Menu.CheckUpdate");
+        MiAbout[!Button.ContentProperty] = I18n.Bind("Vox.Help.Menu.About");
         MiNewWindow[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewWindow");
         MiOpenDir[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
         MiOpenFile[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
@@ -502,6 +505,8 @@ public partial class MainWindow : Window
         MiNew.Click += (_, _) => WriteCommand(p => p.OpenNewArticle());
         MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
         MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
+        MiUpdate.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); ShowModal(new Dialogs.HelpDialogs.UpdateModal(this)); };
+        MiAbout.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); ShowModal(new Dialogs.HelpDialogs.AboutModal(this)); };
 
         // 新窗口：拉起空白 Vox 进程；打开目录/文件在当前进程内切换仓库（不新开进程）。
         MiNewWindow.Click += (_, _) =>

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <AssemblyName>Vox</AssemblyName>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Arc 依赖链要求：输入框/选择器依赖区域性数据格式化，不可启用 InvariantGlobalization -->
     <InvariantGlobalization>false</InvariantGlobalization>

@@ -1,0 +1,156 @@
+name: release
+
+# 推送 v* 标签发布 Vox 全平台产物（决策 D11：分发只走 GitHub Releases）：
+# win-x64 用 Inno Setup 生成 setup.exe（自包含），
+# linux-x64 / linux-arm64 / osx-x64 / osx-arm64 生成 tar.gz；全部附 SHA-256。
+# 版本号必须与 Directory.Build.props 的 <Version> 一致。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（不含 v），例如 0.1.0-preview.1'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: win-x64（安装包）
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 计算版本号
+        id: version
+        shell: pwsh
+        run: |
+          $raw = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
+          $version = $raw.TrimStart('v', 'V')
+          [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
+          $defined = $props.Project.PropertyGroup.Version
+          if ($version -ne $defined) { throw "tag 版本 $version 与 Directory.Build.props 的 $defined 不一致。" }
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: 发布 win-x64
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Rid win-x64
+
+      - name: 构建 Windows 安装包
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: scripts/installer/Vox.Setup.iss
+          options: |
+            /DAppVersion=${{ env.APP_VERSION }}
+            /DSourceDir=${{ github.workspace }}\artifacts\publish\Vox.App-win-x64
+            /DOutputDir=${{ github.workspace }}\artifacts\release
+
+      - name: 计算 SHA-256
+        shell: pwsh
+        run: |
+          $installer = "artifacts/release/Vox-v$env:APP_VERSION-win-x64-setup.exe"
+          if (-not (Test-Path -LiteralPath $installer)) { throw "安装包缺失：$installer" }
+          $sha = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$sha  Vox-v$env:APP_VERSION-win-x64-setup.exe" | Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-win-x64
+          path: artifacts/release/*
+          if-no-files-found: error
+
+  unix:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+          - rid: osx-x64
+            os: macos-15-intel
+          - rid: osx-arm64
+            os: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 计算版本号
+        shell: pwsh
+        run: |
+          $raw = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
+          $version = $raw.TrimStart('v', 'V')
+          [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
+          $defined = $props.Project.PropertyGroup.Version
+          if ($version -ne $defined) { throw "tag 版本 $version 与 Directory.Build.props 的 $defined 不一致。" }
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: 发布
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Rid '${{ matrix.rid }}'
+
+      - name: 打包 tar.gz + SHA-256
+        shell: pwsh
+        run: |
+          $dir = "artifacts/publish/Vox.App-${{ matrix.rid }}"
+          if (-not (Test-Path $dir)) { throw "发布目录缺失：$dir" }
+          New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
+          $name = "Vox-v$env:APP_VERSION-${{ matrix.rid }}"
+          tar -czf "artifacts/release/$name.tar.gz" -C $dir .
+          $sha = (Get-FileHash "artifacts/release/$name.tar.gz" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$sha  $name.tar.gz" | Set-Content "artifacts/release/$name.tar.gz.sha256"
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: artifacts/release/*
+          if-no-files-found: error
+
+  release:
+    name: 发布 Release
+    needs: [windows, unix]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 计算版本号
+        shell: pwsh
+        run: |
+          $raw = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
+          "VERSION=$($raw.TrimStart('v', 'V'))" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 整理发布文件
+        run: |
+          mkdir -p staging
+          find artifacts -type f -print0 | xargs -0 -I{} cp {} staging/
+          ls -la staging
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Vox v${{ env.VERSION }}
+          generate_release_notes: true
+          files: staging/*
+          fail_on_unmatched_files: true

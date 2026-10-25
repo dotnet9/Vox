@@ -554,5 +554,21 @@
   "Vox.Settings.Platform.WxSaved": "WeChat公式アカウントの資格情報を保存しました（OS資格情報ストア）",
   "Vox.Settings.Platform.CnbSaved": "博客園の資格情報を保存しました（OS資格情報ストア）",
   "Vox.Settings.Platform.CsdnSaved": "CSDNトークンを保存しました（OS資格情報ストア）",
-  "Vox.Settings.Platform.Saved": "プラットフォームアカウントを保存しました（OS資格情報ストア）"
+  "Vox.Settings.Platform.Saved": "プラットフォームアカウントを保存しました（OS資格情報ストア）",
+  "Vox.Shell.Menu.Help": "ヘルプ",
+  "Vox.Help.Menu.CheckUpdate": "更新を確認…",
+  "Vox.Help.Menu.About": "Vox について",
+  "Vox.Help.About.Title": "Vox について",
+  "Vox.Help.About.Slogan": "一度書けば、どこでも響く。",
+  "Vox.Help.About.License": "MIT © Dotnet9 (codewf.com)",
+  "Vox.Help.Update.Title": "更新を確認",
+  "Vox.Help.Update.CurrentVersion": "現在のバージョン",
+  "Vox.Help.Update.Channel": "リリースチャネル",
+  "Vox.Help.Update.ChannelValue": "GitHub Releases（dotnet9/Vox）",
+  "Vox.Help.Update.Checking": "GitHub Releases を確認中…",
+  "Vox.Help.Update.ActionRecheck": "再確認",
+  "Vox.Help.Update.ActionDownload": "ダウンロードへ",
+  "Vox.Help.Update.UpToDate": "最新です。",
+  "Vox.Help.Update.NewVersion": "新しいバージョン {0}",
+  "Vox.Help.Update.Failed": "確認に失敗：{0}"
 }

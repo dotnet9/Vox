@@ -554,5 +554,21 @@
   "Vox.Settings.Platform.WxSaved": "公眾號憑證已保存（系統憑證管理器）",
   "Vox.Settings.Platform.CnbSaved": "博客園憑證已保存（系統憑證管理器）",
   "Vox.Settings.Platform.CsdnSaved": "CSDN token 已保存（系統憑證管理器）",
-  "Vox.Settings.Platform.Saved": "平台帳戶已保存（系統憑證管理器）"
+  "Vox.Settings.Platform.Saved": "平台帳戶已保存（系統憑證管理器）",
+  "Vox.Shell.Menu.Help": "幫助",
+  "Vox.Help.Menu.CheckUpdate": "檢查更新…",
+  "Vox.Help.Menu.About": "關於 Vox",
+  "Vox.Help.About.Title": "關於 Vox",
+  "Vox.Help.About.Slogan": "一處落筆，處處有聲。",
+  "Vox.Help.About.License": "MIT © 沙漠盡頭的狼 (codewf.com)",
+  "Vox.Help.Update.Title": "檢查更新",
+  "Vox.Help.Update.CurrentVersion": "目前版本",
+  "Vox.Help.Update.Channel": "發布通道",
+  "Vox.Help.Update.ChannelValue": "GitHub Releases（dotnet9/Vox）",
+  "Vox.Help.Update.Checking": "正在查詢 GitHub Releases…",
+  "Vox.Help.Update.ActionRecheck": "重新檢查",
+  "Vox.Help.Update.ActionDownload": "前往下載",
+  "Vox.Help.Update.UpToDate": "已是最新版本。",
+  "Vox.Help.Update.NewVersion": "發現新版本 {0}",
+  "Vox.Help.Update.Failed": "檢查失敗：{0}"
 }

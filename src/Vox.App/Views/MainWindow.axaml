@@ -14,7 +14,7 @@
     <Border x:Name="Topbar" Grid.Row="0" Height="42" Background="{DynamicResource VoxSurface}"
             BorderBrush="{DynamicResource VoxLine}" BorderThickness="0,0,0,1"
             Padding="10,0,8,0" ZIndex="10">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto">
         <Image Grid.Column="0" Source="/Assets/app.ico" Width="18" Height="18"
                Margin="4,0,4,0" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="1" Text="Vox · 维声" FontWeight="SemiBold" FontSize="{DynamicResource VoxFontSizeMd}"
@@ -38,13 +38,27 @@
             </Button.Flyout>
           </Button>
         </Panel>
-        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="6,0,0,0" VerticalAlignment="Center">
+        <Panel Grid.Column="3" Margin="4,0,0,0" VerticalAlignment="Center">
+          <Button x:Name="BtnHelpMenu" Classes="tb-txt" Content="帮助">
+            <Button.Flyout>
+              <Flyout Placement="Bottom" ShowMode="Standard">
+                <Border Classes="mnu">
+                  <StackPanel>
+                    <Button x:Name="MiUpdate" Classes="mnuitem" Content="检查更新…"/>
+                    <Button x:Name="MiAbout" Classes="mnuitem" Content="关于 Vox"/>
+                  </StackPanel>
+                </Border>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Panel>
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" Margin="6,0,0,0" VerticalAlignment="Center">
           <Ellipse x:Name="FileDot" Width="7" Height="7" Fill="{DynamicResource VoxWarn}" IsVisible="False"/>
           <TextBlock x:Name="FileNameText" Classes="mono" FontSize="{DynamicResource VoxFontSizeXs}" IsVisible="False"
                      Foreground="{DynamicResource VoxMuted}"/>
           <StackPanel x:Name="FileBadges" Orientation="Horizontal" Spacing="4" IsVisible="False"/>
         </StackPanel>
-        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0,0,6,0">
+        <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0,0,6,0">
           <Button x:Name="BtnTbSearch" Classes="tb-ico" ToolTip.Tip="搜索（Ctrl K）">
             <Panel Width="15" Height="15" VerticalAlignment="Center">
               <Ellipse Width="13" Height="13" Margin="0,0,2,2" StrokeThickness="1.6"
@@ -68,7 +82,7 @@
             </Panel>
           </Button>
         </StackPanel>
-        <Panel Grid.Column="6">
+        <Panel Grid.Column="7">
           <StackPanel Orientation="Horizontal">
             <!-- Win11 原生窗钮字形：Segoe Fluent Icons（回退 Segoe MDL2 Assets） -->
             <Button x:Name="BtnWinMin" Classes="wbtn" Click="OnMinimize" ToolTip.Tip="最小化">

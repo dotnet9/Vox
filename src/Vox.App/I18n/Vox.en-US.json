@@ -554,5 +554,21 @@
   "Vox.Settings.Platform.WxSaved": "WeChat credentials saved (system credential manager)",
   "Vox.Settings.Platform.CnbSaved": "Cnblogs credentials saved (system credential manager)",
   "Vox.Settings.Platform.CsdnSaved": "CSDN token saved (system credential manager)",
-  "Vox.Settings.Platform.Saved": "Platform accounts saved (system credential manager)"
+  "Vox.Settings.Platform.Saved": "Platform accounts saved (system credential manager)",
+  "Vox.Shell.Menu.Help": "Help",
+  "Vox.Help.Menu.CheckUpdate": "Check for updates…",
+  "Vox.Help.Menu.About": "About Vox",
+  "Vox.Help.About.Title": "About Vox",
+  "Vox.Help.About.Slogan": "Write once, heard everywhere.",
+  "Vox.Help.About.License": "MIT © Dotnet9 (codewf.com)",
+  "Vox.Help.Update.Title": "Check for updates",
+  "Vox.Help.Update.CurrentVersion": "Current version",
+  "Vox.Help.Update.Channel": "Release channel",
+  "Vox.Help.Update.ChannelValue": "GitHub Releases (dotnet9/Vox)",
+  "Vox.Help.Update.Checking": "Querying GitHub Releases…",
+  "Vox.Help.Update.ActionRecheck": "Recheck",
+  "Vox.Help.Update.ActionDownload": "Download",
+  "Vox.Help.Update.UpToDate": "You are up to date.",
+  "Vox.Help.Update.NewVersion": "New version {0}",
+  "Vox.Help.Update.Failed": "Check failed: {0}"
 }
