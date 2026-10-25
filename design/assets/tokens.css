@@ -17,7 +17,13 @@
   font-display: swap;
 }
 
+/* 界面密度三档：只改根字号（全部文字 rem 随之缩放）与面板圆角；窗体与布局尺寸不变 */
+html { font-size: 13px; }
+html[data-density="compact"] { font-size: 12px; --den-radius: 11px; }
+html[data-density="roomy"]   { font-size: 14px; --den-radius: 17px; }
+
 :root {
+  --den-radius: 14px;
   --font-ui: "Geist", Inter, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
   --font-mono: "Geist Mono", "Cascadia Code", Consolas, monospace;
   --motion: cubic-bezier(.32, .72, .24, 1);   /* Arc 弹簧动效的 CSS 近似 */
@@ -58,10 +64,26 @@
 }
 
 /* ---------- 强调色（ArcAccentPreset） ---------- */
-[data-accent="violet"]  { --accent: #7c5cff; --accent-deep: #6a48f0; --accent-soft: rgba(124,92,255,.13); --on-accent: #fff; }
-[data-accent="blue"]    { --accent: #3e7bfa; --accent-deep: #2f66e0; --accent-soft: rgba(62,123,250,.13);  --on-accent: #fff; }
-[data-accent="emerald"] { --accent: #14a06a; --accent-deep: #0f8a5a; --accent-soft: rgba(20,160,106,.13);   --on-accent: #fff; }
-[data-accent="orange"]  { --accent: #ee7a1c; --accent-deep: #d66812; --accent-soft: rgba(238,122,28,.14);   --on-accent: #fff; }
+/* Arc 八色预设（ArcPalette 源码口径）；emerald 为 green 的旧名别名 */
+[data-accent="neutral"] { --accent: #353535; --accent-deep: #1F1F1F; --accent-soft: rgba(53,53,53,.12);    --on-accent: #fff; }
+[data-accent="violet"]  { --accent: #7747FF; --accent-deep: #5528CE; --accent-soft: rgba(119,71,255,.14);  --on-accent: #fff; }
+[data-accent="blue"]    { --accent: #0562EF; --accent-deep: #074DB7; --accent-soft: rgba(5,98,239,.12);    --on-accent: #fff; }
+[data-accent="green"]   { --accent: #0DB879; --accent-deep: #087C54; --accent-soft: rgba(13,184,121,.13);  --on-accent: #102016; }
+[data-accent="amber"]   { --accent: #F3AD20; --accent-deep: #9C6300; --accent-soft: rgba(243,173,32,.18);  --on-accent: #20190D; }
+[data-accent="orange"]  { --accent: #F48120; --accent-deep: #AA4700; --accent-soft: rgba(244,129,32,.14);  --on-accent: #fff; }
+[data-accent="coral"]   { --accent: #F15F55; --accent-deep: #B92C27; --accent-soft: rgba(241,95,85,.14);   --on-accent: #fff; }
+[data-accent="rose"]    { --accent: #ED4E9D; --accent-deep: #AE2570; --accent-soft: rgba(237,78,157,.14);  --on-accent: #fff; }
+[data-accent="emerald"] { --accent: #0DB879; --accent-deep: #087C54; --accent-soft: rgba(13,184,121,.13);  --on-accent: #102016; }
+
+/* 暗色主题下的 Arc 预设（亮种子 → 暗种子，文字对比随之反转） */
+[data-theme="dark"][data-accent="neutral"] { --accent:#BEBEBE; --accent-deep:#E1E1E1; --on-accent:#141414; }
+[data-theme="dark"][data-accent="violet"]  { --accent:#A78BFF; --accent-deep:#C7B7FF; --on-accent:#141414; }
+[data-theme="dark"][data-accent="blue"]    { --accent:#6BA3FF; --accent-deep:#A4C7FF; --on-accent:#141414; }
+[data-theme="dark"][data-accent="green"]   { --accent:#53DCA6; --accent-deep:#93EFD0; --on-accent:#102016; }
+[data-theme="dark"][data-accent="amber"]   { --accent:#FFCB62; --accent-deep:#FFE0A1; --on-accent:#20190D; }
+[data-theme="dark"][data-accent="orange"]  { --accent:#FFAD5E; --accent-deep:#FFD0A0; --on-accent:#17130F; }
+[data-theme="dark"][data-accent="coral"]   { --accent:#FF9386; --accent-deep:#FFC1BA; --on-accent:#21110F; }
+[data-theme="dark"][data-accent="rose"]    { --accent:#FF8BC5; --accent-deep:#FFC0DF; --on-accent:#250F1B; }
 
 /* ---------- 语义色 ---------- */
 [data-theme="light"] { --ok: #16a34a; --ok-soft: rgba(22,163,74,.12); --warn: #d97706; --warn-soft: rgba(217,119,6,.12); --danger: #dc2626; --danger-soft: rgba(220,38,38,.11); }
@@ -72,7 +94,7 @@
 html, body { margin: 0; }
 body {
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 1rem;
   line-height: 1.6;
   color: var(--fg);
   background: var(--bg);

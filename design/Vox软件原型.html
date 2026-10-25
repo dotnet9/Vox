@@ -2,23 +2,35 @@
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css"><link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/tokens.css?v=21"><link rel="stylesheet" href="assets/app.css?v=25">
 </head>
 <body class="stage">
-
-<div class="proto-bar">
-  <span class="left"><b>Vox 桌面应用原型</b>　正式实现：Avalonia + TKCode.Arc · 主窗口自绘标题栏 · 主题与强调色在「设置 → 外观」切换</span>
-  <span class="tools" style="display:flex;gap:8px;align-items:center">
-    <button class="btn sm ghost" id="btnReviewRemote" title="让远端 main 出现 1 个新提交（↓1），用于体验拉取与推送拒绝">远端更新</button>
-    <button class="btn sm ghost" id="btnReviewReset" title="重置同步视图的 Changes 与提交历史">重置</button>
-  </span>
-</div>
 
 <div class="appwin">
 <header class="topbar">
   <img class="tb-logo" src="../logo.svg" alt=""><span class="tb-name">Vox · 维声</span>
   <span class="tb-menu"><button class="tb-txt" id="mFileBtn">文件</button><div class="mnu" id="mFile"><a id="miNew">新建文章</a><a id="miMeta">文章元数据…</a><a id="miImg">图片入库…</a></div></span>
+          <span class="tb-file"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span></span>
   <span class="spacer"></span>
+          <span class="tb-extras" id="tbExtras">
+            <button class="tb-ico" id="btnTbSearch" title="搜索（Ctrl K）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+            <button class="tb-ico" id="btnTbLook" title="外观"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></button>
+            <button class="tb-ico" id="btnTbLang" title="语言 / Language"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></button>
+            <div class="tb-pop" id="popLook">
+              <div class="tp-title" style="margin-top:0">界面密度</div>
+              <div class="seg" id="densitySeg"><button>紧凑</button><button class="active">标准</button><button>宽松</button></div>
+              <div class="tp-title">明暗模式</div>
+              <div class="seg" id="popThemeSeg"><button data-mode="light" class="active">亮色</button><button data-mode="dark">暗色</button><button data-mode="auto">跟随系统</button></div>
+              <div class="tp-title">界面配色 <span class="tp-sub">Arc 预设</span></div>
+              <div class="swatches" id="arcSwatches"><i class="sw" data-c="neutral" style="--sw:#353535" title="Neutral"></i><i class="sw active" data-c="violet" style="--sw:#7747FF" title="Violet"></i><i class="sw" data-c="blue" style="--sw:#0562EF" title="Blue"></i><i class="sw" data-c="green" style="--sw:#0DB879" title="Green"></i><i class="sw" data-c="amber" style="--sw:#F3AD20" title="Amber"></i><i class="sw" data-c="orange" style="--sw:#F48120" title="Orange"></i><i class="sw" data-c="coral" style="--sw:#F15F55" title="Coral"></i><i class="sw" data-c="rose" style="--sw:#ED4E9D" title="Rose"></i></div>
+            </div>
+            <div class="tb-pop" id="popLang">
+              <a class="lang-it active">简体中文</a>
+              <a class="lang-it">English</a>
+              <a class="lang-it">繁體中文</a>
+              <a class="lang-it">日本語</a>
+            </div>
+          </span>
   <div class="wbtns">
     <button class="wbtn" title="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></button>
     <button class="wbtn" title="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></button>
@@ -34,15 +46,39 @@
     <div class="it" data-view="library" title="文章库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span><span class="lb">文章库</span><span class="cnt">37</span></div>
     <div class="it" data-view="publish" title="发布中心"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="lb">发布中心</span><span class="cnt">2</span></div>
     <div class="it" data-view="site" title="站点数据"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></span><span class="lb">站点数据</span></div>
+      <div class="it" data-view="settings" title="设置"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="lb">设置</span></div>
   </div>
   <button class="edge-btn" id="btnNav" title="收起 / 展开边栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
-  <div class="foot">
-    <div class="it" data-view="settings" title="设置"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="lb">设置</span></div>
-  </div>
+
 </aside>
 
 <!-- ============ 主区 ============ -->
 <div class="main">
+
+
+  <!-- 全局搜索浮层（标题栏搜索钮 / Ctrl K） -->
+  <div class="search-ov" id="searchOv">
+    <div class="search-panel">
+      <div class="sp-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="spInput" placeholder="搜索文章、图片、操作…"><kbd id="spClose">Esc</kbd></div>
+      <div class="sp-tabs">
+        <button class="active" data-k="all">全部</button><button data-k="art">文章</button><button data-k="img">图片</button><button data-k="op">操作</button>
+      </div>
+      <div class="sp-list" id="spList">
+        <div class="sp-group">文章</div>
+        <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">.NET Native AOT 依赖 Win7：Skia 依赖链排查记</span><span class="sp-m">2026/09 · 4,820 字</span></a>
+        <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">qtzu：一个 3D 英语学习游戏的开源实现</span><span class="sp-m">2026/09 · 6,140 字</span></a>
+        <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">Vex 升级：编辑器长出 AI 的手——MCP 支持全记录</span><span class="sp-m">2026/10 · 6,140 字</span></a>
+        <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">Avalonia 自绘控件的渲染管线剖析</span><span class="sp-m">2024/06 · 8,332 字</span></a>
+        <div class="sp-group">图片</div>
+        <a class="sp-it" data-k="img" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg><span class="sp-t">dotnet-native-aot-…-dependency-chain.svg</span><span class="sp-m">2026/09 · 被引用 1 篇</span></a>
+        <a class="sp-it" data-k="img" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg><span class="sp-t">qtzu-city-panorama.jpg</span><span class="sp-m">2026/09 · 被引用 1 篇 · 封面</span></a>
+        <div class="sp-group">操作</div>
+        <a class="sp-it" data-k="op" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg><span class="sp-t">提交并推送到网站（git）</span><span class="sp-m">发布中心</span></a>
+        <a class="sp-it" data-k="op" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg><span class="sp-t">打开发布对话框（当前文章）</span><span class="sp-m">写作页</span></a>
+      </div>
+      <div class="sp-foot"><span>↑↓ 导航</span><span>Enter 打开</span><span>Esc 关闭</span></div>
+    </div>
+  </div>
 
   <!-- ======== 视图：写作 ======== -->
   <section class="view vsplit active" id="view-write">
@@ -58,14 +94,13 @@
             <button class="tb-ico" id="btnNew" title="新建文章" style="width:24px;height:24px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
           </div>
         </div>
+        <button class="edge-btn" id="btnList" title="收起文件列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
         <div class="lscroll" id="artList"></div>
-        <div class="wstatus">37 篇 · <b style="color:var(--ok)">已保存</b> · 刚刚</div>
       </div>
       <div class="wmain">
-        <div class="edhead"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span><span class="spacer"></span></div>
         <div class="wcontent">
       <div class="wcenter">
-        <button class="edge-btn inside" id="btnPanel" title="收起 / 展开文章面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button class="edge-btn gutter" id="btnPanel" title="展开文章面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
         <div class="wsrc" id="paneSrc">
           <div class="edscroll"><div class="gutter" id="gutter"></div><div class="elines" id="elines"></div></div>
         </div>
@@ -88,32 +123,11 @@
         </div></div></div>
       </div>
       <div class="wpanel off" id="wpanel">
-        <div class="wtabs"><button data-tab="meta">元数据</button><button data-tab="outline" class="active">大纲</button><button data-tab="imgs">图片</button></div>
-        <div class="wtab" data-tab="meta">
-          <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>
-          <div class="f-label">标题</div><input class="input" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
-          <div class="f-label">slug</div><input class="input mono" value="dotnet-native-aot-win7-skia-dependency" style="font-size:11px">
-          <div class="f-label">简述 description</div><textarea class="input" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
-          <div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" value="2026-09-28 20:00:00" style="font-size:11px">
-          <div class="f-label">分类</div><div class="chips"><span class="chip">.NET <i>×</i></span><span class="chip add">＋</span></div>
-          <div class="f-label">标签</div><div class="chips"><span class="chip">Native AOT <i>×</i></span><span class="chip">SkiaSharp <i>×</i></span><span class="chip">Win7 <i>×</i></span><span class="chip add">＋</span></div>
-          <div class="f-label">作者 / 状态</div>
-          <div class="row"><input class="input" value="Dotnet9"><span class="switch on" data-switch></span><span style="font-size:11.5px">已发布</span></div>
-        </div>
         <div class="wtab active" data-tab="outline" id="outlineTab">
           <div class="outl">
             <a>· 现象</a><a>· 排查过程</a><a class="l3">Dependencies 重扫</a><a class="l3">Skia 原生层</a><a>· 依赖链图解</a><a>· 结论</a>
           </div>
           <div class="f-label">正文任务</div><div class="chips"><span class="badge ok">2 / 3 已完成</span></div>
-        </div>
-        <div class="wtab" data-tab="imgs">
-          <div class="drop" id="dropHint">拖入 / 点击上传 / 粘贴图片<br><span style="color:var(--faint)">自动命名为 slug 前缀，落入 2026/09</span></div>
-          <div class="thumbgrid">
-            <div class="thumb g1"><span>…-cover.svg</span></div><div class="thumb g5"><span>…-chain.svg</span></div>
-            <div class="thumb g6"><span>…-flow.svg</span></div><div class="thumb g3"><span>…-matrix.svg</span></div>
-          </div>
-          <div class="f-label">引用形态 <span style="color:var(--faint)">相对本文目录</span></div>
-          <div class="chips"><span class="badge accent">相对路径（唯一规范形态）</span></div>
         </div>
         </div>
       </div>
@@ -164,7 +178,7 @@
       <div class="br">⑂ <span class="badge">main</span>
         <span class="badge ok" id="aheadBadge" style="display:none">↑ 0</span>
         <span class="badge warn" id="behindBadge" style="display:none">↓ 1</span>
-        <span id="syncState" style="color:var(--muted);font-weight:400;font-size:12px"></span></div>
+        <span id="syncState" style="color:var(--muted);font-weight:400;font-size:0.9231rem"></span></div>
       <span style="flex:1"></span>
       <button class="btn" id="btnPull" style="display:none">⟳ 拉取</button>
       <button class="btn" id="btnPush" style="display:none">推送</button>
@@ -172,7 +186,7 @@
     <div class="sync-body">
       <div class="sync-left">
         <div class="chhead">
-          <b style="font-size:13px">Changes</b><span class="badge" id="chgTotal">0</span>
+          <b style="font-size:1rem">Changes</b><span class="badge" id="chgTotal">0</span>
           <span style="flex:1"></span>
           <label class="selall"><input type="checkbox" id="chkAll" checked> 全选</label>
         </div>
@@ -184,7 +198,7 @@
         <div class="author"><b>Dotnet9</b><span class="d">dotnet9@codewf.com · 更改</span></div>
         <div class="f-label">Summary <span style="color:var(--danger)">*</span><span class="cnt" id="sumCnt">0/50</span></div>
         <input class="input" id="cSummary" maxlength="72" placeholder="docs: 一句话说明这次提交">
-        <div class="f-label">Description <span style="color:var(--faint);font-weight:400;font-size:10px">可选 · 支持 Markdown</span></div>
+        <div class="f-label">Description <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">可选 · 支持 Markdown</span></div>
         <textarea class="input" id="cDesc" rows="5" placeholder="补充说明，可留空" style="resize:vertical"></textarea>
         <div class="row" style="gap:8px;margin-top:6px">
           <button class="btn sm ghost" id="btnDetail">✨ 自动插入变更明细</button>
@@ -193,7 +207,7 @@
           <button class="btn" id="btnCommit">仅提交</button>
           <button class="btn primary" id="btnCommitPush">提交并推送 ▸</button>
         </div>
-        <div class="f-label">最近提交 <span style="color:var(--faint);font-weight:400;font-size:10px">点击展开改动文件 · ↗ 在 GitHub 查看</span></div>
+        <div class="f-label">最近提交 <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">点击展开改动文件 · ↗ 在 GitHub 查看</span></div>
         <div class="hist" id="histList"></div>
       </aside>
     </div>
@@ -237,18 +251,18 @@
         <a>tools/tools.json</a>
       </div>
       <div class="scontent">
-        <div class="pagehead" style="margin-bottom:8px"><h2 style="font-size:13.5px" class="mono">site/categories.json</h2></div>
+        <div class="pagehead" style="margin-bottom:8px"><h2 style="font-size:1.0385rem" class="mono">site/categories.json</h2></div>
         <div class="tblwrap" style="border-radius:10px">
           <table class="tbl">
             <tr><th>名称</th><th>slug</th><th>备注</th><th>文章数</th><th></th></tr>
-            <tr><td class="title">.NET</td><td class="mono" style="font-size:11px">dotnet</td><td>C# / F# / 运行时</td><td>212</td><td><button class="btn sm ghost">编辑</button></td></tr>
-            <tr><td class="title">C#开源项目</td><td class="mono" style="font-size:11px">csharp-open-source</td><td>每周开源巡礼</td><td>98</td><td><button class="btn sm ghost">编辑</button></td></tr>
-            <tr><td class="title">Avalonia</td><td class="mono" style="font-size:11px">avalonia</td><td>跨平台桌面</td><td>41</td><td><button class="btn sm ghost">编辑</button></td></tr>
-            <tr><td class="title">AI</td><td class="mono" style="font-size:11px">ai</td><td>LLM / SK / RAG</td><td>27</td><td><button class="btn sm ghost">编辑</button></td></tr>
-            <tr><td class="title">工具</td><td class="mono" style="font-size:11px">tools</td><td>效率与工作流</td><td>33</td><td><button class="btn sm ghost">编辑</button></td></tr>
+            <tr><td class="title">.NET</td><td class="mono" style="font-size:0.8462rem">dotnet</td><td>C# / F# / 运行时</td><td>212</td><td><button class="btn sm ghost">编辑</button></td></tr>
+            <tr><td class="title">C#开源项目</td><td class="mono" style="font-size:0.8462rem">csharp-open-source</td><td>每周开源巡礼</td><td>98</td><td><button class="btn sm ghost">编辑</button></td></tr>
+            <tr><td class="title">Avalonia</td><td class="mono" style="font-size:0.8462rem">avalonia</td><td>跨平台桌面</td><td>41</td><td><button class="btn sm ghost">编辑</button></td></tr>
+            <tr><td class="title">AI</td><td class="mono" style="font-size:0.8462rem">ai</td><td>LLM / SK / RAG</td><td>27</td><td><button class="btn sm ghost">编辑</button></td></tr>
+            <tr><td class="title">工具</td><td class="mono" style="font-size:0.8462rem">tools</td><td>效率与工作流</td><td>33</td><td><button class="btn sm ghost">编辑</button></td></tr>
           </table>
         </div>
-        <div class="row" style="margin-top:12px"><button class="btn sm" onclick="toast('已添加新分类行')">＋ 新增分类</button><span style="color:var(--faint);font-size:11px">保存时校验：slug 唯一、无重复项、与文章引用一致</span></div>
+        <div class="row" style="margin-top:12px"><button class="btn sm" onclick="toast('已添加新分类行')">＋ 新增分类</button><span style="color:var(--faint);font-size:0.8462rem">保存时校验：slug 唯一、无重复项、与文章引用一致</span></div>
       </div>
     </div>
   </section>
@@ -258,13 +272,13 @@
     <div class="pagehead"><h2>设置</h2></div>
     <div class="setting">
       <h3>内容仓库</h3><div class="sdesc">Vox 管理的内容源仓库，全量内存索引 + 文件监视增量维护</div>
-      <div class="srow"><label>仓库路径</label><div class="val"><div class="row"><input class="input mono" style="font-size:11px" value="E:\github\Apps\Assets.Dotnet9"><button class="btn sm">更改…</button></div></div></div>
+      <div class="srow"><label>仓库路径</label><div class="val"><div class="row"><input class="input mono" style="font-size:0.8462rem" value="E:\github\Apps\Assets.Dotnet9"><button class="btn sm">更改…</button></div></div></div>
       <div class="srow"><label>索引</label><div class="val">37 篇文章 · 259 张图片 · 12 组站点数据 · 上次全量扫描 10:32<button class="btn sm" style="margin-left:10px" onclick="toast('已重新扫描')">重新扫描</button></div></div>
     </div>
     <div class="setting">
       <h3>链接策略</h3><div class="sdesc">正文引用相对 md 文件目录（唯一规范形态）；CDN 域名在渲染时拼接</div>
       <div class="srow"><label>引用形态</label><div class="val"><span class="badge accent">相对路径（唯一规范形态）</span><div class="desc">插图与封面均写相对引用；CDN 域名渲染时拼接</div></div></div>
-      <div class="srow"><label>域名映射</label><div class="val"><input class="input mono" style="width:280px;font-size:11px" value="https://img1.dotnet9.com/"></div></div>
+      <div class="srow"><label>域名映射</label><div class="val"><input class="input mono" style="width:280px;font-size:0.8462rem" value="https://img1.dotnet9.com/"></div></div>
       <div class="srow"><label>规范化</label><div class="val">全库 37 篇均为相对路径 · 3 处失效引用待处理<button class="btn sm" style="margin-left:10px">查看发布前检查 →</button></div></div>
     </div>
     <div class="setting">
@@ -278,13 +292,6 @@
       <div class="srow"><label>博客园</label><div class="val"><span class="badge">未配置</span> · MetaWeblog API<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
       <div class="srow"><label>CSDN</label><div class="val"><span class="badge warn">token 失效</span> · 上次推送 401<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">更新凭据…</button></div></div>
       <div class="srow"><label>复制型平台</label><div class="val">知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布</div></div>
-    </div>
-    <div class="setting">
-      <h3>外观</h3><div class="sdesc">正式实现由 Arc 主题接管（ArcAccentPreset / 明暗 / 动效级别）</div>
-      <div class="srow"><label>语言 / Language</label><div class="val"><select class="select" style="width:200px" id="selLang" onchange="toast('原型演示：国际化切换在实现中经资源文件生效（zh-CN / en-US）')"><option>简体中文（默认）</option><option>English</option></select><div class="desc">界面语言 · 主题、强调色、动效均在本页切换（原边栏底部入口已收拢至此）</div></div></div>
-      <div class="srow"><label>主题</label><div class="val"><div class="seg" id="themeSeg"><button data-mode="light" class="active">亮色</button><button data-mode="dark">暗色</button><button data-mode="auto">跟随系统</button></div></div></div>
-      <div class="srow"><label>强调色</label><div class="val"><span class="dots" style="display:inline-flex;gap:8px"><i class="dot active" data-c="violet" style="width:16px;height:16px"></i><i class="dot" data-c="blue" style="width:16px;height:16px"></i><i class="dot" data-c="emerald" style="width:16px;height:16px"></i><i class="dot" data-c="orange" style="width:16px;height:16px"></i></span></div></div>
-      <div class="srow"><label>动效级别</label><div class="val"><select class="select" style="width:160px"><option>标准（ArcMotion Full）</option><option>减弱（Reduced）</option><option>关闭（Off）</option></select></div></div>
     </div>
     <div class="setting">
       <h3>关于</h3><div class="sdesc">Vox · 维声 0.1.0-preview.1 · 出品 码坊 CodeWF</div>
@@ -303,24 +310,24 @@
     <div class="msteps"><i class="on"></i><i></i><i></i><i></i></div>
     <div class="mpage active">
       <div class="field"><label>标题</label><input class="input" id="nTitle" placeholder="想好标题，slug 和日期自动生成" oninput="document.getElementById('nSlugPrev').textContent=newSlug(this.value)"></div>
-      <div class="field"><label>slug（可改）</label><input class="input mono" value="new-article-slug" style="font-size:11px"></div>
+      <div class="field"><label>slug（可改）</label><input class="input mono" value="new-article-slug" style="font-size:0.8462rem"></div>
       <div class="slugprev" id="nSlugPrev">2026/10/new-article-slug.md + new-article-slug.yml</div>
     </div>
     <div class="mpage">
       <div class="field"><label>一句话简述 description</label><textarea class="input" rows="3" placeholder="列表页与 SEO 用，体检会检查"></textarea></div>
-      <div class="field row"><label style="margin:0">日期</label><input class="input mono" style="width:200px;font-size:11px" value="2026-10-23 20:00:00"></div>
+      <div class="field row"><label style="margin:0">日期</label><input class="input mono" style="width:200px;font-size:0.8462rem" value="2026-10-23 20:00:00"></div>
     </div>
     <div class="mpage">
-      <div class="field"><label>大纲骨架（生成到正文）</label><textarea class="input mono" rows="6" style="font-size:11.5px">## 背景
+      <div class="field"><label>大纲骨架（生成到正文）</label><textarea class="input mono" rows="6" style="font-size:0.8846rem">## 背景
 ## 实现思路
 ## 关键代码
 ## 踩坑记录
 ## 总结</textarea></div>
-      <div class="field row"><span class="switch" data-switch></span><span style="font-size:12px;color:var(--muted)">以草稿创建（draft: true，不入列表统计的已发布口径）</span></div>
+      <div class="field row"><span class="switch" data-switch></span><span style="font-size:0.9231rem;color:var(--muted)">以草稿创建（draft: true，不入列表统计的已发布口径）</span></div>
     </div>
     <div class="mpage">
       <div class="field"><label>即将创建</label>
-        <div class="lic" style="height:auto;font-size:11.5px">2026/10/new-article-slug.md
+        <div class="lic" style="height:auto;font-size:0.8846rem">2026/10/new-article-slug.md
 ---
 title: （你的标题）
 slug: new-article-slug
@@ -350,13 +357,13 @@ draft: true
   <div class="mh"><h3>图片入库</h3><span class="x" onclick="closeModal('mImg')">×</span></div>
   <div class="mb">
     <div class="drop" style="padding:30px 12px" onclick="this.innerHTML='✓ 已接收：city-panorama.jpg（来自剪贴板/拖入/URL 下载）';this.style.borderColor='var(--ok)';this.style.color='var(--ok)'">拖入图片 / 点击选择 / Ctrl+V 粘贴 / 输入网图 URL<br><span style="color:var(--faint)">网图将自动下载到本地，不做外链</span></div>
-    <div class="field"><label>自动命名（slug 前缀 + 描述性名称）</label><input class="input mono" style="font-size:11.5px" value="dotnet-native-aot-win7-skia-city-panorama.jpg"></div>
-    <div class="field"><label>落位目录</label><div class="row"><input class="input mono" style="width:200px;font-size:11px" value="2026/09/"><span style="color:var(--faint);font-size:11px">当前文章所在年月 · 可改</span></div></div>
+    <div class="field"><label>自动命名（slug 前缀 + 描述性名称）</label><input class="input mono" style="font-size:0.8846rem" value="dotnet-native-aot-win7-skia-city-panorama.jpg"></div>
+    <div class="field"><label>落位目录</label><div class="row"><input class="input mono" style="width:200px;font-size:0.8462rem" value="2026/09/"><span style="color:var(--faint);font-size:0.8462rem">当前文章所在年月 · 可改</span></div></div>
     <div class="field"><label>插入形态</label>
       <label class="opt"><input type="radio" name="ilink" checked><span><b>相对路径（推荐）</b><span class="d mono">![城市全景](2026/09/dotnet-…-city-panorama.jpg)</span></span></label>
       <label class="opt"><input type="radio" name="ilink"><span><b>CDN URL</b><span class="d mono">![](https://img1.dotnet9.com/2026/09/…)</span></span></label>
     </div>
-    <div class="field row"><span class="switch" data-switch></span><span style="font-size:12px;color:var(--muted)">同时设为文章封面（写入 yml cover，存 CDN 形态）</span></div>
+    <div class="field row"><span class="switch" data-switch></span><span style="font-size:0.9231rem;color:var(--muted)">同时设为文章封面（写入 yml cover，存 CDN 形态）</span></div>
   </div>
   <div class="mf">
     <button class="btn" onclick="closeModal('mImg')">取消</button>
@@ -373,7 +380,7 @@ draft: true
       <div class="pub-check__items" id="pubDlgCheckItems"></div>
     </div>
     <div class="pub-rows" id="pubDlgRows"></div>
-    <div class="f-label" style="margin-top:14px">复制字段 <span style="color:var(--faint);font-weight:400;font-size:10px">点即复制 · 配合平台创作页逐框粘贴</span></div>
+    <div class="f-label" style="margin-top:14px">复制字段 <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">点即复制 · 配合平台创作页逐框粘贴</span></div>
     <div class="chips">
       <button class="chip" onclick="toast('已复制：标题')">标题</button>
       <button class="chip" onclick="toast('已复制：描述')">描述</button>
@@ -390,7 +397,7 @@ draft: true
 <div class="mask" id="mPlatformCfg"><div class="modal" style="max-width:560px">
   <div class="mh"><h3>平台账户</h3><span class="x" onclick="closeModal('mPlatformCfg')">×</span></div>
   <div class="mb">
-    <p style="color:var(--muted);font-size:12px;margin:0 0 12px">凭据存系统凭据管理器，不进仓库。API 通道填密钥即启用直发；未配置的平台在发布对话框中降级为复制助手。</p>
+    <p style="color:var(--muted);font-size:0.9231rem;margin:0 0 12px">凭据存系统凭据管理器，不进仓库。API 通道填密钥即启用直发；未配置的平台在发布对话框中降级为复制助手。</p>
     <div class="f-label">微信公众号（API 草稿箱）</div>
     <div class="row" style="gap:8px"><input class="input mono" placeholder="AppID" style="flex:1"><input class="input mono" placeholder="AppSecret" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge ok">已连接</span></div>
     <div class="f-label">博客园（MetaWeblog API）</div>
@@ -403,9 +410,30 @@ draft: true
   </div>
   <div class="mf"><button class="btn primary" onclick="closeModal('mPlatformCfg');toast('平台账户已保存（系统凭据管理器）')">保存</button></div>
 </div></div>
+
+<!-- ============ 弹层：文章元数据（面板页签下线后由此承载） ============ -->
+<div class="mask" id="mMeta"><div class="modal">
+  <div class="mh"><h3>文章元数据</h3><span class="x" onclick="closeModal('mMeta')">×</span></div>
+  <div class="mb">
+          <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>
+          <div class="f-label">标题</div><input class="input" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
+          <div class="f-label">slug</div><input class="input mono" value="dotnet-native-aot-win7-skia-dependency" style="font-size:0.8462rem">
+          <div class="f-label">简述 description</div><textarea class="input" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
+          <div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" value="2026-09-28 20:00:00" style="font-size:0.8462rem">
+          <div class="f-label">分类</div><div class="chips"><span class="chip">.NET <i>×</i></span><span class="chip add">＋</span></div>
+          <div class="f-label">标签</div><div class="chips"><span class="chip">Native AOT <i>×</i></span><span class="chip">SkiaSharp <i>×</i></span><span class="chip">Win7 <i>×</i></span><span class="chip add">＋</span></div>
+          <div class="f-label">作者 / 状态</div>
+          <div class="row"><input class="input" value="Dotnet9"><span class="switch on" data-switch></span><span style="font-size:0.8846rem">已发布</span></div>
+        </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('mMeta')">取消</button>
+    <button class="btn primary" onclick="closeModal('mMeta');toast('元数据已保存（front matter 写回）')">保存</button>
+  </div>
+</div></div>
 <div id="toast"></div>
 
 <script>
+const $=id=>document.getElementById(id);
 /* ---------- 视图切换 ---------- */
 const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','536 篇 · 全库浏览与筛选'],assets:['图片库','4203 张 · 仓库即图床'],audit:['规范体检','1143 个待处理'],sync:['同步','main · 领先远端 2 个提交'],site:['站点数据','site/*.json · 仅 zh-CN'],settings:['设置','']};
 document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
@@ -438,12 +466,7 @@ function stepModal(id,d){const m=document.getElementById(id),n=m.querySelectorAl
   showPage(id);}
 document.getElementById('btnNew').onclick=()=>openModal('mNew');
 document.querySelectorAll('.mask').forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('open')});
-/* ---------- 主题与强调色 ---------- */
-function bindDots(){document.querySelectorAll('.dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;
-  document.querySelectorAll('.dot').forEach(x=>x.classList.toggle('active',x.dataset.c===d.dataset.c));});}
-bindDots();
-/* 主题三档：亮色 / 暗色 / 跟随系统（auto 档经 prefers-color-scheme 实时响应系统切换） */
-const themeSeg=document.getElementById('themeSeg');
+/* ---------- 外观 / 语言（标题栏弹层，原「设置→外观」已移除） ---------- */
 let themeMode='light',sysDark=null;
 function applyTheme(){document.documentElement.dataset.theme=themeMode==='auto'?(sysDark?'dark':'light'):themeMode;}
 function setThemeMode(mode){
@@ -453,9 +476,56 @@ function setThemeMode(mode){
     sysDark.addEventListener('change',e=>{sysDark=e;if(themeMode==='auto')applyTheme();});
   }
   applyTheme();
-  themeSeg.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  document.querySelectorAll('#popThemeSeg button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
 }
-themeSeg.querySelectorAll('button').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
+document.querySelectorAll('#popThemeSeg button').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
+/* Arc 八色预设（Neutral/Violet/Blue/Green/Amber/Orange/Coral/Rose，无自定义新增） */
+document.querySelectorAll('#arcSwatches .sw').forEach(sw=>sw.onclick=()=>{
+  document.documentElement.dataset.accent=sw.dataset.c;
+  document.querySelectorAll('#arcSwatches .sw').forEach(x=>x.classList.toggle('active',x===sw));
+});
+/* 界面密度（原型演示；正式实现映射 Arc 控件尺寸档） */
+document.querySelectorAll('#densitySeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#densitySeg button').forEach(x=>x.classList.toggle('active',x===b));
+  const map=['compact','normal','roomy'];
+  document.documentElement.dataset.density=map[[...document.querySelectorAll('#densitySeg button')].indexOf(b)];
+});
+/* 语言四选 */
+document.querySelectorAll('#popLang .lang-it').forEach(it=>it.onclick=()=>{
+  document.querySelectorAll('#popLang .lang-it').forEach(x=>x.classList.toggle('active',x===it));
+  toast('界面语言：'+it.textContent+'（正式实现经 CodeWF.Lang 资源切换）');
+});
+/* 弹层开合：点按钮切换，点别处关闭 */
+function closeTbPops(){document.querySelectorAll('.tb-pop').forEach(p=>p.classList.remove('open'));}
+$('btnTbLook').onclick=e=>{e.stopPropagation();const was=$('popLook').classList.contains('open');closeTbPops();if(!was)$('popLook').classList.add('open');};
+$('btnTbLang').onclick=e=>{e.stopPropagation();const was=$('popLang').classList.contains('open');closeTbPops();if(!was)$('popLang').classList.add('open');};
+document.addEventListener('click',e=>{if(!e.target.closest('.tb-extras'))closeTbPops();});
+document.querySelectorAll('.tb-pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
+/* ---------- 全局搜索浮层 ---------- */
+let spTab='all';
+function openSearch(){$('searchOv').classList.add('open');$('spInput').value='';spFilter();setTimeout(()=>$('spInput').focus(),30);}
+function closeSearch(){$('searchOv').classList.remove('open');}
+function spFilter(){
+  const q=($('spInput').value||'').toLowerCase();
+  document.querySelectorAll('#spList .sp-it').forEach(it=>{
+    const okTab=spTab==='all'||it.dataset.k===spTab;
+    const okText=it.querySelector('.sp-t').textContent.toLowerCase().includes(q);
+    it.style.display=(okTab&&okText)?'':'none';
+  });
+}
+function spOpen(it){closeSearch();toast('打开：'+it.querySelector('.sp-t').textContent);}
+$('btnTbSearch').onclick=e=>{e.stopPropagation();closeTbPops();openSearch();};
+$('spClose').onclick=closeSearch;
+$('searchOv').onclick=e=>{if(e.target===e.currentTarget)closeSearch();};
+$('spInput').oninput=()=>spFilter();
+document.querySelectorAll('.sp-tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.sp-tabs button').forEach(x=>x.classList.toggle('active',x===b));
+  spTab=b.dataset.k;spFilter();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeSearch();
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch();}
+});
 /* ---------- 文章数据与列表 ---------- */
 const ARTS={
 aot:{year:'2026',path:'2026/09',title:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',slug:'dotnet-native-aot-win7-skia-dependency',date:'2026-09-28 20:00',min:8,cats:['.NET'],tags:['Native AOT','SkiaSharp','Win7'],draft:false,g:'g1',cur:15,desc:'记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。',
@@ -477,7 +547,6 @@ av:{year:'2024',path:'2024/06',title:'Avalonia 自绘控件的渲染管线剖析
  lines:[['h','# Avalonia 自绘控件的渲染管线剖析'],['',''],['','从 Measure / Arrange 到 Render，'],['','把自绘控件的每一步拆开看。'],['',''],['h2','## 管线全景'],['',''],['img','![管线](2024/06/avalonia-render-pipeline.svg)'],['',''],['h2','## 关键结论'],['',''],['','- InvalidatedMeasure 别滥用'],['','- Render 帧内禁止分配大对象']],
  prev:'<p>从 Measure / Arrange 到 Render，把自绘控件的每一步拆开看。</p><h2>管线全景</h2><div class="codeblock"><div class="cb-h">avalonia-render-pipeline.svg<span class="spacer"></span>查看原图</div><div class="ph g4" style="height:96px;border-radius:0"></div></div><h2>关键结论</h2><div class="task"><i></i>InvalidatedMeasure 别滥用</div><div class="task"><i></i>Render 帧内禁止分配大对象</div>'}};
 let curArt='aot',listMode='list';
-const $=id=>document.getElementById(id);
 function bindSwitches(){document.querySelectorAll('[data-switch]').forEach(s=>s.onclick=()=>s.classList.toggle('on'));}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 function renderLines(a){
@@ -508,7 +577,7 @@ function renderList(){
 }
 function renderOutline(a){
   const items=[];a.lines.forEach((l,i)=>{if(l[1].startsWith('## '))items.push([i,esc(l[1].slice(3)),1]);else if(l[1].startsWith('# '))items.push([i,esc(l[1].slice(2)),0]);});
-  const tb=$('outlineTab');tb.innerHTML='<div class="outl">'+items.map(it=>'<a data-ln="'+it[0]+'" class="'+(it[2]?'l3':'')+'">'+it[1]+'</a>').join('')+'</div><div class="f-label">点大纲项定位源码行</div>';
+  const tb=$('outlineTab');tb.innerHTML='<div class="outl">'+items.map(it=>'<a data-ln="'+it[0]+'" class="'+(it[2]?'l3':'')+'">'+it[1]+'</a>').join('')+'</div>';
   tb.querySelectorAll('a').forEach(x=>x.onclick=()=>{const a2=ARTS[curArt];a2.cur=+x.dataset.ln;renderLines(a2);
     const seg=document.querySelector('#modeSeg button.active').dataset.m;
     if(seg==='prev')document.querySelectorAll('#modeSeg button')[0].click();
@@ -528,7 +597,17 @@ const icoUnfold='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 btnNav.onclick=()=>{navEl.classList.toggle('collapsed');btnNav.innerHTML=navEl.classList.contains('collapsed')?icoUnfold:icoFold;};
 /* ---------- 大纲按钮 / 边缘折叠钮 / 文件菜单 ---------- */
 const bp=document.getElementById('btnPanel');
-function setPanel(open){document.getElementById('wpanel').classList.toggle('off',!open);bp.classList.toggle('inside',!open);bp.innerHTML=open?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';bp.title=open?'收起文章面板':'展开文章面板';}
+function setPanel(open){
+  const wp=document.getElementById('wpanel');wp.classList.toggle('off',!open);
+  var center=document.querySelector('.wcenter');
+  var pbar=document.querySelector('.wcontent > .colsplit');
+  if(pbar) pbar.classList.toggle('off', !open);
+  if(open&&bp.parentElement!==wp)wp.insertBefore(bp,wp.firstChild);
+  if(!open&&bp.parentElement!==center)center.appendChild(bp);
+  bp.classList.toggle('gutter',!open);
+  bp.innerHTML=open?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+  bp.title=open?'收起文章面板':'展开文章面板';
+}
 bp.addEventListener('click',()=>setPanel(document.getElementById('wpanel').classList.contains('off')));
 function panelTo(tab){setPanel(true);const btn=document.querySelector('.wtabs button[data-tab="'+tab+'"]');if(btn)btn.click();}
 $('btnNav').onclick=()=>{navEl.classList.toggle('collapsed');$('btnNav').innerHTML=navEl.classList.contains('collapsed')?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';};
@@ -536,7 +615,7 @@ $('mFileBtn').onclick=e=>{e.stopPropagation();$('mFile').classList.toggle('open'
 document.addEventListener('click',()=>closeModal2());
 function closeModal2(){$('mFile').classList.remove('open');}
 $('miNew').onclick=()=>{closeModal2();openModal('mNew');};
-$('miMeta').onclick=()=>{closeModal2();panelTo('meta');};
+$('miMeta').onclick=()=>{closeModal2();openModal('mMeta');};
 $('miImg').onclick=()=>{closeModal2();openModal('mImg');};
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
@@ -805,8 +884,8 @@ $('btnDetail').onclick=()=>{
   toast('已按勾选项插入变更明细（可编辑）');
 };
 /* 评审工具条（页面顶部，非应用界面）：控制同步视图的演示状态 */
-$('btnReviewRemote').onclick=()=>{syncBehind=1;renderSync();toast('远端 main 有新提交（↓1）· 推送前请先拉取');};
-$('btnReviewReset').onclick=()=>{
+if($('btnReviewRemote'))$('btnReviewRemote').onclick=()=>{syncBehind=1;renderSync();toast('远端 main 有新提交（↓1）· 推送前请先拉取');};
+if($('btnReviewReset'))$('btnReviewReset').onclick=()=>{
   CHANGES=JSON.parse(JSON.stringify(SYNC_INIT));
   HIST=JSON.parse(JSON.stringify(HIST_INIT));
   syncAhead=2;syncBehind=0;selId=null;sumDirty=false;$('cDesc').value='';
@@ -842,7 +921,7 @@ function renderMatrix(){
   tb.querySelectorAll('tr').forEach((r,i)=>{if(i>0)r.remove();});
   PUB_ARTICLES.forEach(a=>{
     const tr=document.createElement('tr');
-    let cells=`<td class="title">${esc(a.t)}<br><span class="mono" style="font-size:10px;color:var(--faint)">${esc(a.p)}</span></td>`;
+    let cells=`<td class="title">${esc(a.t)}<br><span class="mono" style="font-size:0.7692rem;color:var(--faint)">${esc(a.p)}</span></td>`;
     PLATFORMS.forEach(pl=>{
       const n=a.st[pl.id];
       cells+=`<td style="text-align:center"><span class="pm-st ${ST_CLS[n]}" title="${esc(stTip(a,pl))}" onclick="openPublishDlg('${esc(a.p)}')">${ST_GLYPH[n]}</span></td>`;
@@ -895,7 +974,7 @@ function renderChecks(){
   $('chkGroups').innerHTML=CHECK_RULES.map(r=>`
     <div class="chgroup" style="margin-bottom:0">
       <div class="gh"><b class="num">${r.c}</b><span>${r.n}</span>
-        <span style="flex:1"></span><span style="color:var(--faint);font-size:11px">${r.desc}</span>
+        <span style="flex:1"></span><span style="color:var(--faint);font-size:0.8462rem">${r.desc}</span>
         ${r.c>0&&r.act?`<button class="btn sm primary" onclick="toast('${r.act}：${r.n}')">${r.act}</button>`:''}
       </div>
     </div>`).join('');
@@ -911,6 +990,130 @@ document.querySelectorAll('#pubSeg button').forEach(b=>b.onclick=()=>{
   $('pubCheck').style.display=(site||matrix)?'none':'';
 });
 renderMatrix();renderChecks();
+
+/* ---------- 视图 ↔ 右面板 悬浮拖拽条（240–460） ---------- */
+(function(){
+  var panel = document.getElementById('wpanel');
+  var content = panel.parentElement;
+  if(!panel || !content) return;
+  var bar = document.createElement('div');
+  bar.className = 'colsplit';
+  bar.title = '拖动调整面板宽度';
+  content.insertBefore(bar, panel);
+  var last = 300;
+  function apply(w){ last = w; panel.style.width = w + 'px'; panel.style.flex = 'none'; }
+  var drag = false, x0 = 0, w0 = 300;
+  bar.addEventListener('pointerdown', function(e){
+    drag = true; x0 = e.clientX;
+    w0 = panel.getBoundingClientRect().width;
+    bar.classList.add('on'); bar.setPointerCapture(e.pointerId);
+    document.body.style.userSelect = 'none'; e.preventDefault();
+  });
+  bar.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    apply(Math.max(240, Math.min(460, w0 - (e.clientX - x0))));
+  });
+  function up(){ if(!drag) return; drag = false; bar.classList.remove('on'); document.body.style.userSelect = ''; }
+  bar.addEventListener('pointerup', up);
+  bar.addEventListener('pointercancel', up);
+  window.__panelBar = bar;
+})();
+/* ---------- 文件列表折叠（参考左边栏） ---------- */
+(function(){
+  var list = document.querySelector('.wlist');
+  var btn = document.getElementById('btnList');
+  if(!list || !btn) return;
+  var main = document.querySelector('.wmain');
+  var center = document.querySelector('.wcenter');
+  function sync(){
+    var off = list.classList.contains('off');
+    btn.innerHTML = off
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+    btn.title = off ? '展开文件列表' : '收起文件列表';
+    // 拖拽条动态解析（缓存时机早于插入会错拿 .wmain）
+    var dragBar = list.nextElementSibling;
+    if(dragBar && !dragBar.classList.contains('colsplit')) dragBar = null;
+    if(dragBar) dragBar.classList.toggle('off', off);
+    if(main) main.style.marginLeft = off ? '8px' : '';
+    if(off){
+      if(btn.parentElement !== center) center.appendChild(btn);
+      btn.classList.add('gutter');
+    } else {
+      if(btn.parentElement !== list) list.appendChild(btn);
+      btn.classList.remove('gutter');
+    }
+  }
+  btn.onclick = function(){ list.classList.toggle('off'); sync(); };
+  sync();
+})();
+
+/* ---------- 分屏比例可拖（源码 ↔ 预览，20%–80%） ---------- */
+(function(){
+  var src = document.getElementById('paneSrc');
+  var prev = document.getElementById('panePrev');
+  if(!src || !prev) return;
+  var bar = document.createElement('div');
+  bar.className = 'colsplit';
+  bar.title = '拖动调整分屏比例';
+  src.parentElement.insertBefore(bar, prev);
+  var last = 50;
+  function modeOf(){ var b = document.querySelector('#modeSeg button.active'); return b ? b.dataset.m : 'src'; }
+  function apply(p){ last = p; src.style.flex = '0 0 ' + p + '%'; prev.style.flex = '1 1 0'; }
+  function sync(){
+    var m = modeOf();
+    bar.style.display = (m === 'split') ? '' : 'none';
+    if(m === 'split'){ apply(last); }
+    else { src.style.flex = ''; prev.style.flex = ''; }
+  }
+  var drag = false, x0 = 0, p0 = 50;
+  bar.addEventListener('pointerdown', function(e){
+    drag = true; x0 = e.clientX; p0 = last;
+    bar.classList.add('on'); bar.setPointerCapture(e.pointerId);
+    document.body.style.userSelect = 'none'; e.preventDefault();
+  });
+  bar.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    var w = src.parentElement.getBoundingClientRect().width;
+    apply(Math.max(20, Math.min(80, p0 + (e.clientX - x0) / w * 100)));
+  });
+  function up(){ if(!drag) return; drag = false; bar.classList.remove('on'); document.body.style.userSelect = ''; }
+  bar.addEventListener('pointerup', up);
+  bar.addEventListener('pointercancel', up);
+  document.querySelectorAll('#modeSeg button').forEach(function(b){
+    b.addEventListener('click', function(){ setTimeout(sync, 0); });
+  });
+  sync();
+})();
+
+/* ---------- 列表宽度可拖（列表 ↔ 编辑区竖条，180–380） ---------- */
+(function(){
+  var list = document.querySelector('.wlist');
+  var body = document.querySelector('.write-body');
+  if(!list || !body) return;
+  var bar = document.createElement('div');
+  bar.className = 'colsplit';
+  bar.title = '拖动调整列表宽度';
+  body.insertBefore(bar, list.nextSibling);
+  var dragging = false, startX = 0, startW = 250;
+  bar.addEventListener('pointerdown', function(e){
+    dragging = true; startX = e.clientX;
+    startW = list.getBoundingClientRect().width;
+    bar.classList.add('on');
+    bar.setPointerCapture(e.pointerId);
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  bar.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    var w = Math.max(180, Math.min(380, startW + (e.clientX - startX)));
+    list.style.width = w + 'px';
+    list.style.flex = 'none';
+  });
+  function endDrag(){ if(!dragging) return; dragging = false; bar.classList.remove('on'); document.body.style.userSelect = ''; }
+  bar.addEventListener('pointerup', endDrag);
+  bar.addEventListener('pointercancel', endDrag);
+})();
 
 
 </script>
