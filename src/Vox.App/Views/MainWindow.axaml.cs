@@ -503,7 +503,7 @@ public partial class MainWindow : Window
         MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
         MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
 
-        // 新进程入口（无单实例约束）：空白 / 目录 / 文件，均为会话级目标。
+        // 新窗口：拉起空白 Vox 进程；打开目录/文件在当前进程内切换仓库（不新开进程）。
         MiNewWindow.Click += (_, _) =>
         {
             if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
@@ -517,7 +517,7 @@ public partial class MainWindow : Window
                 AllowMultiple = false,
                 Title = T("Vox.Write.Menu.OpenDirectory"),
             });
-            if (dirs.Count > 0) LaunchVox(dirs[0].Path.LocalPath);
+            if (dirs.Count > 0) OpenRepoInCurrent(dirs[0].Path.LocalPath, null);
         };
         MiOpenFile.Click += async (_, _) =>
         {
@@ -528,7 +528,11 @@ public partial class MainWindow : Window
                 Title = T("Vox.Write.Menu.OpenFile"),
                 FileTypeFilter = new[] { new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } } },
             });
-            if (files.Count > 0) LaunchVox(files[0].Path.LocalPath);
+            if (files.Count > 0)
+            {
+                var file = files[0].Path.LocalPath;
+                OpenRepoInCurrent(Path.GetDirectoryName(file)!, file);
+            }
         };
 
         BtnTbSearch.Click += (_, _) => OpenSearch();
@@ -542,6 +546,26 @@ public partial class MainWindow : Window
             }
         };
         KeyDown += OnHotkeys;
+    }
+
+    /// <summary>当前进程内切换仓库：清空页面缓存（编辑态/大纲/预览随之丢弃），重建索引，
+    /// 索引完成后定位第一篇或所选文件。与设置页「更改…」同口径持久化仓库路径。</summary>
+    private void OpenRepoInCurrent(string repoPath, string? openFile)
+    {
+        _pages.Clear();
+        PageHost.Content = GetPage(_currentKey);
+        MarkActive(_currentKey);
+        UpdateNavCounts();
+
+        AppState.Instance.OpenRepo(repoPath);
+        Services.PublishHub.Invalidate();
+        ShowToast(TF("Vox.Settings.Repo.Opened", repoPath));
+
+        // 索引完成后定位：文件→该篇；目录→第一篇（与命令行启动定位共用一套一次性挂接）。
+        _pendingOpenFile = openFile;
+        _targetOpenDone = false;
+        AppState.Instance.ScanChanged -= OnTargetScan;
+        AppState.Instance.ScanChanged += OnTargetScan;
     }
 
     /// <summary>拉起新 Vox 进程承载所选目标（环境为单文件发布时 Environment.ProcessPath 即可执行文件）。</summary>
@@ -564,30 +588,32 @@ public partial class MainWindow : Window
         }
     }
 
-    // ---------- 新进程启动定位 ----------
+    // ---------- 索引完成后定位打开（命令行启动与进程内切换共用） ----------
 
-    private bool _startupTargetDone;
+    private bool _targetOpenDone;
+    private string? _pendingOpenFile; // null = 打开索引序第一篇
 
-    /// <summary>命令行带目录/文件时：首个有内容的索引完成后，目录开第一篇文章、文件定位到该篇。</summary>
+    /// <summary>命令行带目录/文件时：首个有内容的索引完成后定位打开。</summary>
     private void HookStartupTarget()
     {
         if (AppBootstrap.SessionRepoPath == null) return;
-        AppState.Instance.ScanChanged += OnStartupTargetScan;
+        _pendingOpenFile = AppBootstrap.SessionOpenFile;
+        AppState.Instance.ScanChanged += OnTargetScan;
     }
 
-    private void OnStartupTargetScan()
+    private void OnTargetScan()
     {
-        if (_startupTargetDone) return;
+        if (_targetOpenDone) return;
         var scan = AppState.Instance.Scan;
         if (scan == null || scan.Articles.Count == 0) return;
 
-        _startupTargetDone = true;
-        AppState.Instance.ScanChanged -= OnStartupTargetScan;
+        _targetOpenDone = true;
+        AppState.Instance.ScanChanged -= OnTargetScan;
 
         Article? target = null;
-        if (AppBootstrap.SessionOpenFile != null && scan.RepoRoot != null)
+        if (_pendingOpenFile != null && scan.RepoRoot != null)
         {
-            var wanted = AppBootstrap.SessionOpenFile;
+            var wanted = _pendingOpenFile;
             target = scan.Articles.FirstOrDefault(a =>
             {
                 try
