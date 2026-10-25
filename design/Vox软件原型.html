@@ -31,10 +31,8 @@
 <aside class="nav collapsed" id="nav">
   <div class="items">
     <div class="it active" data-view="write" title="写作"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><span class="lb">写作</span></div>
-    <div class="it" data-view="library" title="文章库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span><span class="lb">文章库</span><span class="cnt">536</span></div>
-    <div class="it" data-view="assets" title="图片库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span><span class="lb">图片库</span><span class="cnt">4203</span></div>
-    <div class="it" data-view="audit" title="体检"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></span><span class="lb">体检</span><span class="cnt">1143</span></div>
-    <div class="it" data-view="sync" title="同步"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="lb">同步</span><span class="cnt">6</span></div>
+    <div class="it" data-view="library" title="文章库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span><span class="lb">文章库</span><span class="cnt">37</span></div>
+    <div class="it" data-view="publish" title="发布中心"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="lb">发布中心</span><span class="cnt">2</span></div>
     <div class="it" data-view="site" title="站点数据"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></span><span class="lb">站点数据</span></div>
   </div>
   <button class="edge-btn" id="btnNav" title="收起 / 展开边栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -52,7 +50,7 @@
       <div class="wlist">
         <div class="lhead">
           <div class="lrow">
-            <input class="input" placeholder="搜索 536 篇…" style="flex:1">
+            <input class="input" placeholder="搜索 37 篇…" style="flex:1">
             <div class="viewseg" id="listSeg">
               <button data-l="list" class="active" title="列表视图"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
               <button data-l="tree" title="树形视图"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10h7a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 0-1 1v.5H13V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1.5"/><rect width="8" height="7" x="3" y="14" rx="1"/></svg></button>
@@ -61,10 +59,10 @@
           </div>
         </div>
         <div class="lscroll" id="artList"></div>
-        <div class="wstatus">536 篇 · <b style="color:var(--ok)">已保存</b> · 刚刚</div>
+        <div class="wstatus">37 篇 · <b style="color:var(--ok)">已保存</b> · 刚刚</div>
       </div>
       <div class="wmain">
-        <div class="edhead"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="spacer"></span></div>
+        <div class="edhead"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span><span class="spacer"></span></div>
         <div class="wcontent">
       <div class="wcenter">
         <button class="edge-btn inside" id="btnPanel" title="收起 / 展开文章面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -90,14 +88,14 @@
         </div></div></div>
       </div>
       <div class="wpanel off" id="wpanel">
-        <div style="display:none">
+        <div class="wtabs"><button data-tab="meta">元数据</button><button data-tab="outline" class="active">大纲</button><button data-tab="imgs">图片</button></div>
+        <div class="wtab" data-tab="meta">
           <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>
           <div class="f-label">标题</div><input class="input" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
           <div class="f-label">slug</div><input class="input mono" value="dotnet-native-aot-win7-skia-dependency" style="font-size:11px">
           <div class="f-label">简述 description</div><textarea class="input" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
           <div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" value="2026-09-28 20:00:00" style="font-size:11px">
           <div class="f-label">分类</div><div class="chips"><span class="chip">.NET <i>×</i></span><span class="chip add">＋</span></div>
-          <div class="f-label">专辑 <span class="warn">缺 · 体检项</span></div><div class="chips"><span class="chip missing">未设置 · 点此补全</span></div>
           <div class="f-label">标签</div><div class="chips"><span class="chip">Native AOT <i>×</i></span><span class="chip">SkiaSharp <i>×</i></span><span class="chip">Win7 <i>×</i></span><span class="chip add">＋</span></div>
           <div class="f-label">作者 / 状态</div>
           <div class="row"><input class="input" value="Dotnet9"><span class="switch on" data-switch></span><span style="font-size:11.5px">已发布</span></div>
@@ -108,14 +106,14 @@
           </div>
           <div class="f-label">正文任务</div><div class="chips"><span class="badge ok">2 / 3 已完成</span></div>
         </div>
-        <div style="display:none" data-tab="imgs">
+        <div class="wtab" data-tab="imgs">
           <div class="drop" id="dropHint">拖入 / 点击上传 / 粘贴图片<br><span style="color:var(--faint)">自动命名为 slug 前缀，落入 2026/09</span></div>
           <div class="thumbgrid">
             <div class="thumb g1"><span>…-cover.svg</span></div><div class="thumb g5"><span>…-chain.svg</span></div>
             <div class="thumb g6"><span>…-flow.svg</span></div><div class="thumb g3"><span>…-matrix.svg</span></div>
           </div>
-          <div class="f-label">链接形态 <span style="color:var(--faint)">设置里可改</span></div>
-          <div class="chips"><span class="badge accent">插入相对路径</span><span class="badge">发布时改写 CDN</span></div>
+          <div class="f-label">引用形态 <span style="color:var(--faint)">相对本文目录</span></div>
+          <div class="chips"><span class="badge accent">相对路径（唯一规范形态）</span></div>
         </div>
         </div>
       </div>
@@ -125,100 +123,43 @@
   <!-- ======== 视图：文章库 ======== -->
   <section class="view" id="view-library">
     <div class="stats">
-      <div class="stat"><b>536</b><span>篇文章 · 跨 2019–2026</span></div>
-      <div class="stat"><b>21.4 万</b><span>总字数</span></div>
-      <div class="stat"><b>4203</b><span>张图片 · 527 张孤儿</span></div>
-      <div class="stat"><b>1143<em>待处理</em></b><span>体检问题</span></div>
+      <div class="stat"><b>37</b><span>篇文章 · 跨 2019–2026</span></div>
+      <div class="stat"><b>14.7 万</b><span>总字数（引擎口径）</span></div>
+      <div class="stat"><b>259</b><span>张图片</span></div>
+      <div class="stat"><b>12</b><span>待发布 / 需更新（全平台）</span></div>
     </div>
     <div class="filters">
-      <select class="select"><option>全部年份</option><option>2026</option><option>2025</option><option>2022 · 231 篇</option><option>2021</option></select>
+      <select class="select"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select>
       <select class="select"><option>全部分类</option><option>.NET</option><option>C#开源项目</option><option>Avalonia</option><option>AI</option></select>
-      <select class="select"><option>全部专辑</option><option>C#开源项目专辑</option><option>Native AOT 系列</option></select>
       <select class="select"><option>全部状态</option><option>已发布</option><option>草稿</option></select>
-      <span class="badge quick">缺专辑 400</span><span class="badge quick">缺 author 122</span><span class="badge quick">无封面 0</span>
+      <select class="select"><option>全平台状态</option><option>待发布</option><option>需更新</option><option>失败</option></select>
       <span style="flex:1"></span>
       <input class="input" style="width:220px" placeholder="标题 / slug / 正文全文…">
     </div>
     <div class="tblwrap">
       <table class="tbl">
-        <tr><th>标题</th><th>年月</th><th>分类</th><th>专辑</th><th>标签</th><th>字数</th><th>状态</th><th></th></tr>
-        <tr><td class="title">.NET Native AOT 依赖 Win7：Skia 依赖链排查记</td><td>2026/09</td><td>.NET</td><td><span class="badge warn">缺</span></td><td>Native AOT · SkiaSharp</td><td>4,820</td><td><span class="badge ok">已发布</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">qtzu：一个 3D 英语学习游戏的开源实现</td><td>2026/09</td><td>C#开源项目</td><td>C#开源项目专辑</td><td>OpenGL · 游戏</td><td>6,140</td><td><span class="badge ok">已发布</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">Markdown 一键导出社媒配图实战</td><td>2026/05</td><td>工具</td><td><span class="badge warn">缺</span></td><td>Markdown</td><td>3,205</td><td><span class="badge ok">已发布</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">基于 Semantic Kernel 的本地知识库问答</td><td>2025/11</td><td>AI</td><td><span class="badge warn">缺</span></td><td>SK · RAG</td><td>5,890</td><td><span class="badge ok">已发布</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">自己动手写依赖注入框架</td><td>2025/03</td><td>.NET</td><td><span class="badge warn">缺</span></td><td>DI · 源码</td><td>742</td><td><span class="badge accent">草稿</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">SQLite 在桌面应用中的 12 个最佳实践</td><td>2024/12</td><td>数据库</td><td>桌面开发手记</td><td>SQLite</td><td>5,268</td><td><span class="badge ok">已发布</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">Avalonia 自绘控件的渲染管线剖析</td><td>2024/06</td><td>Avalonia</td><td>桌面开发手记</td><td>Avalonia · 渲染</td><td>8,332</td><td><span class="badge ok">已发布</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button></div></td></tr>
-        <tr><td class="title">.NET Framework 时代的 WinForms 表格打印</td><td>2020/03</td><td>.NET</td><td><span class="badge warn">缺</span></td><td>WinForms</td><td>2,110</td><td><span class="badge warn">过期线索</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm ghost" style="color:var(--danger)">退役</button></div></td></tr>
+        <tr><th>标题</th><th>年月</th><th>分类</th><th>标签</th><th>字数</th><th>网站</th><th>公众号</th><th>博客园</th><th>CSDN</th><th></th></tr>
+        <tr><td class="title">.NET Native AOT 依赖 Win7：Skia 依赖链排查记</td><td>2026/09</td><td>.NET</td><td>Native AOT · SkiaSharp</td><td>4,820</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st stale" title="原文 10-02 修改未重发">◐</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')">发布…</button></div></td></tr>
+        <tr><td class="title">Vex 升级：编辑器长出 AI 的手——MCP 支持全记录</td><td>2026/10</td><td>.NET</td><td>Vex · MCP</td><td>6,140</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2026/10/vex-mcp-ai-upgrade.md')">发布…</button></div></td></tr>
+        <tr><td class="title">qtzu：一个 3D 英语学习游戏的开源实现</td><td>2026/09</td><td>C#开源项目</td><td>OpenGL · 游戏</td><td>6,140</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st err" title="token 已过期（401）">✕</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2026/09/qtzu-3d-english-learning-game.md')">发布…</button></div></td></tr>
+        <tr><td class="title">Avalonia 自绘控件的渲染管线剖析</td><td>2024/06</td><td>Avalonia</td><td>Avalonia · 渲染</td><td>8,332</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2024/06/avalonia-render-pipeline.md')">发布…</button></div></td></tr>
+        <tr><td class="title">C#百万对象序列化深度剖析</td><td>2023/12</td><td>.NET</td><td>序列化 · 性能</td><td>7,4xx</td><td style="text-align:center"><span class="pm-st stale" title="本地修改未提交">◐</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2023/12/deep-analysis-…-serialization.md')">发布…</button></div></td></tr>
       </table>
-      <div class="tblfoot">显示 1–8 篇 · 共 536 篇<span class="spacer"></span><div class="pager"><button>‹</button><button class="cur">1</button><button>2</button><button>3</button><button>…</button><button>67</button><button>›</button></div></div>
+      <div class="tblfoot">显示 1–5 篇 · 共 37 篇<span class="spacer"></span><div class="pager"><button>‹</button><button class="cur">1</button><button>2</button><button>…</button><button>8</button><button>›</button></div></div>
     </div>
   </section>
 
-  <!-- ======== 视图：图片库 ======== -->
-  <section class="view" id="view-assets">
-    <div class="pagehead"><h2>图片库</h2><span class="sub">4203 张 · 仓库即图床 img1.dotnet9.com</span><span class="spacer"></span>
-      <span class="badge quick on">只看孤儿图 (527)</span>
-      <select class="select" style="width:auto"><option>全部年月</option><option>2026/09</option><option>2026/05</option><option>2019/12</option></select>
-      <button class="btn primary" id="btnImgIn2">⇪ 拖入 / 选择入库</button>
-    </div>
-    <div class="assets-body">
-      <div class="agrid">
-        <div class="acard sel"><div class="ph g1"><span class="flag badge danger">孤儿</span></div><div class="info"><b>cover_01.png</b><span>2019/11 · 84 KB · 0 篇引用</span></div></div>
-        <div class="acard"><div class="ph g2"></div><div class="info"><b>0245.jpg</b><span>2019/12 · 112 KB · 0 篇引用</span></div></div>
-        <div class="acard"><div class="ph g3"></div><div class="info"><b>0102.jpg</b><span>2019/11 · 65 KB · 0 篇引用</span></div></div>
-        <div class="acard"><div class="ph g4"></div><div class="info"><b>qtzu-gif-hatch.gif</b><span>2026/09 · 1.2 MB · 1 篇引用</span></div></div>
-        <div class="acard"><div class="ph g5"></div><div class="info"><b>…-chain.svg</b><span>2026/09 · 38 KB · 1 篇引用</span></div></div>
-        <div class="acard"><div class="ph g6"></div><div class="info"><b>…-flow.svg</b><span>2026/09 · 31 KB · 1 篇引用</span></div></div>
-        <div class="acard"><div class="ph g1"></div><div class="info"><b>0128.png</b><span>2019/12 · 210 KB · 0 篇引用</span></div></div>
-        <div class="acard"><div class="ph g3"></div><div class="info"><b>0257.gif</b><span>2019/12 · 860 KB · 0 篇引用</span></div></div>
-        <div class="acard"><div class="ph g2"></div><div class="info"><b>0202.jpeg</b><span>2020/12 · 94 KB · 0 篇引用</span></div></div>
+  <!-- ======== 视图：发布中心（git 同步 + 平台发布矩阵 + 发布前检查） ======== -->
+  <section class="view" id="view-publish">
+    <div class="pub-tabs">
+      <div class="seg" id="pubSeg">
+        <button data-p="site" class="active">网站（git）</button>
+        <button data-p="matrix">多平台</button>
+        <button data-p="check">发布前检查</button>
       </div>
-      <div class="apanel">
-        <div class="big g1" style="display:grid;place-items:center;color:#fff;font-size:11px;font-family:var(--font-mono)">cover_01.png</div>
-        <div class="kv"><span>仓库路径</span><b>2019/11/cover_01.png</b></div>
-        <div class="kv"><span>CDN 地址</span><b>img1.dotnet9.com/2019/11/…</b></div>
-        <div class="kv"><span>尺寸 / 大小</span><b>1280×720 · 84 KB</b></div>
-        <div class="kv"><span>引用文章</span><b>0 篇 · 孤儿图</b></div>
-        <div class="refs"><a>↩ 疑似原引用：2020/12 某文引用了 0245.png（已缺失），本图或为其改名</a></div>
-        <div class="ops">
-          <button class="btn" onclick="toast('已复制 CDN 链接')">复制 CDN 链接</button>
-          <button class="btn" onclick="toast('已复制相对路径')">复制相对路径</button>
-          <button class="btn" onclick="toast('配对修复建议已生成')">配对修复引用</button>
-          <button class="btn danger" onclick="toast('已加入待提交的删除变更')">删除（走 git，可回滚）</button>
-        </div>
-      </div>
+      <span style="flex:1"></span>
+      <span class="pub-sum" id="pubSummary"></span>
     </div>
-  </section>
-
-  <!-- ======== 视图：体检 ======== -->
-  <section class="view" id="view-audit">
-    <div class="pagehead"><h2>规范体检</h2><span class="sub">1143 个待处理 · 上次扫描 刚刚</span><span class="spacer"></span>
-      <button class="btn" onclick="toast('已重新扫描 536 篇 / 4203 张图')">重新扫描</button>
-      <button class="btn primary" onclick="openModal('mAlbum')">专辑补全向导</button>
-    </div>
-    <div class="audit-groups">
-      <div class="ag sel"><div class="row"><b class="num">400</b><span class="badge warn">最大缺口</span></div><div class="name">缺专辑 albums</div><div class="desc">按分类/标签推断，可批量确认</div><button class="btn sm primary" onclick="openModal('mAlbum')">补全向导</button></div>
-      <div class="ag"><div class="row"><b class="num">122</b></div><div class="name">缺 author</div><div class="desc">默认补 Dotnet9，一键批处理</div></div>
-      <div class="ag"><div class="row"><b class="num">58</b><span class="badge accent">12 组可配对</span></div><div class="name">图片死链</div><div class="desc">引用了不存在的文件；疑似改名</div></div>
-      <div class="ag"><div class="row"><b class="num">527</b></div><div class="name">孤儿图</div><div class="desc">存在但无文章引用 · 删除走 git</div></div>
-      <div class="ag"><div class="row"><b class="num">5</b></div><div class="name">疑似占位文章</div><div class="desc">正文 &lt; 2KB，人工确认去留</div></div>
-      <div class="ag"><div class="row"><b class="num">31</b></div><div class="name">过期技术线索</div><div class="desc">2021–2022 · 按年份+关键词</div></div>
-    </div>
-    <div class="fixlist">
-      <div class="fixhead"><b>缺专辑 albums</b><span class="badge warn">400 篇</span><span style="flex:1"></span><span style="color:var(--faint);font-size:11px">按分类/标签推断建议</span><button class="btn sm primary" onclick="openModal('mAlbum')">批量应用</button></div>
-      <table class="tbl">
-        <tr><th>文章</th><th>分类</th><th>标签</th><th>建议专辑</th><th></th></tr>
-        <tr><td class="title">.NET Native AOT 依赖 Win7：Skia 依赖链排查记</td><td>.NET</td><td>Native AOT · SkiaSharp</td><td><span class="badge accent">Native AOT 系列</span></td><td><button class="btn sm">应用</button></td></tr>
-        <tr><td class="title">Markdown 一键导出社媒配图实战</td><td>工具</td><td>Markdown</td><td><span class="badge accent">效率工具箱</span></td><td><button class="btn sm">应用</button></td></tr>
-        <tr><td class="title">基于 Semantic Kernel 的本地知识库问答</td><td>AI</td><td>SK · RAG</td><td><span class="badge accent">AI 实践</span></td><td><button class="btn sm">应用</button></td></tr>
-        <tr><td class="title">自己动手写依赖注入框架</td><td>.NET</td><td>DI · 源码</td><td><span class="badge accent">源码阅读</span></td><td><button class="btn sm">应用</button></td></tr>
-      </table>
-    </div>
-  </section>
-
-  <!-- ======== 视图：同步（两栏：Changes 勾选暂存 + Summary/Description 提交面板） ======== -->
-  <section class="view" id="view-sync">
     <div class="sync-top">
       <div class="br">⑂ <span class="badge">main</span>
         <span class="badge ok" id="aheadBadge" style="display:none">↑ 0</span>
@@ -256,6 +197,30 @@
         <div class="hist" id="histList"></div>
       </aside>
     </div>
+    <div class="pub-page" id="pubMatrix" style="display:none">
+      <div class="pagehead"><h2>多平台发布</h2><span class="sub">API 直发 · 复制助手兜底 · 状态库跟踪每篇文章 × 每个平台</span><span style="flex:1"></span>
+        <button class="btn" onclick="toast('已刷新各平台状态（内容快照对比）')">⟳ 刷新状态</button>
+        <button class="btn primary" onclick="openModal('mPlatformCfg')">平台账户…</button>
+      </div>
+      <div class="pm-filters">
+        <select class="select" style="width:auto"><option>全部文章</option><option>仅待发布</option><option>仅需更新</option><option>仅失败</option></select>
+        <select class="select" style="width:auto"><option>全部平台</option><option>微信公众号</option><option>博客园</option><option>CSDN</option><option>知乎（复制）</option></select>
+        <input class="input" style="width:200px" placeholder="标题搜索…">
+      </div>
+      <div class="tblwrap">
+        <table class="tbl" id="pmTable">
+          <tr><th>文章</th><th>网站</th><th>公众号</th><th>博客园</th><th>CSDN</th><th>知乎</th><th></th></tr>
+        </table>
+      </div>
+      <p class="pm-hint">● 已同步 · ◐ 需更新（原文已改） · ○ 未发布 · ✕ 失败（凭据/网络，悬停看原因） · — 不适用<br>状态依据：本地内容快照 hash 与各平台已发布快照对比；复制型平台以「上次复制时间」记录。</p>
+    </div>
+
+    <div class="pub-page" id="pubCheck" style="display:none">
+      <div class="pagehead"><h2>发布前检查</h2><span class="sub">发布对话框同源规则 · 全库巡检</span><span style="flex:1"></span>
+        <button class="btn" onclick="toast('已重新巡检 37 篇')">重新检查</button>
+      </div>
+      <div class="chk-groups" id="chkGroups"></div>
+    </div>
   </section>
 
   <!-- ======== 视图：站点数据 ======== -->
@@ -266,7 +231,6 @@
     <div class="split">
       <div class="sidenav">
         <a class="active">categories.json<span class="cnt badge">9</span></a>
-        <a>albums.json<span class="cnt badge">6</span></a>
         <a>friend-links.json<span class="cnt badge">32</span></a>
         <a>timelines.json</a>
         <a>search-keywords.json</a>
@@ -295,18 +259,25 @@
     <div class="setting">
       <h3>内容仓库</h3><div class="sdesc">Vox 管理的内容源仓库，全量内存索引 + 文件监视增量维护</div>
       <div class="srow"><label>仓库路径</label><div class="val"><div class="row"><input class="input mono" style="font-size:11px" value="E:\github\Apps\Assets.Dotnet9"><button class="btn sm">更改…</button></div></div></div>
-      <div class="srow"><label>索引</label><div class="val">536 篇文章 · 4203 张图片 · 29 组站点数据 · 上次全量扫描 10:32<button class="btn sm" style="margin-left:10px" onclick="toast('已重新扫描')">重新扫描</button></div></div>
+      <div class="srow"><label>索引</label><div class="val">37 篇文章 · 259 张图片 · 12 组站点数据 · 上次全量扫描 10:32<button class="btn sm" style="margin-left:10px" onclick="toast('已重新扫描')">重新扫描</button></div></div>
     </div>
     <div class="setting">
-      <h3>链接策略</h3><div class="sdesc">同一张图片两种合法形态：仓库相对路径 ↔ CDN URL</div>
-      <div class="srow"><label>插入形态</label><div class="val"><div class="seg"><button class="active">相对路径（推荐）</button><button>CDN URL</button></div><div class="desc">发布时由 Vox 改写为 CDN 域名，也可整库规范化</div></div></div>
+      <h3>链接策略</h3><div class="sdesc">正文引用相对 md 文件目录（唯一规范形态）；CDN 域名在渲染时拼接</div>
+      <div class="srow"><label>引用形态</label><div class="val"><span class="badge accent">相对路径（唯一规范形态）</span><div class="desc">插图与封面均写相对引用；CDN 域名渲染时拼接</div></div></div>
       <div class="srow"><label>域名映射</label><div class="val"><input class="input mono" style="width:280px;font-size:11px" value="https://img1.dotnet9.com/"></div></div>
-      <div class="srow"><label>规范化</label><div class="val">当前 1 篇文章使用相对路径，58 处死链待修复<button class="btn sm" style="margin-left:10px">运行规范化…</button></div></div>
+      <div class="srow"><label>规范化</label><div class="val">全库 37 篇均为相对路径 · 3 处失效引用待处理<button class="btn sm" style="margin-left:10px">查看发布前检查 →</button></div></div>
     </div>
     <div class="setting">
       <h3>git 与凭据</h3><div class="sdesc">内置 git（LibGit2Sharp），无需本机安装 git；SSH 推送自动降级系统 git / MinGit</div>
       <div class="srow"><label>GitHub PAT</label><div class="val">已配置 <span class="mono">github_pat_****·****</span> · 存于系统凭据管理器 <button class="btn sm" style="margin-left:8px" onclick="toast('连接正常 · 对 dotnet9/Assets.Dotnet9 推送权限 ✓')">测试连接</button></div></div>
       <div class="srow"><label>SSH 降级</label><div class="val">检测到系统 git（2.51.0）——SSH 远端推送将调用系统 git，复用你的密钥配置</div></div>
+    </div>
+    <div class="setting">
+      <h3>平台账户</h3><div class="sdesc">各平台凭据存系统凭据管理器；API 通道配置即启用直发，未配置降级复制助手</div>
+      <div class="srow"><label>微信公众号</label><div class="val">AppID/Secret <span class="badge ok">已连接</span> · 仅写草稿箱<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
+      <div class="srow"><label>博客园</label><div class="val"><span class="badge">未配置</span> · MetaWeblog API<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
+      <div class="srow"><label>CSDN</label><div class="val"><span class="badge warn">token 失效</span> · 上次推送 401<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">更新凭据…</button></div></div>
+      <div class="srow"><label>复制型平台</label><div class="val">知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布</div></div>
     </div>
     <div class="setting">
       <h3>外观</h3><div class="sdesc">正式实现由 Arc 主题接管（ArcAccentPreset / 明暗 / 动效级别）</div>
@@ -358,7 +329,6 @@ date: 2026-10-23 20:00:00
 lastmod: 2026-10-23 20:00:00
 cover:
 categories: []
-albums: []
 tags: []
 author: Dotnet9
 draft: true
@@ -366,7 +336,7 @@ draft: true
 
 ## 背景 …</div>
       </div>
-      <div class="note">创建后直接进入写作页，体检会提示补全封面 / 专辑 / 标签。</div>
+      <div class="note">创建后直接进入写作页，可在右侧文章面板补全封面 / 标签。</div>
     </div>
   </div>
   <div class="mf">
@@ -394,28 +364,44 @@ draft: true
   </div>
 </div></div>
 
-<!-- ============ 弹层：专辑补全向导 ============ -->
-<div class="mask" id="mAlbum"><div class="modal">
-  <div class="mh"><h3>专辑补全向导 · 400 篇</h3><span class="x" onclick="closeModal('mAlbum')">×</span></div>
+<!-- ============ 弹层：发布文章（单篇 × 多平台） ============ -->
+<div class="mask" id="mPublish"><div class="modal" style="max-width:680px">
+  <div class="mh"><h3 id="pubDlgTitle">发布</h3><span class="x" onclick="closeModal('mPublish')">×</span></div>
   <div class="mb">
-    <p style="color:var(--muted);margin:0 0 12px">按「分类 + 标签」推断建议专辑，逐组确认后批量写回 yml。全部走 git，可回滚。</p>
-    <div class="tblwrap" style="border-radius:10px">
-      <table class="tbl">
-        <tr><th>规则</th><th>命中</th><th>建议专辑</th><th></th></tr>
-        <tr><td class="title">分类 = .NET 且含 Native AOT</td><td><span class="badge">38</span></td><td><span class="badge accent">Native AOT 系列</span></td><td><button class="btn sm primary" onclick="toast('38 篇已写回 yml，待提交')">应用</button></td></tr>
-        <tr><td class="title">分类 = C#开源项目</td><td><span class="badge">96</span></td><td><span class="badge accent">C#开源项目专辑</span></td><td><button class="btn sm primary" onclick="toast('96 篇已写回 yml，待提交')">应用</button></td></tr>
-        <tr><td class="title">分类 = Avalonia</td><td><span class="badge">41</span></td><td><span class="badge accent">桌面开发手记</span></td><td><button class="btn sm primary" onclick="toast('41 篇已写回 yml，待提交')">应用</button></td></tr>
-        <tr><td class="title">其余待人工分组</td><td><span class="badge warn">225</span></td><td>—</td><td><button class="btn sm">逐篇看</button></td></tr>
-      </table>
+    <div class="pub-check" id="pubDlgCheck">
+      <div class="pub-check__head">检查 <button class="btn sm ghost" style="margin-left:8px">重新检查</button><span style="flex:1"></span><span class="badge ok" id="pubDlgChkOk"></span><span class="badge warn" id="pubDlgChkWarn"></span></div>
+      <div class="pub-check__items" id="pubDlgCheckItems"></div>
+    </div>
+    <div class="pub-rows" id="pubDlgRows"></div>
+    <div class="f-label" style="margin-top:14px">复制字段 <span style="color:var(--faint);font-weight:400;font-size:10px">点即复制 · 配合平台创作页逐框粘贴</span></div>
+    <div class="chips">
+      <button class="chip" onclick="toast('已复制：标题')">标题</button>
+      <button class="chip" onclick="toast('已复制：描述')">描述</button>
+      <button class="chip" onclick="toast('已复制：封面 URL（CDN）')">封面 URL</button>
+      <button class="chip" onclick="toast('已复制：Markdown 源码')">正文 Markdown</button>
+      <button class="chip" onclick="toast('已复制：公众号内联样式 HTML（图片已转素材库域名）')">公众号 HTML</button>
+      <button class="chip" onclick="toast('已复制：CF_HTML 富文本（带样式粘贴）')">富文本</button>
     </div>
   </div>
-  <div class="mf"><button class="btn" onclick="closeModal('mAlbum')">关闭</button></div>
+  <div class="mf"><button class="btn" onclick="closeModal('mPublish')">关闭</button></div>
 </div></div>
 
-<div class="mask" id="mMeta"><div class="modal">
-  <div class="mh"><h3>文章元数据</h3><span class="x" onclick="closeModal('mMeta')">×</span></div>
-  <div class="mb" id="metaDlgBody"></div>
-  <div class="mf"><button class="btn" onclick="closeModal('mMeta')">取消</button><button class="btn primary" onclick="closeModal('mMeta');toast('元数据已写回 yml（待提交）')">保存</button></div>
+<!-- ============ 弹层：平台账户 ============ -->
+<div class="mask" id="mPlatformCfg"><div class="modal" style="max-width:560px">
+  <div class="mh"><h3>平台账户</h3><span class="x" onclick="closeModal('mPlatformCfg')">×</span></div>
+  <div class="mb">
+    <p style="color:var(--muted);font-size:12px;margin:0 0 12px">凭据存系统凭据管理器，不进仓库。API 通道填密钥即启用直发；未配置的平台在发布对话框中降级为复制助手。</p>
+    <div class="f-label">微信公众号（API 草稿箱）</div>
+    <div class="row" style="gap:8px"><input class="input mono" placeholder="AppID" style="flex:1"><input class="input mono" placeholder="AppSecret" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge ok">已连接</span></div>
+    <div class="f-label">博客园（MetaWeblog API）</div>
+    <div class="row" style="gap:8px"><input class="input mono" placeholder="https://rpc.cnblogs.com/metaweblog/…" style="flex:1.4"><input class="input mono" placeholder="访问令牌" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge">未配置</span></div>
+    <div class="f-label">CSDN（OpenAPI）</div>
+    <div class="row" style="gap:8px"><input class="input mono" placeholder="API Token" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge">未配置</span></div>
+    <div class="f-label">发布默认项</div>
+    <label class="opt" style="border:0"><input type="checkbox" checked><span>公众号仅写入草稿箱（不直接群发）</span></label>
+    <label class="opt" style="border:0"><input type="checkbox"><span>提交 git 时自动提示发布到已启用的平台</span></label>
+  </div>
+  <div class="mf"><button class="btn primary" onclick="closeModal('mPlatformCfg');toast('平台账户已保存（系统凭据管理器）')">保存</button></div>
 </div></div>
 <div id="toast"></div>
 
@@ -444,13 +430,13 @@ const cur={};function openModal(id){document.getElementById(id).classList.add('o
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showPage(id){const m=document.getElementById(id),ps=m.querySelectorAll('.mpage'),ss=m.querySelectorAll('.msteps i');
   ps.forEach((p,k)=>p.classList.toggle('active',k===cur[id]));ss.forEach((s,k)=>s.classList.toggle('on',k<=cur[id]));
-  const nx=m.querySelector('.mf .primary');nx.textContent=cur[id]===ps.length-1?(id==='mNew'?'创建并打开':'完成'):'下一步';}
+  const nx=m.querySelector('.mf .primary');if(!ps.length||!nx)return;
+  nx.textContent=cur[id]===ps.length-1?(id==='mNew'?'创建并打开':'完成'):'下一步';}
 function stepModal(id,d){const m=document.getElementById(id),n=m.querySelectorAll('.mpage').length;
   cur[id]=Math.max(0,Math.min(n-1,cur[id]+d));
   if(cur[id]===n-1&&d>0){if(id==='mNew'){closeModal(id);toast('已创建 2026/10/new-article-slug.md · 进入写作页');}else closeModal(id);return;}
   showPage(id);}
 document.getElementById('btnNew').onclick=()=>openModal('mNew');
-document.getElementById('btnImgIn2').onclick=()=>openModal('mImg');
 document.querySelectorAll('.mask').forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('open')});
 /* ---------- 主题与强调色 ---------- */
 function bindDots(){document.querySelectorAll('.dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;
@@ -472,22 +458,22 @@ function setThemeMode(mode){
 themeSeg.querySelectorAll('button').forEach(b=>b.onclick=()=>setThemeMode(b.dataset.mode));
 /* ---------- 文章数据与列表 ---------- */
 const ARTS={
-aot:{year:'2026',path:'2026/09',title:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',slug:'dotnet-native-aot-win7-skia-dependency',date:'2026-09-28 20:00',min:8,cats:['.NET'],albums:null,tags:['Native AOT','SkiaSharp','Win7'],draft:false,g:'g1',cur:15,desc:'记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。',
+aot:{year:'2026',path:'2026/09',title:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',slug:'dotnet-native-aot-win7-skia-dependency',date:'2026-09-28 20:00',min:8,cats:['.NET'],tags:['Native AOT','SkiaSharp','Win7'],draft:false,g:'g1',cur:15,desc:'记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。',
  lines:[['h','# .NET Native AOT 依赖 Win7：Skia 依赖链排查记'],['',''],['','最近把一个 SkiaSharp 桌面程序用 Native AOT 编译，'],['','结果在 Win7 上启动即崩。本文记录整条排查链。'],['',''],['h2','## 现象'],['',''],['','启动即崩，事件查看器只有一句 0xc0000135……'],['',''],['h2','## 排查过程'],['',''],['tk','- [x] 用 Dependencies 重扫依赖树'],['tk','- [x] 确认 SkiaSharp 原生层引入了 libSkiaSharp.dll'],['tk','- [ ] 验证 VC 运行库在 Win7 上的可用性'],['',''],['img','![依赖链](2026/09/dotnet-native-aot-win7-skia-dependency-chain.svg)'],['',''],['h2','## 结论'],['',''],['bq','> AOT 之后没有 JIT 兜底，任何一个隐式依赖都会在启动时现形。']],
  prev:'<p>最近把一个 SkiaSharp 桌面程序用 Native AOT 编译，结果在 Win7 上启动即崩。本文记录整条排查链。</p><h2>现象</h2><p>启动即崩，事件查看器只有一句 <code>0xc0000135</code>……</p><h2>排查过程</h2><div class="task done"><i></i>用 Dependencies 重扫依赖树</div><div class="task done"><i></i>确认 SkiaSharp 原生层引入了 libSkiaSharp.dll</div><div class="task"><i></i>验证 VC 运行库在 Win7 上的可用性</div><div class="codeblock"><div class="cb-h">诊断流程 · …-chain.svg<span class="spacer"></span>查看原图</div><div class="ph g1" style="height:92px;border-radius:0"></div></div><h2>结论</h2><blockquote>AOT 之后没有 JIT 兜底，任何一个隐式依赖都会在启动时现形。</blockquote>'},
-qtzu:{year:'2026',path:'2026/09',title:'qtzu：一个 3D 英语学习游戏的开源实现',slug:'qtzu-3d-english-learning-game',date:'2026-09-21 20:00',min:11,cats:['C#开源项目'],albums:['C#开源项目专辑'],tags:['OpenGL','游戏'],draft:false,g:'g2',cur:8,desc:'城市探索 + 宠物牧场 + 单词关卡，C# + OpenGL 的开源 3D 英语学习游戏。',
+qtzu:{year:'2026',path:'2026/09',title:'qtzu：一个 3D 英语学习游戏的开源实现',slug:'qtzu-3d-english-learning-game',date:'2026-09-21 20:00',min:11,cats:['C#开源项目'],tags:['OpenGL','游戏'],draft:false,g:'g2',cur:8,desc:'城市探索 + 宠物牧场 + 单词关卡，C# + OpenGL 的开源 3D 英语学习游戏。',
  lines:[['h','# qtzu：一个 3D 英语学习游戏的开源实现'],['',''],['','用 C# + OpenGL 做了一个 3D 英语学习游戏 qtzu，'],['','城市探索 + 宠物牧场 + 单词关卡，代码全部开源。'],['',''],['h2','## 玩法概览'],['',''],['img','![城市全景](2026/09/qtzu-city-panorama.jpg)'],['',''],['h2','## 技术栈'],['',''],['','- OpenGL 4.5 + OpenAL 音效'],['','- Tiled 地图 / 自研轻量 ECS'],['','- 目标 .NET 10，支持 Windows 与 Linux']],
  prev:'<p>用 C# + OpenGL 做了一个 3D 英语学习游戏 qtzu，城市探索 + 宠物牧场 + 单词关卡，代码全部开源。</p><h2>玩法概览</h2><div class="codeblock"><div class="cb-h">qtzu-city-panorama.jpg<span class="spacer"></span>查看原图</div><div class="ph g2" style="height:110px;border-radius:0"></div></div><h2>技术栈</h2><div class="task"><i></i>OpenGL 4.5 + OpenAL 音效</div><div class="task"><i></i>Tiled 地图 / 自研轻量 ECS</div><div class="task"><i></i>目标 .NET 10，支持 Windows 与 Linux</div>'},
-exp:{year:'2026',path:'2026/05',title:'Markdown 一键导出社媒配图实战',slug:'codewf-markdown-export-images-social-copy',date:'2026-05-12 20:00',min:6,cats:['工具'],albums:null,tags:['Markdown'],draft:false,g:'g3',cur:11,desc:'把博客关键图快速导出为社媒尺寸配图的一条自动化管线。',
+exp:{year:'2026',path:'2026/05',title:'Markdown 一键导出社媒配图实战',slug:'codewf-markdown-export-images-social-copy',date:'2026-05-12 20:00',min:6,cats:['工具'],tags:['Markdown'],draft:false,g:'g3',cur:11,desc:'把博客关键图快速导出为社媒尺寸配图的一条自动化管线。',
  lines:[['h','# Markdown 一键导出社媒配图实战'],['',''],['','把博客文章里的关键图快速导出为社媒尺寸配图，'],['','本文给出一条可复用的自动化管线。'],['',''],['h2','## 思路'],['',''],['','- 解析 md 抽出图片与标题'],['','- 按平台裁切：公众号 900×383 / 小红书 1080×1440'],['',''],['bq','> 本文是仓库里唯一使用相对路径引用图片的文章'],['',''],['h2','## 小结'],['',''],['','- 模板化 + 批处理，5 分钟出全套配图']],
  prev:'<p>把博客文章里的关键图快速导出为社媒尺寸配图，本文给出一条可复用的自动化管线。</p><h2>思路</h2><div class="task"><i></i>解析 md 抽出图片与标题</div><div class="task"><i></i>按平台裁切：公众号 900×383 / 小红书 1080×1440</div><blockquote>本文是仓库里唯一使用相对路径引用图片的文章</blockquote><h2>小结</h2><p>模板化 + 批处理，5 分钟出全套配图。</p>'},
-di:{year:'2025',path:'2025/03',title:'自己动手写依赖注入框架',slug:'write-your-own-di-container',date:'2025-03-08 20:00',min:2,cats:['.NET'],albums:null,tags:['DI','源码'],draft:true,g:'g5',cur:11,desc:'（草稿）从零实现一个最小 IoC 容器，讲清注册、解析与生命周期。',
+di:{year:'2025',path:'2025/03',title:'自己动手写依赖注入框架',slug:'write-your-own-di-container',date:'2025-03-08 20:00',min:2,cats:['.NET'],tags:['DI','源码'],draft:true,g:'g5',cur:11,desc:'（草稿）从零实现一个最小 IoC 容器，讲清注册、解析与生命周期。',
  lines:[['h','# 自己动手写依赖注入框架'],['',''],['bq','> 草稿：大纲阶段，勿外传'],['',''],['h2','## 背景'],['',''],['','- 想讲清 IoC 容器的三要素：注册、解析、生命周期'],['',''],['h2','## 大纲'],['',''],['tk','- [ ] 最小可用版：100 行实现'],['tk','- [ ] 单例 / 瞬态 / 作用域'],['tk','- [ ] 循环依赖检测'],['tk','- [ ] 与 MS.DI 的基准对比']],
  prev:'<blockquote>草稿：大纲阶段，勿外传</blockquote><h2>背景</h2><p>想讲清 IoC 容器的三要素：注册、解析、生命周期。</p><h2>大纲</h2><div class="task"><i></i>最小可用版：100 行实现</div><div class="task"><i></i>单例 / 瞬态 / 作用域</div><div class="task"><i></i>循环依赖检测</div>'},
-sq:{year:'2024',path:'2024/12',title:'SQLite 在桌面应用中的 12 个最佳实践',slug:'sqlite-desktop-12-best-practices',date:'2024-12-02 20:00',min:9,cats:['数据库'],albums:['桌面开发手记'],tags:['SQLite'],draft:false,g:'g6',cur:7,desc:'WAL、busy_timeout、连接池……桌面应用里把 SQLite 用稳的 12 条军规。',
+sq:{year:'2024',path:'2024/12',title:'SQLite 在桌面应用中的 12 个最佳实践',slug:'sqlite-desktop-12-best-practices',date:'2024-12-02 20:00',min:9,cats:['数据库'],tags:['SQLite'],draft:false,g:'g6',cur:7,desc:'WAL、busy_timeout、连接池……桌面应用里把 SQLite 用稳的 12 条军规。',
  lines:[['h','# SQLite 在桌面应用中的 12 个最佳实践'],['',''],['','桌面场景没有 DBA，SQLite 的坑要提前绕开。'],['',''],['h2','## 清单速览'],['',''],['','- WAL 模式 + busy_timeout 是标配'],['','- 单写多读：一个写连接 + 只读连接池'],['','- 索引要在数据量小的时候就建好'],['',''],['h2','## 展开'],['',''],['','逐条展开前 6 条，后 6 条下篇再谈。']],
  prev:'<p>桌面场景没有 DBA，SQLite 的坑要提前绕开。</p><h2>清单速览</h2><div class="task"><i></i>WAL 模式 + busy_timeout 是标配</div><div class="task"><i></i>单写多读：一个写连接 + 只读连接池</div><div class="task"><i></i>索引要在数据量小的时候就建好</div><h2>展开</h2><p>逐条展开前 6 条，后 6 条下篇再谈。</p>'},
-av:{year:'2024',path:'2024/06',title:'Avalonia 自绘控件的渲染管线剖析',slug:'avalonia-custom-control-render-pipeline',date:'2024-06-18 20:00',min:14,cats:['Avalonia'],albums:['桌面开发手记'],tags:['Avalonia','渲染'],draft:false,g:'g4',cur:8,desc:'从 Measure 到 Render，把 Avalonia 自绘控件的每一步拆开看。',
+av:{year:'2024',path:'2024/06',title:'Avalonia 自绘控件的渲染管线剖析',slug:'avalonia-custom-control-render-pipeline',date:'2024-06-18 20:00',min:14,cats:['Avalonia'],tags:['Avalonia','渲染'],draft:false,g:'g4',cur:8,desc:'从 Measure 到 Render，把 Avalonia 自绘控件的每一步拆开看。',
  lines:[['h','# Avalonia 自绘控件的渲染管线剖析'],['',''],['','从 Measure / Arrange 到 Render，'],['','把自绘控件的每一步拆开看。'],['',''],['h2','## 管线全景'],['',''],['img','![管线](2024/06/avalonia-render-pipeline.svg)'],['',''],['h2','## 关键结论'],['',''],['','- InvalidatedMeasure 别滥用'],['','- Render 帧内禁止分配大对象']],
  prev:'<p>从 Measure / Arrange 到 Render，把自绘控件的每一步拆开看。</p><h2>管线全景</h2><div class="codeblock"><div class="cb-h">avalonia-render-pipeline.svg<span class="spacer"></span>查看原图</div><div class="ph g4" style="height:96px;border-radius:0"></div></div><h2>关键结论</h2><div class="task"><i></i>InvalidatedMeasure 别滥用</div><div class="task"><i></i>Render 帧内禁止分配大对象</div>'}};
 let curArt='aot',listMode='list';
@@ -502,21 +488,8 @@ function renderLines(a){
     return '<i class="'+(cls||'')+'">'+txt+'</i>';}).join('');
   }
 function coverCls(a){return a.g;}
-function metaForm(a){
-  return 
-  '<div class="cover '+coverCls(a)+'">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>'+
-  '<div class="f-label">标题</div><input class="input" value="'+a.title+'">'+
-  '<div class="f-label">slug</div><input class="input mono" value="'+a.slug+'" style="font-size:11px">'+
-  '<div class="f-label">简述 description</div><textarea class="input" rows="2">'+a.desc+'</textarea>'+
-  '<div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" value="'+a.date+':00" style="font-size:11px">'+
-  '<div class="f-label">分类</div><div class="chips">'+a.cats.map(c=>'<span class="chip">'+c+' <i>×</i></span>').join('')+'<span class="chip add">＋</span></div>'+
-  '<div class="f-label">专辑 '+(a.albums?'':'<span class="warn">缺 · 体检项</span>')+'</div><div class="chips">'+
-    (a.albums?a.albums.map(c=>'<span class="chip">'+c+' <i>×</i></span>').join(''):'<span class="chip missing">未设置 · 点此补全</span>')+'<span class="chip add">＋</span></div>'+
-  '<div class="f-label">标签</div><div class="chips">'+a.tags.map(c=>'<span class="chip">'+c+' <i>×</i></span>').join('')+'<span class="chip add">＋</span></div>'+
-  '<div class="f-label">作者 / 状态</div><div class="row"><input class="input" value="Dotnet9"><span class="switch '+(a.draft?'':'on')+'" data-switch></span><span style="font-size:11.5px">'+(a.draft?'草稿':'已发布')+'</span></div>';
-}
 function artItem(k,a){
-  const flag=a.draft?'<span class="badge accent" style="margin-left:auto">草稿</span>':(a.albums?'':'<span class="badge warn" style="margin-left:auto">缺专辑</span>');
+  const flag=a.draft?'<span class="badge accent" style="margin-left:auto">草稿</span>':'';
   return '<div class="wit '+(k===curArt?'active':'')+'" data-art="'+k+'"><b>'+a.title+'</b><div class="m">'+a.path+' · '+a.cats[0]+flag+'</div></div>';
 }
 function renderList(){
@@ -554,15 +527,17 @@ const icoFold='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const icoUnfold='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9-3 3 3 3"/></svg>';
 btnNav.onclick=()=>{navEl.classList.toggle('collapsed');btnNav.innerHTML=navEl.classList.contains('collapsed')?icoUnfold:icoFold;};
 /* ---------- 大纲按钮 / 边缘折叠钮 / 文件菜单 ---------- */
-const bp=document.getElementById('btnPanel');bp.addEventListener('click',()=>{const off=document.getElementById('wpanel').classList.toggle('off');bp.classList.toggle('inside',off);bp.innerHTML=off?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';bp.title=off?'展开文章面板':'收起文章面板';});
+const bp=document.getElementById('btnPanel');
+function setPanel(open){document.getElementById('wpanel').classList.toggle('off',!open);bp.classList.toggle('inside',!open);bp.innerHTML=open?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';bp.title=open?'收起文章面板':'展开文章面板';}
+bp.addEventListener('click',()=>setPanel(document.getElementById('wpanel').classList.contains('off')));
+function panelTo(tab){setPanel(true);const btn=document.querySelector('.wtabs button[data-tab="'+tab+'"]');if(btn)btn.click();}
 $('btnNav').onclick=()=>{navEl.classList.toggle('collapsed');$('btnNav').innerHTML=navEl.classList.contains('collapsed')?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';};
 $('mFileBtn').onclick=e=>{e.stopPropagation();$('mFile').classList.toggle('open');};
 document.addEventListener('click',()=>closeModal2());
 function closeModal2(){$('mFile').classList.remove('open');}
 $('miNew').onclick=()=>{closeModal2();openModal('mNew');};
-$('miMeta').onclick=()=>{closeModal2();openMeta();};
+$('miMeta').onclick=()=>{closeModal2();panelTo('meta');};
 $('miImg').onclick=()=>{closeModal2();openModal('mImg');};
-function openMeta(){$('metaDlgBody').innerHTML=metaForm(ARTS[curArt]);bindSwitches();openModal('mMeta');}
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
 document.querySelectorAll('.acard').forEach(w=>w.onclick=()=>{document.querySelectorAll('.acard').forEach(x=>x.classList.toggle('sel',x===w))});
@@ -637,12 +612,11 @@ const SYNC_INIT=[
    diff:{kind:'imgadd',cls:'g5',newCap:'新增 · 512 KB · 1920×1080 · 已设为文章封面'}},
  ]},
  {label:'站点数据',ph:'更新站点数据',items:[
-  {id:'s1',s:'M',name:'site/albums.json（专辑补全 ×2）',path:'site/albums.json',add:2,del:0,chk:true,
-   diff:{kind:'text',head:'site/albums.json',hunks:[
-     ['@@ -12,4 +12,6 @@'],
-     ['ctx','  { "slug": "native-aot-series", "name": "Native AOT 系列" },'],
-     ['add','  { "slug": "efficiency-tools", "name": "效率工具箱" },'],
-     ['add','  { "slug": "ai-practice", "name": "AI 实践" }'],
+  {id:'s1',s:'M',name:'site/friend-links.json（新增友链 ×1）',path:'site/friend-links.json',add:1,del:0,chk:true,
+   diff:{kind:'text',head:'site/friend-links.json',hunks:[
+     ['@@ -12,3 +12,4 @@'],
+     ['ctx','  { "name": "沙漠尽头的狼", "url": "https://dotnet9.com" },'],
+     ['add','  { "name": "CodeWF 工具站", "url": "https://tools.dotnet9.com" }'],
    ]}},
  ]},
  {label:'删除（可回滚）',ph:'清理孤儿图 {n} 张',items:[
@@ -806,6 +780,7 @@ function doCommit(push){
   CHANGES=CHANGES.filter(g=>g.items.length>0);
   selId=null;$('cDesc').value='';sumDirty=false;
   renderSync();
+
   toast(push?('已提交并推送：'+sel.length+' 个文件 · 网站稍后自动更新'):('已提交（未推送）· 稍后可点「推送 '+syncAhead+' 个提交」'));
 }
 $('btnCommit').onclick=()=>doCommit(false);
@@ -838,6 +813,105 @@ $('btnReviewReset').onclick=()=>{
   renderSync();toast('Changes 与提交历史已重置');
 };
 renderSync();
+/* ---------- 发布中心 v2：平台状态与文章数据 ---------- */
+const PLATFORMS=[
+ {id:'site', name:'网站',   mode:'git',  note:'git push 即发布，站内相对路径自动拼 CDN 域名'},
+ {id:'wx',   name:'公众号', mode:'api',  note:'官方草稿箱 API · HTML+内联样式 · 图片转素材库域名'},
+ {id:'cnb',  name:'博客园', mode:'api',  note:'MetaWeblog API · Markdown 直发'},
+ {id:'csdn', name:'CSDN',  mode:'api',  note:'OpenAPI · 平台自动转存外链图'},
+ {id:'zh',   name:'知乎',   mode:'copy', note:'无公开 API · 复制助手（富文本粘贴）'},
+];
+const PUB_ARTICLES=[
+ {t:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记', p:'2026/09/dotnet-native-aot-…-dependency.md', st:{site:'ok', wx:'stale', cnb:'off', csdn:'off', zh:'off'},
+  wxNote:'2026-09-30 发布 · 原文 10-02 修改（+38 行）', check:[['ok','封面'],['ok','description'],['ok','图片引用 6/6 有效'],['warn','任务清单 1 项未完成，发布前确认']]},
+ {t:'qtzu：一个 3D 英语学习游戏的开源实现', p:'2026/09/qtzu-3d-english-learning-game.md', st:{site:'ok', wx:'ok', cnb:'ok', csdn:'err', zh:'off'},
+  wxNote:'2026-09-21 发布 · 已同步', csdnNote:'token 已过期（401）· 更新凭据后重试', check:[['ok','封面'],['ok','description'],['ok','图片引用 4/4 有效']]},
+ {t:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录', p:'2026/10/vex-mcp-ai-upgrade.md', st:{site:'ok', wx:'off', cnb:'off', csdn:'off', zh:'off'},
+  wxNote:'未发布', check:[['ok','封面'],['ok','description'],['ok','图片引用 8/8 有效']]},
+ {t:'Avalonia 自绘控件的渲染管线剖析', p:'2024/06/avalonia-render-pipeline.md', st:{site:'ok', wx:'ok', cnb:'off', csdn:'off', zh:'ok'},
+  wxNote:'2024-06-12 发布 · 已同步', check:[['ok','封面'],['ok','description'],['ok','图片引用 5/5 有效']]},
+ {t:'C#百万对象序列化深度剖析', p:'2023/12/deep-analysis-…-serialization.md', st:{site:'stale', wx:'ok', cnb:'ok', csdn:'ok', zh:'ok'},
+  siteNote:'本地修改未提交（2 处图片引用修正）', wxNote:'2023-12-09 发布 · 已同步', check:[['ok','封面'],['ok','description'],['warn','site 未推送——先完成 git 提交']]},
+];
+const ST_GLYPH={ok:'●',stale:'◐',off:'○',err:'✕',na:'—'};
+const ST_CLS={ok:'ok',stale:'stale',off:'off',err:'err',na:'na'};
+const ST_TXT={ok:'已同步',stale:'需更新',off:'未发布',err:'失败',na:'不适用'};
+function stTip(a,pl){const n=a.st[pl.id];const note=a[pl.id+'Note']||ST_TXT[n];return `${pl.name}：${ST_TXT[n]} · ${note}`;}
+function renderMatrix(){
+  const tb=$('pmTable');
+  tb.querySelectorAll('tr').forEach((r,i)=>{if(i>0)r.remove();});
+  PUB_ARTICLES.forEach(a=>{
+    const tr=document.createElement('tr');
+    let cells=`<td class="title">${esc(a.t)}<br><span class="mono" style="font-size:10px;color:var(--faint)">${esc(a.p)}</span></td>`;
+    PLATFORMS.forEach(pl=>{
+      const n=a.st[pl.id];
+      cells+=`<td style="text-align:center"><span class="pm-st ${ST_CLS[n]}" title="${esc(stTip(a,pl))}" onclick="openPublishDlg('${esc(a.p)}')">${ST_GLYPH[n]}</span></td>`;
+    });
+    cells+=`<td><button class="btn sm primary" onclick="openPublishDlg('${esc(a.p)}')">发布…</button></td>`;
+    tr.innerHTML=cells;
+    tb.appendChild(tr);
+  });
+  // 汇总条
+  const sum=$('pubSummary');
+  const counts={ok:0,stale:0,off:0,err:0};
+  PUB_ARTICLES.forEach(a=>PLATFORMS.forEach(pl=>{const n=a.st[pl.id];if(counts[n]!==undefined)counts[n]++;}));
+  sum.innerHTML=`<b style="color:var(--ok)">● ${counts.ok}</b> 已同步 · <b style="color:var(--warn)">◐ ${counts.stale}</b> 需更新 · ○ ${counts.off} 未发布 · <b style="color:var(--danger)">✕ ${counts.err}</b> 失败`;
+}
+function openPublishDlg(path){
+  const a=PUB_ARTICLES.find(x=>x.p===path)||PUB_ARTICLES[0];
+  $('pubDlgTitle').textContent='发布：'+a.t;
+  const okN=a.check.filter(c=>c[0]==='ok').length,wn=a.check.length-okN;
+  $('pubDlgChkOk').textContent=okN+' 项通过';
+  $('pubDlgChkWarn').textContent=wn>0?wn+' 项提醒':'';
+  $('pubDlgChkWarn').style.display=wn>0?'':'none';
+  $('pubDlgCheckItems').innerHTML=a.check.map(c=>`<div class="it"><span style="color:${c[0]==='ok'?'var(--ok)':'var(--warn)'}">${c[0]==='ok'?'✓':'⚠'}</span><b>${esc(c[1])}</b></div>`).join('');
+  const opsByMode={
+    api:(st)=> st==='off'?'<button class="btn sm primary">API 发布</button><button class="btn sm">复制</button>'
+      : st==='stale'?'<button class="btn sm primary">重新发布</button><button class="btn sm">复制新版</button><button class="btn sm ghost">查看线上 ↗</button>'
+      : st==='err'?'<button class="btn sm primary">重试</button><button class="btn sm ghost">更新凭据…</button>'
+      : '<button class="btn sm ghost">查看线上 ↗</button><button class="btn sm">复制</button>',
+    copy:()=> '<button class="btn sm primary">复制助手…</button>',
+    git:(st)=> st==='ok'?'<button class="btn sm ghost">查看站点 ↗</button>'
+      : '<button class="btn sm primary">去提交推送 →</button>',
+  };
+  $('pubDlgRows').innerHTML=PLATFORMS.map(pl=>{
+    const n=a.st[pl.id];
+    const note=a[pl.id+'Note']||ST_TXT[n];
+    return `<div class="pub-row"><span class="nm">${pl.name}</span>
+      <span class="st"><span class="pm-st ${ST_CLS[n]}" style="width:auto">${ST_GLYPH[n]}</span> ${esc(note)}</span>
+      <span class="ops">${opsByMode[pl.mode](n)}</span></div>`;
+  }).join('');
+  openModal('mPublish');
+}
+/* 检查标签 */
+const CHECK_RULES=[
+ {n:'待推送提交', c:2, desc:'git 提交未推送（推完网站即更新）', act:'去推送'},
+ {n:'失效图片引用', c:3, desc:'3 处引用的图片不存在（含 site/ 前缀的 CDN 资产 2 处）', act:'逐条处理'},
+ {n:'缺 author', c:18, desc:'站点渲染默认站长（信息项，可批量补 Dotnet9）', act:'批量补全'},
+ {n:'草稿未完成', c:1, desc:'draft: true 的文章（写作页可切换）', act:'查看'},
+ {n:'无封面 / 无简述', c:0, desc:'发布到公众号/头条的必备字段', act:''},
+];
+function renderChecks(){
+  $('chkGroups').innerHTML=CHECK_RULES.map(r=>`
+    <div class="chgroup" style="margin-bottom:0">
+      <div class="gh"><b class="num">${r.c}</b><span>${r.n}</span>
+        <span style="flex:1"></span><span style="color:var(--faint);font-size:11px">${r.desc}</span>
+        ${r.c>0&&r.act?`<button class="btn sm primary" onclick="toast('${r.act}：${r.n}')">${r.act}</button>`:''}
+      </div>
+    </div>`).join('');
+}
+/* 标签切换 */
+document.querySelectorAll('#pubSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#pubSeg button').forEach(x=>x.classList.toggle('active',x===b));
+  const site=b.dataset.p==='site';
+  const matrix=b.dataset.p==='matrix';
+  document.querySelector('.sync-top').style.display=site?'':'none';
+  document.querySelector('.sync-body').style.display=site?'':'none';
+  $('pubMatrix').style.display=matrix?'':'none';
+  $('pubCheck').style.display=(site||matrix)?'none':'';
+});
+renderMatrix();renderChecks();
+
 
 </script>
 </body>

@@ -471,3 +471,35 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .ctxmenu .it.danger { color: var(--danger); }
 .ctxmenu .it.disabled { color: var(--faint); cursor: default; background: none; }
 .ctxmenu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
+/* ---------- 发布中心 ---------- */
+#view-publish.active { display: flex; flex-direction: column; }
+.pub-tabs { display: flex; align-items: center; gap: 12px; padding: 0 0 10px; }
+.pub-sum { font-size: 11.5px; color: var(--muted); }
+.pub-page { flex: 1; min-height: 0; overflow-y: auto; }
+.pm-filters { display: flex; gap: 8px; margin: 12px 0 10px; }
+.pm-hint { color: var(--faint); font-size: 10.5px; line-height: 1.9; margin-top: 10px; }
+.pm-st { display: inline-flex; align-items: center; justify-content: center; width: 22px; font-size: 13px; cursor: pointer; }
+.pm-st.ok { color: var(--ok); }
+.pm-st.stale { color: var(--warn); }
+.pm-st.off { color: var(--faint); }
+.pm-st.err { color: var(--danger); }
+.chk-groups { display: flex; flex-direction: column; gap: 10px; }
+.pub-check { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.pub-check__head { display: flex; align-items: center; font-size: 12.5px; font-weight: 600; }
+.pub-check__items { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.pub-check__items .it { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: baseline; }
+.pub-check__items .it b { color: var(--fg); font-weight: 500; }
+.pub-rows { display: flex; flex-direction: column; }
+.pub-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.pub-row:last-child { border-bottom: 0; }
+.pub-row .nm { width: 84px; font-weight: 600; font-size: 12.5px; flex: none; }
+.pub-row .st { flex: 1; font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.pub-row .ops { display: flex; gap: 6px; }
+.pub-row .ops .btn { padding: 3px 10px; font-size: 11px; }
+/* 写作页状态徽标 */
+.pub-badges { display: inline-flex; gap: 4px; align-items: center; margin-left: 10px; cursor: pointer; }
+.pub-badges i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.pub-badges i.ok { background: var(--ok); }
+.pub-badges i.stale { background: var(--warn); }
+.pub-badges i.off { background: var(--faint); opacity: .5; }
+.pub-badges i.err { background: var(--danger); }
