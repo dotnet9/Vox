@@ -13,6 +13,7 @@ using Vox.App.Services;
 using Vox.App.Views;
 using Vox.Core;
 using Vox.Git;
+using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
@@ -33,13 +34,13 @@ public sealed class PublishPage : UserControl
     private readonly Border _aheadBadge = new() { Classes = { "badge", "ok" }, IsVisible = false, Child = new TextBlock() };
     private readonly Border _behindBadge = new() { Classes = { "badge", "warn" }, IsVisible = false, Child = new TextBlock() };
     private readonly TextBlock _syncState = new();
-    private readonly Button _pullButton = new() { Classes = { "btn" }, Content = "⟳ 拉取", IsVisible = false };
-    private readonly Button _pushButton = new() { Classes = { "btn" }, Content = "推送", IsVisible = false };
+    private readonly Button _pullButton = new() { Classes = { "btn" }, IsVisible = false };
+    private readonly Button _pushButton = new() { Classes = { "btn" }, IsVisible = false };
     private readonly Border _changeCount = new() { Classes = { "badge" }, Child = new TextBlock { Text = "0" } };
-    private readonly CheckBox _checkAll = new() { Classes = { "vcheck" }, Content = "全选", IsChecked = true };
+    private readonly CheckBox _checkAll = new() { Classes = { "vcheck" }, IsChecked = true };
     private StackPanel _changeList = new();
     private StackPanel _diffHost = new();
-    private readonly TextBox _summaryInput = new() { Classes = { "vinput" }, MaxLength = 72, Watermark = "docs: 一句话说明这次提交" };
+    private readonly TextBox _summaryInput = new() { Classes = { "vinput" }, MaxLength = 72 };
     private readonly TextBlock _summaryCount = new();
     private readonly TextBox _descInput = new();
     private StackPanel _historyHost = new();
@@ -47,7 +48,7 @@ public sealed class PublishPage : UserControl
     // 矩阵标签
     private readonly Controls.MiniSelect _matrixFilter = new();
     private readonly Controls.MiniSelect _platformFilter = new();
-    private readonly TextBox _matrixSearch = new() { Classes = { "vinput" }, Width = 200, Watermark = "标题搜索…" };
+    private readonly TextBox _matrixSearch = new() { Classes = { "vinput" }, Width = 200 };
     private StackPanel _matrixHost = new();
 
     // 检查标签
@@ -70,19 +71,28 @@ public sealed class PublishPage : UserControl
 
     private void BuildLayout()
     {
+        // 一次性构建的控件文案：动态绑定，语言切换实时刷新
+        _pullButton[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
+        _pushButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Push");
+        _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
+        _summaryInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
+        _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Description");
+        _matrixSearch[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Publish.Hint.SearchTitle");
+
         var root = new DockPanel { Margin = new Thickness(18, 14, 18, 14) };
 
         // 标签条
         var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var seg = new Border { Classes = { "seg" }, Child = segButtons };
-        var tabs = new (string Label, StackPanel Host)[]
+        var tabs = new (string Key, StackPanel Host)[]
         {
-            ("网站（git）", _siteTab), ("多平台", _matrixTab), ("发布前检查", _checkTab),
+            ("Vox.Publish.Tab.Site", _siteTab), ("Vox.Publish.Tab.Matrix", _matrixTab), ("Vox.Publish.Tab.Check", _checkTab),
         };
         for (var i = 0; i < tabs.Length; i++)
         {
             var index = i;
-            var button = new Button { Classes = { "segbtn", i == 0 ? "active" : string.Empty }, Content = tabs[i].Label };
+            var button = new Button { Classes = { "segbtn", i == 0 ? "active" : string.Empty } };
+            button[!Button.ContentProperty] = I18n.Bind(tabs[i].Key);
             button.Click += (_, _) =>
             {
                 foreach (var child in segButtons.Children.OfType<Button>())
@@ -157,7 +167,8 @@ public sealed class PublishPage : UserControl
 
         var left = new DockPanel();
         var changeHead = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-        var title = new TextBlock { Text = "Changes", FontSize = 13, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        var title = new TextBlock { FontSize = 13, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        title[!TextBlock.TextProperty] = I18n.Bind("Vox.Sync.Label.Changes");
         _changeCount.Margin = new Thickness(8, 0, 0, 0);
         _changeCount.VerticalAlignment = VerticalAlignment.Center;
         _checkAll.VerticalAlignment = VerticalAlignment.Center;
@@ -198,14 +209,17 @@ public sealed class PublishPage : UserControl
 
         // 右列：提交面板
         var commit = new StackPanel { Spacing = 5 };
-        commit.Children.Add(new TextBlock { Text = "作者", Classes = { "flabel" }, Margin = new Thickness(0, 0, 0, 2) });
+        var authorLabel = new TextBlock { Classes = { "flabel" }, Margin = new Thickness(0, 0, 0, 2) };
+        authorLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Sync.Label.Author");
+        commit.Children.Add(authorLabel);
         var author = new TextBlock { FontSize = 12.5 };
         author.Text = "Dotnet9 · dotnet9@codewf.com";
         Res(author, TextBlock.ForegroundProperty, "VoxFg");
         commit.Children.Add(author);
 
         var sumLabel = new StackPanel { Orientation = Orientation.Horizontal };
-        var sumText = new TextBlock { Text = "Summary ", Classes = { "flabel" } };
+        var sumText = new TextBlock { Classes = { "flabel" } };
+        sumText[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Label.Summary");
         var required = new TextBlock { Text = "*", Classes = { "flabel" } };
         Res(required, TextBlock.ForegroundProperty, "VoxDanger");
         _summaryCount.FontSize = 10;
@@ -224,43 +238,43 @@ public sealed class PublishPage : UserControl
         };
         commit.Children.Add(_summaryInput);
 
-        commit.Children.Add(new TextBlock
-        {
-            Text = "Description（可选 · 支持 Markdown）",
-            Classes = { "flabel" },
-        });
+        var descLabel = new TextBlock { Classes = { "flabel" } };
+        descLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Label.Description");
+        commit.Children.Add(descLabel);
         _descInput.Classes.Add("vinput");
         _descInput.AcceptsReturn = true;
         _descInput.TextWrapping = TextWrapping.Wrap;
         _descInput.MinHeight = 96;
-        _descInput.Watermark = "补充说明，可留空";
         commit.Children.Add(_descInput);
 
         var detailButton = new Button
         {
             Classes = { "btn", "sm", "ghost" },
-            Content = "✨ 自动插入变更明细",
             Margin = new Thickness(0, 6, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Left,
         };
+        detailButton[!Button.ContentProperty] = I18n.Bind("Vox.Sync.Label.AutoDetail");
         detailButton.Click += (_, _) => InsertDetail();
         commit.Children.Add(detailButton);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
-        var commitOnly = new Button { Classes = { "btn" }, Content = "仅提交" };
+        var commitOnly = new Button { Classes = { "btn" } };
+        commitOnly[!Button.ContentProperty] = I18n.Bind("Vox.Sync.Label.CommitOnly");
         commitOnly.Click += async (_, _) => await CommitAsync(push: false);
-        var commitPush = new Button { Classes = { "btn", "primary" }, Content = "提交并推送 ▸" };
+        var commitPush = new Button { Classes = { "btn", "primary" } };
+        commitPush[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.CommitPush");
         commitPush.Click += async (_, _) => await CommitAsync(push: true);
         actions.Children.Add(commitOnly);
         actions.Children.Add(commitPush);
         commit.Children.Add(actions);
 
-        commit.Children.Add(new TextBlock
+        var historyLabel = new TextBlock
         {
-            Text = "最近提交（点击展开改动文件）",
             Classes = { "flabel" },
             Margin = new Thickness(0, 16, 0, 2),
-        });
+        };
+        historyLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Label.History");
+        commit.Children.Add(historyLabel);
         var historyScroll = new ScrollViewer { MinHeight = 70, MaxHeight = 200, Content = _historyHost };
         commit.Children.Add(historyScroll);
 
@@ -310,9 +324,9 @@ public sealed class PublishPage : UserControl
             _pullButton.IsVisible = behind is > 0;
             _pushButton.IsVisible = ahead is > 0;
             _syncState.Text = ahead is > 0 || behind is > 0
-                ? $"领先 {ahead ?? 0} · 落后 {behind ?? 0}"
-                : "与远端一致";
-        }, () => _syncState.Text = "非 git 仓库或远端不可达");
+                ? TF("Vox.Publish.Status.AheadBehind", ahead ?? 0, behind ?? 0)
+                : T("Vox.Publish.Status.Synced");
+        }, () => _syncState.Text = T("Vox.Publish.Status.NoGit"));
     }
 
     private void RefreshChanges()
@@ -333,18 +347,19 @@ public sealed class PublishPage : UserControl
     {
         _changeList.Children.Clear();
         _rowBorders.Clear();
-        var groups = new (string Key, string Label)[]
+        var groups = new (string Key, string LabelKey)[]
         {
-            ("article", "文章"), ("image", "图片"), ("site", "站点数据"), ("other", "其他"),
+            ("article", "Vox.Sync.Group.article"), ("image", "Vox.Sync.Group.image"),
+            ("site", "Vox.Sync.Group.site"), ("other", "Vox.Sync.Group.other"),
         };
-        foreach (var (key, label) in groups)
+        foreach (var (key, labelKey) in groups)
         {
             var items = _changes.Where(c => c.Category == key).ToList();
             if (items.Count == 0) continue;
 
             var kids = new StackPanel();
             var expanded = _expandedGroups.GetValueOrDefault(key, true);
-            var groupHead = GroupHeader(label, key, items.Count, kids);
+            var groupHead = GroupHeader(labelKey, key, items.Count, kids);
             kids.IsVisible = expanded;
             _changeList.Children.Add(groupHead);
             _changeList.Children.Add(kids);
@@ -363,12 +378,12 @@ public sealed class PublishPage : UserControl
                 {
                     new TextBlock
                     {
-                        Text = "一切已同步", FontSize = 14, FontWeight = FontWeight.SemiBold,
+                        Text = T("Vox.Sync.State.AllSynced"), FontSize = 14, FontWeight = FontWeight.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Center,
                     },
                     new TextBlock
                     {
-                        Text = "工作区干净 · 无待提交变更", FontSize = 11.5,
+                        Text = T("Vox.Publish.Empty.SyncedDesc"), FontSize = 11.5,
                         HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0),
                     },
                 },
@@ -378,7 +393,7 @@ public sealed class PublishPage : UserControl
         }
     }
 
-    private Border GroupHeader(string label, string key, int count, StackPanel kids)
+    private Border GroupHeader(string labelKey, string key, int count, StackPanel kids)
     {
         var check = new CheckBox { Classes = { "vcheck" } };
         var groupPaths = _changes.Where(c => c.Category == key).Select(c => c.Path).ToList();
@@ -392,7 +407,8 @@ public sealed class PublishPage : UserControl
         };
 
         var tri = new TextBlock { Text = kids.IsVisible ? "▾" : "▸", FontSize = 9, Width = 12 };
-        var name = new TextBlock { Text = label, FontSize = 12, FontWeight = FontWeight.SemiBold };
+        var name = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold };
+        name[!TextBlock.TextProperty] = I18n.Bind(labelKey);
         var countBadge = new TextBlock { Text = count.ToString(), FontSize = 10.5, Opacity = 0.7 };
         Res(countBadge, TextBlock.ForegroundProperty, "VoxFaint");
         var head = new Border
@@ -497,49 +513,49 @@ public sealed class PublishPage : UserControl
             return item;
         }
 
-        menu.Items.Add(Item("放弃更改…（Discard）", () => ConfirmDiscard(change), danger: true));
-        menu.Items.Add(Item("忽略此文件（.gitignore）", () => SafeGit(git =>
+        menu.Items.Add(Item(T("Vox.Publish.Menu.Discard"), () => ConfirmDiscard(change), danger: true));
+        menu.Items.Add(Item(T("Vox.Publish.Menu.Ignore"), () => SafeGit(git =>
         {
             git.AddToGitignore(change.Path);
-            _shell.ShowToast($"已忽略：{change.Path}");
+            _shell.ShowToast(TF("Vox.Publish.Msg.Ignored", change.Path));
         })));
-        menu.Items.Add(Item($"忽略所有 {IoPath.GetExtension(change.Path)} 文件", () => SafeGit(git =>
+        menu.Items.Add(Item(TF("Vox.Publish.Menu.IgnoreAll", IoPath.GetExtension(change.Path)), () => SafeGit(git =>
         {
             git.AddToGitignore($"*{IoPath.GetExtension(change.Path)}");
-            _shell.ShowToast($"已忽略 *{IoPath.GetExtension(change.Path)}");
+            _shell.ShowToast(TF("Vox.Publish.Msg.IgnoredAll", $"*{IoPath.GetExtension(change.Path)}"));
         })));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item("复制文件路径", () => CopyToClipboard(localPath)));
-        menu.Items.Add(Item("复制相对路径", () => CopyToClipboard(change.Path)));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.CopyFullPath"), () => CopyToClipboard(localPath)));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.CopyRelative"), () => CopyToClipboard(change.Path)));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item("在资源管理器中显示", () => ShellOpen("explorer.exe", $"/select,\"{localPath}\""), enabled: !isDeleted));
-        menu.Items.Add(Item("在 VS Code 中打开", () => ShellOpen("code", $"\"{localPath}\""), enabled: !isDeleted));
-        menu.Items.Add(Item("用默认程序打开", () => ShellOpen("cmd.exe", $"/c start \"\" \"{localPath}\""), enabled: !isDeleted));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.ShowInExplorer"), () => ShellOpen("explorer.exe", $"/select,\"{localPath}\""), enabled: !isDeleted));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.OpenInVsCode"), () => ShellOpen("code", $"\"{localPath}\""), enabled: !isDeleted));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.OpenDefault"), () => ShellOpen("cmd.exe", $"/c start \"\" \"{localPath}\""), enabled: !isDeleted));
         row.ContextMenu = menu;
     }
 
     private void ConfirmDiscard(ChangeEntry change)
     {
-        var (modal, body, footer, close) = Modal.Create("放弃更改", 440, 260);
+        var (modal, body, footer, close) = Modal.Create(T("Vox.Sync.Msg.DiscardTitle"), 440, 260);
         close.Click += (_, _) => _shell.CloseModal();
         body.Children.Add(new TextBlock
         {
-            Text = $"确定放弃对 {change.Path} 的更改吗？\n\n已提交的内容不受影响；新增文件将被删除。此操作不可撤销。",
+            Text = TF("Vox.Publish.Msg.DiscardDesc", change.Path),
             TextWrapping = TextWrapping.Wrap, FontSize = 12.5,
         });
-        var cancel = new Button { Classes = { "btn" }, Content = "取消" };
+        var cancel = new Button { Classes = { "btn" }, Content = T("Vox.Common.Action.Cancel") };
         cancel.Click += (_, _) => _shell.CloseModal();
-        var discard = new Button { Classes = { "btn", "danger" }, Content = "放弃更改" };
+        var discard = new Button { Classes = { "btn", "danger" }, Content = T("Vox.Sync.Label.Discard") };
         discard.Click += (_, _) =>
         {
             _shell.CloseModal();
             SafeGit(git =>
             {
                 git.Discard(change.Path);
-                _shell.ShowToast($"已还原：{change.Path}");
+                _shell.ShowToast(TF("Vox.Publish.Msg.Discarded", change.Path));
                 RefreshAll();
                 PublishHub.Invalidate();
-            }, () => _shell.ShowToast("放弃失败"));
+            }, () => _shell.ShowToast(T("Vox.Publish.Msg.DiscardFail")));
         };
         footer.Children.Add(cancel);
         footer.Children.Add(discard);
@@ -562,7 +578,7 @@ public sealed class PublishPage : UserControl
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard != null) await clipboard.SetTextAsync(text);
-        _shell.ShowToast("已复制");
+        _shell.ShowToast(T("Vox.Publish.Msg.Copied"));
     }
 
     private readonly List<Border> _rowBorders = new();
@@ -606,7 +622,7 @@ public sealed class PublishPage : UserControl
         {
             var empty = new TextBlock
             {
-                Text = "无文本差异（二进制或内容未变）", FontSize = 11.5,
+                Text = T("Vox.Publish.Diff.NoTextDiff"), FontSize = 11.5,
                 Margin = new Thickness(12, 10), HorizontalAlignment = HorizontalAlignment.Center,
             };
             Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
@@ -746,11 +762,11 @@ public sealed class PublishPage : UserControl
                 using var stream = git.OpenHeadStream(path);
                 if (stream != null) oldBitmap = Bitmap.DecodeToWidth(stream, 200, BitmapInterpolationMode.HighQuality);
             });
-            oldSide = ImageThumb(oldBitmap, $"修改前 · {(oldSize.Value / 1024.0):F0} KB");
+            oldSide = ImageThumb(oldBitmap, TF("Vox.Publish.Diff.Before", (oldSize.Value / 1024.0).ToString("F0")));
         }
         else
         {
-            oldSide = ImageThumb(null, "无旧版（新增）");
+            oldSide = ImageThumb(null, T("Vox.Publish.Diff.NoOld"));
         }
 
         // 新图（工作区）
@@ -768,7 +784,8 @@ public sealed class PublishPage : UserControl
                 // 解码失败走占位。
             }
         }
-        var newSide = ImageThumb(newBitmap, newSize > 0 ? $"修改后 · {(newSize / 1024.0):F0} KB" : "已删除");
+        var newSide = ImageThumb(newBitmap,
+            newSize > 0 ? TF("Vox.Publish.Diff.After", (newSize / 1024.0).ToString("F0")) : T("Vox.Publish.Diff.Deleted"));
 
         var arrow = new TextBlock { Text = "→", FontSize = 20, VerticalAlignment = VerticalAlignment.Center };
         Res(arrow, TextBlock.ForegroundProperty, "VoxFaint");
@@ -799,7 +816,7 @@ public sealed class PublishPage : UserControl
                 BorderThickness = new Thickness(1.5),
                 Child = new TextBlock
                 {
-                    Text = "（无图像）", FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center,
+                    Text = T("Vox.Publish.Diff.NoImage"), FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                 },
             };
@@ -823,20 +840,25 @@ public sealed class PublishPage : UserControl
         var selected = _changes.Where(c => _selectedPaths.Contains(c.Path)).ToList();
         if (selected.Count == 0)
         {
-            _shell.ShowToast("先勾选变更，再插入明细");
+            _shell.ShowToast(T("Vox.Publish.Msg.SelectFirstDetail"));
             return;
         }
         var lines = new List<string> { "## Changes", "" };
-        foreach (var (key, label) in new[] { ("article", "文章"), ("image", "图片"), ("site", "站点数据"), ("other", "其他") })
+        foreach (var (key, labelKey) in new[]
+                 {
+                     ("article", "Vox.Sync.Group.article"), ("image", "Vox.Sync.Group.image"),
+                     ("site", "Vox.Sync.Group.site"), ("other", "Vox.Sync.Group.other"),
+                 })
         {
             var items = selected.Where(c => c.Category == key).ToList();
             if (items.Count == 0) continue;
-            lines.Add($"- {label} ×{items.Count}：" + string.Join("、", items.Take(3).Select(i => IoPath.GetFileName(i.Path)))
-                      + (items.Count > 3 ? " 等" : string.Empty));
+            lines.Add(TF("Vox.Publish.Detail.Line", T(labelKey), items.Count,
+                        string.Join("、", items.Take(3).Select(i => IoPath.GetFileName(i.Path)))
+                        + (items.Count > 3 ? T("Vox.Publish.Detail.More") : string.Empty)));
         }
         var current = _descInput.Text ?? string.Empty;
         _descInput.Text = string.IsNullOrWhiteSpace(current) ? string.Join("\n", lines) : current + "\n\n" + string.Join("\n", lines);
-        _shell.ShowToast("已按勾选项插入变更明细（可编辑）");
+        _shell.ShowToast(T("Vox.Sync.Msg.DetailInserted"));
     }
 
     private async Task CommitAsync(bool push)
@@ -844,12 +866,12 @@ public sealed class PublishPage : UserControl
         var selected = _changes.Where(c => _selectedPaths.Contains(c.Path)).ToList();
         if (selected.Count == 0)
         {
-            _shell.ShowToast("先勾选要提交的变更");
+            _shell.ShowToast(T("Vox.Publish.Msg.SelectFirst"));
             return;
         }
         if (string.IsNullOrWhiteSpace(_summaryInput.Text))
         {
-            _shell.ShowToast("Summary 必填（50 字符内一句话）");
+            _shell.ShowToast(T("Vox.Publish.Msg.SummaryRequired"));
             return;
         }
         var message = _summaryInput.Text.Trim()
@@ -878,13 +900,13 @@ public sealed class PublishPage : UserControl
                     PublishHub.Invalidate();
                     AppState.Instance.NotifyRepoChanged();
                     _shell.ShowToast(push
-                        ? $"已提交并推送 {paths.Count} 个文件 · 网站稍后自动更新"
-                        : "已提交（未推送）");
+                        ? TF("Vox.Publish.Msg.CommittedPushed", paths.Count)
+                        : T("Vox.Publish.Msg.Committed"));
                 });
             }
             catch (Exception ex)
             {
-                Dispatcher.UIThread.Post(() => _shell.ShowToast($"提交失败：{ex.Message}"));
+                Dispatcher.UIThread.Post(() => _shell.ShowToast(TF("Vox.Publish.Msg.CommitFail", ex.Message)));
             }
         });
     }
@@ -899,13 +921,13 @@ public sealed class PublishPage : UserControl
                 git?.PullFastForward("Dotnet9", "dotnet9@codewf.com");
                 Dispatcher.UIThread.Post(() =>
                 {
-                    _shell.ShowToast("已快进合并远端（pull --ff-only）");
+                    _shell.ShowToast(T("Vox.Publish.Msg.Pulled"));
                     RefreshAll();
                 });
             }
             catch (Exception ex)
             {
-                Dispatcher.UIThread.Post(() => _shell.ShowToast($"拉取失败：{ex.Message}"));
+                Dispatcher.UIThread.Post(() => _shell.ShowToast(TF("Vox.Publish.Msg.PullFail", ex.Message)));
             }
         });
     }
@@ -921,13 +943,13 @@ public sealed class PublishPage : UserControl
                 git?.Push(pat ?? string.Empty);
                 Dispatcher.UIThread.Post(() =>
                 {
-                    _shell.ShowToast("已推送 · 网站稍后自动更新");
+                    _shell.ShowToast(T("Vox.Publish.Msg.Pushed"));
                     RefreshAll();
                 });
             }
             catch (Exception ex)
             {
-                Dispatcher.UIThread.Post(() => _shell.ShowToast($"推送失败：{ex.Message}"));
+                Dispatcher.UIThread.Post(() => _shell.ShowToast(TF("Vox.Publish.Msg.PushFail", ex.Message)));
             }
         });
     }
@@ -1012,7 +1034,7 @@ public sealed class PublishPage : UserControl
         }
         if (commits.Count == 0)
         {
-            var empty = new TextBlock { Text = "暂无提交历史", FontSize = 11 };
+            var empty = new TextBlock { Text = T("Vox.Publish.History.Empty"), FontSize = 11 };
             Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
             _historyHost.Children.Add(empty);
         }
@@ -1023,35 +1045,45 @@ public sealed class PublishPage : UserControl
     private void BuildMatrixTab()
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
-        var refresh = new Button { Classes = { "btn" }, Content = "⟳ 刷新状态" };
+        var refresh = new Button { Classes = { "btn" } };
+        refresh[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.RefreshStatus");
         refresh.Click += (_, _) =>
         {
             PublishHub.Invalidate();
             RefreshAll();
-            _shell.ShowToast("已刷新各平台状态（内容快照对比）");
+            _shell.ShowToast(T("Vox.Publish.Msg.Refreshed"));
         };
-        var accounts = new Button { Classes = { "btn", "primary" }, Content = "平台账户…" };
+        var accounts = new Button { Classes = { "btn", "primary" } };
+        accounts[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Accounts");
         accounts.Click += (_, _) => _shell.ShowModal(new PlatformCfgModal(_shell, RefreshMatrix));
         pagehead.Children.Add(accounts.Dock(Dock.Right));
         pagehead.Children.Add(refresh.Dock(Dock.Right));
+        var matrixTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold };
+        matrixTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Matrix.Title");
+        var matrixSub = new TextBlock { FontSize = 11.5 };
+        matrixSub[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Matrix.Sub");
         var heading = new StackPanel
         {
-            Children =
-            {
-                new TextBlock { Text = "多平台发布", FontSize = 16, FontWeight = FontWeight.SemiBold },
-                new TextBlock { Text = "API 直发 · 复制助手兜底 · 状态库跟踪每篇文章 × 每个平台", FontSize = 11.5 },
-            },
+            Children = { matrixTitle, matrixSub },
         };
         Res(((StackPanel)heading).Children[1], TextBlock.ForegroundProperty, "VoxFaint");
         pagehead.Children.Add(heading);
         _matrixTab.Children.Add(pagehead);
 
         var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 10) };
-        _matrixFilter.Items = new[] { "全部文章", "仅待发布", "仅需更新", "仅失败" };
-        _matrixFilter.Selected = "全部文章";
+        _matrixFilter.Items = new[]
+        {
+            T("Vox.Publish.Filter.AllArticles"), T("Vox.Publish.Filter.OnlyPending"),
+            T("Vox.Publish.Filter.OnlyStale"), T("Vox.Publish.Filter.OnlyFailed"),
+        };
+        _matrixFilter.Selected = T("Vox.Publish.Filter.AllArticles");
         _matrixFilter.SelectionChanged += _ => RefreshMatrix();
-        _platformFilter.Items = new[] { "全部平台", "网站", "公众号", "博客园", "CSDN", "知乎" };
-        _platformFilter.Selected = "全部平台";
+        _platformFilter.Items = new[]
+        {
+            T("Vox.Publish.Filter.AllPlatforms"), T("Vox.Publish.Channel.Site"), T("Vox.Publish.Channel.WeChat"),
+            T("Vox.Publish.Channel.Cnblogs"), "CSDN", "知乎",
+        };
+        _platformFilter.Selected = T("Vox.Publish.Filter.AllPlatforms");
         _platformFilter.SelectionChanged += _ => RefreshMatrix();
         _matrixSearch.PropertyChanged += (_, e) =>
         {
@@ -1072,9 +1104,9 @@ public sealed class PublishPage : UserControl
 
         var hint = new TextBlock
         {
-            Text = "● 已同步 · ◐ 需更新（原文已改） · ○ 未发布 · ✕ 失败（凭据/网络，悬停看原因） · — 不适用\n状态依据：本地内容快照 hash 与各平台已发布快照对比；复制型平台以「上次复制时间」记录。",
             FontSize = 10.5, Margin = new Thickness(0, 10, 0, 0),
         };
+        hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Matrix.Hint");
         Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
         _matrixTab.Children.Add(hint);
     }
@@ -1088,7 +1120,11 @@ public sealed class PublishPage : UserControl
         // 表头
         var headerColumns = "*,46,46,46,46,46,80";
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions(headerColumns) };
-        foreach (var (text, index) in new[] { "文章", "网站", "公众号", "博客园", "CSDN", "知乎", "" }.Select((t, i) => (t, i)))
+        foreach (var (text, index) in new[]
+                 {
+                     T("Vox.Sync.Group.article"), T("Vox.Publish.Channel.Site"), T("Vox.Publish.Channel.WeChat"),
+                     T("Vox.Publish.Channel.Cnblogs"), "CSDN", "知乎", "",
+                 }.Select((t, i) => (t, i)))
         {
             var cell = new TextBlock { Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold };
             Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
@@ -1109,27 +1145,16 @@ public sealed class PublishPage : UserControl
             if (article == null) continue;
             if (!string.IsNullOrWhiteSpace(term) && !row.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) continue;
 
-            PublishStatus? filterStatus = _matrixFilter.Selected switch
-            {
-                "仅待发布" => PublishStatus.Off,
-                "仅需更新" => PublishStatus.Stale,
-                "仅失败" => PublishStatus.Error,
-                _ => null,
-            };
+            PublishStatus? filterStatus = MatchFilter(_matrixFilter.Selected);
             if (filterStatus.HasValue && row.Channels.All(c => c.Status != filterStatus.Value)) continue;
-            if (_platformFilter.Selected is { Length: > 0 } platform && platform != "全部平台")
+            if (_platformFilter.Selected is { Length: > 0 } platform && platform != T("Vox.Publish.Filter.AllPlatforms"))
             {
-                var index = platform switch
-                {
-                    "网站" => 0, "公众号" => 1, "博客园" => 2, "CSDN" => 3, _ => 4,
-                };
-                var wanted = _matrixFilter.Selected switch
-                {
-                    "仅待发布" => PublishStatus.Off,
-                    "仅需更新" => PublishStatus.Stale,
-                    "仅失败" => PublishStatus.Error,
-                    _ => (PublishStatus?)null,
-                };
+                var index = platform == T("Vox.Publish.Channel.Site") ? 0
+                    : platform == T("Vox.Publish.Channel.WeChat") ? 1
+                    : platform == T("Vox.Publish.Channel.Cnblogs") ? 2
+                    : platform == "CSDN" ? 3
+                    : 4;
+                var wanted = MatchFilter(_matrixFilter.Selected);
                 if (wanted.HasValue && row.Channels[index].Status != wanted.Value) continue;
             }
 
@@ -1155,13 +1180,13 @@ public sealed class PublishPage : UserControl
                     Classes = { "pm-st", status switch { PublishStatus.Ok => "ok", PublishStatus.Stale => "stale", PublishStatus.Error => "err", _ => "off" } },
                     HorizontalAlignment = HorizontalAlignment.Center,
                 };
-                ToolTip.SetTip(cell, $"{ChannelName((PublishChannel)channel)}：{StatusText(status)} · {note}");
+                ToolTip.SetTip(cell, TF("Vox.Publish.Matrix.CellTip", ChannelText((PublishChannel)channel), StatusText(status), note));
                 grid.Children.Add(cell);
                 Grid.SetColumn(cell, 1 + channel);
             }
 
             var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 14, 0) };
-            var publishButton = new Button { Classes = { "btn", "sm", "primary" }, Content = "发布…" };
+            var publishButton = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Publish.Action.Publish") };
             publishButton.Click += (_, _) => _shell.ShowModal(new PublishDialog(_shell, article));
             ops.Children.Add(publishButton);
             grid.Children.Add(ops);
@@ -1179,27 +1204,56 @@ public sealed class PublishPage : UserControl
         }
     }
 
+    /// <summary>平台显示文案（WritePage.ChannelName 的多语言版）。</summary>
+    private static string ChannelText(PublishChannel channel) => channel switch
+    {
+        PublishChannel.Site => T("Vox.Publish.Channel.Site"),
+        PublishChannel.WeChat => T("Vox.Publish.Channel.WeChat"),
+        PublishChannel.Cnblogs => T("Vox.Publish.Channel.Cnblogs"),
+        PublishChannel.Csdn => "CSDN",
+        PublishChannel.Zhihu => "知乎",
+        _ => channel.ToString(),
+    };
+
+    /// <summary>发布状态显示文案（WritePage.StatusText 的多语言版）。</summary>
+    private static string StatusText(PublishStatus status) => status switch
+    {
+        PublishStatus.Ok => T("Vox.Publish.Status.Ok"),
+        PublishStatus.Stale => T("Vox.Publish.Status.Stale"),
+        PublishStatus.Off => T("Vox.Publish.Status.Off"),
+        PublishStatus.Error => T("Vox.Publish.Status.Error"),
+        _ => status.ToString(),
+    };
+
+    /// <summary>把状态筛选下拉的当前选项映射为发布状态（选项文本随语言变化，按当前语言文本比对）。</summary>
+    private static PublishStatus? MatchFilter(string selected) =>
+        selected == T("Vox.Publish.Filter.OnlyPending") ? PublishStatus.Off
+        : selected == T("Vox.Publish.Filter.OnlyStale") ? PublishStatus.Stale
+        : selected == T("Vox.Publish.Filter.OnlyFailed") ? PublishStatus.Error
+        : null;
+
     // ================= 标签 3：发布前检查 =================
 
     private void BuildCheckTab()
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
-        var recheck = new Button { Classes = { "btn" }, Content = "重新检查" };
+        var recheck = new Button { Classes = { "btn" } };
+        recheck[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
         recheck.Click += (_, _) =>
         {
             AppState.Instance.Rescan();
             PublishHub.Invalidate();
             RefreshAll();
-            _shell.ShowToast("已重新巡检");
+            _shell.ShowToast(T("Vox.Publish.Msg.Rechecked"));
         };
         pagehead.Children.Add(recheck.Dock(Dock.Right));
+        var checkTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold };
+        checkTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Tab.Check");
+        var checkSub = new TextBlock { FontSize = 11.5 };
+        checkSub[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Check.Sub");
         var heading = new StackPanel
         {
-            Children =
-            {
-                new TextBlock { Text = "发布前检查", FontSize = 16, FontWeight = FontWeight.SemiBold },
-                new TextBlock { Text = "发布对话框同源规则 · 全库巡检", FontSize = 11.5 },
-            },
+            Children = { checkTitle, checkSub },
         };
         Res(((StackPanel)heading).Children[1], TextBlock.ForegroundProperty, "VoxFaint");
         pagehead.Children.Add(heading);
@@ -1232,11 +1286,11 @@ public sealed class PublishPage : UserControl
             {
                 var label = rule.Key switch
                 {
-                    "Ahead" => "去推送",
-                    "DeadLink" => "逐条处理",
-                    "Author" => "批量补全",
-                    "Draft" => "查看",
-                    _ => "查看",
+                    "Ahead" => T("Vox.Publish.Check.GoPush"),
+                    "DeadLink" => T("Vox.Publish.Check.ProcessEach"),
+                    "Author" => T("Vox.Publish.Check.BatchFill"),
+                    "Draft" => T("Vox.Publish.Check.View"),
+                    _ => T("Vox.Publish.Check.View"),
                 };
                 action = new Button { Classes = { "btn", "sm", "primary" }, Content = label };
                 var capturedKey = rule.Key;
@@ -1245,10 +1299,10 @@ public sealed class PublishPage : UserControl
                     switch (capturedKey)
                     {
                         case "Ahead":
-                            _shell.ShowToast("推送入口在「网站（git）」标签");
+                            _shell.ShowToast(T("Vox.Publish.Msg.PushTabHint"));
                             break;
                         case "DeadLink":
-                            _shell.ShowToast("死链在写作页图片页签查看（红色占位）");
+                            _shell.ShowToast(T("Vox.Publish.Msg.DeadLinkHint"));
                             break;
                         case "Author":
                             BatchFillAuthor();
@@ -1267,8 +1321,8 @@ public sealed class PublishPage : UserControl
             };
             var nameMap = new Dictionary<string, string>
             {
-                ["Ahead"] = "待推送提交", ["DeadLink"] = "失效图片引用", ["Author"] = "缺 author",
-                ["Draft"] = "草稿未完成", ["CoverDesc"] = "无封面 / 无简述",
+                ["Ahead"] = T("Vox.Publish.Check.Ahead"), ["DeadLink"] = T("Vox.Publish.Check.DeadLink"), ["Author"] = T("Vox.Publish.Check.MissingAuthor"),
+                ["Draft"] = T("Vox.Publish.Check.Draft"), ["CoverDesc"] = T("Vox.Publish.Check.CoverDesc"),
             };
             var name = new TextBlock
             {
@@ -1301,7 +1355,7 @@ public sealed class PublishPage : UserControl
         var missing = scan.Articles.Where(a => string.IsNullOrWhiteSpace(a.Meta.Author)).ToList();
         if (missing.Count == 0)
         {
-            _shell.ShowToast("没有缺 author 的文章");
+            _shell.ShowToast(T("Vox.Publish.Msg.NoMissingAuthor"));
             return;
         }
         foreach (var article in missing)
@@ -1311,7 +1365,7 @@ public sealed class PublishPage : UserControl
         AppState.Instance.NotifyRepoChanged();
         PublishHub.Invalidate();
         RefreshAll();
-        _shell.ShowToast($"已批量补全 author：{missing.Count} 篇（Dotnet9，git 待提交）");
+        _shell.ShowToast(TF("Vox.Publish.Msg.AuthorFilled", missing.Count));
     }
 
     private void RefreshPubSummary()
@@ -1321,6 +1375,6 @@ public sealed class PublishPage : UserControl
         var stale = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Stale));
         var off = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Off));
         var err = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Error));
-        _pubSummary.Text = $"● {ok} 已同步 · ◐ {stale} 需更新 · ○ {off} 未发布 · ✕ {err} 失败";
+        _pubSummary.Text = TF("Vox.Publish.Summary", ok, stale, off, err);
     }
 }

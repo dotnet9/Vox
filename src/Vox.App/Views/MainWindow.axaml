@@ -17,7 +17,7 @@
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
         <Image Grid.Column="0" Source="/Assets/app.ico" Width="18" Height="18"
                Margin="4,0,4,0" VerticalAlignment="Center"/>
-        <TextBlock Grid.Column="1" Text="Vox · 维声" FontWeight="SemiBold" FontSize="12.5"
+        <TextBlock Grid.Column="1" Text="Vox · 维声" FontWeight="SemiBold" FontSize="{DynamicResource VoxFontSizeMd}"
                    VerticalAlignment="Center" Margin="0,0,2,0"/>
         <Panel Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center">
           <Button x:Name="BtnFileMenu" Classes="tb-txt" Content="文件">
@@ -25,6 +25,10 @@
               <Flyout Placement="Bottom" ShowMode="Standard">
                 <Border Classes="mnu">
                   <StackPanel>
+                    <Button x:Name="MiNewWindow" Classes="mnuitem" Content="新建窗口"/>
+                    <Button x:Name="MiOpenDir" Classes="mnuitem" Content="打开目录…"/>
+                    <Button x:Name="MiOpenFile" Classes="mnuitem" Content="打开文件…"/>
+                    <Border Height="1" Background="{DynamicResource VoxLine}" Margin="6,4"/>
                     <Button x:Name="MiNew" Classes="mnuitem" Content="新建文章"/>
                     <Button x:Name="MiMeta" Classes="mnuitem" Content="文章元数据…"/>
                     <Button x:Name="MiImg" Classes="mnuitem" Content="图片入库…"/>
@@ -36,7 +40,7 @@
         </Panel>
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="6,0,0,0" VerticalAlignment="Center">
           <Ellipse x:Name="FileDot" Width="7" Height="7" Fill="{DynamicResource VoxWarn}" IsVisible="False"/>
-          <TextBlock x:Name="FileNameText" Classes="mono" FontSize="10.5" IsVisible="False"
+          <TextBlock x:Name="FileNameText" Classes="mono" FontSize="{DynamicResource VoxFontSizeXs}" IsVisible="False"
                      Foreground="{DynamicResource VoxMuted}"/>
           <StackPanel x:Name="FileBadges" Orientation="Horizontal" Spacing="4" IsVisible="False"/>
         </StackPanel>
@@ -67,13 +71,13 @@
         <Panel Grid.Column="6">
           <StackPanel Orientation="Horizontal">
             <!-- Win11 原生窗钮字形：Segoe Fluent Icons（回退 Segoe MDL2 Assets） -->
-            <Button Classes="wbtn" Click="OnMinimize" ToolTip.Tip="最小化">
+            <Button x:Name="BtnWinMin" Classes="wbtn" Click="OnMinimize" ToolTip.Tip="最小化">
               <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"/>
             </Button>
-            <Button Classes="wbtn" Click="OnMaximize" ToolTip.Tip="最大化">
+            <Button x:Name="BtnWinMax" Classes="wbtn" Click="OnMaximize" ToolTip.Tip="最大化">
               <TextBlock Text="&#xE922;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"/>
             </Button>
-            <Button Classes="wbtn close" Click="OnClose" ToolTip.Tip="关闭">
+            <Button x:Name="BtnWinClose" Classes="wbtn close" Click="OnClose" ToolTip.Tip="关闭">
               <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"/>
             </Button>
           </StackPanel>
@@ -112,7 +116,7 @@
                   BorderThickness="1" CornerRadius="14" ClipToBounds="True"
                   BoxShadow="0 24 70 0 #29000000, 0 4 16 0 #14000000">
             <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-              <!-- .sp-input：⌕ 图标 + 无边框输入 + Esc 键帽，底部分隔线 -->
+              <!-- .sp-input：⌕ 图标 + 无边框输入，底部分隔线（Esc 关闭走键盘，不放键帽钮） -->
               <Border Grid.Row="0" BorderBrush="{DynamicResource VoxLine}" BorderThickness="0,0,0,1"
                       Padding="16,13" Background="Transparent">
                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -121,11 +125,10 @@
                   <Panel VerticalAlignment="Center">
                     <TextBox x:Name="SearchInput" Classes="sp-input" MinWidth="420"
                              Foreground="{DynamicResource VoxFg}"/>
-                    <TextBlock x:Name="SearchPlaceholder" Text="搜索文章、图片、操作…" FontSize="14" FontWeight="Medium"
+                    <TextBlock x:Name="SearchPlaceholder" Text="搜索文章、图片、操作…" FontSize="{DynamicResource VoxFontSizeXl}" FontWeight="Medium"
                                Foreground="{DynamicResource VoxFaint}" IsHitTestVisible="False"
                                VerticalAlignment="Center" IsVisible="True"/>
                   </Panel>
-                  <Button x:Name="SearchClose" Classes="kbd" Content="Esc" VerticalAlignment="Center"/>
                 </StackPanel>
               </Border>
               <!-- .sp-tabs：pill 按钮（激活 accent-soft 底 accent 字） -->
@@ -136,9 +139,9 @@
               <Border Grid.Row="3" Background="{DynamicResource VoxSurface2}"
                       BorderBrush="{DynamicResource VoxLine}" BorderThickness="0,1,0,0" Padding="14,8">
                 <StackPanel Orientation="Horizontal" Spacing="14">
-                  <TextBlock Text="↑↓ 导航" FontSize="10.5" Foreground="{DynamicResource VoxFaint}"/>
-                  <TextBlock Text="Enter 打开" FontSize="10.5" Foreground="{DynamicResource VoxFaint}"/>
-                  <TextBlock Text="Esc 关闭" FontSize="10.5" Foreground="{DynamicResource VoxFaint}"/>
+                  <TextBlock x:Name="FootNavigate" Text="↑↓ 导航" FontSize="{DynamicResource VoxFontSizeXs}" Foreground="{DynamicResource VoxFaint}"/>
+                  <TextBlock x:Name="FootOpen" Text="Enter 打开" FontSize="{DynamicResource VoxFontSizeXs}" Foreground="{DynamicResource VoxFaint}"/>
+                  <TextBlock x:Name="FootClose" Text="Esc 关闭" FontSize="{DynamicResource VoxFontSizeXs}" Foreground="{DynamicResource VoxFaint}"/>
                 </StackPanel>
               </Border>
             </Grid>

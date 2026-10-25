@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Data;
 using Avalonia.Interactivity;
 using Shapes = Avalonia.Controls.Shapes;
 using Avalonia.Input;
@@ -19,6 +20,7 @@ using Markdig;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
+using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Infrastructure.VoxTheme;
 using Vox.Core;
 
@@ -37,6 +39,11 @@ public sealed class WritePage : UserControl
     private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 116, MinWidth = 0 };
     private readonly StackPanel _articleHost = new();
     private bool _treeMode;
+    private Button _listHandle = null!;      // 列表折叠钮：展开时列表卡内右下，收起时骑页左缘
+    private GridSplitter _listSplitter = null!;
+    private double _lastListWidth = 250;
+    private bool _listVisible = true;
+    private Grid _pageRoot = null!;
 
     // 中列（源码卡 | 预览卡 | 导图卡）
     private readonly MarkdownEditorView _editorView = new();
@@ -83,39 +90,39 @@ public sealed class WritePage : UserControl
         .UseYamlFrontMatter()
         .Build();
 
-    private static readonly (string Label, string Sub, string Key)[] TypoThemes =
+    private static readonly (string NameKey, string DescKey, string Key)[] TypoThemes =
     [
-        ("简约 Minimal", "无装饰 · 无衬线 · 1.9 行距", "Simple"),
-        ("文档 Document", "H2 底部细线 · 蓝色 accent", "Basic"),
-        ("书卷 Book", "衬线字体 · 段落首行缩进两字符", "InkBlack"),
-        ("技术 Technical", "H2 左竖线 + 浅底 · 等宽代码", "TechnologyBlue"),
-        ("刊物 Editorial", "标题居中上下细线 · 杂志排版", "WeChatFormat"),
+        ("Vox.Write.Typo.Simple.Name", "Vox.Write.Typo.Simple.Desc", "Simple"),
+        ("Vox.Write.Typo.Document.Name", "Vox.Write.Typo.Document.Desc", "Basic"),
+        ("Vox.Write.Typo.Book.Name", "Vox.Write.Typo.Book.Desc", "InkBlack"),
+        ("Vox.Write.Typo.Technical.Name", "Vox.Write.Typo.Technical.Desc", "TechnologyBlue"),
+        ("Vox.Write.Typo.Editorial.Name", "Vox.Write.Typo.Editorial.Desc", "WeChatFormat"),
     ];
 
-    private static readonly (string Label, string Sub, string Key)[] MapLayouts =
+    private static readonly (string NameKey, string DescKey, string Key)[] MapLayouts =
     [
-        ("单侧树形", "一级分支排右侧", "Right"),
-        ("双侧平衡", "按子树负载分左右", "Balanced"),
-        ("中心放射", "分支呈放射展开", "Radial"),
-        ("向下树形", "层级自上而下展开", "Down"),
-        ("目录树", "按深度缩进纵向列表", "Outline"),
-        ("鱼骨图", "分支沿主脊上下交替", "Fishbone"),
+        ("Vox.Write.Map.Layout.Right.Name", "Vox.Write.Map.Layout.Right.Desc", "Right"),
+        ("Vox.Write.Map.Layout.Balanced.Name", "Vox.Write.Map.Layout.Balanced.Desc", "Balanced"),
+        ("Vox.Write.Map.Layout.Radial.Name", "Vox.Write.Map.Layout.Radial.Desc", "Radial"),
+        ("Vox.Write.Map.Layout.Down.Name", "Vox.Write.Map.Layout.Down.Desc", "Down"),
+        ("Vox.Write.Map.Layout.Outline.Name", "Vox.Write.Map.Layout.Outline.Desc", "Outline"),
+        ("Vox.Write.Map.Layout.Fishbone.Name", "Vox.Write.Map.Layout.Fishbone.Desc", "Fishbone"),
     ];
 
-    private static readonly (string Label, string Sub, string Key)[] MapStyles =
+    private static readonly (string NameKey, string DescKey, string Key)[] MapStyles =
     [
-        ("清雅", "默认 · 轻描边卡片", "Quiet"),
-        ("缤纷", "分支底色高饱和变体", "Colorful"),
-        ("线框", "透明底 + 描边卡片", "Outline"),
-        ("胶囊", "全圆角卡片", "Capsule"),
-        ("脉络", "无底卡片 + 下划线", "Underline"),
-        ("黑白", "去彩度的灰阶卡片", "Mono"),
+        ("Vox.Write.Map.Style.Quiet.Name", "Vox.Write.Map.Style.Quiet.Desc", "Quiet"),
+        ("Vox.Write.Map.Style.Colorful.Name", "Vox.Write.Map.Style.Colorful.Desc", "Colorful"),
+        ("Vox.Write.Map.Style.Frame.Name", "Vox.Write.Map.Style.Frame.Desc", "Outline"),
+        ("Vox.Write.Map.Style.Capsule.Name", "Vox.Write.Map.Style.Capsule.Desc", "Capsule"),
+        ("Vox.Write.Map.Style.Vein.Name", "Vox.Write.Map.Style.Vein.Desc", "Underline"),
+        ("Vox.Write.Map.Style.Mono.Name", "Vox.Write.Map.Style.Mono.Desc", "Mono"),
     ];
 
     public WritePage(MainWindow shell)
     {
         _shell = shell;
-        _search.Watermark = "搜索文章…";
+        _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
         _debounce.Tick += (_, _) => { _debounce.Stop(); RefreshPreview(); };
 
@@ -164,6 +171,7 @@ public sealed class WritePage : UserControl
         columns[0].MaxWidth = 360;
         var root = new Grid { ColumnDefinitions = columns };
         Res(root, Panel.BackgroundProperty, "VoxBg");
+        _pageRoot = root;
         // 页内弹层（排版/导图样式）点外部关闭：隧道阶段截获页面内的按下，
         // 弹层内部的按下不经过页面根（弹层宿主在窗口覆盖层），天然排除。
         root.AddHandler(PointerPressedEvent, OnPagePointerPressed, RoutingStrategies.Tunnel);
@@ -172,14 +180,86 @@ public sealed class WritePage : UserControl
         root.Children.Add(listCard);
         Grid.SetColumn(listCard, 0);
 
-        var listSplitter = MakeSplitter();
-        root.Children.Add(listSplitter);
-        Grid.SetColumn(listSplitter, 1);
+        _listSplitter = MakeSplitter();
+        root.Children.Add(_listSplitter);
+        Grid.SetColumn(_listSplitter, 1);
 
         var main = BuildMainPane();
         root.Children.Add(main);
         Grid.SetColumn(main, 2);
+
+        BuildListHandle();
+        SetListVisible(true); // 默认展开：把手收进列表卡右下（原型 .wlist>.edge-btn 口径）
         Content = root;
+    }
+
+    /// <summary>列表折叠把手（原型 #btnList）：展开时列表卡内右下角，收起时骑页左缘垂直居中。</summary>
+    private void BuildListHandle()
+    {
+        _listHandle = new Button
+        {
+            Classes = { "edge-btn" },
+            Content = new Viewbox
+            {
+                Width = 12, Height = 12,
+                Child = new LucideIcon { Kind = LucideIconKind.ChevronLeft, Width = 24, Height = 24, StrokeThickness = 2 },
+            },
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            ZIndex = 40,
+        };
+        _listHandle[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.List.Toggle");
+        _listHandle.Click += (_, _) => SetListVisible(!_listVisible);
+    }
+
+    /// <summary>列表展开/收起：列宽与分隔条一并塌缩，把手在列表卡内右下与页左缘两处寄宿切换。</summary>
+    private void SetListVisible(bool visible)
+    {
+        _listVisible = visible;
+        if (_pageRoot.ColumnDefinitions.Count == 3)
+        {
+            var col = _pageRoot.ColumnDefinitions[0];
+            if (visible)
+            {
+                col.MinWidth = 180;
+                col.MaxWidth = 360;
+                col.Width = new GridLength(_lastListWidth);
+                _listSplitter.IsVisible = true;
+            }
+            else
+            {
+                if (col.Width.IsAbsolute && col.Width.Value > 0) _lastListWidth = col.Width.Value;
+                col.MinWidth = 0;
+                col.Width = new GridLength(0);
+                _listSplitter.IsVisible = false;
+            }
+        }
+        MoveListHandle(visible);
+    }
+
+    private void MoveListHandle(bool intoList)
+    {
+        if (_listHandle.Parent is Panel host) host.Children.Remove(_listHandle);
+        if (_listHandle.Content is Viewbox { Child: LucideIcon glyph })
+        {
+            glyph.Kind = intoList ? LucideIconKind.ChevronLeft : LucideIconKind.ChevronRight;
+        }
+        if (intoList && _pageRoot.Children[0] is Border { Child: Panel overlay })
+        {
+            _listHandle.HorizontalAlignment = HorizontalAlignment.Right;
+            _listHandle.VerticalAlignment = VerticalAlignment.Bottom;
+            _listHandle.Margin = new Thickness(0, 0, 8, 8);
+            overlay.Children.Add(_listHandle);
+        }
+        else
+        {
+            _listHandle.HorizontalAlignment = HorizontalAlignment.Left;
+            _listHandle.VerticalAlignment = VerticalAlignment.Center;
+            // 收起后骑在页面左缘（原型 .wcenter>#btnList.gutter 的 left:-12px 口径）。
+            _listHandle.Margin = new Thickness(-12, 0, 0, 0);
+            _pageRoot.Children.Add(_listHandle);
+        }
     }
 
     /// <summary>列表卡：圆角卡片（margin 10/2/10/10），头为搜索行，体为文章宿主。</summary>
@@ -187,10 +267,10 @@ public sealed class WritePage : UserControl
     {
         var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var viewseg = new Border { Classes = { "viewseg" }, Child = segButtons };
-        foreach (var (icon, tooltip, tree) in new[]
+        foreach (var (icon, tooltipKey, tree) in new[]
                  {
-                     (LucideIconKind.List, "列表视图", false),
-                     (LucideIconKind.Network, "树形视图", true),
+                     (LucideIconKind.List, "Vox.Write.List.ViewList", false),
+                     (LucideIconKind.Network, "Vox.Write.List.ViewTree", true),
                  })
         {
             var button = new Button
@@ -198,7 +278,7 @@ public sealed class WritePage : UserControl
                 Classes = { "vsegbtn", tree ? string.Empty : "active" },
                 Content = new LucideIcon { Kind = icon, Width = 13, Height = 13, StrokeThickness = 2 },
             };
-            ToolTip.SetTip(button, tooltip);
+            button[!ToolTip.TipProperty] = I18n.Bind(tooltipKey);
             button.Click += (_, _) =>
             {
                 _treeMode = tree;
@@ -217,7 +297,7 @@ public sealed class WritePage : UserControl
             Width = 24, Height = 24,
             Content = new LucideIcon { Kind = LucideIconKind.Plus, Width = 14, Height = 14, StrokeThickness = 2 },
         };
-        ToolTip.SetTip(newButton, "新建文章");
+        newButton[!ToolTip.TipProperty] = I18n.Bind(Write.List.New);
         newButton.Click += (_, _) => OpenNewArticle();
 
         var head = new Border
@@ -236,10 +316,9 @@ public sealed class WritePage : UserControl
             if (e.Property == TextBox.TextProperty) ReloadArticles();
         };
 
-        return Card(new DockPanel
-        {
-            Children = { head.Dock(Dock.Top), new ScrollViewer { Content = _articleHost } },
-        }, new Thickness(10, 10, 2, 10));
+        // 句柄寄宿层：Panel 叠放（DockPanel 会把未停靠子项当 Left 停靠）。
+        var dock = new DockPanel { Children = { head.Dock(Dock.Top), new ScrollViewer { Content = _articleHost } } };
+        return Card(new Panel { Children = { dock } }, new Thickness(10, 10, 2, 10));
     }
 
     private void ReloadArticles()
@@ -248,12 +327,13 @@ public sealed class WritePage : UserControl
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
-            _articleHost.Children.Add(new TextBlock
+            var empty = new TextBlock
             {
-                Text = "未配置内容仓库（设置 → 内容仓库）",
                 FontSize = Fs(11), Margin = new Thickness(14, 10),
                 TextWrapping = TextWrapping.Wrap,
-            });
+            };
+            empty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.List.NoRepo");
+            _articleHost.Children.Add(empty);
             return;
         }
 
@@ -293,11 +373,16 @@ public sealed class WritePage : UserControl
 
         var count = new TextBlock
         {
-            Text = $"共 {scan.Articles.Count} 篇", FontSize = Fs(10), Margin = new Thickness(14, 8, 0, 8),
+            FontSize = Fs(10), Margin = new Thickness(14, 8, 0, 8),
         };
+        count[!TextBlock.TextProperty] = TFBind("Vox.Write.List.Total", scan.Articles.Count);
         Res(count, TextBlock.ForegroundProperty, "VoxFaint");
         _articleHost.Children.Add(count);
     }
+
+    /// <summary>带占位参数的动态文案绑定（参数为运行时值，语言切换时按当前语言重新格式化）。</summary>
+    private static MultiBinding TFBind(object key, params object[] args) =>
+        (MultiBinding)new CodeWF.Avalonia.Lang.MarkupExtensions.I18nBinding(key, null, args).ProvideValue(null!);
 
     private Button ArticleItem(Article article)
     {
@@ -310,7 +395,7 @@ public sealed class WritePage : UserControl
         {
             FontSize = Fs(10.5), Margin = new Thickness(0, 2, 0, 0), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
             Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}"
-                   + (article.IsDraft ? " · 草稿" : string.Empty),
+                   + (article.IsDraft ? " · " + T(Library.Badge.Draft) : string.Empty),
         };
         var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
         Res(bar, Border.BackgroundProperty, "VoxAccent");
@@ -385,6 +470,10 @@ public sealed class WritePage : UserControl
     private Control BuildMainPane()
     {
         // 源码卡：CodeWF.Avalonia.Markdown 编辑器（AvaloniaEdit 宿主 + Markdown 语法着色内置）。
+        // Border.ClipToBounds 是矩形裁剪，编辑器不透明白底会盖住卡片四角的圆角边框弧线，
+        // 对编辑器视图施加圆角几何裁剪（半径 = 卡片圆角 - 1px 边框内缩），四角弧线完整可见。
+        ApplyEditorCornerClip();
+        _editorView.SizeChanged += (_, _) => ApplyEditorCornerClip();
         _srcCard = Card(_editorView, new Thickness(2, 10, 2, 10));
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
@@ -415,9 +504,10 @@ public sealed class WritePage : UserControl
         center.Children.Add(_mapCard);
 
         // 浮动模式条（四态：源码/分屏/预览/导图，骑视图区底边居中）
-        foreach (var (label, mode) in new[] { ("源码", 0), ("分屏", 1), ("预览", 2), ("导图", 3) })
+        foreach (var (labelKey, mode) in new[] { ("Vox.Write.Mode.Source", 0), ("Vox.Write.Mode.Split", 1), ("Vox.Write.Mode.Preview", 2), ("Vox.Write.Mode.Map", 3) })
         {
-            var button = new Button { Classes = { "segbtn", mode == 0 ? "active" : string.Empty }, Content = label };
+            var button = new Button { Classes = { "segbtn", mode == 0 ? "active" : string.Empty } };
+            button[!Button.ContentProperty] = I18n.Bind(labelKey);
             var captured = mode;
             button.Click += (_, _) =>
             {
@@ -469,6 +559,13 @@ public sealed class WritePage : UserControl
 
         SetMode(0);
         return content;
+    }
+
+    /// <summary>编辑器圆角裁剪：随视图尺寸更新；密度切换经整页重建取新半径。</summary>
+    private void ApplyEditorCornerClip()
+    {
+        var radius = Math.Max(0, Radius - 1);
+        _editorView.Clip = new RectangleGeometry(new Rect(_editorView.Bounds.Size), radius, radius);
     }
 
     /// <summary>页内弹层点外部关闭（把手钮自身除外，保留 Flyout 的开关切换）。</summary>
@@ -549,7 +646,7 @@ public sealed class WritePage : UserControl
 
     private Button BuildTypoButton()
     {
-        _typoLabel = new TextBlock { Text = "简约", FontWeight = FontWeight.SemiBold };
+        _typoLabel = new TextBlock { FontWeight = FontWeight.SemiBold };
         _typoBtn = new Button
         {
             Classes = { "btn", "sm", "ghost" },
@@ -560,13 +657,22 @@ public sealed class WritePage : UserControl
             Content = new StackPanel
             {
                 Orientation = Orientation.Horizontal, Spacing = 5,
-                Children = { new TextBlock { Text = "排版" }, _typoLabel, new TextBlock { Text = "▾", FontSize = 9, Opacity = 0.6 } },
+                Children = { CreateGlyphText("Vox.Write.Typo.Button"), _typoLabel, new TextBlock { Text = "▾", FontSize = 9, Opacity = 0.6 } },
             },
         };
-        ToolTip.SetTip(_typoBtn, "正文排版");
+        _typoBtn[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.Typo.Title");
         _typoBtn.Flyout = BuildTypoFlyout();
         TrackFlyout((Flyout)_typoBtn.Flyout);
+        UpdateTypoLabel();
         return _typoBtn;
+    }
+
+    /// <summary>绑定文案的行内文本（与运行时更新的 _typoLabel/_mapStyleLabel 区分）。</summary>
+    private static TextBlock CreateGlyphText(object key)
+    {
+        var tb = new TextBlock();
+        tb[!TextBlock.TextProperty] = I18n.Bind(key);
+        return tb;
     }
 
     private Flyout BuildTypoFlyout()
@@ -574,7 +680,7 @@ public sealed class WritePage : UserControl
         var currentSize = Math.Clamp(AppState.Instance.Settings.MarkdownSize, 12, 22);
         var density = Seg(new[]
         {
-            ("紧凑 13", "13"), ("正常 15", "15"), ("宽松 17", "17"),
+            ("Vox.Write.Typo.PreviewCompact", "13"), ("Vox.Write.Typo.PreviewNormal", "15"), ("Vox.Write.Typo.PreviewRoomy", "17"),
         }, currentSize.ToString(), value =>
         {
             var size = int.TryParse(value, out var parsed) ? parsed : 15;
@@ -583,12 +689,12 @@ public sealed class WritePage : UserControl
             AppState.Instance.SaveSettings();
             _preview.ParagraphFontSize = size;
             _preview.ParagraphLineHeight = Math.Round(size * 1.8);
-            _shell.ShowToast($"渲染密度：{size}px 基准字号");
+            _shell.ShowToast(TF("Vox.Write.Typo.DensityToast", size));
         });
 
         var cards = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
         var currentTheme = AppState.Instance.Settings.MarkdownTheme;
-        foreach (var (label, sub, key) in TypoThemes)
+        foreach (var (nameKey, descKey, key) in TypoThemes)
         {
             var card = new Button
             {
@@ -603,8 +709,8 @@ public sealed class WritePage : UserControl
                     Spacing = 2,
                     Children =
                     {
-                        new TextBlock { Text = label, FontSize = Fs(12), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
-                        new TextBlock { Text = sub, FontSize = Fs(10), Opacity = 0.72, TextWrapping = TextWrapping.Wrap, MinHeight = 26 },
+                        new TextBlock { FontSize = Fs(12), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, [!TextBlock.TextProperty] = I18n.Bind(nameKey) },
+                        new TextBlock { FontSize = Fs(10), Opacity = 0.72, TextWrapping = TextWrapping.Wrap, MinHeight = 26, [!TextBlock.TextProperty] = I18n.Bind(descKey) },
                     },
                 },
             };
@@ -621,16 +727,18 @@ public sealed class WritePage : UserControl
                 AppState.Instance.SaveSettings();
                 _preview.TypographyTheme = captured;
                 UpdateTypoLabel();
-                _shell.ShowToast("排版：" + captured);
+                _shell.ShowToast(TF("Vox.Write.Typo.SetToast", T(Array.Find(TypoThemes, t => t.Key == captured).NameKey)));
             };
             cards.Children.Add(card);
         }
 
         var pop = new StackPanel { Width = 480 };
-        pop.Children.Add(new TextBlock { Text = "正文排版", FontSize = 13.5, FontWeight = FontWeight.SemiBold });
-        pop.Children.Add(PopLabel("渲染密度"));
+        var title = new TextBlock { FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Typo.Title") };
+        title[!TextBlock.FontSizeProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxFontSizeLg");
+        pop.Children.Add(title);
+        pop.Children.Add(PopLabel("Vox.Write.Typo.Density"));
         pop.Children.Add(density);
-        pop.Children.Add(PopLabel("排版主题"));
+        pop.Children.Add(PopLabel("Vox.Write.Typo.Theme"));
         pop.Children.Add(cards);
 
         return new Flyout
@@ -644,14 +752,16 @@ public sealed class WritePage : UserControl
     private void UpdateTypoLabel()
     {
         var key = AppState.Instance.Settings.MarkdownTheme;
-        _typoLabel.Text = Array.Find(TypoThemes, t => t.Key == key) is { } found ? found.Label.Split(' ')[0] : key;
+        // 主题名接绑定（按当前选择换键重绑），语言切换自动跟随。
+        var nameKey = Array.Find(TypoThemes, t => t.Key == key) is { } found ? found.NameKey : "Vox.Write.Typo.Button";
+        _typoLabel[!TextBlock.TextProperty] = I18n.Bind(nameKey);
     }
 
     // ---------- 导图（第四态） ----------
 
     private Button BuildMapStyleButton()
     {
-        _mapStyleLabel = new TextBlock { Text = "导图样式", FontWeight = FontWeight.SemiBold };
+        _mapStyleLabel = new TextBlock { FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Map.StyleTitle") };
         _mapStyleBtn = new Button
         {
             Classes = { "btn", "sm", "ghost" },
@@ -665,7 +775,7 @@ public sealed class WritePage : UserControl
                 Children = { _mapStyleLabel, new TextBlock { Text = "▾", FontSize = 9, Opacity = 0.6 } },
             },
         };
-        ToolTip.SetTip(_mapStyleBtn, "导图样式");
+        _mapStyleBtn[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.Map.StyleTitle");
         _mapStyleBtn.Flyout = BuildMapStyleFlyout();
         TrackFlyout((Flyout)_mapStyleBtn.Flyout);
         return _mapStyleBtn;
@@ -688,9 +798,10 @@ public sealed class WritePage : UserControl
 
         var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var seg = new Border { Classes = { "seg" }, HorizontalAlignment = HorizontalAlignment.Left, Child = segButtons };
-        foreach (var (label, index) in new (string Label, int Index)[] { ("结构", 0), ("风格", 1) })
+        foreach (var (labelKey, index) in new (string LabelKey, int Index)[] { ("Vox.Write.Map.TabStructure", 0), ("Vox.Write.Map.TabStyle", 1) })
         {
-            var button = new Button { Classes = { "segbtn", index == 0 ? "active" : string.Empty }, Content = label };
+            var button = new Button { Classes = { "segbtn", index == 0 ? "active" : string.Empty } };
+            button[!Button.ContentProperty] = I18n.Bind(labelKey);
             var captured = index;
             button.Click += (_, _) =>
             {
@@ -705,7 +816,9 @@ public sealed class WritePage : UserControl
         }
 
         var pop = new StackPanel { Width = 470 };
-        pop.Children.Add(new TextBlock { Text = "导图样式", FontSize = 13.5, FontWeight = FontWeight.SemiBold });
+        var title = new TextBlock { FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Map.StyleTitle") };
+        title[!TextBlock.FontSizeProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxFontSizeLg");
+        pop.Children.Add(title);
         pop.Children.Add(seg);
         pop.Children.Add(pages);
 
@@ -718,10 +831,10 @@ public sealed class WritePage : UserControl
     }
 
     /// <summary>选择卡片网格：选中态描边强调色，点击即改视图属性。</summary>
-    private WrapPanel ChoiceGrid((string Label, string Sub, string Key)[] options, string current, Action<string> apply)
+    private WrapPanel ChoiceGrid((string NameKey, string DescKey, string Key)[] options, string current, Action<string> apply)
     {
         var wrap = new WrapPanel();
-        foreach (var (label, sub, key) in options)
+        foreach (var (nameKey, descKey, key) in options)
         {
             var card = new Button
             {
@@ -736,8 +849,8 @@ public sealed class WritePage : UserControl
                     Spacing = 2,
                     Children =
                     {
-                        new TextBlock { Text = label, FontSize = 12, FontWeight = FontWeight.SemiBold },
-                        new TextBlock { Text = sub, FontSize = 10, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis },
+                        new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind(nameKey) },
+                        new TextBlock { FontSize = 10, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis, [!TextBlock.TextProperty] = I18n.Bind(descKey) },
                     },
                 },
             };
@@ -750,7 +863,6 @@ public sealed class WritePage : UserControl
                     MarkChoiceSelected(child, ReferenceEquals(child, card));
                 }
                 apply(captured);
-                _mapStyleLabel.Text = "导图样式";
             };
             wrap.Children.Add(card);
         }
@@ -789,10 +901,9 @@ public sealed class WritePage : UserControl
 
         _outlineHost = new StackPanel();
         var outlineScroll = new ScrollViewer { Padding = new Thickness(14), Content = _outlineHost };
-        // 无文章 / 无标题时的占位提示（居中，主题跟随）。
+        // 无文章 / 无标题时的占位提示（居中，主题跟随，文案接 I18n 绑定）。
         _outlineEmpty = new TextBlock
         {
-            Text = "选择一篇文章后查看大纲",
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
@@ -801,6 +912,7 @@ public sealed class WritePage : UserControl
             IsVisible = false,
             Margin = new Thickness(14),
         };
+        _outlineEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Panel.OutlineEmpty");
         Res(_outlineEmpty, TextBlock.ForegroundProperty, "VoxMuted");
         _panel.Child = new Panel { Children = { outlineScroll, _outlineEmpty } };
     }
@@ -822,7 +934,7 @@ public sealed class WritePage : UserControl
             VerticalContentAlignment = VerticalAlignment.Center,
             ZIndex = 40,
         };
-        ToolTip.SetTip(_panelHandle, "收起 / 展开文章面板");
+        _panelHandle[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.Panel.Toggle");
         _panelHandle.Click += (_, _) => SetPanelVisible(!_panel.IsVisible);
     }
 
@@ -987,14 +1099,14 @@ public sealed class WritePage : UserControl
             var content = frontMatter.Length > 0 ? $"---\n{frontMatter}\n---\n\n{body}" : body;
             File.WriteAllText(file, content);
             _dirty = false;
-            if (!silent) _shell.ShowToast("已保存");
+            if (!silent) _shell.ShowToast(T(Write.Status.Saved));
             Services.PublishHub.Invalidate();
             AppState.Instance.NotifyRepoChanged();
             UpdateBadges();
         }
         catch (Exception ex)
         {
-            _shell.ShowToast($"保存失败：{ex.Message}");
+            _shell.ShowToast(TF("Vox.Write.Status.SaveFailed", ex.Message));
         }
     }
 
@@ -1049,8 +1161,8 @@ public sealed class WritePage : UserControl
             var done = System.Text.RegularExpressions.Regex.Matches(text, @"^[-*]\s+\[[xX]\]", System.Text.RegularExpressions.RegexOptions.Multiline).Count;
             if (total > 0)
             {
-                host.Children.Add(FieldLabel("正文任务"));
-                host.Children.Add(Badge($"{done} / {total} 已完成", "ok"));
+                host.Children.Add(FieldLabel(T("Vox.Write.Outline.Tasks")));
+                host.Children.Add(Badge(TF("Vox.Write.Outline.TasksDone", done, total), "ok"));
             }
         }
         catch
@@ -1122,7 +1234,7 @@ public sealed class WritePage : UserControl
     {
         if (_repoRoot == null)
         {
-            _shell.ShowToast("先在设置中配置内容仓库");
+            _shell.ShowToast(T("Vox.Write.Msg.NeedRepo"));
             return;
         }
         _shell.ShowModal(new NewArticleModal(_shell, _repoRoot, async created =>
@@ -1140,7 +1252,7 @@ public sealed class WritePage : UserControl
     {
         if (_current == null || _repoRoot == null)
         {
-            _shell.ShowToast("先选择一篇文章");
+            _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
             return;
         }
         SetPanelVisible(true);
@@ -1151,7 +1263,7 @@ public sealed class WritePage : UserControl
     {
         if (_current == null || _repoRoot == null)
         {
-            _shell.ShowToast("先选择一篇文章");
+            _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
             return;
         }
         _shell.ShowModal(new ImageIntakeModal(_shell, _repoRoot, _current, AppState.Instance.Settings.Link, relative =>
@@ -1168,7 +1280,7 @@ public sealed class WritePage : UserControl
     {
         if (_current == null)
         {
-            _shell.ShowToast("先选择一篇文章");
+            _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
             return;
         }
         _shell.ShowModal(new PublishDialog(_shell, _current));
@@ -1194,11 +1306,16 @@ public sealed class WritePage : UserControl
         Classes = { "mnu" }, Padding = new Thickness(14, 12, 14, 14), Child = content,
     };
 
-    private static TextBlock PopLabel(string text) => new()
+    private static TextBlock PopLabel(object key)
     {
-        Text = text, FontSize = Fs(10.5), FontWeight = FontWeight.SemiBold,
-        Margin = new Thickness(2, 12, 0, 6),
-    };
+        var tb = new TextBlock
+        {
+            FontSize = Fs(10.5), FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(2, 12, 0, 6),
+        };
+        tb[!TextBlock.TextProperty] = I18n.Bind(key);
+        return tb;
+    }
 
     /// <summary>分段选择（同 MainWindow 标题栏弹层口径）：active 类由代码维护。</summary>
     private static Border Seg((string Label, string Value)[] options, string current, Action<string> apply)
@@ -1208,7 +1325,8 @@ public sealed class WritePage : UserControl
         host.Child = row;
         foreach (var (label, value) in options)
         {
-            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Content = label, Tag = value, MinWidth = 64 };
+            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Tag = value, MinWidth = 64 };
+            button[!Button.ContentProperty] = I18n.Bind(label);
             var captured = value;
             button.Click += (_, _) =>
             {
@@ -1229,20 +1347,20 @@ public sealed class WritePage : UserControl
 
     public static string ChannelName(PublishChannel channel) => channel switch
     {
-        PublishChannel.Site => "网站",
-        PublishChannel.WeChat => "公众号",
-        PublishChannel.Cnblogs => "博客园",
-        PublishChannel.Csdn => "CSDN",
-        PublishChannel.Zhihu => "知乎",
+        PublishChannel.Site => T("Vox.Publish.Channel.Site"),
+        PublishChannel.WeChat => T("Vox.Publish.Channel.WeChat"),
+        PublishChannel.Cnblogs => T("Vox.Publish.Channel.Cnblogs"),
+        PublishChannel.Csdn => T("Vox.Publish.Channel.Csdn"),
+        PublishChannel.Zhihu => T("Vox.Publish.Channel.Zhihu"),
         _ => channel.ToString(),
     };
 
     public static string StatusText(PublishStatus status) => status switch
     {
-        PublishStatus.Ok => "已同步",
-        PublishStatus.Stale => "需更新",
-        PublishStatus.Off => "未发布",
-        PublishStatus.Error => "失败",
+        PublishStatus.Ok => T("Vox.Publish.Status.Synced"),
+        PublishStatus.Stale => T("Vox.Publish.Status.NeedUpdate"),
+        PublishStatus.Off => T("Vox.Publish.Status.Unpublished"),
+        PublishStatus.Error => T("Vox.Publish.Status.Failed"),
         _ => status.ToString(),
     };
 

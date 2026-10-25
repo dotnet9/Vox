@@ -7,6 +7,7 @@ using Vox.App.Services;
 using Vox.App.Views;
 using Vox.App.Views.Pages;
 using Vox.Core;
+using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
@@ -20,12 +21,20 @@ public sealed class PublishDialog : Border
     private readonly Border _warnBadge = new() { Classes = { "badge", "warn" } };
     private readonly StackPanel _rows = new();
 
+    // 复制字段内部标识（与界面文案解耦，切换语言不影响取值逻辑）
+    private const string FieldTitle = "title";
+    private const string FieldDesc = "desc";
+    private const string FieldCover = "cover";
+    private const string FieldMarkdown = "markdown";
+    private const string FieldWeChatHtml = "wechat";
+    private const string FieldRichText = "rich";
+
     public PublishDialog(MainWindow shell, Article article)
     {
         _shell = shell;
         _article = article;
 
-        var (modal, body, footer, close) = Modal.Create($"发布：{article.Title}", 680, 680);
+        var (modal, body, footer, close) = Modal.Create(TF("Vox.Publish.Dialog.Title", article.Title), 680, 680);
         Classes.AddRange(modal.Classes);
         Width = modal.Width;
         MaxHeight = modal.MaxHeight;
@@ -36,8 +45,11 @@ public sealed class PublishDialog : Border
         close.Click += (_, _) => shell.CloseModal();
 
         // 发布前检查卡片
-        var recheck = new Button { Classes = { "btn", "sm", "ghost" }, Content = "重新检查", Margin = new Thickness(8, 0, 0, 0) };
+        var recheck = new Button { Classes = { "btn", "sm", "ghost" }, Margin = new Thickness(8, 0, 0, 0) };
+        recheck[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
         recheck.Click += (_, _) => RebuildChecks();
+        var checkTitle = new TextBlock { FontSize = 12.5, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        checkTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Dialog.Check");
         var checkHead = new DockPanel
         {
             Children =
@@ -45,7 +57,7 @@ public sealed class PublishDialog : Border
                 _warnBadge.Dock(Dock.Right),
                 _okBadge.Dock(Dock.Right),
                 recheck.Dock(Dock.Right),
-                new TextBlock { Text = "检查", FontSize = 12.5, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center },
+                checkTitle,
             },
         };
         var checkCard = new Border
@@ -62,35 +74,69 @@ public sealed class PublishDialog : Border
         body.Children.Add(_rows);
 
         // 复制字段
-        body.Children.Add(new TextBlock
+        var copyFieldsLabel = new TextBlock
         {
-            Text = "复制字段（点即复制 · 配合平台创作页逐框粘贴）",
             Classes = { "flabel" },
             Margin = new Thickness(0, 16, 0, 5),
-        });
+        };
+        copyFieldsLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Dialog.CopyFields");
+        body.Children.Add(copyFieldsLabel);
         var chips = new WrapPanel();
-        foreach (var label in new[] { "标题", "描述", "封面 URL", "正文 Markdown", "公众号 HTML", "富文本" })
+        foreach (var (field, labelKey) in new[]
+                 {
+                     (FieldTitle, "Vox.Publish.Field.Title"),
+                     (FieldDesc, "Vox.Publish.Field.Desc"),
+                     (FieldCover, "Vox.Publish.Field.Cover"),
+                     (FieldMarkdown, "Vox.Publish.Field.Markdown"),
+                     (FieldWeChatHtml, "Vox.Publish.Field.WeChatHtml"),
+                     (FieldRichText, "Vox.Publish.Field.RichText"),
+                 })
         {
             var chip = new Border
             {
                 Classes = { "chip" },
                 Margin = new Thickness(0, 0, 6, 6),
                 Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
-                Child = new TextBlock { Text = label },
+                Child = new TextBlock(),
             };
-            var captured = label;
+            ((TextBlock)chip.Child!)[!TextBlock.TextProperty] = I18n.Bind(labelKey);
+            var captured = field;
             chip.PointerReleased += async (_, _) => await CopyFieldAsync(captured);
             chips.Children.Add(chip);
         }
         body.Children.Add(chips);
 
-        var closeButton = new Button { Classes = { "btn" }, Content = "关闭" };
+        var closeButton = new Button { Classes = { "btn" } };
+        closeButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Close");
         closeButton.Click += (_, _) => shell.CloseModal();
         footer.Children.Add(closeButton);
 
         RebuildChecks();
         RebuildRows();
     }
+
+    /// <summary>复制字段显示文案（当前语言）。</summary>
+    private static string FieldLabel(string field) => field switch
+    {
+        FieldTitle => T("Vox.Publish.Field.Title"),
+        FieldDesc => T("Vox.Publish.Field.Desc"),
+        FieldCover => T("Vox.Publish.Field.Cover"),
+        FieldMarkdown => T("Vox.Publish.Field.Markdown"),
+        FieldWeChatHtml => T("Vox.Publish.Field.WeChatHtml"),
+        FieldRichText => T("Vox.Publish.Field.RichText"),
+        _ => field,
+    };
+
+    /// <summary>平台显示文案（WritePage.ChannelName 的多语言版）。</summary>
+    private static string ChannelText(PublishChannel channel) => channel switch
+    {
+        PublishChannel.Site => T("Vox.Publish.Channel.Site"),
+        PublishChannel.WeChat => T("Vox.Publish.Channel.WeChat"),
+        PublishChannel.Cnblogs => T("Vox.Publish.Channel.Cnblogs"),
+        PublishChannel.Csdn => "CSDN",
+        PublishChannel.Zhihu => "知乎",
+        _ => channel.ToString(),
+    };
 
     private void RebuildChecks()
     {
@@ -114,8 +160,8 @@ public sealed class PublishDialog : Border
                 },
             });
         }
-        (_okBadge.Child as TextBlock)!.Text = $"{checks.Count - warn} 项通过";
-        (_warnBadge.Child as TextBlock)!.Text = warn > 0 ? $"{warn} 项提醒" : string.Empty;
+        (_okBadge.Child as TextBlock)!.Text = TF("Vox.Publish.Check.PassCount", checks.Count - warn);
+        (_warnBadge.Child as TextBlock)!.Text = warn > 0 ? TF("Vox.Publish.Check.WarnCount", warn) : string.Empty;
         _warnBadge.IsVisible = warn > 0;
     }
 
@@ -135,7 +181,7 @@ public sealed class PublishDialog : Border
 
             var name = new TextBlock
             {
-                Text = WritePage.ChannelName(channel),
+                Text = ChannelText(channel),
                 Width = 84, FontWeight = FontWeight.SemiBold, FontSize = 12.5,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -183,35 +229,35 @@ public sealed class PublishDialog : Border
         {
             if (status == PublishStatus.Ok)
             {
-                yield return Op("查看站点 ↗", () => OpenSite());
+                yield return Op(T("Vox.Publish.Op.ViewSite"), () => OpenSite());
             }
             else
             {
-                yield return Op("去提交推送 →", () => { _shell.CloseModal(); _shell.ShowPage("publish"); }, primary: true);
+                yield return Op(T("Vox.Publish.Op.GoCommitPush"), () => { _shell.CloseModal(); _shell.ShowPage("publish"); }, primary: true);
             }
             yield break;
         }
 
         if (channel == PublishChannel.Zhihu)
         {
-            yield return Op("复制助手…", async () => await CopyFieldAsync("富文本"), primary: true);
+            yield return Op(T("Vox.Publish.Op.CopyHelper"), async () => await CopyFieldAsync(FieldRichText), primary: true);
             yield break;
         }
 
         // API 通道：未配置账户 → 降级复制助手
         if (Publishers.TryCreate(channel) is not { } publisher)
         {
-            yield return Op("复制助手（未配置 API）…", async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? "公众号 HTML" : "正文 Markdown"), primary: true);
-            if (status != PublishStatus.Off) yield return Op("配置账户…", () => OpenAccounts());
+            yield return Op(T("Vox.Publish.Op.CopyHelperNoApi"), async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown), primary: true);
+            if (status != PublishStatus.Off) yield return Op(T("Vox.Publish.Op.ConfigAccount"), () => OpenAccounts());
             yield break;
         }
 
         var publishLabel = status switch
         {
-            PublishStatus.Stale => "重新发布",
-            PublishStatus.Error => "重试",
+            PublishStatus.Stale => T("Vox.Publish.Op.Republish"),
+            PublishStatus.Error => T("Vox.Publish.Op.Retry"),
             PublishStatus.Ok => string.Empty,
-            _ => "API 发布",
+            _ => T("Vox.Publish.Op.ApiPublish"),
         };
         if (publishLabel.Length > 0)
         {
@@ -219,16 +265,17 @@ public sealed class PublishDialog : Border
         }
         if (status == PublishStatus.Error)
         {
-            yield return Op("更新凭据…", () => OpenAccounts());
+            yield return Op(T("Vox.Publish.Op.UpdateCredential"), () => OpenAccounts());
         }
         if (status is PublishStatus.Ok or PublishStatus.Stale)
         {
-            yield return Op("查看线上 ↗", () => OpenOnline(channel));
-            yield return Op(status == PublishStatus.Stale ? "复制新版" : "复制", async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? "公众号 HTML" : "正文 Markdown"));
+            yield return Op(T("Vox.Publish.Op.ViewOnline"), () => OpenOnline(channel));
+            yield return Op(status == PublishStatus.Stale ? T("Vox.Publish.Op.CopyNew") : T("Vox.Common.Action.Copy"),
+                async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown));
         }
         else if (status == PublishStatus.Off)
         {
-            yield return Op("复制", async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? "公众号 HTML" : "正文 Markdown"));
+            yield return Op(T("Vox.Common.Action.Copy"), async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown));
         }
     }
 
@@ -269,7 +316,7 @@ public sealed class PublishDialog : Border
         }
         catch
         {
-            _shell.ShowToast($"打开失败：{url}");
+            _shell.ShowToast(TF("Vox.Publish.Msg.OpenFail", url));
         }
     }
 
@@ -277,10 +324,10 @@ public sealed class PublishDialog : Border
     {
         if (Publishers.TryCreate(channel) is not { } publisher)
         {
-            _shell.ShowToast("该平台未配置 API 账户");
+            _shell.ShowToast(T("Vox.Publish.Msg.NoApi"));
             return;
         }
-        _shell.ShowToast($"正在发布到{WritePage.ChannelName(channel)}…");
+        _shell.ShowToast(TF("Vox.Publish.Msg.Publishing", ChannelText(channel)));
         try
         {
             var file = LinkStrategy.ToLocalFile(
@@ -295,7 +342,7 @@ public sealed class PublishDialog : Border
             PublishStateStore.MarkPublished(states, _article.MarkdownPath, channel, hash, result);
             PublishStateStore.Save(states);
             PublishHub.Invalidate();
-            _shell.ShowToast($"{WritePage.ChannelName(channel)}：{result}");
+            _shell.ShowToast(TF("Vox.Publish.Msg.PublishResult", ChannelText(channel), result));
         }
         catch (Exception ex)
         {
@@ -303,7 +350,7 @@ public sealed class PublishDialog : Border
             PublishStateStore.MarkError(states, _article.MarkdownPath, channel, ex.Message);
             PublishStateStore.Save(states);
             PublishHub.Invalidate();
-            _shell.ShowToast($"{WritePage.ChannelName(channel)}失败：{ex.Message}");
+            _shell.ShowToast(TF("Vox.Publish.Msg.PublishFail", ChannelText(channel), ex.Message));
         }
         RebuildRows();
     }
@@ -315,16 +362,16 @@ public sealed class PublishDialog : Border
         var link = AppState.Instance.Settings.Link;
         string payload = field switch
         {
-            "标题" => CopyExporter.Title(_article),
-            "描述" => CopyExporter.Description(_article),
-            "封面 URL" => CopyExporter.CoverUrl(_article, link),
-            "正文 Markdown" => await ReadMarkdownAsync(),
-            "公众号 HTML" => CopyExporter.WeChatHtml(_article, await ReadMarkdownAsync(), link),
-            "富文本" => CopyExporter.RichText(_article, await ReadMarkdownAsync(), link),
+            FieldTitle => CopyExporter.Title(_article),
+            FieldDesc => CopyExporter.Description(_article),
+            FieldCover => CopyExporter.CoverUrl(_article, link),
+            FieldMarkdown => await ReadMarkdownAsync(),
+            FieldWeChatHtml => CopyExporter.WeChatHtml(_article, await ReadMarkdownAsync(), link),
+            FieldRichText => CopyExporter.RichText(_article, await ReadMarkdownAsync(), link),
             _ => string.Empty,
         };
         await clipboard.SetTextAsync(payload);
-        _shell.ShowToast($"已复制：{field}");
+        _shell.ShowToast(TF("Vox.Sync.Msg.Copied", FieldLabel(field)));
     }
 
     private async Task<string> ReadMarkdownAsync()

@@ -9,6 +9,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Views;
 using Vox.App.Views.Pages;
 using Vox.Core;
+using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
@@ -23,8 +24,8 @@ public sealed class ImageIntakeModal : Border
 
     private readonly TextBox _nameInput;
     private readonly TextBox _dirInput;
-    private readonly RadioButton _relativeChoice = new() { Content = "相对路径（推荐）", IsChecked = true };
-    private readonly RadioButton _cdnChoice = new() { Content = "CDN URL" };
+    private readonly RadioButton _relativeChoice = new() { IsChecked = true };
+    private readonly RadioButton _cdnChoice = new();
     private readonly ToggleButton _coverSwitch = new() { Classes = { "vswitch" } };
     private string? _pickedSource;
     private readonly TextBlock _dropText = new();
@@ -37,7 +38,7 @@ public sealed class ImageIntakeModal : Border
         _link = link;
         _onInserted = onInserted;
 
-        var (modal, body, footer, close) = Modal.Create("图片入库", 560, 560);
+        var (modal, body, footer, close) = Modal.Create(T("Vox.Image.Label.DialogTitle"), 560, 560);
         Classes.AddRange(modal.Classes);
         Width = modal.Width;
         MaxHeight = modal.MaxHeight;
@@ -48,6 +49,8 @@ public sealed class ImageIntakeModal : Border
         close.Click += (_, _) => shell.CloseModal();
 
         // 拖入/选择区
+        var dropSub = new TextBlock { TextAlignment = TextAlignment.Center, FontSize = 10.5, Opacity = 0.7 };
+        dropSub[!TextBlock.TextProperty] = I18n.Bind("Vox.Image.Label.DropHintSub");
         var drop = new Border
         {
             Classes = { "drop" },
@@ -58,22 +61,18 @@ public sealed class ImageIntakeModal : Border
                 Children =
                 {
                     _dropText,
-                    new TextBlock
-                    {
-                        Text = "网图将自动下载到本地，不做外链", TextAlignment = TextAlignment.Center,
-                        FontSize = 10.5, Opacity = 0.7,
-                    },
+                    dropSub,
                 },
             },
         };
-        _dropText.Text = "点击选择图片（拖入 / Ctrl+V 粘贴待实现）";
+        _dropText.Text = T("Vox.Image.Label.DropHintClick");
         _dropText.TextAlignment = TextAlignment.Center;
         DropHandlers(drop);
         body.Children.Add(drop);
 
         // 自动命名
         _nameInput = Modal.Input($"{article.Slug}-{DateTime.Now:HHmmss}.jpg", mono: true);
-        body.Children.Add(Modal.Label("自动命名（slug 前缀 + 描述性名称）"));
+        body.Children.Add(BoundLabel("Vox.Image.Label.AutoNameFull"));
         body.Children.Add(_nameInput);
 
         // 落位目录
@@ -81,18 +80,18 @@ public sealed class ImageIntakeModal : Border
         _dirInput.Width = 200;
         var dirRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         dirRow.Children.Add(_dirInput);
-        var dirHint = new TextBlock
-        {
-            Text = "当前文章所在年月 · 可改", FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
-        };
+        var dirHint = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+        dirHint[!TextBlock.TextProperty] = I18n.Bind("Vox.Image.Label.DirHint");
         WritePage.Res(dirHint, TextBlock.ForegroundProperty, "VoxFaint");
         dirRow.Children.Add(dirHint);
-        body.Children.Add(Modal.Label("落位目录"));
+        body.Children.Add(BoundLabel("Vox.Image.Label.Dir"));
         body.Children.Add(dirRow);
 
         // 插入形态
-        body.Children.Add(Modal.Label("插入形态"));
+        body.Children.Add(BoundLabel("Vox.Image.Label.LinkForm"));
         var choices = new StackPanel { Spacing = 8 };
+        _relativeChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Relative");
+        _cdnChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Cdn");
         _relativeChoice.Classes.Add("vcheck");
         _cdnChoice.Classes.Add("vcheck");
         choices.Children.Add(_relativeChoice);
@@ -102,21 +101,28 @@ public sealed class ImageIntakeModal : Border
         // 设为封面
         var coverRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
         coverRow.Children.Add(_coverSwitch);
-        var coverText = new TextBlock
-        {
-            Text = "同时设为文章封面（写入 front matter cover，存相对路径）",
-            FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
-        };
+        var coverText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        coverText[!TextBlock.TextProperty] = I18n.Bind("Vox.Image.Label.SetCoverFull");
         WritePage.Res(coverText, TextBlock.ForegroundProperty, "VoxMuted");
         coverRow.Children.Add(coverText);
         body.Children.Add(coverRow);
 
-        var cancel = new Button { Classes = { "btn" }, Content = "取消" };
+        var cancel = new Button { Classes = { "btn" } };
+        cancel[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Cancel");
         cancel.Click += (_, _) => shell.CloseModal();
-        var insert = new Button { Classes = { "btn", "primary" }, Content = "插入到正文" };
+        var insert = new Button { Classes = { "btn", "primary" } };
+        insert[!Button.ContentProperty] = I18n.Bind("Vox.Image.Label.Insert");
         insert.Click += async (_, _) => await InsertAsync();
         footer.Children.Add(cancel);
         footer.Children.Add(insert);
+    }
+
+    /// <summary>字段标签：文案走 i18n 动态绑定，语言切换实时刷新。</summary>
+    private static TextBlock BoundLabel(string key)
+    {
+        var label = Modal.Label(string.Empty);
+        label[!TextBlock.TextProperty] = I18n.Bind(key);
+        return label;
     }
 
     private void DropHandlers(Border drop)
@@ -130,10 +136,10 @@ public sealed class ImageIntakeModal : Border
         if (provider == null) return;
         var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "选择图片",
+            Title = T("Vox.Image.Label.Pick"),
             FileTypeFilter = new[]
             {
-                new FilePickerFileType("图片") { Patterns = RepoScanner.ImageExtensions.Select(e => "*" + e).ToArray() },
+                new FilePickerFileType(T("Vox.Image.Label.ImageType")) { Patterns = RepoScanner.ImageExtensions.Select(e => "*" + e).ToArray() },
             },
             AllowMultiple = false,
         });
@@ -148,7 +154,7 @@ public sealed class ImageIntakeModal : Border
         if (localPath == null || !File.Exists(localPath)) return;
         _pickedSource = localPath;
         var fileName = Path.GetFileName(localPath);
-        _dropText.Text = $"✓ 已选择：{fileName}";
+        _dropText.Text = TF("Vox.Image.Label.Picked", fileName);
         if (_nameInput.Text is { Length: > 0 } text && text.StartsWith(_article.Slug))
         {
             _nameInput.Text = $"{_article.Slug}-{Path.GetFileNameWithoutExtension(fileName).Truncate(24)}{Path.GetExtension(localPath).ToLowerInvariant()}";
@@ -160,7 +166,7 @@ public sealed class ImageIntakeModal : Border
     {
         if (_pickedSource == null || !File.Exists(_pickedSource))
         {
-            _shell.ShowToast("先选择一张图片");
+            _shell.ShowToast(T("Vox.Image.Msg.NeedPick"));
             return;
         }
         try
@@ -207,12 +213,12 @@ public sealed class ImageIntakeModal : Border
             AppState.Instance.NotifyRepoChanged();
             Services.PublishHub.Invalidate();
             _shell.CloseModal();
-            _shell.ShowToast($"已入库并插入引用 · {repoRelative}");
+            _shell.ShowToast(TF("Vox.Image.Msg.Done", repoRelative));
             _onInserted(repoRelative);
         }
         catch (Exception ex)
         {
-            _shell.ShowToast($"入库失败：{ex.Message}");
+            _shell.ShowToast(TF("Vox.Image.Msg.Failed", ex.Message));
         }
     }
 }

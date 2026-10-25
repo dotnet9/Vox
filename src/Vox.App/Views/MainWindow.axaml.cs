@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Infrastructure;
@@ -75,16 +76,23 @@ public partial class MainWindow : Window
         ThemeService.Apply(AppState.Instance.Settings);
         AppState.Instance.ScanChanged += OnScanChanged;
         UpdateNavCounts();
+        ApplyChrome(); // 标题栏/菜单/搜索浮层固定文案接 I18n 动态绑定（含初始值）
 
-        // 界面密度 / 界面语言切换：清页缓存整体重建（字号 Fs() 与文案 T() 都在构造期取值）
+        // 界面密度切换：清页缓存整体重建（字号 Fs() 与区块在构造期取值）；
+        // 语言切换不重建——文案全部走 I18n.Bind 动态绑定，随 CultureChanged 自动刷新。
         VoxTheme.DensityChanged += RebuildForAppearance;
-        CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged += (_, _) => RebuildForAppearance();
 
-        // 已配置仓库时启动即建索引（先让窗口渲染出来再扫）。
+        // 已配置仓库时启动即建索引（先让窗口渲染出来再扫），并后台预热发布状态缓存
+        // （全量文章 hash + git diff，后台构建完成后导航首开文章库/发布中心不再冻结）。
         if (AppState.Instance.HasRepo)
         {
-            Dispatcher.UIThread.Post(() => AppState.Instance.Rescan());
+            Dispatcher.UIThread.Post(() =>
+            {
+                AppState.Instance.Rescan();
+                Services.PublishHub.Invalidate();
+            });
         }
+        HookStartupTarget(); // 命令行目录/文件入口：首个索引完成后定位打开
 
         BuildTitlebarExtras();
     }
@@ -93,9 +101,9 @@ public partial class MainWindow : Window
 
     private void BuildTitlebarExtras()
     {
-        var densitySeg = Seg(new[] { ("紧凑", VoxTheme.DensityCompact), ("标准", VoxTheme.DensityNormal), ("宽松", VoxTheme.DensityRoomy) },
+        var densitySeg = Seg(new[] { ("Vox.Settings.Appearance.DensityCompact", VoxTheme.DensityCompact), ("Vox.Settings.Appearance.DensityNormal", VoxTheme.DensityNormal), ("Vox.Settings.Appearance.DensityRoomy", VoxTheme.DensityRoomy) },
             AppState.Instance.Settings.Density, ThemeService.ChangeDensity);
-        var themeSeg = Seg(new[] { ("亮色", "light"), ("暗色", "dark"), ("跟随系统", "auto") }, CurrentDarkKey(),
+        var themeSeg = Seg(new[] { ("Vox.Settings.Appearance.ThemeLight", "light"), ("Vox.Settings.Appearance.ThemeDark", "dark"), ("Vox.Settings.Appearance.ThemeSystem", "auto") }, CurrentDarkKey(),
             mode => ThemeService.ChangeDark(mode switch { "dark" => true, "auto" => (bool?)null, _ => false }));
 
         var swatches = new WrapPanel { Margin = new Thickness(2, 2, 2, 4) };
@@ -130,11 +138,11 @@ public partial class MainWindow : Window
         }
 
         var pop = new StackPanel { Width = 268 };
-        pop.Children.Add(PopTitle("界面密度", 0));
+        pop.Children.Add(PopTitle("Vox.Settings.Appearance.Density", 0));
         pop.Children.Add(densitySeg);
-        pop.Children.Add(PopTitle("明暗模式", 12));
+        pop.Children.Add(PopTitle("Vox.Settings.Appearance.ThemeMode", 12));
         pop.Children.Add(themeSeg);
-        pop.Children.Add(PopTitle("界面配色 · Arc 预设", 12));
+        pop.Children.Add(PopTitle("Vox.Settings.Appearance.ArcPresets", 12));
         pop.Children.Add(swatches);
         BtnTbLook.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(pop) };
 
@@ -146,12 +154,12 @@ public partial class MainWindow : Window
             var captured = (label, code);
             item.Click += (_, _) =>
             {
-                // 四语全量支持：持久化 + SetCulture（CultureChanged → RebuildForAppearance 整体重建）。
+                // 四语全量：持久化 + SetCulture，全部 I18n 绑定随 CultureChanged 自动刷新。
                 var settings = AppState.Instance.Settings;
                 settings.Language = captured.code;
                 AppState.Instance.SaveSettings();
                 CodeWF.Toolkit.Lang.I18nManager.Instance.Culture = System.Globalization.CultureInfo.GetCultureInfo(captured.code);
-                ShowToast("界面语言：" + captured.label);
+                ShowToast(TF("Vox.Shell.Toast.LanguageSet", captured.label));
                 BtnTbLang.Flyout?.Hide();
             };
             lang.Children.Add(item);
@@ -159,7 +167,6 @@ public partial class MainWindow : Window
         BtnTbLang.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(lang) };
 
         BtnTbSearch.Click += (_, _) => OpenSearch();
-        SearchClose.Click += (_, _) => CloseSearch();
         SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
         SearchInput.PropertyChanged += (_, e) =>
         {
@@ -170,6 +177,35 @@ public partial class MainWindow : Window
             }
         };
         KeyDown += OnHotkeys;
+    }
+
+    /// <summary>标题栏与搜索浮层固定文案：全部接 I18n 动态绑定（初始即取当前语言，切换自动跟随）。</summary>
+    private void ApplyChrome()
+    {
+        BtnFileMenu[!Button.ContentProperty] = I18n.Bind("Vox.Shell.Menu.File");
+        MiNewWindow[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewWindow");
+        MiOpenDir[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
+        MiOpenFile[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
+        MiNew[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
+        MiMeta[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
+        MiImg[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
+        BtnTbSearch[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Search");
+        BtnTbLook[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Appearance");
+        BtnTbLang[!ToolTip.TipProperty] = I18n.Bind("Vox.Settings.Appearance.Language");
+        BtnNav[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.ToggleNav");
+        SearchPlaceholder[!TextBlock.TextProperty] = I18n.Bind("Vox.Shell.Search.Placeholder");
+        FootNavigate[!TextBlock.TextProperty] = I18n.Bind("Vox.Shell.Search.HintNavigate");
+        FootOpen[!TextBlock.TextProperty] = I18n.Bind("Vox.Shell.Search.HintOpen");
+        FootClose[!TextBlock.TextProperty] = I18n.Bind("Vox.Shell.Search.HintClose");
+        foreach (var (button, key) in new[]
+                 {
+                     (BtnWinMin, "Vox.Shell.Tooltip.Minimize"),
+                     (BtnWinMax, "Vox.Shell.Tooltip.Maximize"),
+                     (BtnWinClose, "Vox.Shell.Tooltip.Close"),
+                 })
+        {
+            button[!ToolTip.TipProperty] = I18n.Bind(key);
+        }
     }
 
     private void OnHotkeys(object? sender, KeyEventArgs e)
@@ -185,11 +221,17 @@ public partial class MainWindow : Window
         Classes = { "mnu" }, Padding = new Thickness(14, 12, 14, 14), Child = content,
     };
 
-    private static TextBlock PopTitle(string text, double marginTop) => new()
+    private static TextBlock PopTitle(object key, double marginTop)
     {
-        Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold,
-        Foreground = TryBrush("VoxMuted"), Margin = new Thickness(2, marginTop, 0, 6),
-    };
+        var tb = new TextBlock
+        {
+            FontWeight = FontWeight.SemiBold,
+            Foreground = TryBrush("VoxMuted"), Margin = new Thickness(2, marginTop, 0, 6),
+            [!TextBlock.TextProperty] = I18n.Bind(key),
+        };
+        tb[!TextBlock.FontSizeProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxFontSizeXs");
+        return tb;
+    }
 
     private static IBrush? TryBrush(string key) =>
         Application.Current!.TryFindResource(key, out var v) && v is IBrush b ? b : null;
@@ -201,7 +243,8 @@ public partial class MainWindow : Window
         host.Child = row;
         foreach (var (label, value) in options)
         {
-            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Content = label, Tag = value, MinWidth = 70 };
+            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Tag = value, MinWidth = 70 };
+            button[!Button.ContentProperty] = I18n.Bind(label);
             var captured = value;
             button.Click += (_, _) =>
             {
@@ -234,9 +277,10 @@ public partial class MainWindow : Window
     private void BuildSearchTabs()
     {
         SearchTabs.Children.Clear();
-        foreach (var (label, key) in new[] { ("全部", "all"), ("文章", "art"), ("操作", "op") })
+        foreach (var (label, key) in new[] { ("Vox.Shell.Search.TabAll", "all"), ("Vox.Shell.Search.TabArticles", "art"), ("Vox.Shell.Search.TabActions", "op") })
         {
-            var button = new Button { Classes = { "sptab", key == _searchTab ? "active" : string.Empty }, Content = label, Tag = key };
+            var button = new Button { Classes = { "sptab", key == _searchTab ? "active" : string.Empty }, Tag = key };
+            button[!Button.ContentProperty] = I18n.Bind(label);
             var captured = key;
             button.Click += (_, _) =>
             {
@@ -267,7 +311,7 @@ public partial class MainWindow : Window
                 var a = article;
                 if (query.Length > 0 && !a.Title.Contains(query, StringComparison.OrdinalIgnoreCase) && !a.Slug.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
                 rows.Add(new SearchRow("art", string.IsNullOrEmpty(a.Title) ? a.Slug : a.Title,
-                    a.Year + "/" + a.Month + " · " + a.WordCount.ToString("N0") + " 字",
+                    a.Year + "/" + a.Month + " · " + TF("Vox.Shell.Search.Words", a.WordCount.ToString("N0")),
                     () => { CloseSearch(); ShowPage("write"); if (PageHost.Content is WritePage w) _ = w.OpenArticleAsync(a); }));
             }
         }
@@ -275,8 +319,8 @@ public partial class MainWindow : Window
         {
             rows.AddRange(new[]
             {
-                new SearchRow("op", "提交并推送（发布中心 → 网站 git）", "发布中心", () => { CloseSearch(); ShowPage("publish"); }),
-                new SearchRow("op", "重新扫描内容仓库", "设置", () => { CloseSearch(); AppState.Instance.Rescan(); Services.PublishHub.Invalidate(); ShowToast("已重新扫描"); }),
+                new SearchRow("op", T("Vox.Shell.Search.OpPublish"), T("Vox.Shell.Search.TabPublish"), () => { CloseSearch(); ShowPage("publish"); }),
+                new SearchRow("op", T("Vox.Shell.Search.OpRescan"), T("Vox.Nav.Label.Settings"), () => { CloseSearch(); AppState.Instance.Rescan(); Services.PublishHub.Invalidate(); ShowToast(T("Vox.Shell.Toast.Rescanned")); }),
             }.Where(r => query.Length == 0 || r.Title.Contains(query, StringComparison.OrdinalIgnoreCase)));
         }
 
@@ -289,7 +333,7 @@ public partial class MainWindow : Window
                 lastKind = row.Kind;
                 host.Children.Add(new TextBlock
                 {
-                    Text = row.Kind == "art" ? "文章" : "操作",
+                    Text = row.Kind == "art" ? T("Vox.Shell.Search.TabArticles") : T("Vox.Shell.Search.TabActions"),
                     FontSize = 9.5, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.4,
                     Foreground = TryBrush("VoxFaint"), Margin = new Thickness(10, 9, 10, 4),
                 });
@@ -323,7 +367,7 @@ public partial class MainWindow : Window
         {
             host.Children.Add(new TextBlock
             {
-                Text = "没有匹配的结果", FontSize = 12, Margin = new Thickness(12, 16), Foreground = TryBrush("VoxFaint"),
+                Text = T("Vox.Shell.Search.NoResults"), FontSize = 12, Margin = new Thickness(12, 16), Foreground = TryBrush("VoxFaint"),
             });
         }
     }
@@ -450,15 +494,107 @@ public partial class MainWindow : Window
 
     private void BuildNav()
     {
-        AddNavItem(NavItems, "write", LucideIconKind.PenLine, T(Nav.Label.Write));
-        AddNavItem(NavItems, "library", LucideIconKind.ChartColumn, T(Nav.Label.Library));
-        AddNavItem(NavItems, "publish", LucideIconKind.GitBranch, T(Nav.Label.Publish));
-        AddNavItem(NavItems, "site", LucideIconKind.Braces, T(Nav.Label.SiteData));
-        AddNavItem(NavItems, "settings", LucideIconKind.Settings, T(Nav.Label.Settings));
+        AddNavItem(NavItems, "write", LucideIconKind.PenLine, Nav.Label.Write);
+        AddNavItem(NavItems, "library", LucideIconKind.ChartColumn, Nav.Label.Library);
+        AddNavItem(NavItems, "publish", LucideIconKind.GitBranch, Nav.Label.Publish);
+        AddNavItem(NavItems, "site", LucideIconKind.Braces, Nav.Label.SiteData);
+        AddNavItem(NavItems, "settings", LucideIconKind.Settings, Nav.Label.Settings);
 
         MiNew.Click += (_, _) => WriteCommand(p => p.OpenNewArticle());
         MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
         MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
+
+        // 新进程入口（无单实例约束）：空白 / 目录 / 文件，均为会话级目标。
+        MiNewWindow.Click += (_, _) =>
+        {
+            if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
+            LaunchVox("--empty");
+        };
+        MiOpenDir.Click += async (_, _) =>
+        {
+            if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
+            var dirs = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                AllowMultiple = false,
+                Title = T("Vox.Write.Menu.OpenDirectory"),
+            });
+            if (dirs.Count > 0) LaunchVox(dirs[0].Path.LocalPath);
+        };
+        MiOpenFile.Click += async (_, _) =>
+        {
+            if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                AllowMultiple = false,
+                Title = T("Vox.Write.Menu.OpenFile"),
+                FileTypeFilter = new[] { new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } } },
+            });
+            if (files.Count > 0) LaunchVox(files[0].Path.LocalPath);
+        };
+    }
+
+    /// <summary>拉起新 Vox 进程承载所选目标（环境为单文件发布时 Environment.ProcessPath 即可执行文件）。</summary>
+    private void LaunchVox(string argument)
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exe)) return;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exe,
+                ArgumentList = { argument },
+                UseShellExecute = false,
+            });
+        }
+        catch (Exception ex)
+        {
+            ShowToast(TF("Vox.Shell.Toast.LaunchFailed", ex.Message));
+        }
+    }
+
+    // ---------- 新进程启动定位 ----------
+
+    private bool _startupTargetDone;
+
+    /// <summary>命令行带目录/文件时：首个有内容的索引完成后，目录开第一篇文章、文件定位到该篇。</summary>
+    private void HookStartupTarget()
+    {
+        if (AppBootstrap.SessionRepoPath == null) return;
+        AppState.Instance.ScanChanged += OnStartupTargetScan;
+    }
+
+    private void OnStartupTargetScan()
+    {
+        if (_startupTargetDone) return;
+        var scan = AppState.Instance.Scan;
+        if (scan == null || scan.Articles.Count == 0) return;
+
+        _startupTargetDone = true;
+        AppState.Instance.ScanChanged -= OnStartupTargetScan;
+
+        Article? target = null;
+        if (AppBootstrap.SessionOpenFile != null && scan.RepoRoot != null)
+        {
+            var wanted = AppBootstrap.SessionOpenFile;
+            target = scan.Articles.FirstOrDefault(a =>
+            {
+                try
+                {
+                    return string.Equals(
+                        Path.GetFullPath(LinkStrategy.ToLocalFile(scan.RepoRoot, a.MarkdownPath)),
+                        wanted, StringComparison.OrdinalIgnoreCase);
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+        target ??= scan.Articles[0]; // 目录入口：索引序第一篇 md
+
+        ShowPage("write");
+        if (PageHost.Content is WritePage write) _ = write.OpenArticleAsync(target);
     }
 
     private void WriteCommand(Action<WritePage> action)
@@ -468,14 +604,16 @@ public partial class MainWindow : Window
         if (PageHost.Content is WritePage page) action(page);
     }
 
-    /// <summary>导航项内容：展开态（图标+标签+计数）与折叠态（大图标居中）两套布局切换。</summary>
-    private void AddNavItem(StackPanel host, string key, LucideIconKind icon, string label)
+    /// <summary>导航项内容：展开态（图标+标签+计数）与折叠态（大图标居中）两套布局切换。
+    /// 标签接 I18n 绑定（参数为资源键），语言切换实时跟随。</summary>
+    private void AddNavItem(StackPanel host, string key, LucideIconKind icon, string labelKey)
     {
         var expanded = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"), Margin = new Thickness(2, 0, 2, 0) };
         var expIcon = new LucideIcon { Kind = icon, Width = 16, Height = 16, StrokeThickness = 2 };
         Grid.SetColumn(expIcon, 0);
-        var expLabel = new TextBlock { Text = label, FontSize = Fs(12.5), FontWeight = FontWeight.Medium,
+        var expLabel = new TextBlock { FontSize = Fs(12.5), FontWeight = FontWeight.Medium,
             Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        expLabel[!TextBlock.TextProperty] = I18n.Bind(labelKey);
         Grid.SetColumn(expLabel, 1);
         var cnt = new Border { Classes = { "navcnt" }, IsVisible = false,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
@@ -497,7 +635,7 @@ public partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Content = new Panel { Children = { expanded, collapsed } },
         };
-        ToolTip.SetTip(button, label);
+        button[!ToolTip.TipProperty] = I18n.Bind(labelKey);
         button.Click += (_, _) => ShowPage(key);
         _navButtons.Add((button, key));
         host.Children.Add(button);
@@ -540,20 +678,24 @@ public partial class MainWindow : Window
 
     private void OnScanChanged() => Dispatcher.UIThread.Post(UpdateNavCounts);
 
-    private void UpdateNavCounts()
+    private async void UpdateNavCounts()
     {
+        // 角标计算走发布缓存（可能冷启动在后台构建）：放到后台线程算，UI 只收结果。
+        var pending = await Task.Run(() =>
+        {
+            try
+            {
+                return Services.PublishHub.PendingCount();
+            }
+            catch
+            {
+                return 0;
+            }
+        });
         var scan = AppState.Instance.Scan;
         SetNavCount("library", scan?.Articles.Count.ToString());
         // 发布中心角标 = 待推送提交 + 待发布/需更新/失败的平台格子。
-        try
-        {
-            var pending = PublishHub.PendingCount();
-            SetNavCount("publish", pending > 0 ? pending.ToString() : null);
-        }
-        catch
-        {
-            SetNavCount("publish", null);
-        }
+        SetNavCount("publish", pending > 0 ? pending.ToString() : null);
     }
 
     private void SetNavCount(string key, string? text)

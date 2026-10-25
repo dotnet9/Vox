@@ -17,7 +17,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="9"/>
         <Setter Property="Padding" Value="11,7"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
         <Setter Property="MinHeight" Value="30"/>
         <Setter Property="SelectionBrush" Value="{DynamicResource VoxAccentSoft}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource VoxAccent}"/>
@@ -63,7 +63,7 @@
     
       <ControlTheme x:Key="VoxCheckTheme" TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
           <ControlTemplate>
@@ -72,7 +72,7 @@
                 <Border Name="PART_Box" Width="14" Height="14" CornerRadius="4"
                         BorderThickness="1.5" BorderBrush="{DynamicResource VoxLineStrong}"
                         Background="Transparent"/>
-                <TextBlock Name="PART_Mark" Text="✓" FontSize="10" Foreground="#FFFFFF"
+                <TextBlock Name="PART_Mark" Text="✓" FontSize="{DynamicResource VoxFontSizeXxs}" Foreground="#FFFFFF"
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            IsVisible="False"/>
               </Panel>
@@ -92,7 +92,7 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="9"/>
     <Setter Property="Padding" Value="14,7"/>
-    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -138,7 +138,7 @@
   </Style>
   <Style Selector="Button.btn.sm">
     <Setter Property="Padding" Value="10,4"/>
-    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="CornerRadius" Value="7"/>
     <Setter Property="MinHeight" Value="24"/>
   </Style>
@@ -179,7 +179,7 @@
     <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxMuted}"/>
     <Setter Property="CornerRadius" Value="99"/>
     <Setter Property="Padding" Value="8,1"/>
-    <Setter Property="TextElement.FontSize" Value="10.5"/>
+    <Setter Property="TextElement.FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
     <Setter Property="TextElement.FontWeight" Value="Medium"/>
   </Style>
   <Style Selector="Border.badge.accent">
@@ -206,7 +206,7 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="99"/>
     <Setter Property="Padding" Value="10,3"/>
-    <Setter Property="TextElement.FontSize" Value="11"/>
+    <Setter Property="TextElement.FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxMuted}"/>
   </Style>
   <Style Selector="Border.chip.add">
@@ -227,7 +227,7 @@
   <Style Selector="Border.seg Button.segbtn">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Padding" Value="12,4"/>
     <Setter Property="CornerRadius" Value="7"/>
@@ -248,7 +248,7 @@
   <Style Selector="Button.navit">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="CornerRadius" Value="9"/>
     <Setter Property="Padding" Value="10,8"/>
@@ -330,7 +330,7 @@
   <Style Selector="Button.tb-txt">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Padding" Value="8,4"/>
     <Setter Property="CornerRadius" Value="7"/>
@@ -380,7 +380,7 @@
   <Style Selector="Border.mnu Button.mnuitem">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
     <Setter Property="Padding" Value="10,7"/>
     <Setter Property="CornerRadius" Value="7"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -417,7 +417,7 @@
     <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxBg}"/>
     <Setter Property="CornerRadius" Value="99"/>
     <Setter Property="Padding" Value="18,9"/>
-    <Setter Property="TextElement.FontSize" Value="12"/>
+    <Setter Property="TextElement.FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
     <Setter Property="TextElement.FontWeight" Value="Medium"/>
     <Setter Property="ZIndex" Value="99"/>
     <Setter Property="IsVisible" Value="False"/>
@@ -443,10 +443,10 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadius}"/>
   </Style>
   <Style Selector="TextBlock.flabel">
-    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
     <Setter Property="Margin" Value="0,13,0,5"/>
@@ -514,7 +514,7 @@
   <Style Selector="Button.wtabbtn">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Padding" Value="0,9"/>
     <Setter Property="CornerRadius" Value="0"/>
@@ -531,7 +531,7 @@
   <Style Selector="Button.outl">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="Padding" Value="4,2"/>
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -548,7 +548,7 @@
   </Style>
   <Style Selector="Button.outl.l3">
     <Setter Property="Padding" Value="16,2"/>
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
   </Style>
 
   <Style Selector="Border.drop">
@@ -575,7 +575,7 @@
     <Setter Property="Cursor" Value="Hand"/>
   </Style>
   <Style Selector="Border.thumb TextBlock.tlabel">
-    <Setter Property="FontSize" Value="8.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeTiny}"/>
     <Setter Property="FontFamily" Value="{DynamicResource VoxFontMono}"/>
     <Setter Property="Foreground" Value="#FFFFFF"/>
     <Setter Property="Background" Value="#73000000"/>
@@ -592,7 +592,7 @@
     <Setter Property="CornerRadius" Value="0"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="MinHeight" Value="22"/>
-    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXl}"/>
     <Setter Property="FontWeight" Value="Medium"/>
   </Style>
   <Style Selector="Button.kbd">
@@ -603,7 +603,7 @@
     <Setter Property="Padding" Value="6,1"/>
     <Setter Property="MinHeight" Value="20"/>
     <Setter Property="FontFamily" Value="{DynamicResource VoxFontMono}"/>
-    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXxs}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFaint}"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -614,7 +614,7 @@
   <Style Selector="Button.sptab">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Padding" Value="11,4"/>
     <Setter Property="CornerRadius" Value="7"/>
@@ -635,7 +635,7 @@
   <Style Selector="Button.sp-it">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
-    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
     <Setter Property="Padding" Value="10,8"/>
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -655,7 +655,7 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
     <Setter Property="FontFamily" Value="{DynamicResource VoxFontUi}"/>
-    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="Padding" Value="10,7"/>
     <Setter Property="MaxWidth" Value="360"/>
     <Setter Property="Template">

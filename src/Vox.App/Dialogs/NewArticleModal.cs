@@ -8,6 +8,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Views;
 using Vox.App.Views.Pages;
 using Vox.Core;
+using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
@@ -20,7 +21,7 @@ public sealed class NewArticleModal : Border
 
     private readonly StackPanel _stepsBar = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
     private readonly Border[] _stepPages = new Border[4];
-    private readonly TextBox _titleInput = Modal.Input(watermark: "想好标题，slug 和日期自动生成");
+    private readonly TextBox _titleInput = Modal.Input();
     private readonly TextBox _slugInput = Modal.Input("new-article-slug", mono: true);
     private readonly TextBlock _slugPreview = new();
     private readonly TextBox _descInput = Modal.Area();
@@ -38,7 +39,7 @@ public sealed class NewArticleModal : Border
         _repoRoot = repoRoot;
         _onCreated = onCreated;
 
-        var (modal, body, footer, close) = Modal.Create("新建文章", 560, 640);
+        var (modal, body, footer, close) = Modal.Create(T("Vox.Wizard.New.Title"), 560, 640);
         Classes.AddRange(modal.Classes);
         Width = modal.Width;
         MaxHeight = modal.MaxHeight;
@@ -58,10 +59,11 @@ public sealed class NewArticleModal : Border
 
         // 第 1 步：标题 + slug
         var step1 = new StackPanel { Spacing = 4 };
-        step1.Children.Add(Modal.Label("标题"));
+        step1.Children.Add(BoundLabel("Vox.Wizard.New.FieldTitle"));
+        _titleInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Wizard.New.TitlePlaceholder");
         _titleInput.TextChanged += (_, _) => RefreshSlugPreview();
         step1.Children.Add(_titleInput);
-        step1.Children.Add(Modal.Label("slug（可改）"));
+        step1.Children.Add(BoundLabel("Vox.Wizard.New.FieldSlug"));
         _slugInput.TextChanged += (_, _) => RefreshSlugPreview();
         step1.Children.Add(_slugInput);
         WritePage.Res(_slugPreview, TextBlock.ForegroundProperty, "VoxAccent");
@@ -74,36 +76,34 @@ public sealed class NewArticleModal : Border
 
         // 第 2 步：简述 + 日期
         var step2 = new StackPanel { Spacing = 4 };
-        step2.Children.Add(Modal.Label("一句话简述 description"));
-        _descInput.Watermark = "列表页与 SEO 用，发布前检查会检查";
+        step2.Children.Add(BoundLabel("Vox.Wizard.New.FieldDescription"));
+        _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Wizard.New.DescPlaceholder");
         step2.Children.Add(_descInput);
-        step2.Children.Add(Modal.Label("日期"));
+        step2.Children.Add(BoundLabel("Vox.Wizard.New.FieldDate"));
         var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _dateInput.Width = 200;
         dateRow.Children.Add(_dateInput);
-        var dateHint = new TextBlock { Text = "发布时间，精确到秒", FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+        var dateHint = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+        dateHint[!TextBlock.TextProperty] = I18n.Bind("Vox.Wizard.New.DateHint");
         WritePage.Res(dateHint, TextBlock.ForegroundProperty, "VoxFaint");
         dateRow.Children.Add(dateHint);
         step2.Children.Add(dateRow);
 
         // 第 3 步：大纲骨架 + 草稿开关
         var step3 = new StackPanel { Spacing = 4 };
-        step3.Children.Add(Modal.Label("大纲骨架（生成到正文）"));
+        step3.Children.Add(BoundLabel("Vox.Wizard.New.FieldOutline"));
         step3.Children.Add(_outlineInput);
         var draftRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
         draftRow.Children.Add(_draftSwitch);
-        var draftText = new TextBlock
-        {
-            Text = "以草稿创建（draft: true，不入已发布口径）", FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
+        var draftText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        draftText[!TextBlock.TextProperty] = I18n.Bind("Vox.Wizard.New.FieldDraftFull");
         WritePage.Res(draftText, TextBlock.ForegroundProperty, "VoxMuted");
         draftRow.Children.Add(draftText);
         step3.Children.Add(draftRow);
 
         // 第 4 步：确认预览
         var step4 = new StackPanel { Spacing = 4 };
-        step4.Children.Add(Modal.Label("即将创建"));
+        step4.Children.Add(BoundLabel("Vox.Wizard.New.Confirm"));
         _confirmPreview.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         _confirmPreview.FontSize = 11;
         _confirmPreview.TextWrapping = TextWrapping.NoWrap;
@@ -115,7 +115,8 @@ public sealed class NewArticleModal : Border
         };
         WritePage.Res(previewWrap, Border.BackgroundProperty, "VoxSurface2");
         step4.Children.Add(previewWrap);
-        var note = new TextBlock { Text = "创建后直接进入写作页，可在右侧文章面板补全封面 / 标签。", FontSize = 11.5 };
+        var note = new TextBlock { FontSize = 11.5 };
+        note[!TextBlock.TextProperty] = I18n.Bind("Vox.Wizard.New.CreatedNote");
         WritePage.Res(note, TextBlock.ForegroundProperty, "VoxMuted");
         step4.Children.Add(note);
 
@@ -127,9 +128,10 @@ public sealed class NewArticleModal : Border
         body.Children.Add(_stepsBar);
         foreach (var page in _stepPages) body.Children.Add(page);
 
-        _prevButton = new Button { Classes = { "btn" }, Content = "上一步" };
+        _prevButton = new Button { Classes = { "btn" } };
+        _prevButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Prev");
         _prevButton.Click += (_, _) => Step(-1);
-        _nextButton = new Button { Classes = { "btn", "primary" }, Content = "下一步" };
+        _nextButton = new Button { Classes = { "btn", "primary" } };
         _nextButton.Click += async (_, _) => await StepForwardAsync();
         footer.Children.Add(_prevButton);
         footer.Children.Add(_nextButton);
@@ -139,6 +141,14 @@ public sealed class NewArticleModal : Border
     }
 
     private static Border WrapStep(StackPanel panel) => new() { Child = panel };
+
+    /// <summary>字段标签：文案走 i18n 动态绑定，语言切换实时刷新。</summary>
+    private static TextBlock BoundLabel(string key)
+    {
+        var label = Modal.Label(string.Empty);
+        label[!TextBlock.TextProperty] = I18n.Bind(key);
+        return label;
+    }
 
     private static IBrush CreateAccentSoftBackground() => new SolidColorBrush(Avalonia.Media.Color.Parse("#217C5CFF"));
 
@@ -164,7 +174,7 @@ public sealed class NewArticleModal : Border
             }
         }
         _prevButton.IsEnabled = _step > 0;
-        _nextButton.Content = _step == 3 ? "创建并打开" : "下一步";
+        _nextButton.Content = _step == 3 ? T("Vox.Wizard.New.CreateAndOpen") : T("Vox.Common.Action.Next");
     }
 
     private void Step(int delta)
@@ -177,7 +187,7 @@ public sealed class NewArticleModal : Border
     {
         if (_step == 0 && string.IsNullOrWhiteSpace(_titleInput.Text))
         {
-            _shell.ShowToast("先填写标题");
+            _shell.ShowToast(T("Vox.Wizard.New.NeedTitle"));
             return;
         }
         if (_step < 3)
@@ -192,7 +202,7 @@ public sealed class NewArticleModal : Border
                     "---\n" +
                     $"title: {_titleInput.Text.Trim()}\n" +
                     $"slug: {Slug}\n" +
-                    $"description: {(string.IsNullOrWhiteSpace(_descInput.Text) ? "（你的简述）" : _descInput.Text.Trim())}\n" +
+                    $"description: {(string.IsNullOrWhiteSpace(_descInput.Text) ? T("Vox.Wizard.New.DescEmpty") : _descInput.Text.Trim())}\n" +
                     $"date: {date:yyyy-MM-dd HH:mm:ss}\n" +
                     "cover:\ncategories: []\ntags: []\n" +
                     "author: Dotnet9\n" +
@@ -222,12 +232,12 @@ public sealed class NewArticleModal : Border
             };
             var created = ArticleScaffolder.Create(_repoRoot, spec);
             _shell.CloseModal();
-            _shell.ShowToast($"已创建 {created.MarkdownPath} · 进入写作页");
+            _shell.ShowToast(TF("Vox.Wizard.New.Created", created.MarkdownPath));
             await _onCreated(created);
         }
         catch (Exception ex)
         {
-            _shell.ShowToast($"创建失败：{ex.Message}");
+            _shell.ShowToast(TF("Vox.Wizard.New.CreateFailed", ex.Message));
         }
     }
 }

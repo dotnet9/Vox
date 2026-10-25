@@ -91,6 +91,16 @@ public static class VoxTheme
     {
         if (Application.Current is not { } app) return;
         app.Resources["VoxRadius"] = new Avalonia.CornerRadius(Radius);
+        // 字号令牌：样式与 chrome 文本用 DynamicResource 引用，密度切换整体响应（原型 rem 缩放口径）。
+        app.Resources["VoxFontSizeTiny"] = Fs(8.5);
+        app.Resources["VoxFontSizeMicro"] = Fs(9.5);
+        app.Resources["VoxFontSizeXxs"] = Fs(10);
+        app.Resources["VoxFontSizeXs"] = Fs(10.5);
+        app.Resources["VoxFontSizeSm"] = Fs(11.5);
+        app.Resources["VoxFontSizeMm"] = Fs(12);
+        app.Resources["VoxFontSizeMd"] = Fs(12.5);
+        app.Resources["VoxFontSizeLg"] = Fs(13.5);
+        app.Resources["VoxFontSizeXl"] = Fs(14);
     }
 
     // ---------- 基础色板（tokens.css 明暗两套） ----------
@@ -141,6 +151,7 @@ public static class VoxTheme
         r["VoxMaskBg"] = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
         r["VoxTransparent"] = Brushes.Transparent;
         r["VoxRadius"] = new Avalonia.CornerRadius(Radius);
+        ApplyDensity();
     }
 
     private static string HexSoft(string hex)

@@ -7,6 +7,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Services;
 using Vox.App.Views;
 using Vox.App.Views.Pages;
+using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
@@ -20,7 +21,7 @@ public sealed class PlatformCfgModal : Border
     private readonly TextBox _wxSecret = Field("AppSecret", secret: true);
     private readonly Border _wxBadge = new();
     private readonly TextBox _cnbUrl = Modal.Input(watermark: "https://rpc.cnblogs.com/metaweblog/…", mono: true);
-    private readonly TextBox _cnbToken = Field("访问令牌", secret: true);
+    private readonly TextBox _cnbToken = Field(secret: true);
     private readonly Border _cnbBadge = new();
     private readonly TextBox _csdnToken = Field("API Token", secret: true);
     private readonly Border _csdnBadge = new();
@@ -28,7 +29,7 @@ public sealed class PlatformCfgModal : Border
     private readonly ToggleButton _autoHintSwitch = new() { Classes = { "vswitch" } };
 
 
-    private static TextBox Field(string watermark, bool secret = false)
+    private static TextBox Field(string? watermark = null, bool secret = false)
     {
         var box = Modal.Input(watermark: watermark, mono: true);
         if (secret) box.PasswordChar = '●';
@@ -40,7 +41,7 @@ public sealed class PlatformCfgModal : Border
         _shell = shell;
         _onSaved = onSaved;
 
-        var (modal, body, footer, close) = Modal.Create("平台账户", 560, 560);
+        var (modal, body, footer, close) = Modal.Create(T("Vox.Settings.Platform.Title"), 560, 560);
         Classes.AddRange(modal.Classes);
         Width = modal.Width;
         MaxHeight = modal.MaxHeight;
@@ -49,12 +50,13 @@ public sealed class PlatformCfgModal : Border
         modal.Child = null; // 先断开骨架 Border 的逻辑父级，再借用其内容（否则「已有父级」崩溃）
         Child = skeleton;
         close.Click += (_, _) => shell.CloseModal();
+        _cnbToken[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Settings.Platform.Token");
 
         var intro = new TextBlock
         {
-            Text = "凭据存系统凭据管理器，不进仓库。API 通道填密钥即启用直发；未配置的平台在发布对话框中降级为复制助手。",
             TextWrapping = TextWrapping.Wrap, FontSize = 12,
         };
+        intro[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.Intro");
         WritePage.Res(intro, TextBlock.ForegroundProperty, "VoxMuted");
         body.Children.Add(intro);
 
@@ -62,66 +64,78 @@ public sealed class PlatformCfgModal : Border
         var wx = PlatformAccounts.LoadWeChat();
         _wxAppId.Text = wx?.AppId ?? string.Empty;
         _wxSecret.Text = wx?.AppSecret ?? string.Empty;
-        body.Children.Add(Modal.Label("微信公众号（API 草稿箱）"));
+        var wxLabel = Modal.Label(string.Empty);
+        wxLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.WeChat");
+        body.Children.Add(wxLabel);
         body.Children.Add(PlatformRow(
             new Control[] { _wxAppId, _wxSecret }, _wxBadge,
-            "保存", () =>
+            "Vox.Common.Action.Save", () =>
             {
                 PlatformAccounts.SaveWeChat(new WeChatAccount(_wxAppId.Text?.Trim() ?? string.Empty, _wxSecret.Text?.Trim() ?? string.Empty));
                 RefreshBadges();
-                _shell.ShowToast("公众号凭据已保存（系统凭据管理器）");
+                _shell.ShowToast(T("Vox.Settings.Platform.WxSaved"));
             }));
 
         // 博客园
         var cnb = PlatformAccounts.LoadCnblogs();
         _cnbUrl.Text = cnb?.Url ?? string.Empty;
         _cnbToken.Text = cnb?.Token ?? string.Empty;
-        body.Children.Add(Modal.Label("博客园（MetaWeblog API）"));
+        var cnbLabel = Modal.Label(string.Empty);
+        cnbLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.Cnblogs");
+        body.Children.Add(cnbLabel);
         body.Children.Add(PlatformRow(
             new Control[] { _cnbUrl, _cnbToken }, _cnbBadge,
-            "保存", () =>
+            "Vox.Common.Action.Save", () =>
             {
                 PlatformAccounts.SaveCnblogs(new CnblogsAccount(_cnbUrl.Text?.Trim() ?? string.Empty, _cnbToken.Text?.Trim() ?? string.Empty));
                 RefreshBadges();
-                _shell.ShowToast("博客园凭据已保存（系统凭据管理器）");
+                _shell.ShowToast(T("Vox.Settings.Platform.CnbSaved"));
             }));
 
         // CSDN
         var csdn = PlatformAccounts.LoadCsdn();
         _csdnToken.Text = csdn?.Token ?? string.Empty;
-        body.Children.Add(Modal.Label("CSDN（OpenAPI）"));
+        var csdnLabel = Modal.Label(string.Empty);
+        csdnLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.Csdn");
+        body.Children.Add(csdnLabel);
         body.Children.Add(PlatformRow(
             new Control[] { _csdnToken }, _csdnBadge,
-            "保存", () =>
+            "Vox.Common.Action.Save", () =>
             {
                 PlatformAccounts.SaveCsdn(new CsdnAccount(_csdnToken.Text?.Trim() ?? string.Empty));
                 RefreshBadges();
-                _shell.ShowToast("CSDN token 已保存（系统凭据管理器）");
+                _shell.ShowToast(T("Vox.Settings.Platform.CsdnSaved"));
             }));
 
         // 发布默认项
-        body.Children.Add(Modal.Label("发布默认项"));
-        var draftOnly = new CheckBox { Classes = { "vcheck" }, Content = "公众号仅写入草稿箱（不直接群发）", IsChecked = true };
-        var autoHint = new CheckBox { Classes = { "vcheck" }, Content = "提交 git 时自动提示发布到已启用的平台" };
+        var defaultsLabel = Modal.Label(string.Empty);
+        defaultsLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.Defaults");
+        body.Children.Add(defaultsLabel);
+        var draftOnly = new CheckBox { Classes = { "vcheck" }, IsChecked = true };
+        draftOnly[!CheckBox.ContentProperty] = I18n.Bind("Vox.Settings.Platform.DraftOnly");
+        var autoHint = new CheckBox { Classes = { "vcheck" } };
+        autoHint[!CheckBox.ContentProperty] = I18n.Bind("Vox.Settings.Platform.AutoHint");
         body.Children.Add(draftOnly);
         body.Children.Add(autoHint);
 
-        var save = new Button { Classes = { "btn", "primary" }, Content = "保存" };
+        var save = new Button { Classes = { "btn", "primary" } };
+        save[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
         save.Click += (_, _) =>
         {
             _onSaved?.Invoke();
             _shell.CloseModal();
-            _shell.ShowToast("平台账户已保存（系统凭据管理器）");
+            _shell.ShowToast(T("Vox.Settings.Platform.Saved"));
         };
         footer.Children.Add(save);
 
         RefreshBadges();
     }
 
-    private Control PlatformRow(Control[] inputs, Border badge, string saveLabel, Action save)
+    private Control PlatformRow(Control[] inputs, Border badge, string saveLabelKey, Action save)
     {
         var row = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
-        var saveButton = new Button { Classes = { "btn", "sm" }, Content = saveLabel };
+        var saveButton = new Button { Classes = { "btn", "sm" } };
+        saveButton[!Button.ContentProperty] = I18n.Bind(saveLabelKey);
         saveButton.Click += (_, _) => save();
         row.Children.Add(saveButton.Dock(Dock.Right));
         badge.Margin = new Thickness(8, 0, 0, 0);
@@ -139,11 +153,11 @@ public sealed class PlatformCfgModal : Border
 
     private void RefreshBadges()
     {
-        SetBadge(_wxBadge, PlatformAccounts.LoadWeChat() is { IsConfigured: true } ? "已配置" : "未配置",
+        SetBadge(_wxBadge, PlatformAccounts.LoadWeChat() is { IsConfigured: true } ? T("Vox.Settings.Platform.Configured") : T("Vox.Settings.Git.PatEmpty"),
             PlatformAccounts.LoadWeChat() is { IsConfigured: true });
-        SetBadge(_cnbBadge, PlatformAccounts.LoadCnblogs() is { IsConfigured: true } ? "已配置" : "未配置",
+        SetBadge(_cnbBadge, PlatformAccounts.LoadCnblogs() is { IsConfigured: true } ? T("Vox.Settings.Platform.Configured") : T("Vox.Settings.Git.PatEmpty"),
             PlatformAccounts.LoadCnblogs() is { IsConfigured: true });
-        SetBadge(_csdnBadge, PlatformAccounts.LoadCsdn() is { IsConfigured: true } ? "已配置" : "未配置",
+        SetBadge(_csdnBadge, PlatformAccounts.LoadCsdn() is { IsConfigured: true } ? T("Vox.Settings.Platform.Configured") : T("Vox.Settings.Git.PatEmpty"),
             PlatformAccounts.LoadCsdn() is { IsConfigured: true });
     }
 

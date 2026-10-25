@@ -7,6 +7,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Services;
 using Vox.App.Views;
 using Vox.Core;
+using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
@@ -17,11 +18,11 @@ public sealed class LibraryPage : UserControl
     private readonly MainWindow _shell;
     private StackPanel _statsHost = new();
     private StackPanel _tableHost = new();
-    private readonly Controls.MiniSelect _yearFilter = new() { Title = "年份" };
-    private readonly Controls.MiniSelect _categoryFilter = new() { Title = "分类" };
-    private readonly Controls.MiniSelect _statusFilter = new() { Title = "状态" };
-    private readonly Controls.MiniSelect _platformFilter = new() { Title = "平台状态" };
-    private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 220, Watermark = "标题 / slug / 正文全文…" };
+    private readonly Controls.MiniSelect _yearFilter = new();
+    private readonly Controls.MiniSelect _categoryFilter = new();
+    private readonly Controls.MiniSelect _statusFilter = new();
+    private readonly Controls.MiniSelect _platformFilter = new();
+    private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 220 };
     private readonly TextBlock _footInfo = new();
     private readonly StackPanel _pagerHost = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
     private const int PageSize = 15;
@@ -41,6 +42,12 @@ public sealed class LibraryPage : UserControl
 
     private void BuildLayout()
     {
+        _yearFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Year");
+        _categoryFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Category");
+        _statusFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Status");
+        _platformFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Platform");
+        _search[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Library.Label.SearchPlaceholder");
+
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
         var host = new StackPanel { Spacing = 14 };
 
@@ -52,8 +59,8 @@ public sealed class LibraryPage : UserControl
         var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         foreach (var (select, allLabel) in new[]
                  {
-                     (_yearFilter, "全部年份"), (_categoryFilter, "全部分类"),
-                     (_statusFilter, "全部状态"), (_platformFilter, "全平台状态"),
+                     (_yearFilter, T("Vox.Library.Filter.Year")), (_categoryFilter, T("Vox.Library.Filter.Category")),
+                     (_statusFilter, T("Vox.Library.Filter.Status")), (_platformFilter, T("Vox.Library.Filter.Platform")),
                  })
         {
             select.Items = new[] { allLabel };
@@ -120,14 +127,14 @@ public sealed class LibraryPage : UserControl
         var images = scan?.Images.Count(i => !i.IsMissing) ?? 0;
         var pending = scan is null ? 0 : PublishHub.Rows().Sum(r => r.Channels.Count(c => c.Status is PublishStatus.Stale or PublishStatus.Off or PublishStatus.Error));
 
-        _statsHost.Children.Add(StatCard($"{articles}", $"篇文章 · 跨 {years}"));
-        _statsHost.Children.Add(StatCard(FormatWords(words), "总字数（引擎口径）"));
-        _statsHost.Children.Add(StatCard($"{images}", "张图片"));
-        _statsHost.Children.Add(StatCard($"{pending}", "待发布 / 需更新（全平台）"));
+        _statsHost.Children.Add(StatCard($"{articles}", TF("Vox.Library.Stats.ArticlesSpan", years)));
+        _statsHost.Children.Add(StatCard(FormatWords(words), T("Vox.Library.Stats.WordsEngine")));
+        _statsHost.Children.Add(StatCard($"{images}", T("Vox.Library.Stats.Images")));
+        _statsHost.Children.Add(StatCard($"{pending}", T("Vox.Library.Stats.PendingAll")));
     }
 
     private static string FormatWords(int words) => words >= 10000
-        ? $"{words / 10000.0:F1} 万"
+        ? TF("Vox.Library.Stats.WordsWan", $"{words / 10000.0:F1}")
         : $"{words}";
 
     private Border StatCard(string number, string label)
@@ -160,10 +167,10 @@ public sealed class LibraryPage : UserControl
         var years = scan?.Articles.Select(a => a.Year).Distinct().OrderByDescending(y => y).ToList() ?? [];
         var categories = scan?.Articles.SelectMany(a => a.Meta.Categories).Distinct().OrderBy(c => c).ToList() ?? [];
 
-        _yearFilter.Items = new[] { "全部年份" }.Concat(years).ToList();
-        _categoryFilter.Items = new[] { "全部分类" }.Concat(categories).ToList();
-        _statusFilter.Items = new[] { "全部状态", "已发布", "草稿" };
-        _platformFilter.Items = new[] { "全平台状态", "待发布", "需更新", "失败" };
+        _yearFilter.Items = new[] { T("Vox.Library.Filter.Year") }.Concat(years).ToList();
+        _categoryFilter.Items = new[] { T("Vox.Library.Filter.Category") }.Concat(categories).ToList();
+        _statusFilter.Items = new[] { T("Vox.Library.Filter.Status"), T("Vox.Library.Badge.Published"), T("Vox.Library.Badge.Draft") };
+        _platformFilter.Items = new[] { T("Vox.Library.Filter.Platform"), T("Vox.Library.Filter.Pending"), T("Vox.Library.Filter.Stale"), T("Vox.Library.Filter.Error") };
     }
 
     private List<Article> Filtered()
@@ -172,10 +179,10 @@ public sealed class LibraryPage : UserControl
         if (scan == null) return [];
 
         IEnumerable<Article> query = scan.Articles;
-        if (_yearFilter.Selected is { Length: > 0 } year && year != "全部年份") query = query.Where(a => a.Year == year);
-        if (_categoryFilter.Selected is { Length: > 0 } cat && cat != "全部分类") query = query.Where(a => a.Meta.Categories.Contains(cat));
-        if (_statusFilter.Selected == "已发布") query = query.Where(a => !a.IsDraft);
-        if (_statusFilter.Selected == "草稿") query = query.Where(a => a.IsDraft);
+        if (_yearFilter.Selected is { Length: > 0 } year && year != T("Vox.Library.Filter.Year")) query = query.Where(a => a.Year == year);
+        if (_categoryFilter.Selected is { Length: > 0 } cat && cat != T("Vox.Library.Filter.Category")) query = query.Where(a => a.Meta.Categories.Contains(cat));
+        if (_statusFilter.Selected == T("Vox.Library.Badge.Published")) query = query.Where(a => !a.IsDraft);
+        if (_statusFilter.Selected == T("Vox.Library.Badge.Draft")) query = query.Where(a => a.IsDraft);
 
         var term = _search.Text?.Trim();
         if (!string.IsNullOrWhiteSpace(term))
@@ -185,9 +192,9 @@ public sealed class LibraryPage : UserControl
         }
 
         var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
-        if (_platformFilter.Selected == "待发布") query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Off));
-        if (_platformFilter.Selected == "需更新") query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Stale));
-        if (_platformFilter.Selected == "失败") query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Error));
+        if (_platformFilter.Selected == T("Vox.Library.Filter.Pending")) query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Off));
+        if (_platformFilter.Selected == T("Vox.Library.Filter.Stale")) query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Stale));
+        if (_platformFilter.Selected == T("Vox.Library.Filter.Error")) query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Error));
 
         return query.OrderByDescending(a => a.Meta.Date).ToList();
     }
@@ -202,7 +209,7 @@ public sealed class LibraryPage : UserControl
 
         // 表头
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,90,110,150,70,44,44,44,44,120") };
-        foreach (var (text, index) in new[] { "标题", "年月", "分类", "标签", "字数", "网站", "公众号", "博客园", "CSDN", "" }.Select((t, i) => (t, i)))
+        foreach (var (text, index) in new[] { T("Vox.Library.Column.Title"), T("Vox.Library.Column.Date"), T("Vox.Library.Column.Category"), T("Vox.Library.Column.Tags"), T("Vox.Library.Column.Words"), T("Vox.Library.Column.Site"), T("Vox.Library.Column.Wx"), T("Vox.Library.Column.Cnb"), "CSDN", "" }.Select((t, i) => (t, i)))
         {
             var cell = new TextBlock { Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold };
             Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
@@ -231,7 +238,7 @@ public sealed class LibraryPage : UserControl
         {
             var empty = new TextBlock
             {
-                Text = "没有符合条件的文章", FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
+                Text = T("Vox.Library.Label.NoMatch"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 24),
             };
             Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
@@ -240,8 +247,8 @@ public sealed class LibraryPage : UserControl
 
         // 分页
         _footInfo.Text = all.Count == 0
-            ? "共 0 篇"
-            : $"显示 {_page * PageSize + 1}–{_page * PageSize + pageItems.Count} 篇 · 共 {all.Count} 篇";
+            ? TF("Vox.Library.Stats.Total", 0)
+            : TF("Vox.Library.Stats.PageInfo", _page * PageSize + 1, _page * PageSize + pageItems.Count, all.Count);
         _pagerHost.Children.Clear();
         _pagerHost.Children.Add(PagerButton("‹", () => { if (_page > 0) { _page--; RebuildTable(); } }));
         for (var i = 0; i < totalPages && i < 8; i++)
@@ -304,7 +311,7 @@ public sealed class LibraryPage : UserControl
                     PublishStatus.Error => "err",
                     _ => "off",
                 });
-                ToolTip.SetTip(cell, $"{ChannelName(channel)}：{StatusText(status)} · {note}");
+                ToolTip.SetTip(cell, TF("Vox.Library.Tip.ChannelStatus", ChannelName(channel), StatusText(status), note));
                 var captured = article;
                 cell.PointerReleased += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, captured));
             }
@@ -313,9 +320,9 @@ public sealed class LibraryPage : UserControl
 
         // 操作
         var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
-        var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = "编辑" };
+        var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Edit") };
         edit.Click += async (_, _) => await EditAsync(article);
-        var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = "发布…" };
+        var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Library.Action.Publish") };
         publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, article));
         ops.Children.Add(edit);
         ops.Children.Add(publish);

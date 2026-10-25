@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Vox.App.Infrastructure;
 using Vox.App.Views;
 using Vox.Core;
+using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
@@ -34,18 +35,16 @@ public sealed class SiteDataPage : UserControl
     {
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
-        var save = new Button { Classes = { "btn", "primary" }, Content = "保存" };
+        var save = new Button { Classes = { "btn", "primary" } };
+        save[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
         save.Click += (_, _) => Save();
         pagehead.Children.Add(save.Dock(Dock.Right));
-        var heading = new StackPanel
-        {
-            Children =
-            {
-                new TextBlock { Text = "站点数据", FontSize = 16, FontWeight = FontWeight.SemiBold },
-                new TextBlock { Text = "仅维护 zh-CN · 多语言文件已废弃", FontSize = 11.5 },
-            },
-        };
-        Res(((StackPanel)heading).Children[1], TextBlock.ForegroundProperty, "VoxFaint");
+        var titleText = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold };
+        titleText[!TextBlock.TextProperty] = I18n.Bind("Vox.Site.Label.Title");
+        var subText = new TextBlock { FontSize = 11.5 };
+        subText[!TextBlock.TextProperty] = I18n.Bind("Vox.Site.Label.Sub");
+        var heading = new StackPanel { Children = { titleText, subText } };
+        Res(subText, TextBlock.ForegroundProperty, "VoxFaint");
         pagehead.Children.Add(heading);
 
         var nav = new Border
@@ -89,7 +88,7 @@ public sealed class SiteDataPage : UserControl
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
-            _navHost.Children.Add(new TextBlock { Text = "未配置仓库", FontSize = 11, Margin = new Thickness(8, 4) });
+            _navHost.Children.Add(new TextBlock { Text = T("Vox.Site.Label.NoRepo"), FontSize = 11, Margin = new Thickness(8, 4) });
             return;
         }
 
@@ -144,7 +143,7 @@ public sealed class SiteDataPage : UserControl
 
         if (file == null || AppState.Instance.CurrentRepoRoot == null)
         {
-            _contentHost.Children.Add(new TextBlock { Text = "文件不存在", FontSize = 12 });
+            _contentHost.Children.Add(new TextBlock { Text = T("Vox.Site.Label.FileMissing"), FontSize = 12 });
             return;
         }
 
@@ -152,7 +151,7 @@ public sealed class SiteDataPage : UserControl
         var localPath = LinkStrategy.ToLocalFile(AppState.Instance.CurrentRepoRoot, relativePath);
         if (!File.Exists(localPath))
         {
-            _contentHost.Children.Add(new TextBlock { Text = "文件不存在于磁盘", FontSize = 12 });
+            _contentHost.Children.Add(new TextBlock { Text = T("Vox.Site.Label.FileMissingOnDisk"), FontSize = 12 });
             return;
         }
 
@@ -168,7 +167,7 @@ public sealed class SiteDataPage : UserControl
 
         if (_root == null)
         {
-            _contentHost.Children.Add(new TextBlock { Text = "JSON 解析失败：检查文件格式", FontSize = 12 });
+            _contentHost.Children.Add(new TextBlock { Text = T("Vox.Site.Label.JsonInvalid"), FontSize = 12 });
             return;
         }
 
@@ -245,7 +244,7 @@ public sealed class SiteDataPage : UserControl
                 row.Children.Add(box);
                 Grid.SetColumn(box, index);
             }
-            var remove = new Button { Classes = { "btn", "sm", "ghost" }, Content = "删除", FontSize = 10.5 };
+            var remove = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Delete"), FontSize = 10.5 };
             var capturedRow = element;
             remove.Click += (_, _) =>
             {
@@ -258,7 +257,7 @@ public sealed class SiteDataPage : UserControl
         }
 
         var addRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0), Spacing = 10 };
-        var add = new Button { Classes = { "btn", "sm" }, Content = "＋ 新增条目" };
+        var add = new Button { Classes = { "btn", "sm" }, Content = T("Vox.Site.Action.AddEntry") };
         add.Click += (_, _) =>
         {
             var entry = new JsonObject();
@@ -272,7 +271,7 @@ public sealed class SiteDataPage : UserControl
         addRow.Children.Add(add);
         var hint = new TextBlock
         {
-            Text = "保存时校验：JSON 合法、slug 唯一、与文章引用一致（git 待提交）",
+            Text = T("Vox.Site.Label.SaveHint"),
             FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
         };
         Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
@@ -286,7 +285,7 @@ public sealed class SiteDataPage : UserControl
     {
         if (_selectedFile == null || AppState.Instance.CurrentRepoRoot == null)
         {
-            _shell.ShowToast("没有可保存的文件");
+            _shell.ShowToast(T("Vox.Site.Toast.NoFile"));
             return;
         }
         try
@@ -303,18 +302,18 @@ public sealed class SiteDataPage : UserControl
             }
             else
             {
-                _shell.ShowToast("没有修改");
+                _shell.ShowToast(T("Vox.Site.Toast.NoChanges"));
                 return;
             }
 
             var localPath = LinkStrategy.ToLocalFile(AppState.Instance.CurrentRepoRoot, _selectedFile);
             File.WriteAllText(localPath, json + Environment.NewLine);
             AppState.Instance.NotifyRepoChanged();
-            _shell.ShowToast($"已写回 {_selectedFile}（git 待提交，经发布中心推送）");
+            _shell.ShowToast(TF("Vox.Site.Toast.Saved", _selectedFile));
         }
         catch (Exception ex)
         {
-            _shell.ShowToast($"保存失败：{ex.Message}");
+            _shell.ShowToast(TF("Vox.Site.Toast.SaveFailed", ex.Message));
         }
     }
 }

@@ -18,12 +18,56 @@ public sealed record ArticlePublishRow
 /// <summary>
 /// 发布状态中枢：汇总内容快照 hash、发布状态库与 git 工作区，给写作页徽标、文章库列、
 /// 发布中心矩阵一个一致的口径。变更（编辑保存 / git 操作 / 发布完成）后调 Invalidate。
+/// 缓存构建（全量文章 hash + git diff）在后台线程预热：Invalidate 立即触发重建，
+/// 重建期间读取方继续用旧缓存（stale-while-revalidate），UI 线程不再出现秒级冻结。
 /// </summary>
 public static class PublishHub
 {
+    private static readonly object Gate = new();
     private static Dictionary<string, ArticlePublishRow>? _cache;
+    private static Task? _rebuilding;
 
-    public static void Invalidate() => _cache = null;
+    public static void Invalidate()
+    {
+        lock (Gate)
+        {
+            if (_rebuilding != null) return; // 已有构建在途：完成后缓存即新
+            _rebuilding = Task.Run(BuildOnce);
+        }
+    }
+
+    /// <summary>后台构建：完成后原子换入缓存并清掉在途标记（构建期间的新失效由下一次 Invalidate 接力）。</summary>
+    private static void BuildOnce()
+    {
+        Dictionary<string, ArticlePublishRow> built;
+        try
+        {
+            built = BuildCache();
+        }
+        catch
+        {
+            built = new Dictionary<string, ArticlePublishRow>();
+        }
+        lock (Gate)
+        {
+            _cache = built;
+            _rebuilding = null;
+        }
+    }
+
+    /// <summary>取缓存：命中直接返回；冷启动（无旧值）时等待在途后台构建，必要时就地补发一次。</summary>
+    private static Dictionary<string, ArticlePublishRow> EnsureCache()
+    {
+        Task building;
+        lock (Gate)
+        {
+            if (_cache != null) return _cache;
+            _rebuilding ??= Task.Run(BuildOnce);
+            building = _rebuilding;
+        }
+        building.GetAwaiter().GetResult();
+        lock (Gate) return _cache ?? new Dictionary<string, ArticlePublishRow>();
+    }
 
     public static (PublishStatus Status, string Note) EvaluateArticle(
         string markdownPath, PublishChannel channel)
@@ -31,7 +75,7 @@ public static class PublishHub
         var rows = EnsureCache();
         if (!rows.TryGetValue(markdownPath, out var row))
         {
-            return (PublishStatus.Off, "未发布");
+            return (PublishStatus.Off, Infrastructure.I18n.T("Vox.Publish.Status.Unpublished"));
         }
         return row.Channels[(int)channel];
     }
@@ -65,15 +109,12 @@ public static class PublishHub
         }
     }
 
-    private static Dictionary<string, ArticlePublishRow> EnsureCache()
+    private static Dictionary<string, ArticlePublishRow> BuildCache()
     {
-        if (_cache != null) return _cache;
-
         var scan = AppState.Instance.Scan;
         var rows = new Dictionary<string, ArticlePublishRow>();
         if (scan == null)
         {
-            _cache = rows;
             return rows;
         }
 
@@ -119,7 +160,6 @@ public static class PublishHub
                 Channels = channels,
             };
         }
-        _cache = rows;
         return rows;
     }
 }

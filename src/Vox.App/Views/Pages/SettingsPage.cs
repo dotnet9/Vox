@@ -7,6 +7,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Services;
 using Vox.App.Views;
 using Vox.Core;
+using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
@@ -34,55 +35,63 @@ public sealed class SettingsPage : UserControl
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
         var host = new StackPanel { Spacing = 12, MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left };
 
-        host.Children.Add(new TextBlock { Text = "设置", FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 2) });
+        var pageTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 2) };
+        pageTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Label.Title");
+        host.Children.Add(pageTitle);
 
         // ---------- 内容仓库 ----------
-        var repoCard = Card("内容仓库", "Vox 管理的内容源仓库，全量内存索引 + 文件监视增量维护");
+        var repoCard = Card("Vox.Settings.Repo.Title", "Vox.Settings.Repo.Desc");
         _repoInput.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
-        var changeRepo = new Button { Classes = { "btn", "sm" }, Content = "更改…" };
+        var changeRepo = new Button { Classes = { "btn", "sm" } };
+        changeRepo[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Repo.Change");
         changeRepo.Click += async (_, _) => await PickRepoAsync();
         _repoInput.Width = 380;
         _repoInput.Text = AppState.Instance.Settings.RepoPath ?? string.Empty;
-        repoCard.Add(Row("仓库路径", new StackPanel
+        repoCard.Add(Row("Vox.Settings.Repo.Path", new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8,
             Children = { _repoInput, changeRepo },
         }));
-        var rescan = new Button { Classes = { "btn", "sm" }, Content = "重新扫描", Margin = new Thickness(10, 0, 0, 0) };
+        var rescan = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        rescan[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Rescan");
         rescan.Click += (_, _) =>
         {
             AppState.Instance.Rescan();
             PublishHub.Invalidate();
-            _shell.ShowToast("已重新扫描");
+            _shell.ShowToast(T("Vox.Settings.Repo.RescanDone"));
         };
         var indexRow = new StackPanel { Orientation = Orientation.Horizontal };
         indexRow.Children.Add(_indexInfo);
         indexRow.Children.Add(rescan);
-        repoCard.Add(Row("索引", indexRow));
+        repoCard.Add(Row("Vox.Settings.Repo.Index", indexRow));
         host.Children.Add(repoCard.Host);
 
         // ---------- 链接策略 ----------
-        var linkCard = Card("链接策略", "正文引用相对 md 文件目录（唯一规范形态）；CDN 域名在渲染时拼接");
-        var badge = new Border { Classes = { "badge", "accent" }, Child = new TextBlock { Text = "相对路径（唯一规范形态）" } };
+        var linkCard = Card("Vox.Settings.Link.Title", "Vox.Settings.Link.CardDesc");
+        var badgeText = new TextBlock();
+        badgeText[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Link.RelativeBadge");
+        var badge = new Border { Classes = { "badge", "accent" }, Child = badgeText };
         badge.HorizontalAlignment = HorizontalAlignment.Left;
-        linkCard.Add(Row("引用形态", new StackPanel
+        linkCard.Add(Row("Vox.Settings.Link.CiteForm", new StackPanel
         {
             Spacing = 3,
             Children =
             {
                 badge,
-                Desc("插图与封面均写相对引用；CDN 域名渲染时拼接"),
+                Desc("Vox.Settings.Link.CiteDesc"),
             },
         }));
         _cdnInput.Text = AppState.Instance.Settings.CdnBase;
         _cdnInput.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         _cdnInput.LostFocus += (_, _) => SaveSetting(s => s.CdnBase = _cdnInput.Text.Trim());
-        linkCard.Add(Row("域名映射", _cdnInput));
-        var normalizeInfo = new TextBlock { Text = "全库检查经「发布前检查」执行" };
+        linkCard.Add(Row("Vox.Settings.Link.DomainMap", _cdnInput));
+        var normalizeInfo = new TextBlock();
+        normalizeInfo[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Link.NormalizeHint");
         Res(normalizeInfo, TextBlock.ForegroundProperty, "VoxMuted");
-        var gotoCheck = new Button { Classes = { "btn", "sm" }, Content = "查看发布前检查 →", Margin = new Thickness(10, 0, 0, 0) };
+        var gotoCheck = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        gotoCheck[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Link.GotoCheck");
         gotoCheck.Click += (_, _) => _shell.ShowPage("publish");
-        linkCard.Add(Row("规范化", new StackPanel
+        linkCard.Add(Row("Vox.Settings.Link.NormalizeRow", new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Children = { normalizeInfo, gotoCheck },
@@ -90,41 +99,44 @@ public sealed class SettingsPage : UserControl
         host.Children.Add(linkCard.Host);
 
         // ---------- git 与凭据 ----------
-        var gitCard = Card("git 与凭据", "内置 git（LibGit2Sharp），无需本机安装 git；SSH 推送自动降级系统 git / MinGit");
+        var gitCard = Card("Vox.Settings.Git.Title", "Vox.Settings.Git.CardDesc");
         _patInfo.FontSize = 12;
-        var patTest = new Button { Classes = { "btn", "sm" }, Content = "测试连接", Margin = new Thickness(8, 0, 0, 0) };
-        patTest.Click += (_, _) => _shell.ShowToast("连接检查在发布中心推送时执行（PAT 存于系统凭据管理器）");
-        gitCard.Add(Row("GitHub PAT", new StackPanel
+        var patTest = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(8, 0, 0, 0) };
+        patTest[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Test");
+        patTest.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.Git.TestInPublish"));
+        gitCard.Add(Row("Vox.Settings.Git.Pat", new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Children = { _patInfo, patTest },
         }));
-        gitCard.Add(Row("SSH 降级", Desc("检测到系统 git 时，SSH 远端推送将调用系统 git，复用你的密钥配置")));
+        gitCard.Add(Row("Vox.Settings.Git.SshFallback", Desc("Vox.Settings.Git.SshFallbackDesc")));
         host.Children.Add(gitCard.Host);
 
         // ---------- 平台账户 ----------
-        var platCard = Card("平台账户", "各平台凭据存系统凭据管理器；API 通道配置即启用直发，未配置降级复制助手");
-        platCard.Add(PlatformRow("微信公众号", "AppID/Secret · 仅写草稿箱", PlatformAccounts.LoadWeChat() is { IsConfigured: true }));
-        platCard.Add(PlatformRow("博客园", "MetaWeblog API", PlatformAccounts.LoadCnblogs() is { IsConfigured: true }));
-        platCard.Add(PlatformRow("CSDN", "OpenAPI", PlatformAccounts.LoadCsdn() is { IsConfigured: true }));
-        platCard.Add(Row("复制型平台", Desc("知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布")));
+        var platCard = Card("Vox.Settings.Platform.Title", "Vox.Settings.Platform.Desc");
+        platCard.Add(PlatformRow("Vox.Settings.Platform.WeChat", "Vox.Settings.Platform.WeChatDesc", PlatformAccounts.LoadWeChat() is { IsConfigured: true }));
+        platCard.Add(PlatformRow("Vox.Settings.Platform.Cnblogs", "Vox.Settings.Platform.CnblogsDesc", PlatformAccounts.LoadCnblogs() is { IsConfigured: true }));
+        platCard.Add(PlatformRow("Vox.Settings.Platform.Csdn", "Vox.Settings.Platform.CsdnDesc", PlatformAccounts.LoadCsdn() is { IsConfigured: true }));
+        platCard.Add(Row("Vox.Settings.Platform.CopyBased", Desc("Vox.Settings.Platform.CopyDesc")));
         host.Children.Add(platCard.Host);
 
         // ---------- 关于 ----------
-        var aboutCard = Card("关于", "Vox · 维声 0.1.0-preview.1 · 出品 码坊 CodeWF");
-        var checkUpdate = new Button { Classes = { "btn", "sm" }, Content = "检查更新", Margin = new Thickness(10, 0, 0, 0) };
-        checkUpdate.Click += (_, _) => _shell.ShowToast("已是最新版本 0.1.0-preview.1（GitHub Releases 通道）");
-        aboutCard.Add(Row("更新", new StackPanel
+        var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
+        var checkUpdate = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        checkUpdate[!Button.ContentProperty] = I18n.Bind("Vox.Settings.About.CheckUpdate");
+        checkUpdate.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.About.UpToDate"));
+        aboutCard.Add(Row("Vox.Settings.About.UpdateRow", new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Children = { Desc("发布通道：GitHub Releases（不走应用商店）"), checkUpdate },
+            Children = { Desc("Vox.Settings.About.Update"), checkUpdate },
         }));
-        var uninstall = new Button { Classes = { "btn", "sm" }, Content = "卸载助手…", Margin = new Thickness(10, 0, 0, 0) };
-        uninstall.Click += (_, _) => _shell.ShowToast("卸载走系统入口：Windows 设置→应用；macOS 拖废纸篓");
-        aboutCard.Add(Row("卸载", new StackPanel
+        var uninstall = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        uninstall[!Button.ContentProperty] = I18n.Bind("Vox.Settings.About.Uninstall");
+        uninstall.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.About.UninstallHint"));
+        aboutCard.Add(Row("Vox.Settings.About.UninstallRow", new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Children = { Desc("Windows / Linux 使用系统卸载入口；macOS 拖入废纸篓"), uninstall },
+            Children = { Desc("Vox.Settings.About.UninstallDesc"), uninstall },
         }));
         host.Children.Add(aboutCard.Host);
 
@@ -132,7 +144,7 @@ public sealed class SettingsPage : UserControl
         Content = scroll;
     }
 
-    private (Border Host, Action<Control> Add) Card(string title, string desc)
+    private (Border Host, Action<Control> Add) Card(string titleKey, string descKey)
     {
         var border = new Border
         {
@@ -144,17 +156,20 @@ public sealed class SettingsPage : UserControl
         border.BorderThickness = new Thickness(1);
         var body = new StackPanel { Spacing = 2 };
         border.Child = body;
-        body.Children.Add(new TextBlock { Text = title, FontSize = 13.5, FontWeight = FontWeight.SemiBold });
-        body.Children.Add(Desc(desc));
+        var titleBlock = new TextBlock { FontSize = 13.5, FontWeight = FontWeight.SemiBold };
+        titleBlock[!TextBlock.TextProperty] = I18n.Bind(titleKey);
+        body.Children.Add(titleBlock);
+        body.Children.Add(Desc(descKey));
         body.Children.Add(new Border { Height = 6 });
         void Add(Control row) => body.Children.Add(row);
         return (border, Add);
     }
 
-    private Control Row(string label, Control value)
+    private Control Row(string labelKey, Control value)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("130,*") };
-        var labelBlock = new TextBlock { Text = label, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        var labelBlock = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        labelBlock[!TextBlock.TextProperty] = I18n.Bind(labelKey);
         Res(labelBlock, TextBlock.ForegroundProperty, "VoxMuted");
         grid.Children.Add(labelBlock);
         grid.Children.Add(value);
@@ -170,35 +185,40 @@ public sealed class SettingsPage : UserControl
         return border;
     }
 
-    private TextBlock Desc(string text)
+    private TextBlock Desc(string key)
     {
-        var block = new TextBlock { Text = text, FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
+        var block = new TextBlock { FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
+        block[!TextBlock.TextProperty] = I18n.Bind(key);
         Res(block, TextBlock.ForegroundProperty, "VoxFaint");
         return block;
     }
 
-    private Control PlatformRow(string name, string detail, bool configured)
+    private Control PlatformRow(string nameKey, string detailKey, bool configured)
     {
-        var info = new TextBlock { Text = detail, FontSize = 12 };
+        var info = new TextBlock { FontSize = 12 };
+        info[!TextBlock.TextProperty] = I18n.Bind(detailKey);
         Res(info, TextBlock.ForegroundProperty, "VoxMuted");
+        var stateText = new TextBlock();
+        stateText[!TextBlock.TextProperty] = I18n.Bind(configured ? "Vox.Settings.Platform.Configured" : "Vox.Settings.Platform.NotConfigured");
         var stateBadge = new Border
         {
             Classes = { "badge", configured ? "ok" : string.Empty },
             Margin = new Thickness(8, 0, 0, 0),
-            Child = new TextBlock { Text = configured ? "已配置" : "未配置" },
+            Child = stateText,
         };
-        var configure = new Button { Classes = { "btn", "sm" }, Content = "配置…", Margin = new Thickness(10, 0, 0, 0) };
+        var configure = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        configure[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Platform.Configure");
         configure.Click += (_, _) => _shell.ShowModal(new PlatformCfgModal(_shell));
         var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { info, stateBadge, configure } };
-        return Row(name, row);
+        return Row(nameKey, row);
     }
 
     private void RefreshIndex()
     {
         var scan = AppState.Instance.Scan;
         _indexInfo.Text = scan == null
-            ? "未建索引"
-            : $"{scan.Articles.Count} 篇文章 · {scan.Images.Count(i => !i.IsMissing)} 张图片 · {scan.SiteFiles.Count} 组站点数据 · 上次扫描 {DateTime.Now:HH:mm}";
+            ? T("Vox.Settings.Repo.NoIndex")
+            : TF("Vox.Settings.Repo.IndexDetail", scan.Articles.Count, scan.Images.Count(i => !i.IsMissing), scan.SiteFiles.Count, DateTime.Now.ToString("HH:mm"));
         Res(_indexInfo, TextBlock.ForegroundProperty, "VoxMuted");
         _indexInfo.FontSize = 12;
     }
@@ -208,8 +228,8 @@ public sealed class SettingsPage : UserControl
         var store = Vox.Git.CredentialStoreFactory.Create();
         var pat = store.GetPat("github.com");
         _patInfo.Text = pat is { Length: > 0 }
-            ? $"已配置 {pat[..Math.Min(8, pat.Length)]}**** · 存于系统凭据管理器"
-            : "未配置（HTTPS 推送时提示输入）";
+            ? TF("Vox.Settings.Git.PatConfigured", $"{pat[..Math.Min(8, pat.Length)]}****")
+            : T("Vox.Settings.Git.PatNotSet");
         Res(_patInfo, TextBlock.ForegroundProperty, "VoxMuted");
     }
 
@@ -225,7 +245,7 @@ public sealed class SettingsPage : UserControl
         if (provider == null) return;
         var folders = await provider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
         {
-            Title = "选择内容仓库根目录",
+            Title = T("Vox.Settings.Repo.Pick"),
             AllowMultiple = false,
         });
         if (folders.Count == 0) return;
@@ -234,6 +254,6 @@ public sealed class SettingsPage : UserControl
         _repoInput.Text = path;
         AppState.Instance.OpenRepo(path);
         PublishHub.Invalidate();
-        _shell.ShowToast($"已打开仓库：{path}");
+        _shell.ShowToast(TF("Vox.Settings.Repo.Opened", path));
     }
 }
