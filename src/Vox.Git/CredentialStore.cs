@@ -5,12 +5,18 @@ using System.Text.Json;
 
 namespace Vox.Git;
 
-/// <summary>凭据存取抽象：Windows 凭据管理器 / macOS 钥匙串 / Linux Secret Service（决策 D5）。</summary>
+/// <summary>凭据存取抽象：Windows 凭据管理器 / macOS 钥匙串 / Linux Secret Service（决策 D5）。
+/// PAT 三件套之外提供通用键值（平台账户：公众号 AppID/Secret、博客园令牌、CSDN token 等）。</summary>
 public interface ICredentialStore
 {
     string? GetPat(string host);
     void SavePat(string host, string pat);
     void DeletePat(string host);
+
+    /// <summary>通用凭据（key 形如 platform/wechat）。</summary>
+    string? Get(string key);
+    void Save(string key, string value);
+    void Delete(string key);
 }
 
 /// <summary>按平台选择实现：Windows 用系统凭据管理器；其余平台回退到本机加密文件（DPAPI / 明文兜底）。</summary>
@@ -26,16 +32,19 @@ public static class CredentialStoreFactory
     }
 }
 
-/// <summary>Windows 凭据管理器（advapi32 CredRead/CredWrite，Generic 凭据，目标名 vox/pat/&lt;host&gt;）。</summary>
+/// <summary>Windows 凭据管理器（advapi32 CredRead/CredWrite，Generic 凭据；PAT 目标 vox/pat/&lt;host&gt;，通用键 vox/secret/&lt;key&gt;）。</summary>
 public sealed class WindowsCredentialStore : ICredentialStore
 {
-    private const string Prefix = "vox/pat/";
+    public string? GetPat(string host) => ReadCredential("vox/pat/" + host);
+    public void SavePat(string host, string pat) => WriteCredential("vox/pat/" + host, pat);
+    public void DeletePat(string host) => CredDelete("vox/pat/" + host, 1, 0);
 
-    private static string Target(string host) => Prefix + host;
+    public string? Get(string key) => ReadCredential("vox/secret/" + key);
+    public void Save(string key, string value) => WriteCredential("vox/secret/" + key, value);
+    public void Delete(string key) => CredDelete("vox/secret/" + key, 1, 0);
 
-    public string? GetPat(string host)
+    private static string? ReadCredential(string target)
     {
-        var target = Target(host);
         if (!CredRead(target, 1, 0, out var credPtr, out _)) return null;
         try
         {
@@ -51,11 +60,10 @@ public sealed class WindowsCredentialStore : ICredentialStore
         }
     }
 
-    public void SavePat(string host, string pat)
+    private static void WriteCredential(string target, string value)
     {
-        var target = Target(host);
         CredDelete(target, 1, 0);
-        var blob = Encoding.UTF8.GetBytes(pat);
+        var blob = Encoding.UTF8.GetBytes(value);
         var cred = new CREDENTIAL
         {
             Type = 1,
@@ -78,8 +86,6 @@ public sealed class WindowsCredentialStore : ICredentialStore
             Marshal.FreeHGlobal(cred.CredentialBlob);
         }
     }
-
-    public void DeletePat(string host) => CredDelete(Target(host), 1, 0);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private sealed class CREDENTIAL
@@ -120,25 +126,29 @@ public sealed class ProtectedFileCredentialStore : ICredentialStore
         return Path.Combine(dir, "credentials.bin");
     }
 
-    public string? GetPat(string host)
+    public string? GetPat(string host) => Get("pat/" + host);
+    public void SavePat(string host, string pat) => Save("pat/" + host, pat);
+    public void DeletePat(string host) => Delete("pat/" + host);
+
+    public string? Get(string key)
     {
         var path = StorePath();
         if (!File.Exists(path)) return null;
         var entries = Load(path);
-        return entries.TryGetValue(host, out var value) ? value : null;
+        return entries.TryGetValue(key, out var value) ? value : null;
     }
 
-    public void SavePat(string host, string pat)
+    public void Save(string key, string value)
     {
         var entries = Load(StorePath());
-        entries[host] = pat;
+        entries[key] = value;
         Persist(entries);
     }
 
-    public void DeletePat(string host)
+    public void Delete(string key)
     {
         var entries = Load(StorePath());
-        if (entries.Remove(host)) Persist(entries);
+        if (entries.Remove(key)) Persist(entries);
     }
 
     private static Dictionary<string, string> Load(string path)

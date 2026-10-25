@@ -13,6 +13,9 @@ public sealed class VoxSettings
 
     public string CdnBase { get; set; } = LinkStrategy.DefaultCdnBase;
 
+    /// <summary>站点地址（发布对话框「查看线上」用）。</summary>
+    public string SiteBase { get; set; } = "https://dotnet9.com";
+
     /// <summary>界面语言（zh-CN / en-US）。</summary>
     public string Language { get; set; } = "zh-CN";
 
@@ -31,11 +34,6 @@ public sealed class VoxSettings
 
 public static class SettingsStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
 
     public static string DefaultPath()
     {
@@ -49,7 +47,7 @@ public static class SettingsStore
         try
         {
             if (!File.Exists(path)) return new VoxSettings();
-            return JsonSerializer.Deserialize<VoxSettings>(File.ReadAllText(path), JsonOptions) ?? new VoxSettings();
+            return JsonSerializer.Deserialize(File.ReadAllText(path), VoxJsonContext.Default.VoxSettings) ?? new VoxSettings();
         }
         catch
         {
@@ -61,6 +59,6 @@ public static class SettingsStore
     {
         path ??= DefaultPath();
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(settings, JsonOptions));
+        File.WriteAllText(path, JsonSerializer.Serialize(settings, VoxJsonContext.Default.VoxSettings));
     }
 }
