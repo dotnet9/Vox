@@ -1,7 +1,24 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:markdownThemes="https://codewf.com"
              x:Class="Vox.App.App">
+  <!-- AvaloniaEdit Simple 主题要求宿主提供三个字体令牌（Fluent 过去自带） -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <FontFamily x:Key="FontFamilyNormal">Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI, PingFang SC, Noto Sans SC</FontFamily>
+      <x:Double x:Key="FontSizeNormal">14</x:Double>
+      <FontWeight x:Key="FontWeightNormal">Normal</FontWeight>
+    </ResourceDictionary>
+  </Application.Resources>
+
   <Application.Styles>
     <StyleInclude Source="/Themes/VoxStyles.axaml"/>
+    <!-- AvaloniaEdit 完整控件主题（编辑器模板）；Base 资源由 MarkdownFullThemes 内引 -->
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Simple/AvaloniaEdit.xaml"/>
+    <!-- CodeWF.Avalonia.Markdown 完整包样式（编辑器外观 + 图片能力控件 + Markdown 模板），
+         资源独立于宿主应用主题（Arc），只作用于 Markdown/编辑器控件。 -->
+    <markdownThemes:MarkdownFullThemes TypographyTheme="Simple"/>
+    <!-- CodeWF.Avalonia.MindView 导图控件样式（MarkdownMindMapView 模板与点阵）。 -->
+    <markdownThemes:MindViewThemes/>
   </Application.Styles>
 </Application>
