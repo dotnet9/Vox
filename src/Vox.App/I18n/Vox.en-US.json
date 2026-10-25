@@ -6,9 +6,6 @@
   "Vox.Shell.Menu.File": "File",
   "Vox.Nav.Label.Write": "Write",
   "Vox.Nav.Label.Library": "Library",
-  "Vox.Nav.Label.Assets": "Images",
-  "Vox.Nav.Label.Audit": "Audit",
-  "Vox.Nav.Label.Sync": "Sync",
   "Vox.Nav.Label.SiteData": "Site Data",
   "Vox.Nav.Label.Settings": "Settings",
   "Vox.Nav.Hint.Repo": "Repository",
@@ -257,5 +254,6 @@
   "Vox.Sync.Menu.OpenDefault": "Open with default program",
   "Vox.Sync.Msg.NoVsCode": "VS Code not found (the code command is not on PATH)",
   "Vox.Sync.Msg.Ignored": "Added to .gitignore: {0}",
-  "Vox.Sync.Msg.Copied": "Copied: {0}"
+  "Vox.Sync.Msg.Copied": "Copied: {0}",
+  "Vox.Nav.Label.Publish": "Publish"
 }

@@ -2,8 +2,8 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <AvaloniaVersion>12.1.4</AvaloniaVersion>
-    <ArcVersion>0.3.0-preview.3</ArcVersion>
-    <StreamMarkVersion>0.1.0-alpha.25</StreamMarkVersion>
+    <ArcVersion>0.3.0-preview.5</ArcVersion>
+    <StreamMarkVersion>0.1.0</StreamMarkVersion>
     <CodeWfLangVersion>12.2.3</CodeWfLangVersion>
   </PropertyGroup>
   <ItemGroup>

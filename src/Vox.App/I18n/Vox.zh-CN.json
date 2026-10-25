@@ -6,9 +6,6 @@
   "Vox.Shell.Menu.File": "文件",
   "Vox.Nav.Label.Write": "写作",
   "Vox.Nav.Label.Library": "文章库",
-  "Vox.Nav.Label.Assets": "图片库",
-  "Vox.Nav.Label.Audit": "体检",
-  "Vox.Nav.Label.Sync": "同步",
   "Vox.Nav.Label.SiteData": "站点数据",
   "Vox.Nav.Label.Settings": "设置",
   "Vox.Nav.Hint.Repo": "当前仓库",
@@ -257,5 +254,6 @@
   "Vox.Sync.Menu.OpenDefault": "用默认程序打开",
   "Vox.Sync.Msg.NoVsCode": "未检测到 VS Code（code 命令不在 PATH 中）",
   "Vox.Sync.Msg.Ignored": "已加入 .gitignore：{0}",
-  "Vox.Sync.Msg.Copied": "已复制：{0}"
+  "Vox.Sync.Msg.Copied": "已复制：{0}",
+  "Vox.Nav.Label.Publish": "发布中心"
 }

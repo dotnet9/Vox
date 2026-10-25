@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Arc 依赖链要求：输入框/选择器依赖区域性数据格式化，不可启用 InvariantGlobalization -->
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
@@ -36,5 +37,9 @@
   <ItemGroup>
     <!-- 应用语言 JSON 随包拷贝到输出 I18n/，JsonLangPlugin 按目录扫描加载 -->
     <Content Include="I18n\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\app.ico" />
   </ItemGroup>
 </Project>
