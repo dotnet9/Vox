@@ -24,6 +24,8 @@ html[data-density="roomy"]   { font-size: 14px; --den-radius: 17px; }
 
 :root {
   --den-radius: 14px;
+  --branch-secondary: color-mix(in srgb, var(--accent) 60%, var(--success));
+  --branch-tertiary: color-mix(in srgb, var(--accent) 55%, var(--warning));
   --font-ui: "Geist", Inter, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
   --font-mono: "Geist Mono", "Cascadia Code", Consolas, monospace;
   --motion: cubic-bezier(.32, .72, .24, 1);   /* Arc 弹簧动效的 CSS 近似 */

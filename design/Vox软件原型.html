@@ -2,7 +2,9 @@
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=21"><link rel="stylesheet" href="assets/app.css?v=25">
+<link rel="stylesheet" href="assets/tokens.css?v=50"><link rel="stylesheet" href="assets/app.css?v=50">
+<script src="assets/vendor/d3-hierarchy.min.js"></script>
+<script src="assets/vendor/vox-map-layout.js"></script>
 </head>
 <body class="stage">
 
@@ -105,9 +107,9 @@
           <div class="edscroll"><div class="gutter" id="gutter"></div><div class="elines" id="elines"></div></div>
         </div>
         <div class="modeseg-float"><div class="seg" id="modeSeg">
-          <button data-m="src" class="active">源码</button><button data-m="split">分屏</button><button data-m="prev">预览</button>
+          <button data-m="src" class="active">源码</button><button data-m="split">分屏</button><button data-m="prev">预览</button><button data-m="map">导图</button>
         </div></div>
-        <div class="wprev" id="panePrev" style="display:none"><div id="prevInner"><div class="article">
+        <div class="wprev" id="panePrev" style="display:none"><button class="btn sm ghost typo-trigger" id="btnTypo" title="正文排版"><span>排版</span><span class="typo-label" id="typoLabel">简约</span><span class="caret">▾</span></button><div id="prevInner"><div class="article">
           <h1>.NET Native AOT 依赖 Win7：Skia 依赖链排查记</h1>
           <div class="meta">2026-09-28 · Dotnet9 · 分类 .NET · 标签 Native AOT / SkiaSharp · 阅读 8 min</div>
           <p>最近把一个 SkiaSharp 桌面程序用 Native AOT 编译，结果在 Win7 上启动即崩。本文记录整条排查链。</p>
@@ -122,6 +124,18 @@
           <blockquote>AOT 之后没有 JIT 兜底，任何一个隐式依赖都会在启动时现形。</blockquote>
         </div></div></div>
       </div>
+        <div class="mapview" id="paneMap" style="display:none">
+          <div class="map-dotgrid"></div>
+          <div class="map-legend">
+            <span><i class="lg-root"></i>标题节点</span>
+            <span><i class="lg-leaf"></i>内容节点</span>
+          </div>
+          <button class="btn sm ghost map-style-trigger" id="btnMapStyle" title="导图样式" aria-expanded="false"><span>导图样式</span><span class="caret">▾</span></button>
+          <div class="map-hint">拖动画布 · 双击节点编辑 · 滚轮缩放</div>
+          <div class="map-stage" id="mapStage" data-layout="right">
+          <svg class="map-links" id="mapLinks"></svg>
+          <div class="map-nodes" id="mapNodes"></div>
+        </div>
       <div class="wpanel off" id="wpanel">
         <div class="wtab active" data-tab="outline" id="outlineTab">
           <div class="outl">
@@ -430,6 +444,37 @@ draft: true
     <button class="btn primary" onclick="closeModal('mMeta');toast('元数据已保存（front matter 写回）')">保存</button>
   </div>
 </div></div>
+
+  <!-- 排版弹层（Vex typography-popover 规格：624px / 三列 / type-swatch 真实预览） -->
+  <section class="typography-popover" id="typoPop" hidden role="dialog" aria-labelledby="typography-title">
+    <div class="popover-title"><strong id="typography-title">正文排版</strong><button class="icon-button" id="typoClose" aria-label="关闭排版">×</button></div>
+    <div class="typography-density"><strong>渲染密度</strong>
+      <div class="density-options" role="group" aria-label="Markdown 渲染密度">
+        <button type="button" data-tp-mdsize="13">紧凑</button>
+        <button type="button" data-tp-mdsize="15" class="on">正常</button>
+        <button type="button" data-tp-mdsize="17">宽松</button>
+      </div>
+    </div>
+    <div class="typography-grid" role="group" aria-label="排版效果预览"><button type="button" class="typography-card" data-typography-key="Simple" aria-pressed="false"><span class="type-swatch" data-preview-type="Simple" aria-hidden="true"><span class="type-document"><h2>简约</h2><p>素面朝天的默认阅读面，无装饰。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>简约 <i>Minimal</i></strong><span class="typography-card-purpose">无装饰 · 无衬线 · 1.9 行距</span></button><button type="button" class="typography-card" data-typography-key="Basic" aria-pressed="false"><span class="type-swatch" data-preview-type="Basic" aria-hidden="true"><span class="type-document"><h2>文档</h2><p>标题下划线分隔，办公文档气质。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>文档 <i>Document</i></strong><span class="typography-card-purpose">H2 底部细线 · 蓝色 accent</span></button><button type="button" class="typography-card" data-typography-key="InkBlack" aria-pressed="false"><span class="type-swatch" data-preview-type="InkBlack" aria-hidden="true"><span class="type-document"><h2>书卷</h2><p>衬线字体 · 段落首行缩进两字符。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>书卷 <i>Book</i></strong><span class="typography-card-purpose">宋体系 · 段落缩进 · 2.0 行距</span></button><button type="button" class="typography-card" data-typography-key="TechnologyBlue" aria-pressed="false"><span class="type-swatch" data-preview-type="TechnologyBlue" aria-hidden="true"><span class="type-document"><h2>技术</h2><p>H2 色块加左竖线，代码友好。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>技术 <i>Technical</i></strong><span class="typography-card-purpose">H2 左竖线+浅底 · 等宽代码</span></button><button type="button" class="typography-card" data-typography-key="WeChatFormat" aria-pressed="false"><span class="type-swatch" data-preview-type="WeChatFormat" aria-hidden="true"><span class="type-document"><h2>刊物</h2><p>标题居中上下细线，杂志排版。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>刊物 <i>Editorial</i></strong><span class="typography-card-purpose">居中标题 · 上下线 · 青绿</span></button></div>
+  </section>
+
+  <!-- 导图样式弹层（Vex map-appearance-popover 规格：528px / 结构+风格 Tab / 迷你图） -->
+  <section class="map-appearance-popover" id="mapPop" hidden role="dialog" aria-label="导图样式">
+    <header class="appearance-heading"><strong>导图样式</strong><button class="icon-button" id="mapClose" aria-label="关闭导图样式">×</button></header>
+    <div class="appearance-tabs" role="tablist" aria-label="导图外观">
+      <button role="tab" data-map-tab="structure" aria-selected="true">结构</button>
+      <button role="tab" data-map-tab="style" aria-selected="false">风格</button>
+    </div>
+    <div class="map-choice-grid" id="mapStructGrid" role="tabpanel"><button type="button" class="map-choice" data-map-layout="right" aria-pressed="true">
+      <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M10 37 H 34 M34 37 V 15 H 52 M34 37 V 59 H 52"/><rect class="map-preview-root" x="0" y="27" width="34" height="18" rx="4"/><rect class="map-preview-node" x="52" y="8" width="52" height="14" rx="4"/><rect class="map-preview-node" x="52" y="52" width="52" height="14" rx="4"/></svg><strong>单侧树形</strong></button><button type="button" class="map-choice" data-map-layout="balanced" aria-pressed="false">
+      <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M60 37 H 44 M44 37 V 15 H 30 M44 37 V 59 H 30 M60 37 H 76 M76 37 V 15 H 92 M76 37 V 59 H 92"/><rect class="map-preview-root" x="44" y="27" width="32" height="18" rx="4"/><rect class="map-preview-node" x="14" y="8" width="46" height="14" rx="4"/><rect class="map-preview-node" x="14" y="52" width="46" height="14" rx="4"/><rect class="map-preview-node" x="76" y="8" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="52" width="44" height="14" rx="4"/></svg><strong>双侧平衡</strong></button><button type="button" class="map-choice" data-map-layout="radial" aria-pressed="false">
+      <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M60 37 L 20 12 M60 37 L 100 12 M60 37 L 20 62 M60 37 L 100 62"/><rect class="map-preview-root" x="44" y="27" width="32" height="18" rx="4"/><rect class="map-preview-node" x="2" y="4" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="4" width="42" height="14" rx="4"/><rect class="map-preview-node" x="2" y="56" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="56" width="42" height="14" rx="4"/></svg><strong>中心放射</strong></button><button type="button" class="map-choice" data-map-layout="down" aria-pressed="false">
+      <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M60 14 V 30 M60 30 H 22 M60 30 H 98 M22 30 V 42 M98 30 V 42"/><rect class="map-preview-root" x="42" y="4" width="36" height="16" rx="4"/><rect class="map-preview-node" x="2" y="42" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="42" width="42" height="14" rx="4"/></svg><strong>向下树形</strong></button><button type="button" class="map-choice" data-map-layout="outline" aria-pressed="false">
+      <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M14 8 V 62 M22 15 H 44 M22 29 H 52 M22 43 H 44 M22 57 H 52"/><rect class="map-preview-root" x="8" y="0" width="40" height="15" rx="4"/><rect class="map-preview-node" x="44" y="8" width="52" height="13" rx="4"/><rect class="map-preview-node" x="52" y="22" width="52" height="13" rx="4"/><rect class="map-preview-node" x="44" y="36" width="52" height="13" rx="4"/><rect class="map-preview-node" x="52" y="50" width="52" height="13" rx="4"/></svg><strong>目录树</strong></button><button type="button" class="map-choice" data-map-layout="fishbone" aria-pressed="false">
+      <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M8 37 H 112 M36 37 L 52 16 M36 37 L 52 58 M76 37 L 92 16 M76 37 L 92 58"/><rect class="map-preview-root" x="0" y="28" width="34" height="17" rx="4"/><rect class="map-preview-node" x="52" y="8" width="48" height="13" rx="4"/><rect class="map-preview-node" x="52" y="52" width="48" height="13" rx="4"/><rect class="map-preview-node" x="92" y="8" width="26" height="13" rx="4"/><rect class="map-preview-node" x="92" y="52" width="26" height="13" rx="4"/></svg><strong>鱼骨图</strong></button></div>
+    <div class="map-choice-grid" id="mapStyleGrid" role="tabpanel" hidden></div>
+  </section>
+
 <div id="toast"></div>
 
 <script>
@@ -441,11 +486,17 @@ document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+it.dataset.view));
 });
 /* ---------- 分屏模式 ---------- */
-const panes={src:document.getElementById('paneSrc'),prev:document.getElementById('panePrev')};
-document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('active',x===b));
-  const m=b.dataset.m;panes.src.style.display=m==='prev'?'none':'';panes.prev.style.display=m==='src'?'none':'';
-});
+const panes={src:document.getElementById('paneSrc'),prev:document.getElementById('panePrev'),map:document.getElementById('paneMap')};
+window.applyViewMode=function(m){
+  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('active',x.dataset.m===m));
+  panes.src.style.display=(m==='prev'||m==='map')?'none':'';
+  panes.prev.style.display=(m==='src'||m==='map')?'none':'';
+  panes.map.style.display=(m==='map')?'':'none';
+  var segBar=document.querySelector('.wcenter > .colsplit');
+  if(segBar) segBar.style.display=(m==='split')?'':'none';
+  window.dispatchEvent(new CustomEvent('voxmode',{detail:m}));
+};
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>window.applyViewMode(b.dataset.m));
 /* ---------- 面板页签 ---------- */
 document.querySelectorAll('.wtabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.wtabs button').forEach(x=>x.classList.toggle('active',x===b));
@@ -991,6 +1042,190 @@ document.querySelectorAll('#pubSeg button').forEach(b=>b.onclick=()=>{
 });
 renderMatrix();renderChecks();
 
+/* ---------- 导图动态渲染（Vex workbench renderMap 同款：VoxMapLayout 打包 + 绝对定位 + 过渡） ---------- */
+(function(){
+  var articleTitle = document.querySelector('.wit.active b');
+  var tree = {
+    id: 'n0', kind: 'heading', level: 0,
+    text: articleTitle ? articleTitle.textContent : '当前文章',
+    isRoot: true,
+    children: [
+      { id: 'n1', kind: 'heading', level: 1, text: '背景', branch: 0, children: [
+        { id: 'n11', kind: 'paragraph', text: '三个月前收到 sunyonghuahn 的 PR', branch: 0, leaf: true },
+        { id: 'n12', kind: 'paragraph', text: 'Vex 内置本机 MCP 服务', branch: 0, leaf: true } ] },
+      { id: 'n2', kind: 'heading', level: 1, text: '接入方式', branch: 1, children: [
+        { id: 'n21', kind: 'paragraph', text: 'stdio 桥接 Claude Desktop/Cursor', branch: 1, leaf: true },
+        { id: 'n22', kind: 'list', text: '29 个工具 · 操作审计', branch: 1, leaf: true } ] },
+      { id: 'n3', kind: 'heading', level: 1, text: '验证', branch: 2, children: [
+        { id: 'n31', kind: 'paragraph', text: 'NativeAOT 反射绑定', branch: 2, leaf: true },
+        { id: 'n32', kind: 'list', text: 'LLM 蔓不准移除场景', branch: 2, leaf: true } ] },
+    ],
+  };
+  var branchColors = ['var(--accent)', 'color-mix(in srgb, var(--accent) 60%, var(--success))',
+    'color-mix(in srgb, var(--accent) 55%, var(--warning))', 'var(--muted)'];
+  var settings = { layout: 'right', style: 'quiet' };
+  var stage = document.getElementById('mapStage');
+  var elements = new Map();
+
+  function nodeText(node) { return node.text; }
+
+  function renderMap() {
+    var geometry = VoxMapLayout.layout(tree, {
+      mode: settings.layout,
+      measure: function (node) { node.width = node.isRoot ? 214 : 224; node.height = node.leaf ? 40 : 44; }
+    });
+    stage.dataset.layout = settings.layout;
+    document.getElementById('paneMap').dataset.mapStyle = settings.style;
+    var nodesHost = document.getElementById('mapNodes');
+    var visible = new Set(geometry.nodes.map(function (n) { return n.id; }));
+    elements.forEach(function (element, id) { if (!visible.has(id)) { element.remove(); elements.delete(id); } });
+    geometry.nodes.forEach(function (node) {
+      var element = elements.get(node.id), isNew = !element;
+      if (isNew) {
+        element = document.createElement('div');
+        elements.set(node.id, element);
+      }
+      element.className = 'map-node' + (node.isRoot ? ' root' : node.kind === 'heading' ? '' : ' content') + (isNew ? ' enter' : '');
+      element.style.left = node.x + 'px';
+      element.style.top = node.y + 'px';
+      element.style.width = node.width + 'px';
+      element.style.minHeight = node.height + 'px';
+      element.style.setProperty('--branch-color', branchColors[(node.branch || 0) % branchColors.length]);
+      element.textContent = nodeText(node);
+      if (isNew) nodesHost.appendChild(element);
+    });
+    document.getElementById('mapLinks').innerHTML = geometry.links.map(function (link) {
+      return '<path style="--branch-color:' + branchColors[(link.node.branch || 0) % branchColors.length] + '" d="' + link.path + '"/>';
+    }).join('');
+  }
+
+  // 结构/风格选择接线（弹层选择 → settings → 重渲染）
+  // 风格 = 配色方案：迷你图 = 当前所选结构 × 各配色（结构切换时由 renderSchemeMinis 重新生成）
+  var schemes = [
+    { key:'indigo',   label:'靛蓝', desc:'跟随强调色' },
+    { key:'colorful', label:'缤纷', desc:'分支各一色' },
+    { key:'teal',     label:'青碧', desc:'冷静 · 技术文' },
+    { key:'warm',     label:'暖棕', desc:'书卷 · 随笔' },
+    { key:'ink',      label:'水墨', desc:'打印 · 截图' },
+    { key:'night',    label:'琥珀夜', desc:'深底 · 长时间阅读' },
+  ];
+  function renderSchemeMinis() {
+    var grid = document.getElementById('mapStyleGrid');
+    grid.innerHTML = schemes.map(function (item) {
+      var miniTree = {children:[{children:[{},{}]},{children:[{},{}]}]};
+      var g = VoxMapLayout.layout(miniTree, {mode:settings.layout, measure:function (n) {n.width=52;n.height=22;}});
+      var links = g.links.map(function (link) {
+        return '<path class="map-preview-link" d="'+link.path+'"/>';
+      }).join('');
+      var nodes = g.nodes.map(function (node) {
+        var cls = 'map-preview-node' + (node === miniTree ? ' map-preview-root' : '') + (node.leaf ? ' map-preview-content' : '');
+        return '<rect class="'+cls+'" x="'+node.x+'" y="'+node.y+'" width="'+node.width+'" height="'+node.height+'" rx="6"/>';
+      }).join('');
+      return '<button type="button" class="map-scheme-card" data-map-scheme="'+item.key+'" aria-pressed="false">'
+        + '<span class="type-swatch-scheme" data-scheme="'+item.key+'"><svg class="map-miniature" viewBox="-12 -12 '+(g.width+24)+' '+(g.height+24)+'" aria-hidden="true">'+links+nodes+'</svg></span>'
+        + '<strong>'+item.label+'</strong><span class="scheme-desc">'+item.desc+'</span></button>';
+    }).join('');
+  }
+  window.__renderSchemeMinis = renderSchemeMinis;
+  // addEventListener 并存（不覆盖弹层 IIFE 稍后赋值的 onclick toast 处理器）
+  document.querySelectorAll('#mapStructGrid .map-choice').forEach(function (ch) {
+    ch.addEventListener('click', function () {
+      settings.layout = ch.dataset.mapLayout;
+      renderMap();
+      renderSchemeMinis();   // 配色迷你图跟随当前结构
+    });
+  });
+  renderMap();
+  renderSchemeMinis();
+  window.__renderMap = renderMap;
+})();
+
+/* ---------- 排版弹层（Vex typography 规格） ---------- */
+(function(){
+  var btn = document.getElementById('btnTypo'), pop = document.getElementById('typoPop');
+  function close(){ pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  btn.onclick = function(e){
+    e.stopPropagation();
+    var opening = pop.hidden;
+    document.getElementById('mapPop').hidden = true;
+    pop.hidden = !opening;
+    btn.setAttribute('aria-expanded', String(opening));
+    if (opening) {
+      var r = btn.getBoundingClientRect();
+      pop.style.left = Math.max(10, Math.min(window.innerWidth - 640, r.right - 624)) + 'px';
+      pop.style.top = (r.bottom + 8) + 'px';
+    }
+  };
+  document.getElementById('typoClose').onclick = close;
+  document.addEventListener('click', function(e){
+    if (!pop.hidden && !pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !pop.hidden) close(); });
+  document.querySelectorAll('#typoPop .density-options button').forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll('#typoPop .density-options button').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      document.getElementById('prevInner').style.setProperty('--md-size', b.dataset.tpMdsize + 'px');
+      toast('渲染密度：' + b.textContent + '（基准字号 ' + b.dataset.tpMdsize + 'px）');
+    };
+  });
+  document.querySelectorAll('#typoPop .typography-card').forEach(function(card){
+    card.onclick = function(){
+      document.querySelectorAll('#typoPop .typography-card').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+      card.setAttribute('aria-pressed', 'true');
+      var label = card.querySelector('strong').childNodes[0].textContent.trim();
+      document.getElementById('typoLabel').textContent = label;
+      document.getElementById('prevInner').dataset.typo = card.dataset.typographyKey.toLowerCase();
+      toast('排版：' + label);
+    };
+  });
+})();
+/* ---------- 导图样式弹层（Vex map-appearance 规格） ---------- */
+(function(){
+  var btn = document.getElementById('btnMapStyle'), pop = document.getElementById('mapPop');
+  function close(){ pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  btn.onclick = function(e){
+    e.stopPropagation();
+    var opening = pop.hidden;
+    document.getElementById('typoPop').hidden = true;
+    pop.hidden = !opening;
+    btn.setAttribute('aria-expanded', String(opening));
+    if (opening) {
+      var r = btn.getBoundingClientRect();
+      pop.style.left = Math.max(10, Math.min(window.innerWidth - pop.offsetWidth - 10, r.right - pop.offsetWidth)) + 'px';
+      pop.style.top = (r.bottom + 8) + 'px';
+    }
+  };
+  document.getElementById('mapClose').onclick = close;
+  document.addEventListener('click', function(e){
+    if (!pop.hidden && !pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !pop.hidden) close(); });
+  pop.querySelectorAll('.appearance-tabs button').forEach(function(tab){
+    tab.onclick = function(){
+      pop.querySelectorAll('.appearance-tabs button').forEach(function(x){ x.setAttribute('aria-selected', String(x === tab)); });
+      document.getElementById('mapStructGrid').hidden = tab.dataset.mapTab !== 'structure';
+      document.getElementById('mapStyleGrid').hidden = tab.dataset.mapTab !== 'style';
+    };
+  });
+  document.querySelectorAll('#mapStructGrid .map-choice').forEach(function(ch){
+    ch.onclick = function(){
+      document.querySelectorAll('#mapStructGrid .map-choice').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+      ch.setAttribute('aria-pressed', 'true');
+      document.getElementById('paneMap').dataset.mapLayout = ch.dataset.mapLayout;
+      toast('导图结构：' + ch.querySelector('strong').textContent);
+    };
+  });
+  document.querySelectorAll('#mapStyleGrid .map-scheme-card').forEach(function(ch){
+    ch.onclick = function(){
+      document.querySelectorAll('#mapStyleGrid .map-scheme-card').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
+      ch.setAttribute('aria-pressed', 'true');
+      document.getElementById('paneMap').dataset.mapScheme = ch.dataset.mapScheme;
+      toast('导图配色：' + ch.querySelector('strong').textContent);
+    };
+  });
+})();
+
 /* ---------- 视图 ↔ 右面板 悬浮拖拽条（240–460） ---------- */
 (function(){
   var panel = document.getElementById('wpanel');
@@ -1066,6 +1301,7 @@ renderMatrix();renderChecks();
     if(m === 'split'){ apply(last); }
     else { src.style.flex = ''; prev.style.flex = ''; }
   }
+  window.addEventListener('voxmode', sync);
   var drag = false, x0 = 0, p0 = 50;
   bar.addEventListener('pointerdown', function(e){
     drag = true; x0 = e.clientX; p0 = last;
