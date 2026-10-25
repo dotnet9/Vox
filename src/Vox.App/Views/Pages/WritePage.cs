@@ -19,6 +19,7 @@ using Markdig;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
+using static Vox.App.Infrastructure.VoxTheme;
 using Vox.Core;
 
 namespace Vox.App.Views.Pages;
@@ -247,7 +248,7 @@ public sealed class WritePage : UserControl
             _articleHost.Children.Add(new TextBlock
             {
                 Text = "未配置内容仓库（设置 → 内容仓库）",
-                FontSize = 11, Margin = new Thickness(14, 10),
+                FontSize = Fs(11), Margin = new Thickness(14, 10),
                 TextWrapping = TextWrapping.Wrap,
             });
             return;
@@ -289,7 +290,7 @@ public sealed class WritePage : UserControl
 
         var count = new TextBlock
         {
-            Text = $"共 {scan.Articles.Count} 篇", FontSize = 10, Margin = new Thickness(14, 8, 0, 8),
+            Text = $"共 {scan.Articles.Count} 篇", FontSize = Fs(10), Margin = new Thickness(14, 8, 0, 8),
         };
         Res(count, TextBlock.ForegroundProperty, "VoxFaint");
         _articleHost.Children.Add(count);
@@ -300,11 +301,11 @@ public sealed class WritePage : UserControl
         var title = new TextBlock
         {
             Text = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
-            FontSize = 12, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = Fs(12), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis,
         };
         var meta = new TextBlock
         {
-            FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = Fs(10.5), Margin = new Thickness(0, 2, 0, 0), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
             Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}"
                    + (article.IsDraft ? " · 草稿" : string.Empty),
         };
@@ -343,12 +344,12 @@ public sealed class WritePage : UserControl
         var tri = new TextBlock { Text = "▾", FontSize = 9, VerticalAlignment = VerticalAlignment.Center };
         var text = new TextBlock
         {
-            Text = label, FontSize = year ? 11 : 10.5, FontWeight = FontWeight.SemiBold,
+            Text = label, FontSize = Fs(year ? 11 : 10.5), FontWeight = FontWeight.SemiBold,
             Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
         };
         var cnt = new TextBlock
         {
-            Text = count.ToString(), FontSize = 10, Opacity = 0.75,
+            Text = count.ToString(), FontSize = Fs(10), Opacity = 0.75,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
         };
 
@@ -599,8 +600,8 @@ public sealed class WritePage : UserControl
                     Spacing = 2,
                     Children =
                     {
-                        new TextBlock { Text = label, FontSize = 12, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
-                        new TextBlock { Text = sub, FontSize = 10, Opacity = 0.72, TextWrapping = TextWrapping.Wrap, MinHeight = 26 },
+                        new TextBlock { Text = label, FontSize = Fs(12), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+                        new TextBlock { Text = sub, FontSize = Fs(10), Opacity = 0.72, TextWrapping = TextWrapping.Wrap, MinHeight = 26 },
                     },
                 },
             };
@@ -1110,7 +1111,7 @@ public sealed class WritePage : UserControl
 
     private static TextBlock PopLabel(string text) => new()
     {
-        Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold,
+        Text = text, FontSize = Fs(10.5), FontWeight = FontWeight.SemiBold,
         Margin = new Thickness(2, 12, 0, 6),
     };
 

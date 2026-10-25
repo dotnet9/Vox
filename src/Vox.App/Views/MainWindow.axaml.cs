@@ -9,6 +9,7 @@ using TKCode.Arc.Icons.Lucide;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
 using static Vox.App.Infrastructure.I18n;
+using static Vox.App.Infrastructure.VoxTheme;
 using Vox.App.Views.Pages;
 using Vox.App.Dialogs;
 using Vox.App.Services;
@@ -54,12 +55,17 @@ public partial class MainWindow : Window
         var startPage = Environment.GetEnvironmentVariable("VOX_START_PAGE");
         var initial = string.IsNullOrWhiteSpace(startPage) ? "write" : startPage;
         if (initial is not ("write" or "library" or "publish" or "site" or "settings")) initial = "write";
+        _currentKey = initial;
         PageHost.Content = GetPage(initial);
         MarkActive(initial);
 
         ThemeService.Apply(AppState.Instance.Settings);
         AppState.Instance.ScanChanged += OnScanChanged;
         UpdateNavCounts();
+
+        // 界面密度 / 界面语言切换：清页缓存整体重建（字号 Fs() 与文案 T() 都在构造期取值）
+        VoxTheme.DensityChanged += RebuildForAppearance;
+        CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged += (_, _) => RebuildForAppearance();
 
         // 已配置仓库时启动即建索引（先让窗口渲染出来再扫）。
         if (AppState.Instance.HasRepo)
@@ -376,7 +382,7 @@ public partial class MainWindow : Window
         var expanded = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"), Margin = new Thickness(2, 0, 2, 0) };
         var expIcon = new LucideIcon { Kind = icon, Width = 16, Height = 16, StrokeThickness = 2 };
         Grid.SetColumn(expIcon, 0);
-        var expLabel = new TextBlock { Text = label, FontSize = 12.5, FontWeight = FontWeight.Medium,
+        var expLabel = new TextBlock { Text = label, FontSize = Fs(12.5), FontWeight = FontWeight.Medium,
             Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(expLabel, 1);
         var cnt = new Border { Classes = { "navcnt" }, IsVisible = false,
@@ -481,10 +487,30 @@ public partial class MainWindow : Window
 
     // ---------- 页面切换 ----------
 
+    private string _currentKey = "write";
+
     public void ShowPage(string key)
     {
+        _currentKey = key;
         PageHost.Content = GetPage(key);
         MarkActive(key);
+    }
+
+    /// <summary>密度/语言切换后整体重建：导航文案、标题栏、当前页全部按新档取值。</summary>
+    private void RebuildForAppearance()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            _pages.Clear();
+            NavItems.Children.Clear();
+            _navButtons.Clear();
+            BuildNav();
+            ApplyNavMode();
+            BuildTitlebarExtras();
+            PageHost.Content = GetPage(_currentKey);
+            MarkActive(_currentKey);
+            UpdateNavCounts();
+        });
     }
 
     private Control GetPage(string key)
