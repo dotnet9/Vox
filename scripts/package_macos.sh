@@ -49,6 +49,16 @@ codesign --force --deep -s - "$APP_DIR" 2>/dev/null || true
 mkdir -p "$OUT_DIR"
 DMG="$OUT_DIR/Vox-v$VERSION-$RID.dmg"
 rm -f "$DMG"
-hdiutil create -volname "Vox" -srcfolder "$WORK_DIR" -ov -format UDZO "$DMG"
+# hdiutil 在 CI runner 上偶发 Resource busy（Spotlight 索引临时目录），重试兜底。
+hdiutil_ok=0
+for attempt in 1 2 3 4 5; do
+  if hdiutil create -volname "Vox" -srcfolder "$WORK_DIR" -ov -format UDZO "$DMG"; then
+    hdiutil_ok=1
+    break
+  fi
+  echo "hdiutil 第 $attempt 次失败，5 秒后重试…" >&2
+  sleep 5
+done
+[ "$hdiutil_ok" = "1" ] || { echo "hdiutil create 最终失败" >&2; exit 1; }
 rm -rf "$WORK_DIR"
 echo "dmg -> $DMG"
