@@ -2,11 +2,76 @@
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>安装器 · Windows · Vox 原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css"><link rel="stylesheet" href="assets/installer.css">
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+body.stage {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 34px 20px 24px;
+  background:
+    radial-gradient(900px 420px at 22% -8%, rgba(124,92,255,.20), transparent 55%),
+    radial-gradient(800px 440px at 82% 4%, rgba(62,123,250,.12), transparent 55%),
+    #eceaf2;
+}
+html[data-theme="dark"] body.stage { background: radial-gradient(900px 420px at 22% -8%, rgba(124,92,255,.14), transparent 55%), radial-gradient(800px 440px at 82% 4%, rgba(62,123,250,.08), transparent 55%), #0d0d12; }
+
+.proto-bar { width: min(660px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
+.proto-bar .tools { display:flex; align-items:center; gap:8px; }
+.proto-bar .dots { display:flex; gap:6px; }
+.proto-bar .dot { width:13px; height:13px; border-radius:50%; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
+.proto-bar .dot[data-c="violet"]{background:#7c5cff}.proto-bar .dot[data-c="blue"]{background:#3e7bfa}
+.proto-bar .dot[data-c="emerald"]{background:#14a06a}.proto-bar .dot[data-c="orange"]{background:#ee7a1c}
+.proto-bar .dot.active{outline:2px solid var(--fg);outline-offset:1px}
+
+/* 极简单屏安装窗（Vex-Installer-Windows 同构：左品牌栏 + 右选项区） */
+.window { width: min(660px,100%); height: 360px; display:flex; flex-direction:column;
+  background: var(--surface); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(0,0,0,.32), 0 0 0 .5px rgba(0,0,0,.22); }
+.tb { height: 40px; flex:none; display:flex; align-items:center; gap:8px; padding: 0 12px;
+  background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.tb img { width: 17px; height: 17px; border-radius: 5px; }
+.tb .t { font: 600 11.5px var(--font-ui); }
+.tb .spacer { flex:1; }
+.wc { display:flex; }
+.wc i { width: 34px; display: grid; place-items: center; color: var(--muted); font-style: normal;
+  transition: background var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
+.wc i:hover { background: var(--surface-3); color: var(--fg); }
+.wc i.close:hover { background: #e81123; color: #fff; }
+.wc svg { width: 10px; height: 10px; display: block; }
+
+.body { flex:1; display:flex; min-height:0; }
+.brand { width: 208px; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 65%, var(--surface-2)), var(--surface-2)); border-right: 1px solid var(--line); }
+.brand img { width: 76px; height: 76px; border-radius: 20px; box-shadow: 0 10px 26px rgba(0,0,0,.16); }
+.brand b { font-size: 15px; font-weight: 650; }
+.brand span { font-size: 10.5px; color: var(--muted); }
+
+.pane { flex:1; min-width:0; display:flex; flex-direction:column; padding: 22px 26px 16px; }
+.pane h1 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; margin: 0 0 16px; }
+.field { margin-bottom: 12px; }
+.field > label { display:block; font: 600 10.5px var(--font-ui); color: var(--muted); margin-bottom: 5px; }
+.select { width: 100%; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 9px;
+  background: var(--surface); color: var(--fg); font: 400 12px var(--font-ui); }
+.select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.optline { color: var(--muted); font-size: 11px; margin-top: 5px; }
+.spacer { flex:1; }
+.foot-row { display:flex; align-items:center; justify-content:space-between; padding-top: 12px; border-top: 1px solid var(--line); }
+.mit { color: var(--faint); font-size: 10.5px; }
+.install-btn { border: 0; border-radius: 9px; padding: 9px 22px; cursor: pointer;
+  background: var(--accent); color: var(--on-accent); font: 600 12.5px var(--font-ui);
+  transition: background var(--t-fast) var(--motion), transform var(--t-fast) var(--motion); }
+.install-btn:hover { background: var(--accent-deep); }
+.install-btn:active { transform: scale(.98); }
+.progress { height: 7px; border-radius: 99px; background: var(--surface-3); overflow: hidden; margin: 8px 0 10px; }
+.progress > i { display:block; height:100%; width:0%; background: var(--accent); border-radius:99px; transition: width .35s var(--motion); }
+.done-ico { width: 44px; height: 44px; border-radius: 50%; display:grid; place-items:center;
+  background: var(--ok-soft); color: var(--ok); font-size: 22px; margin: 6px auto 10px; }
+
+.foot-note { width: min(660px,100%); margin-top: 14px; text-align:center; color: var(--faint); font-size: 10px; }
+</style>
 </head>
 <body class="stage">
 <div class="proto-bar">
-  <span class="left"><b>Vox 安装器原型 · Windows</b>　三平台全 Arc 品牌风 · GitHub Releases 分发</span>
+  <span class="left"><b>Vox 安装器原型 · Windows</b>　极简单屏 · Inno Setup 6 打包 · GitHub Releases 分发</span>
   <span class="tools">
     <button class="btn sm ghost" id="btnTheme">暗色</button>
     <span class="dots">
@@ -17,112 +82,138 @@
 </div>
 
 <div class="window">
-  <div class="titlebar">
-    <img src="../logo.svg" alt=""><span class="t">Vox 安装向导</span><span class="sub">维声 · 内容仓库治理台</span>
+  <div class="tb">
+    <img src="../logo.svg" alt=""><span class="t">Vox 安装</span>
     <span class="spacer"></span>
-    <span class="wc"><i><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></i><i><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></i><i class="close"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></i></span>
+    <span class="wc">
+      <i><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></i>
+      <i><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></i>
+      <i class="close"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></i>
+    </span>
   </div>
-  <div class="win-body">
-    <aside class="rail">
-      <div class="step-i active"><span class="n">1</span>欢迎</div>
-      <div class="step-i"><span class="n">2</span>许可证</div>
-      <div class="step-i"><span class="n">3</span>安装位置</div>
-      <div class="step-i"><span class="n">4</span>组件</div>
-      <div class="step-i"><span class="n">5</span>安装</div>
-      <div class="step-i"><span class="n">6</span>完成</div>
-      <div class="foot-note">Vox 0.1.0-preview.1<br>win-x64 · NativeAOT<br>分发：GitHub Releases</div>
+  <div class="body">
+    <aside class="brand">
+      <img src="../logo.svg" alt="Vox">
+      <b>Vox · 维声</b>
+      <span id="tSlogan">一处落笔，处处有声</span>
     </aside>
-    <main class="pane"><div class="steps">
+    <main class="pane">
+      <h1 id="tHead">让内容，安静生长。</h1>
 
-      <section class="step active">
-        <div class="hero">
-          <img src="../logo.svg" alt="Vox">
-          <h1>Vox · 维声</h1>
-          <div class="ver">0.1.0-preview.1 · win-x64 · Inno Setup 6 打包</div>
+      <div id="stepOptions">
+        <div class="field">
+          <label id="tLangLabel">语言 / Language（默认跟随系统）</label>
+          <select class="select" id="langSel">
+            <option value="zh" id="tLangZh">简体中文（系统默认）</option>
+            <option value="en" id="tLangEn">English</option>
+          </select>
         </div>
-        <p class="lead" style="text-align:center;margin-top:10px">写作、配图、体检、同步 —— 一个应用闭环。<br>内置「帮助 → 检查更新」，新版本一键直达 GitHub Releases。</p>
-      </section>
-
-      <section class="step">
-        <h1>许可证协议</h1>
-        <p class="lead">安装前请阅读以下协议。Vox 采用 MIT 许可证开源。</p>
-        <div class="lic">MIT License
-
-Copyright (c) 2026 沙漠尽头的狼 (codewf.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction…
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND…（完整文本见 LICENSE）</div>
-        <label class="opt"><input type="radio" name="lic" checked><span><b>我接受许可证协议</b></span></label>
-      </section>
-
-      <section class="step">
-        <h1>安装位置</h1>
-        <div class="field"><label>安装到（当前用户，无需管理员）</label>
-          <div class="row"><input class="input mono" value="C:\Users\liu64\AppData\Local\Programs\Vox"><button class="btn">浏览…</button></div>
-          <div class="desc">约 220 MB · 含内置 git 组件（MinGit）</div>
+        <div class="field">
+          <label id="tOptLabel">安装选项</label>
+          <select class="select" id="optSel">
+            <option id="tOptStandard" value="std">标准安装（推荐）</option>
+            <option id="tOptFull" value="full">完整安装（含 .md 关联与右键菜单）</option>
+          </select>
+          <div class="optline" id="tOptDesc">按当前用户安装到 %LocalAppData%\Programs\Vox · 内置 git 组件 · 无需管理员</div>
         </div>
-      </section>
+      </div>
 
-      <section class="step">
-        <h1>组件</h1>
-        <label class="opt"><input type="checkbox" checked><span><b>开始菜单与桌面快捷方式</b></span></label>
-        <label class="opt"><input type="checkbox" checked><span><b>关联 .md 文件</b></span></label>
-        <label class="opt"><input type="checkbox"><span><b>资源管理器右键「用 Vox 打开」</b></span></label>
-        <label class="opt"><input type="checkbox" checked disabled><span><b>内置 git 组件（MinGit，必装）</b></span></label>
-      </section>
-
-      <section class="step">
-        <h1>正在安装</h1>
-        <p class="lead">请稍候，整个过程通常在 10 秒内完成。</p>
+      <div id="stepProgress" style="display:none">
         <div class="progress"><i id="bar"></i></div>
-        <div class="term" id="term"><div>准备安装…</div></div>
-      </section>
+        <div class="optline" id="progText">正在安装…</div>
+      </div>
 
-      <section class="step">
-        <div class="result">
-          <div class="ico">✓</div>
-          <h1>安装完成</h1>
-        </div>
-        <label class="opt" style="justify-content:center;border:0"><input type="checkbox" checked><span><b>立即启动 Vox（首次启动：选择仓库、配置 PAT）</b></span></label>
-        <p class="lead" style="text-align:center">点「启动 Vox」进入软件原型 →</p>
-      </section>
+      <div id="stepDone" style="display:none">
+        <div class="done-ico">✓</div>
+        <div class="optline" id="doneText" style="text-align:center;font-size:12px;color:var(--fg)">安装完成</div>
+      </div>
 
-    </div></main>
+      <span class="spacer"></span>
+      <div class="foot-row">
+        <span class="mit" id="tMit">基于 MIT 协议开源</span>
+        <button class="install-btn" id="btnInstall">立即安装</button>
+      </div>
+    </main>
   </div>
-  <footer class="win-foot">
-    <span class="hint">安装位置剩余空间充足</span><span class="spacer"></span>
-    <button class="btn" id="btnPrev" style="visibility:hidden">上一步</button>
-    <button class="btn primary" id="btnNext">下一步</button>
-  </footer>
 </div>
 
+<div class="foot-note">GitHub Releases · Windows EXE / Linux DEB / macOS DMG · SHA256 · 应用内「帮助 → 检查更新」</div>
+
 <script>
-const steps=[...document.querySelectorAll('.step')],rail=[...document.querySelectorAll('.rail .step-i')];
-let cur=0,timer=null;
-function go(i){cur=Math.max(0,Math.min(i,steps.length-1));
-  steps.forEach((s,k)=>s.classList.toggle('active',k===cur));
-  rail.forEach((r,k)=>{r.classList.toggle('active',k===cur);r.classList.toggle('done',k<cur);});
-  document.getElementById('btnPrev').style.visibility=cur===0?'hidden':'visible';
-  document.getElementById('btnNext').textContent=cur===steps.length-1?'启动 Vox ▸':(cur===4?'正在安装…':'下一步');
-  if(cur===4)runInstall();
+const I18N = {
+  zh: {
+    slogan:'一处落笔，处处有声', head:'让内容，安静生长。',
+    langLabel:'语言 / Language（默认跟随系统）', langZh:'简体中文（系统默认）', langEn:'English',
+    optLabel:'安装选项',
+    optStd:'标准安装（推荐）', optFull:'完整安装（含 .md 关联与右键菜单）',
+    optDesc:'按当前用户安装到 %LocalAppData%\\Programs\\Vox · 内置 git 组件 · 无需管理员',
+    mit:'基于 MIT 协议开源', install:'立即安装', installing:'正在安装…',
+    done:'安装完成 · 从「帮助」菜单可检查更新',
+    launch:'启动 Vox ▸'
+  },
+  en: {
+    slogan:'Write once, heard everywhere', head:'Let your content grow, quietly.',
+    langLabel:'Language (system default)', langZh:'简体中文 (system default)', langEn:'English',
+    optLabel:'Setup options',
+    optStd:'Standard (recommended)', optFull:'Full (file association & context menu)',
+    optDesc:'Per-user install to %LocalAppData%\\Programs\\Vox · bundled git · no admin required',
+    mit:'Open source under MIT', install:'Install', installing:'Installing…',
+    done:'Installed · use Help → Check for updates anytime',
+    launch:'Launch Vox ▸'
+  }
+};
+let lang = 'zh';
+const $ = id => document.getElementById(id);
+function applyLang(){
+  const t = I18N[lang];
+  $('tSlogan').textContent = t.slogan;
+  $('tHead').textContent = t.head;
+  $('tLangLabel').textContent = t.langLabel;
+  $('tLangZh').textContent = t.langZh;
+  $('tLangEn').textContent = t.langEn;
+  $('tOptLabel').textContent = t.optLabel;
+  $('tOptStandard').textContent = t.optStd;
+  $('tOptFull').textContent = t.optFull;
+  $('tOptDesc').textContent = t.optDesc;
+  $('tMit').textContent = t.mit;
+  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+  if ($('btnInstall').dataset.state !== 'done') $('btnInstall').textContent = t.install;
+  $('langSel').value = lang;
 }
-function runInstall(){
-  const bar=document.getElementById('bar'),term=document.getElementById('term');
-  bar.style.width='0%';term.innerHTML='<div>准备安装…</div>';clearInterval(timer);
-  const lines=['解压 Vox 核心组件（NativeAOT，无需运行时）…','写入内置 git 组件 MinGit…','注册 .md 文件关联…','创建开始菜单与桌面快捷方式…'];
-  let p=0;timer=setInterval(()=>{p=Math.min(100,p+8+Math.random()*10);bar.style.width=p+'%';
-    const i=Math.min(lines.length-1,Math.floor(p/100*lines.length));
-    if(!term.querySelector('[data-i="'+i+'"]')){const d=document.createElement('div');d.dataset.i=i;d.innerHTML=lines[i]+' <span class="ok">✓</span>';term.appendChild(d);term.scrollTop=term.scrollHeight;}
-    if(p>=100){clearInterval(timer);setTimeout(()=>go(5),450);}
-  },260);
-}
-document.getElementById('btnPrev').onclick=()=>go(cur-1);
-document.getElementById('btnNext').onclick=()=>{
-  if(cur===steps.length-1){window.location.href='Vox软件原型.html';return;}
-  go(cur+1);};
-document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
-document.querySelectorAll('.proto-bar .dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;document.querySelectorAll('.proto-bar .dot').forEach(x=>x.classList.toggle('active',x===d));});
+$('langSel').onchange = e => { lang = e.target.value; applyLang(); };
+
+const btn = $('btnInstall');
+btn.onclick = () => {
+  if (btn.dataset.state === 'done') { location.href = 'Vox软件原型.html'; return; }
+  $('stepOptions').style.display = 'none';
+  $('stepProgress').style.display = 'block';
+  btn.disabled = true; btn.textContent = I18N[lang].installing;
+  let p = 0;
+  const timer = setInterval(() => {
+    p = Math.min(100, p + 9 + Math.random() * 11);
+    $('bar').style.width = p + '%';
+    if (p >= 100) {
+      clearInterval(timer);
+      $('stepProgress').style.display = 'none';
+      $('stepDone').style.display = 'block';
+      $('doneText').textContent = I18N[lang].done;
+      btn.dataset.state = 'done';
+      btn.disabled = false;
+      btn.textContent = I18N[lang].launch;
+      btn.onclick = () => { location.href = 'Vox软件原型.html'; };
+    }
+  }, 240);
+};
+
+$('btnTheme').onclick = e => {
+  const r = document.documentElement, d = r.dataset.theme === 'dark' ? 'light' : 'dark';
+  r.dataset.theme = d; e.target.textContent = d === 'dark' ? '亮色' : '暗色';
+};
+document.querySelectorAll('.proto-bar .dot').forEach(d => d.onclick = () => {
+  document.documentElement.dataset.accent = d.dataset.c;
+  document.querySelectorAll('.proto-bar .dot').forEach(x => x.classList.toggle('active', x === d));
+});
+applyLang();
 </script>
 </body>
 </html>
