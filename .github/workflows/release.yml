@@ -63,6 +63,19 @@ jobs:
           $sha = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
           "$sha  Vox-v$env:APP_VERSION-win-x64-setup.exe" | Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
 
+      - name: 打包便携版 zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "artifacts/publish/Vox.App-win-x64/*" -DestinationPath "artifacts/release/Vox-v$env:APP_VERSION-win-x64.zip" -Force
+
+      - name: 生成 SHA-256
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/release -File | ForEach-Object {
+            $sha = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$sha  $($_.Name)" | Set-Content -LiteralPath "$($_.FullName).sha256" -Encoding ascii
+          }
+
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
@@ -107,7 +120,7 @@ jobs:
         shell: pwsh
         run: ./scripts/publish.ps1 -Rid '${{ matrix.rid }}'
 
-      - name: 打包 tar.gz + SHA-256
+      - name: 打包 tar.gz（便携版）
         shell: pwsh
         run: |
           $dir = "artifacts/publish/Vox.App-${{ matrix.rid }}"
@@ -115,8 +128,26 @@ jobs:
           New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
           $name = "Vox-v$env:APP_VERSION-${{ matrix.rid }}"
           tar -czf "artifacts/release/$name.tar.gz" -C $dir .
-          $sha = (Get-FileHash "artifacts/release/$name.tar.gz" -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$sha  $name.tar.gz" | Set-Content "artifacts/release/$name.tar.gz.sha256"
+
+      - name: 打包 Linux deb（安装包）
+        if: startsWith(matrix.rid, 'linux-')
+        shell: pwsh
+        run: ./scripts/package_linux_deb.ps1 -RuntimeIdentifier '${{ matrix.rid }}' -Version $env:APP_VERSION
+
+      - name: 打包 macOS dmg（安装包）
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          chmod +x scripts/package_macos.sh
+          ./scripts/package_macos.sh '${{ matrix.rid }}'
+
+      - name: 生成 SHA-256
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/release -File | ForEach-Object {
+            $sha = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$sha  $($_.Name)" | Set-Content -LiteralPath "$($_.FullName).sha256" -Encoding ascii
+          }
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
