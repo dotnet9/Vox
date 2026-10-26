@@ -75,7 +75,7 @@ public sealed class WritePage : UserControl
 
     // 模式条（源码/分屏/预览/导图）
     private int _mode;
-    private readonly StackPanel _modeButtons = new() { Orientation = Orientation.Horizontal };
+    private readonly TKCode.Arc.SegmentedControl _modeSeg = new();
 
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(450) };
 
@@ -503,24 +503,19 @@ public sealed class WritePage : UserControl
         Grid.SetColumn(_prevCard, 2);
         center.Children.Add(_mapCard);
 
-        // 浮动模式条（四态：源码/分屏/预览/导图，骑视图区底边居中）
+        // 浮动模式条（四态：源码/分屏/预览/导图，骑视图区底边居中；Arc SegmentedControl 自带滑块动画）
         foreach (var (labelKey, mode) in new[] { ("Vox.Write.Mode.Source", 0), ("Vox.Write.Mode.Split", 1), ("Vox.Write.Mode.Preview", 2), ("Vox.Write.Mode.Map", 3) })
         {
-            var button = new Button { Classes = { "segbtn", mode == 0 ? "active" : string.Empty } };
-            button[!Button.ContentProperty] = I18n.Bind(labelKey);
-            var captured = mode;
-            button.Click += (_, _) =>
-            {
-                foreach (var child in _modeButtons.Children.OfType<Button>())
-                {
-                    child.Classes.Set("active", ReferenceEquals(child, button));
-                }
-                SetMode(captured);
-            };
-            _modeButtons.Children.Add(button);
+            _modeSeg.Items.Add(new TKCode.Arc.SegmentedOption(mode, T(labelKey)));
         }
-        var modeSeg = new Border { Classes = { "seg" }, CornerRadius = new CornerRadius(11), Padding = new Thickness(3), Child = _modeButtons };
-        Res(modeSeg, Border.BackgroundProperty, "VoxSurface");
+        _modeSeg.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is int m)
+            {
+                SetMode(m);
+            }
+        };
+        _modeSeg.SelectedValue = 0;
         var floatHost = new Panel
         {
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -528,7 +523,7 @@ public sealed class WritePage : UserControl
             Margin = new Thickness(0, 0, 0, -6),
             ZIndex = 30,
         };
-        floatHost.Children.Add(modeSeg);
+        floatHost.Children.Add(_modeSeg);
 
         BuildPanelHandle();
         _viewWrap.Children.Add(center);

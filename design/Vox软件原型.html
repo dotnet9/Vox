@@ -711,6 +711,30 @@ document.querySelectorAll('#styleSeg button').forEach(function(b){
     document.documentElement.dataset.style = b.dataset.s;
   });
 });
+/* ---------- Segmented 滑块增强（Arc SegmentedControl 同款动效） ---------- */
+function enhanceSeg(seg){
+  if (seg.querySelector('.seg-thumb')) return;
+  const thumb = document.createElement('i');
+  thumb.className = 'seg-thumb';
+  seg.classList.add('has-thumb');
+  seg.appendChild(thumb);
+  const move = function(btn, instant){
+    if (!btn) return;
+    if (instant) thumb.style.transition = 'none';
+    thumb.style.left = btn.offsetLeft + 'px';
+    thumb.style.width = btn.offsetWidth + 'px';
+    if (instant) { void thumb.offsetWidth; thumb.style.transition = ''; }
+  };
+  seg.addEventListener('click', function(e){
+    const btn = e.target.closest('button');
+    if (!btn || !seg.contains(btn)) return;
+    seg.querySelectorAll('button').forEach(function(x){ x.classList.toggle('active', x===btn); });
+    move(btn);
+  });
+  window.addEventListener('resize', function(){ move(seg.querySelector('button.active'), true); });
+  move(seg.querySelector('button.active') || seg.querySelector('button'), true);
+}
+document.querySelectorAll('.seg').forEach(enhanceSeg);
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
 document.querySelectorAll('.acard').forEach(w=>w.onclick=()=>{document.querySelectorAll('.acard').forEach(x=>x.classList.toggle('sel',x===w))});

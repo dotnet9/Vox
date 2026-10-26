@@ -102,9 +102,27 @@ public partial class MainWindow : Window
 
     private void BuildTitlebarExtras()
     {
-        var densitySeg = Seg(new[] { ("Vox.Settings.Appearance.DensityCompact", VoxTheme.DensityCompact), ("Vox.Settings.Appearance.DensityNormal", VoxTheme.DensityNormal), ("Vox.Settings.Appearance.DensityRoomy", VoxTheme.DensityRoomy) },
+        TKCode.Arc.SegmentedControl MakeSeg((string Label, string Value)[] options, string current, Action<string> apply)
+        {
+            var seg = new TKCode.Arc.SegmentedControl();
+            foreach (var (label, value) in options)
+            {
+                seg.Items.Add(new TKCode.Arc.SegmentedOption(value, T(label)));
+            }
+            seg.SelectedValue = current;
+            seg.SelectionChanged += (_, e) =>
+            {
+                if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is string v)
+                {
+                    apply(v);
+                }
+            };
+            return seg;
+        }
+
+        var densitySeg = MakeSeg(new[] { ("Vox.Settings.Appearance.DensityCompact", VoxTheme.DensityCompact), ("Vox.Settings.Appearance.DensityNormal", VoxTheme.DensityNormal), ("Vox.Settings.Appearance.DensityRoomy", VoxTheme.DensityRoomy) },
             AppState.Instance.Settings.Density, ThemeService.ChangeDensity);
-        var themeSeg = Seg(new[] { ("Vox.Settings.Appearance.ThemeLight", "light"), ("Vox.Settings.Appearance.ThemeDark", "dark"), ("Vox.Settings.Appearance.ThemeSystem", "auto") }, CurrentDarkKey(),
+        var themeSeg = MakeSeg(new[] { ("Vox.Settings.Appearance.ThemeLight", "light"), ("Vox.Settings.Appearance.ThemeDark", "dark"), ("Vox.Settings.Appearance.ThemeSystem", "auto") }, CurrentDarkKey(),
             mode => ThemeService.ChangeDark(mode switch { "dark" => true, "auto" => (bool?)null, _ => false }));
 
         var swatches = new WrapPanel { Margin = new Thickness(2, 2, 2, 4) };
