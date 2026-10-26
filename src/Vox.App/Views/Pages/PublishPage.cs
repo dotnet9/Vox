@@ -81,29 +81,25 @@ public sealed class PublishPage : UserControl
 
         var root = new DockPanel { Margin = new Thickness(18, 14, 18, 14) };
 
-        // 标签条
-        var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
-        var seg = new Border { Classes = { "seg" }, Child = segButtons };
+        // 标签条（Arc SegmentedControl：滑块动画自带）
+        var seg = new TKCode.Arc.SegmentedControl { HorizontalAlignment = HorizontalAlignment.Left };
         var tabs = new (string Key, StackPanel Host)[]
         {
             ("Vox.Publish.Tab.Site", _siteTab), ("Vox.Publish.Tab.Matrix", _matrixTab), ("Vox.Publish.Tab.Check", _checkTab),
         };
         for (var i = 0; i < tabs.Length; i++)
         {
-            var index = i;
-            var button = new Button { Classes = { "segbtn", i == 0 ? "active" : string.Empty } };
-            button[!Button.ContentProperty] = I18n.Bind(tabs[i].Key);
-            button.Click += (_, _) =>
+            seg.Items.Add(new TKCode.Arc.SegmentedOption(i, T(tabs[i].Key)));
+        }
+        seg.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is int index)
             {
-                foreach (var child in segButtons.Children.OfType<Button>())
-                {
-                    child.Classes.Set("active", ReferenceEquals(child, button));
-                }
                 foreach (var host in new[] { _siteTab, _matrixTab, _checkTab }) host.IsVisible = false;
                 tabs[index].Host.IsVisible = true;
-            };
-            segButtons.Children.Add(button);
-        }
+            }
+        };
+        seg.SelectedIndex = 0;
 
         var tabsRow = new DockPanel { Margin = new Thickness(0, 0, 0, 12), Children = { seg } };
         var summaryHost = new DockPanel { Children = { _pubSummary } };

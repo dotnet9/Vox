@@ -791,24 +791,20 @@ public sealed class WritePage : UserControl
         pages.Children.Add(styleGrid);
         styleGrid.IsVisible = false;
 
-        var segButtons = new StackPanel { Orientation = Orientation.Horizontal };
-        var seg = new Border { Classes = { "seg" }, HorizontalAlignment = HorizontalAlignment.Left, Child = segButtons };
+        var seg = new TKCode.Arc.SegmentedControl { HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var (labelKey, index) in new (string LabelKey, int Index)[] { ("Vox.Write.Map.TabStructure", 0), ("Vox.Write.Map.TabStyle", 1) })
         {
-            var button = new Button { Classes = { "segbtn", index == 0 ? "active" : string.Empty } };
-            button[!Button.ContentProperty] = I18n.Bind(labelKey);
-            var captured = index;
-            button.Click += (_, _) =>
+            seg.Items.Add(new TKCode.Arc.SegmentedOption(index, T(labelKey)));
+        }
+        seg.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is int captured)
             {
-                foreach (var child in segButtons.Children.OfType<Button>())
-                {
-                    child.Classes.Set("active", ReferenceEquals(child, button));
-                }
                 structGrid.IsVisible = captured == 0;
                 styleGrid.IsVisible = captured == 1;
-            };
-            segButtons.Children.Add(button);
-        }
+            }
+        };
+        seg.SelectedIndex = 0;
 
         var pop = new StackPanel { Width = 470 };
         var title = new TextBlock { FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Map.StyleTitle") };
@@ -1314,28 +1310,23 @@ public sealed class WritePage : UserControl
         return tb;
     }
 
-    /// <summary>分段选择（同 MainWindow 标题栏弹层口径）：active 类由代码维护。</summary>
-    private static Border Seg((string Label, string Value)[] options, string current, Action<string> apply)
+    /// <summary>分段选择（Arc SegmentedControl：滑块动画自带；label 为 i18n 键）。</summary>
+    private static TKCode.Arc.SegmentedControl Seg((string Label, string Value)[] options, string current, Action<string> apply)
     {
-        var host = new Border { Classes = { "seg" } };
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        host.Child = row;
+        var seg = new TKCode.Arc.SegmentedControl { HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var (label, value) in options)
         {
-            var button = new Button { Classes = { "segbtn", value == current ? "active" : string.Empty }, Tag = value, MinWidth = 64 };
-            button[!Button.ContentProperty] = I18n.Bind(label);
-            var captured = value;
-            button.Click += (_, _) =>
-            {
-                foreach (var child in row.Children.OfType<Button>())
-                {
-                    child.Classes.Set("active", (string?)child.Tag == captured);
-                }
-                apply(captured);
-            };
-            row.Children.Add(button);
+            seg.Items.Add(new TKCode.Arc.SegmentedOption(value, T(label)));
         }
-        return host;
+        seg.SelectedValue = current;
+        seg.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is string v)
+            {
+                apply(v);
+            }
+        };
+        return seg;
     }
 
     /// <summary>动态资源绑定（主题/强调色热切换跟随）。</summary>
