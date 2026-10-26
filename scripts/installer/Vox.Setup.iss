@@ -14,7 +14,14 @@
 
 #define VoxWebsite "https://github.com/dotnet9/Vox/"
 
+#ifndef SourceDir
+#define SourceDir "..\artifacts\publish\Vox.App-win-x64"
+#endif
+
 [Files]
+
+; 应用载荷：发布产物全量入 {app}（这是本安装器的核心职责）。
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 Source: "{#VoxLicensePath}"; DestName: "Vox-License.txt"; Flags: dontcopy
 
