@@ -20,9 +20,11 @@ $OutputDirectory = Join-Path $repositoryRoot "artifacts/release"
 $sourcePath = (Resolve-Path -LiteralPath $SourceDirectory).Path
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
 $cleanVersion = $Version.Trim().TrimStart('v', 'V').Split('+')[0]
-if ($cleanVersion -notmatch '^\d+(\.\d+){1,3}$') {
-    throw "Version must be numeric (for example 0.1.0): $Version"
+# Debian 版本：预发布用 ~（0.1.0-preview.2 -> 0.1.0~preview.2，排序先于正式版）。
+if ($cleanVersion -notmatch '^\d+(\.\d+){1,3}([-+][A-Za-z0-9.-]+)?$') {
+    throw "Version must look like 0.1.0 or 0.1.0-preview.2: $Version"
 }
+$cleanVersion = $cleanVersion.Replace('-', '~')
 
 $architecture = if ($RuntimeIdentifier -eq "linux-arm64") { "arm64" } else { "amd64" }
 $packageName = "Vox-v$cleanVersion-$RuntimeIdentifier.deb"
