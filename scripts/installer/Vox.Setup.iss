@@ -75,6 +75,9 @@ LanguageDetectionMethod=uilanguage
 Name: "chinesesimplified"; MessagesFile: "Languages\ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Run]
+Filename: "{app}\Vox.exe"; Description: "{cm:VStartWriting}"; Flags: nowait postinstall skipifsilent
+
 [CustomMessages]
 
 english.VTitle=Vox Setup
@@ -229,9 +232,9 @@ english.VOpen=Open
 
 chinesesimplified.VOpen=打开
 
-english.VStartWriting=Start writing
+english.VStartWriting=Launch Vox
 
-chinesesimplified.VStartWriting=写点什么
+chinesesimplified.VStartWriting=启动 Vox
 
 english.VInstalling=Installing
 
@@ -1961,7 +1964,7 @@ begin
 
   if WizardForm.CurPageID=wpFinished then begin
 
-    for I:=0 to WizardForm.RunList.Items.Count-1 do WizardForm.RunList.Checked[I]:=False;
+    for I:=0 to WizardForm.RunList.Items.Count-1 do WizardForm.RunList.Checked[I]:=I=0;
 
     WizardForm.NextButton.OnClick(WizardForm.NextButton);
 
