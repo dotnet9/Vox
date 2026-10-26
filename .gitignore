@@ -429,3 +429,4 @@ FodyWeavers.xsd
 
 # ZCode session artifacts
 .zcode/
+scripts/installer/Output/
