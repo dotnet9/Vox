@@ -55,14 +55,6 @@ jobs:
             /DSourceDir=${{ github.workspace }}\artifacts\publish\Vox.App-win-x64
             /DOutputDir=${{ github.workspace }}\artifacts\release
 
-      - name: 计算 SHA-256
-        shell: pwsh
-        run: |
-          $installer = "artifacts/release/Vox-v$env:APP_VERSION-win-x64-setup.exe"
-          if (-not (Test-Path -LiteralPath $installer)) { throw "安装包缺失：$installer" }
-          $sha = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$sha  Vox-v$env:APP_VERSION-win-x64-setup.exe" | Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
-
       - name: 打包便携版 zip
         shell: pwsh
         run: |
