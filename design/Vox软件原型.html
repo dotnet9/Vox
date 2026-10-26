@@ -20,7 +20,9 @@
             <button class="tb-ico" id="btnTbLook" title="外观"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></button>
             <button class="tb-ico" id="btnTbLang" title="语言 / Language"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></button>
             <div class="tb-pop" id="popLook">
-              <div class="tp-title" style="margin-top:0">界面密度</div>
+              <div class="tp-title" style="margin-top:0">界面风格</div>
+              <div class="seg" id="styleSeg"><button class="active" data-s="arc">Arc</button><button data-s="pixel">Pixel</button></div>
+              <div class="tp-title" style="margin-top:12px">界面密度</div>
               <div class="seg" id="densitySeg"><button>紧凑</button><button class="active">标准</button><button>宽松</button></div>
               <div class="tp-title">明暗模式</div>
               <div class="seg" id="popThemeSeg"><button data-mode="light" class="active">亮色</button><button data-mode="dark">暗色</button><button data-mode="auto">跟随系统</button></div>
@@ -702,6 +704,13 @@ function doCheckUpdate(btn){btn.disabled=true;btn.textContent='检查中…';
   setTimeout(()=>{ // 演示：发现新版本（实现中对比 releases/latest 的 tag 与当前版本）
     $('updResult').innerHTML='<div class="note"><span>⬆</span><span>发现新版本 <b>0.1.0-preview.2</b><br>· 修复安装包在部分系统的关联注册<br>· 写作页大纲跳转更顺滑</span></div>';
     $('btnGoRelease').style.display='inline-flex';btn.disabled=false;btn.textContent='重新检查';},900);}
+/* ---------- 界面风格（Arc/Pixel）切换 ---------- */
+document.querySelectorAll('#styleSeg button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('#styleSeg button').forEach(function(x){ x.classList.toggle('active', x===b); });
+    document.documentElement.dataset.style = b.dataset.s;
+  });
+});
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
 document.querySelectorAll('.acard').forEach(w=>w.onclick=()=>{document.querySelectorAll('.acard').forEach(x=>x.classList.toggle('sel',x===w))});
