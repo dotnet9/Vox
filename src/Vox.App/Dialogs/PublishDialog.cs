@@ -17,8 +17,8 @@ public sealed class PublishDialog : Border
     private readonly MainWindow _shell;
     private readonly Article _article;
     private readonly StackPanel _checkItems = new();
-    private readonly Border _okBadge = new() { Classes = { "badge", "ok" } };
-    private readonly Border _warnBadge = new() { Classes = { "badge", "warn" } };
+    private readonly Border _okBadge = new() { Classes = { "badge", "ok" }, Child = new TextBlock() };
+    private readonly Border _warnBadge = new() { Classes = { "badge", "warn" }, Child = new TextBlock() };
     private readonly StackPanel _rows = new();
 
     // 复制字段内部标识（与界面文案解耦，切换语言不影响取值逻辑）
