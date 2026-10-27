@@ -33,8 +33,9 @@ public sealed class MiniSelect : ContentControl
 
     public event Action<string>? SelectionChanged;
 
-    private TextBlock _label = null!;
-    private Popup _popup = null!;
+    private readonly TextBlock _label;
+    private readonly StackPanel _itemsHost;
+    private readonly Popup _popup;
 
     public MiniSelect()
     {
@@ -56,21 +57,8 @@ public sealed class MiniSelect : ContentControl
         content.Children.Add(caret);
         button.Content = content;
 
-        var list = new ListBox
-        {
-            MinWidth = 120,
-            FontSize = 12,
-        };
-        list.SelectionChanged += (_, _) =>
-        {
-            if (list.SelectedItem is string value)
-            {
-                Selected = value;
-                _label.Text = value;
-                _popup.IsOpen = false;
-                SelectionChanged?.Invoke(value);
-            }
-        };
+        // Arc 主题没有 ListBox 模板，直接铺按钮列表；同时保留键盘可达与 UIA 名称。
+        _itemsHost = new StackPanel { MinWidth = 120 };
         _popup = new Popup
         {
             PlacementTarget = button,
@@ -80,7 +68,7 @@ public sealed class MiniSelect : ContentControl
                 Padding = new Thickness(4),
                 CornerRadius = new CornerRadius(9),
                 BoxShadow = new BoxShadows(new BoxShadow { OffsetX = 0, OffsetY = 8, Blur = 24, Color = Color.Parse("#33000000") }),
-                Child = list,
+                Child = _itemsHost,
             },
         };
         WritePage.Res((Border)_popup.Child!, Border.BackgroundProperty, "VoxSurface");
@@ -89,13 +77,46 @@ public sealed class MiniSelect : ContentControl
 
         button.Click += (_, _) =>
         {
-            list.ItemsSource = Items.ToList();
-            list.SelectedItem = Selected;
+            FillMenu();
             _popup.IsOpen = true;
         };
 
         Content = new Panel { Children = { button, _popup } };
         _label.Text = Selected;
+    }
+
+    private void FillMenu()
+    {
+        _itemsHost.Children.Clear();
+        foreach (var item in Items)
+        {
+            var isSelected = item == Selected;
+            var text = new TextBlock
+            {
+                Text = item,
+                FontSize = 12,
+                FontWeight = isSelected ? FontWeight.SemiBold : FontWeight.Normal,
+            };
+            WritePage.Res(text, TextBlock.ForegroundProperty, isSelected ? "VoxFg" : "VoxMuted");
+            var row = new Button
+            {
+                Content = text,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8, 4),
+                MinHeight = 26,
+            };
+            row.Click += (_, _) =>
+            {
+                Selected = item;
+                _popup.IsOpen = false;
+                SelectionChanged?.Invoke(item);
+            };
+            _itemsHost.Children.Add(row);
+        }
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
