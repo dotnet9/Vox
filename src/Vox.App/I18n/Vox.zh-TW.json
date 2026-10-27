@@ -394,6 +394,7 @@
   "Vox.Library.Tip.ChannelStatus": "{0}：{1} · {2}",
   "Vox.Site.Label.NoRepo": "未設定儲存庫",
   "Vox.Site.Label.NoFiles": "目前倉庫未發現站點資料檔案（site/*.json）",
+  "Vox.Site.Label.NoFilesShort": "無資料檔案",
   "Vox.Site.Label.FileMissing": "檔案不存在",
   "Vox.Site.Label.FileMissingOnDisk": "檔案不存在於磁碟",
   "Vox.Site.Label.JsonInvalid": "JSON 解析失敗：請檢查檔案格式",

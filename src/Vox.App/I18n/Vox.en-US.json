@@ -394,6 +394,7 @@
   "Vox.Library.Tip.ChannelStatus": "{0}: {1} · {2}",
   "Vox.Site.Label.NoRepo": "No repository configured",
   "Vox.Site.Label.NoFiles": "No site data files (site/*.json) found in this repository",
+  "Vox.Site.Label.NoFilesShort": "No data files",
   "Vox.Site.Label.FileMissing": "File not found",
   "Vox.Site.Label.FileMissingOnDisk": "File missing on disk",
   "Vox.Site.Label.JsonInvalid": "JSON parse failed: check file format",

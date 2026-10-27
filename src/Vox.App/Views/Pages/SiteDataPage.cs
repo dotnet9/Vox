@@ -49,7 +49,7 @@ public sealed class SiteDataPage : UserControl
 
         var nav = new Border
         {
-            Width = 218, Padding = new Thickness(8), VerticalAlignment = VerticalAlignment.Top,
+            Width = 218, Padding = new Thickness(8), VerticalAlignment = VerticalAlignment.Stretch, MinHeight = 160,
             CornerRadius = new CornerRadius(12),
         };
         Res(nav, Border.BackgroundProperty, "VoxSurface");
@@ -85,7 +85,7 @@ public sealed class SiteDataPage : UserControl
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
-            _navHost.Children.Add(new TextBlock { Text = T("Vox.Site.Label.NoRepo"), FontSize = 11, Margin = new Thickness(8, 4) });
+            _navHost.Children.Add(NavHint(T("Vox.Site.Label.NoRepo")));
             return;
         }
 
@@ -121,11 +121,7 @@ public sealed class SiteDataPage : UserControl
         if (scan.SiteFiles.Count == 0)
         {
             _selectedFile = null;
-            _navHost.Children.Add(new TextBlock
-            {
-                Text = T("Vox.Site.Label.NoFiles"), FontSize = 11,
-                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4),
-            });
+            _navHost.Children.Add(NavHint(T("Vox.Site.Label.NoFilesShort")));
             _contentTitle.Text = string.Empty;
             _contentHost.Children.Clear();
             var empty = new TextBlock { Text = T("Vox.Site.Label.NoFiles"), FontSize = 12, Margin = new Thickness(0, 8) };
@@ -138,6 +134,13 @@ public sealed class SiteDataPage : UserControl
         {
             Select(scan.SiteFiles[0].RelativePath);
         }
+    }
+
+    private static TextBlock NavHint(string text)
+    {
+        var hint = new TextBlock { Text = text, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4) };
+        Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        return hint;
     }
 
     private void ApplyNavStyle(Button item, bool active)

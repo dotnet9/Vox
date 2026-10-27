@@ -394,6 +394,7 @@
   "Vox.Library.Tip.ChannelStatus": "{0}：{1} · {2}",
   "Vox.Site.Label.NoRepo": "未配置仓库",
   "Vox.Site.Label.NoFiles": "当前仓库未发现站点数据文件（site/*.json）",
+  "Vox.Site.Label.NoFilesShort": "无数据文件",
   "Vox.Site.Label.FileMissing": "文件不存在",
   "Vox.Site.Label.FileMissingOnDisk": "文件不存在于磁盘",
   "Vox.Site.Label.JsonInvalid": "JSON 解析失败：检查文件格式",

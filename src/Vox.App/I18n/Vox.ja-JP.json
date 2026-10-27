@@ -394,6 +394,7 @@
   "Vox.Library.Tip.ChannelStatus": "{0}：{1} · {2}",
   "Vox.Site.Label.NoRepo": "リポジトリ未設定",
   "Vox.Site.Label.NoFiles": "このリポジトリにサイトデータ（site/*.json）が見つかりません",
+  "Vox.Site.Label.NoFilesShort": "データファイルなし",
   "Vox.Site.Label.FileMissing": "ファイルが存在しません",
   "Vox.Site.Label.FileMissingOnDisk": "ファイルがディスクに存在しません",
   "Vox.Site.Label.JsonInvalid": "JSON の解析に失敗：ファイル形式を確認してください",
