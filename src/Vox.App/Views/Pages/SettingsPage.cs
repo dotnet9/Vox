@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Vox.App.Controls;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
@@ -21,6 +22,11 @@ public sealed class SettingsPage : UserControl
     private readonly TextBlock _indexInfo = new();
     private readonly TextBox _cdnInput = new() { Classes = { "vinput" }, Width = 280, FontSize = 11 };
     private readonly TextBlock _patInfo = new();
+    private readonly MiniSelect _llmProvider = new() { Width = 130 };
+    private readonly TextBox _llmModel = new() { Classes = { "vinput" }, Width = 200, FontSize = 11 };
+    private readonly Border _llmKeyBadge = new();
+    private readonly TextBlock _llmKeyMask = new() { FontSize = 11 };
+    private Button _llmTest = null!;
 
     public SettingsPage(MainWindow shell)
     {
@@ -29,6 +35,7 @@ public sealed class SettingsPage : UserControl
         AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshIndex);
         RefreshIndex();
         RefreshPat();
+        RefreshLlmKey();
     }
 
     private void BuildLayout()
@@ -146,6 +153,70 @@ public sealed class SettingsPage : UserControl
         platCard.Add(Row("Vox.Settings.Platform.CopyBased", Desc("Vox.Settings.Platform.CopyDesc")));
         host.Children.Add(platCard.Host);
 
+        // ---------- 大模型 ----------
+        var llmCard = Card("Vox.Settings.Llm.Title", "Vox.Settings.Llm.Desc");
+        var llmSettings = AppState.Instance.Settings;
+        var llmPreset = LlmPresets.Get(llmSettings.LlmProvider);
+        _llmModel.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        _llmModel.Text = llmSettings.LlmModel;
+        _llmModel.LostFocus += (_, _) => SaveSetting(s => s.LlmModel = _llmModel.Text?.Trim() ?? string.Empty);
+        _llmProvider.Items = LlmPresets.All.Select(LlmPresets.DisplayName).ToList();
+        _llmProvider.Selected = LlmPresets.DisplayName(llmPreset);
+        _llmProvider.SelectionChanged += label =>
+        {
+            var preset = LlmPresets.All.FirstOrDefault(p => LlmPresets.DisplayName(p) == label);
+            if (preset == null) return;
+            SaveSetting(s =>
+            {
+                s.LlmProvider = preset.Key;
+                s.LlmModel = preset.DefaultModel;
+            });
+            _llmModel.Text = preset.DefaultModel;
+            RefreshLlmKey();
+            _shell.ShowToast(TF("Vox.Settings.Llm.ProviderSwitched", LlmPresets.DisplayName(preset), preset.DefaultModel));
+        };
+        llmCard.Add(Row("Vox.Settings.Llm.Provider", new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 8,
+            Children = { _llmProvider, _llmModel },
+        }));
+
+        var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        _llmKeyBadge.VerticalAlignment = VerticalAlignment.Center;
+        _llmKeyMask.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        keyRow.Children.Add(_llmKeyBadge);
+        keyRow.Children.Add(_llmKeyMask);
+        var storedInfo = new TextBlock { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
+        storedInfo[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.StoredIn");
+        Res(storedInfo, TextBlock.ForegroundProperty, "VoxFaint");
+        keyRow.Children.Add(storedInfo);
+        _llmTest = new Button { Classes = { "btn", "sm" } };
+        _llmTest[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Llm.Test");
+        _llmTest.Click += async (_, _) => await TestLlmAsync();
+        keyRow.Children.Add(_llmTest);
+        var changeKey = new Button { Classes = { "btn", "sm", "ghost" } };
+        changeKey[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Llm.Change");
+        changeKey.Click += (_, _) => _shell.ShowModal(new LlmKeyModal(_shell, AppState.Instance.Settings.LlmProvider, RefreshLlmKey));
+        keyRow.Children.Add(changeKey);
+        llmCard.Add(Row("Vox.Settings.Llm.ApiKey", keyRow));
+
+        var llmSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = llmSettings.LlmEnabled };
+        var llmSwitchDesc = new TextBlock { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
+        llmSwitchDesc[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.EnabledDesc");
+        Res(llmSwitchDesc, TextBlock.ForegroundProperty, "VoxFaint");
+        llmSwitch.IsCheckedChanged += (_, _) =>
+        {
+            var on = llmSwitch.IsChecked == true;
+            SaveSetting(s => s.LlmEnabled = on);
+            _shell.ShowToast(T(on ? "Vox.Settings.Llm.SwitchOn" : "Vox.Settings.Llm.SwitchOff"));
+        };
+        llmCard.Add(Row("Vox.Settings.Llm.Enabled", new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 10,
+            Children = { llmSwitch, llmSwitchDesc },
+        }));
+        host.Children.Add(llmCard.Host);
+
         // ---------- 关于 ----------
         var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
         var checkUpdate = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
@@ -258,6 +329,50 @@ public sealed class SettingsPage : UserControl
             : T("Vox.Settings.Git.PatNotSet");
         Res(_patInfo, TextBlock.ForegroundProperty, "VoxMuted");
     }
+
+    private void RefreshLlmKey()
+    {
+        var preset = LlmPresets.Get(AppState.Instance.Settings.LlmProvider);
+        var key = LlmService.GetApiKey(preset.Key);
+        var configured = !preset.NeedsKey || !string.IsNullOrWhiteSpace(key);
+        _llmKeyBadge.Classes.Clear();
+        _llmKeyBadge.Classes.Add("badge");
+        if (configured) _llmKeyBadge.Classes.Add("ok");
+        _llmKeyBadge.Child = new TextBlock
+        {
+            Text = preset.NeedsKey
+                ? T(configured ? "Vox.Settings.Llm.Configured" : "Vox.Settings.Llm.NotConfigured")
+                : T("Vox.Settings.Llm.NoKeyNeeded"),
+        };
+        _llmKeyMask.Text = !preset.NeedsKey ? "127.0.0.1:11434" : configured ? MaskKey(key!) : "—";
+        Res(_llmKeyMask, TextBlock.ForegroundProperty, "VoxMuted");
+    }
+
+    private async Task TestLlmAsync()
+    {
+        var settings = AppState.Instance.Settings;
+        var preset = LlmPresets.Get(settings.LlmProvider);
+        if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
+        {
+            _shell.ShowToast(T("Vox.Settings.Llm.KeyNeeded"));
+            return;
+        }
+        _llmTest.IsEnabled = false;
+        try
+        {
+            var result = await LlmService.CompleteAsync(preset.Key, settings.LlmModel,
+                "你是连接测试助手，只回复 OK。", "ping", maxTokens: 8, timeout: TimeSpan.FromSeconds(25));
+            _shell.ShowToast(result.Ok
+                ? TF("Vox.Settings.Llm.TestOk", settings.LlmModel)
+                : TF("Vox.Settings.Llm.TestFail", result.Error ?? string.Empty));
+        }
+        finally
+        {
+            _llmTest.IsEnabled = true;
+        }
+    }
+
+    private static string MaskKey(string key) => (key.Length <= 4 ? key : key[..4]) + "****·****";
 
     private void SaveSetting(Action<VoxSettings> mutate)
     {

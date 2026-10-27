@@ -20,6 +20,7 @@ using Markdig;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
+using Vox.App.Services;
 using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Infrastructure.VoxTheme;
 using Vox.Core;
@@ -96,6 +97,16 @@ public sealed class WritePage : UserControl
     private Border _savePill = null!;
     private TextBlock _saveStateText = null!;
 
+    // AI 助手：右下角指令条 + 弹层（结果 diff 预览，采纳才入正文并记工具审计）
+    private Border _aiBtn = null!;
+    private Border _aiPop = null!;
+    private TextBox _aiInput = null!;
+    private StackPanel _aiResult = null!;
+    private int _aiGeneration;
+    private CancellationTokenSource? _aiCts;
+    private AiOffer? _aiOffer;
+    private string _aiText = string.Empty;
+
     /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>
     private bool _attached;
 
@@ -143,8 +154,18 @@ public sealed class WritePage : UserControl
         _autoSaveTimer.Tick += (_, _) => { _autoSaveTimer.Stop(); AutoSaveTick(); };
         _externalTimer.Tick += (_, _) => { _externalTimer.Stop(); InspectExternalChange(); };
         // 设置热应用 + 页面 attach/detach 生命周期（语言切换会重建页面，旧实例必须停表停监视）。
-        AppState.Instance.SettingsChanged += () => Dispatcher.UIThread.Post(ApplyAutoSaveMode);
-        AttachedToVisualTree += (_, _) => { _attached = true; ApplyAutoSaveMode(); InspectExternalChange(); };
+        AppState.Instance.SettingsChanged += () => Dispatcher.UIThread.Post(() =>
+        {
+            ApplyAutoSaveMode();
+            ApplyAiChrome();
+        });
+        AttachedToVisualTree += (_, _) =>
+        {
+            _attached = true;
+            ApplyAutoSaveMode();
+            ApplyAiChrome();
+            InspectExternalChange();
+        };
         DetachedFromVisualTree += (_, _) => { _attached = false; SuspendWatchers(); };
 
         BuildLayout();
@@ -502,7 +523,8 @@ public sealed class WritePage : UserControl
         ApplyEditorCornerClip();
         _editorView.SizeChanged += (_, _) => ApplyEditorCornerClip();
         BuildSaveStatePill();
-        _srcCard = Card(new Panel { Children = { _editorView, _savePill } }, new Thickness(2, 10, 2, 10));
+        BuildAiTrigger();
+        _srcCard = Card(new Panel { Children = { _editorView, _savePill, _aiBtn, BuildAiPopup() } }, new Thickness(2, 10, 2, 10));
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
@@ -591,15 +613,29 @@ public sealed class WritePage : UserControl
         _editorView.Clip = new RectangleGeometry(new Rect(_editorView.Bounds.Size), radius, radius);
     }
 
-    /// <summary>页内弹层点外部关闭（把手钮自身除外，保留 Flyout 的开关切换）。</summary>
+    /// <summary>页内弹层点外部关闭（触发钮 / 弹层自身除外，保留开关切换）。</summary>
     private void OnPagePointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        var source = e.Source as Visual;
+        if (_aiPop is { IsVisible: true } && !IsWithin(source, _aiPop) && !IsWithin(source, _aiBtn))
+        {
+            _aiPop.IsVisible = false;
+        }
         if (_openFlyout == null) return;
-        for (Visual? node = e.Source as Visual; node != null; node = node.Parent as Visual)
+        for (Visual? node = source; node != null; node = node.Parent as Visual)
         {
             if (ReferenceEquals(node, _typoBtn) || ReferenceEquals(node, _mapStyleBtn)) return;
         }
         _openFlyout.Hide();
+    }
+
+    private static bool IsWithin(Visual? node, Visual container)
+    {
+        for (var current = node; current != null; current = current.Parent as Visual)
+        {
+            if (ReferenceEquals(current, container)) return true;
+        }
+        return false;
     }
 
     /// <summary>挂接弹层开关跟踪（Opened/Closed 维护 _openFlyout）。</summary>
@@ -1171,6 +1207,7 @@ public sealed class WritePage : UserControl
         _autoSaveTimer.Stop();
         _externalTimer.Stop();
         StopWatcher();
+        _aiCts?.Cancel();
     }
 
     private void StartWatcher()
@@ -1266,12 +1303,514 @@ public sealed class WritePage : UserControl
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 14, 10),
+            // 原型 .savestate.pill 在 110px 处，给右下角 AI 指令条（14px）让位。
+            Margin = new Thickness(0, 0, 110, 10),
             IsVisible = false,
             ZIndex = 30,
         };
         Res(_savePill, Border.BackgroundProperty, "VoxSurface");
         Res(_savePill, Border.BorderBrushProperty, "VoxLine");
+    }
+
+    // ---------- 写作页 AI 助手（指令条 + 弹层；采纳经工具层写入并记审计） ----------
+
+    private static readonly FontFamily MonoFont =
+        FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+
+    private void BuildAiTrigger()
+    {
+        var spark = new TextBlock
+        {
+            Text = "✦",
+            FontSize = Fs(11),
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(spark, TextBlock.ForegroundProperty, "VoxAccent");
+        var label = new TextBlock
+        {
+            FontSize = Fs(11),
+            FontWeight = FontWeight.Medium,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        label[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Trigger");
+        Res(label, TextBlock.ForegroundProperty, "VoxFg");
+        _aiBtn = new Border
+        {
+            Padding = new Thickness(12, 4),
+            CornerRadius = new CornerRadius(99),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 14, 10),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            ZIndex = 31,
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 5,
+                Children = { spark, label },
+            },
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0, OffsetY = 1, Blur = 4, Color = Color.Parse("#1A000000"),
+            }),
+        };
+        Res(_aiBtn, Border.BackgroundProperty, "VoxSurface");
+        Res(_aiBtn, Border.BorderBrushProperty, "VoxLine");
+        _aiBtn.PointerEntered += (_, _) =>
+        {
+            Res(_aiBtn, Border.BorderBrushProperty, "VoxAccent");
+            Res(label, TextBlock.ForegroundProperty, "VoxAccent");
+        };
+        _aiBtn.PointerExited += (_, _) =>
+        {
+            Res(_aiBtn, Border.BorderBrushProperty, "VoxLine");
+            Res(label, TextBlock.ForegroundProperty, "VoxFg");
+        };
+        _aiBtn[!ToolTip.TipProperty] = I18n.Bind("Vox.Ai.Trigger");
+        _aiBtn.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            _aiPop.IsVisible = !_aiPop.IsVisible;
+            if (_aiPop.IsVisible) _aiInput.Focus();
+        };
+        ApplyAiChrome();
+    }
+
+    private void ApplyAiChrome()
+    {
+        if (_aiBtn == null || !_attached) return;
+        var enabled = AppState.Instance.Settings.LlmEnabled;
+        _aiBtn.IsVisible = enabled;
+        if (!enabled && _aiPop != null) _aiPop.IsVisible = false;
+    }
+
+    private Border BuildAiPopup()
+    {
+        var head = new DockPanel();
+        var title = new TextBlock
+        {
+            Text = T("Vox.Ai.Title"),
+            FontSize = Fs(12.5),
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var close = new Button
+        {
+            Classes = { "btn", "ghost", "sm" },
+            Content = "×",
+            FontSize = Fs(14),
+            Padding = new Thickness(8, 0, 8, 2),
+        };
+        close.Click += (_, _) => _aiPop.IsVisible = false;
+        head.Children.Add(close.Dock(Dock.Right));
+        head.Children.Add(title);
+
+        var chips = new WrapPanel { Margin = new Thickness(0, 10, 0, 8) };
+        foreach (var presetKey in AiPrompts.PresetKeys)
+        {
+            chips.Children.Add(BuildAiChip(presetKey));
+        }
+
+        _aiInput = new TextBox
+        {
+            Classes = { "vinput" },
+            FontSize = 11.5,
+            MinHeight = 28,
+        };
+        _aiInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Ai.InputPlaceholder");
+        _aiInput.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            e.Handled = true;
+            _ = RunAiAsync("Custom");
+        };
+        var send = new Button { Classes = { "btn", "sm", "primary" }, Margin = new Thickness(6, 0, 0, 0) };
+        send[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Send");
+        send.Click += (_, _) => _ = RunAiAsync("Custom");
+        var inputRow = new DockPanel { Children = { send.Dock(Dock.Right), _aiInput } };
+
+        _aiResult = new StackPanel();
+        ShowAiHint();
+
+        var body = new StackPanel
+        {
+            Children = { head, chips, inputRow, _aiResult },
+        };
+        _aiPop = new Border
+        {
+            Width = 360,
+            Padding = new Thickness(14, 12, 14, 14),
+            CornerRadius = new CornerRadius(14),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 12, 46),
+            IsVisible = false,
+            ZIndex = 46,
+            BoxShadow = BoxShadows.Parse("0 18 50 0 #29000000, 0 4 14 0 #14000000"),
+            Child = body,
+        };
+        Res(_aiPop, Border.BackgroundProperty, "VoxSurface");
+        Res(_aiPop, Border.BorderBrushProperty, "VoxLine");
+        return _aiPop;
+    }
+
+    private Border BuildAiChip(string presetKey)
+    {
+        var label = new TextBlock { FontSize = Fs(11) };
+        label[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Preset." + presetKey);
+        var chip = new Border
+        {
+            Classes = { "chip" },
+            Margin = new Thickness(0, 0, 6, 6),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Child = label,
+        };
+        chip.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            _ = RunAiAsync(presetKey);
+        };
+        chip.PointerEntered += (_, _) =>
+        {
+            Res(chip, Border.BorderBrushProperty, "VoxAccent");
+            Res(label, TextBlock.ForegroundProperty, "VoxAccent");
+        };
+        chip.PointerExited += (_, _) =>
+        {
+            Res(chip, Border.BorderBrushProperty, "VoxLine");
+            Res(label, TextBlock.ForegroundProperty, "VoxMuted");
+        };
+        return chip;
+    }
+
+    private void ShowAiHint()
+    {
+        _aiResult.Children.Clear();
+        var hint = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = Fs(10.5),
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Hint");
+        Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        _aiResult.Children.Add(hint);
+    }
+
+    private void ShowAiMessage(string text, bool error = false, bool success = false)
+    {
+        _aiResult.Children.Clear();
+        var note = new TextBlock
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = Fs(11),
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+        Res(note, TextBlock.ForegroundProperty, error ? "VoxDanger" : success ? "VoxOk" : "VoxFaint");
+        _aiResult.Children.Add(note);
+    }
+
+    private void ShowAiNoKey()
+    {
+        _aiResult.Children.Clear();
+        var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0), Spacing = 6 };
+        var note = new TextBlock { Text = T("Vox.Ai.Error.NoKey"), TextWrapping = TextWrapping.Wrap, FontSize = Fs(11) };
+        Res(note, TextBlock.ForegroundProperty, "VoxDanger");
+        panel.Children.Add(note);
+        var go = new Button { Classes = { "btn", "sm", "ghost" }, HorizontalAlignment = HorizontalAlignment.Left };
+        go[!Button.ContentProperty] = I18n.Bind("Vox.Ai.GoSettings");
+        go.Click += (_, _) =>
+        {
+            _aiPop.IsVisible = false;
+            _shell.ShowPage("settings");
+        };
+        panel.Children.Add(go);
+        _aiResult.Children.Add(panel);
+    }
+
+    private async Task RunAiAsync(string presetKey)
+    {
+        if (_current == null)
+        {
+            ShowAiMessage(T("Vox.Ai.Error.NoArticle"), error: true);
+            return;
+        }
+        var settings = AppState.Instance.Settings;
+        var preset = LlmPresets.Get(settings.LlmProvider);
+        if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
+        {
+            ShowAiNoKey();
+            return;
+        }
+        var custom = presetKey == "Custom" ? (_aiInput.Text ?? string.Empty).Trim() : string.Empty;
+        if (presetKey == "Custom" && custom.Length == 0)
+        {
+            _aiInput.Focus();
+            return;
+        }
+
+        var body = _editorView.Text ?? string.Empty;
+        var selection = Editor.SelectedText ?? string.Empty;
+        var caret = Math.Clamp(Editor.CaretOffset, 0, body.Length);
+        var section = AiPrompts.SectionAt(body, caret) ?? string.Empty;
+
+        int offset;
+        int length;
+        string source;
+        if (selection.Length > 0)
+        {
+            offset = Editor.SelectionStart;
+            length = selection.Length;
+            source = selection;
+        }
+        else if (AiPrompts.ReplacesSource(presetKey))
+        {
+            var paragraph = AiPrompts.ParagraphAt(body, caret);
+            (offset, length, source) = (paragraph.Offset, paragraph.Length, paragraph.Text);
+        }
+        else
+        {
+            offset = caret;
+            length = 0;
+            source = string.Empty;
+        }
+
+        var displayName = presetKey == "Custom"
+            ? string.IsNullOrEmpty(custom) ? T("Vox.Ai.Custom") : $"{T("Vox.Ai.Custom")}：{custom}"
+            : T("Vox.Ai.Preset." + presetKey);
+        var offer = new AiOffer(
+            presetKey,
+            displayName,
+            section.Length > 0 ? section : T("Vox.Ai.Section.Body"),
+            offset,
+            length,
+            source,
+            AiPrompts.WritesBody(presetKey));
+
+        _aiGeneration++;
+        var generation = _aiGeneration;
+        _aiCts?.Cancel();
+        _aiCts?.Dispose();
+        _aiCts = new CancellationTokenSource();
+        _aiOffer = null;
+        _aiResult.Children.Clear();
+        var generating = new TextBlock { FontSize = Fs(11), Margin = new Thickness(0, 10, 0, 0) };
+        generating[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Generating");
+        Res(generating, TextBlock.ForegroundProperty, "VoxFaint");
+        _aiResult.Children.Add(generating);
+
+        var prompt = AiPrompts.Build(presetKey, body, caret, selection, custom);
+        var result = await LlmService.CompleteAsync(
+            preset.Key, settings.LlmModel, prompt.System, prompt.User, cancellationToken: _aiCts.Token);
+        if (generation != _aiGeneration) return;
+        if (!result.Ok || string.IsNullOrWhiteSpace(result.Text))
+        {
+            ShowAiMessage(TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")), error: true);
+            return;
+        }
+
+        _aiText = result.Text.Trim();
+        _aiOffer = offer with { Elapsed = result.Elapsed };
+        ShowAiResult(_aiOffer, result.Text.Trim(), settings.LlmModel);
+    }
+
+    private void ShowAiResult(AiOffer offer, string text, string model)
+    {
+        _aiResult.Children.Clear();
+        var cardBody = new StackPanel();
+
+        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var spark = new TextBlock { Text = "✦", FontSize = Fs(11) };
+        Res(spark, TextBlock.ForegroundProperty, "VoxAccent");
+        header.Children.Add(spark);
+        header.Children.Add(new TextBlock
+        {
+            Text = offer.DisplayName,
+            FontSize = Fs(11),
+            FontWeight = FontWeight.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxWidth = 220,
+        });
+        var separator = new TextBlock { Text = "·", FontSize = Fs(10), Opacity = 0.5 };
+        Res(separator, TextBlock.ForegroundProperty, "VoxFaint");
+        header.Children.Add(separator);
+        var modelTag = new TextBlock { Text = model, FontFamily = MonoFont, FontSize = Fs(10) };
+        Res(modelTag, TextBlock.ForegroundProperty, "VoxFaint");
+        header.Children.Add(modelTag);
+        cardBody.Children.Add(header);
+
+        cardBody.Children.Add(offer.Writes
+            ? BuildAiDiffView(offer.Source, text, offer.Section)
+            : BuildAiPlainView(text));
+
+        var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
+        var accept = new Button { Classes = { "btn", "sm", "primary" } };
+        accept[!Button.ContentProperty] = I18n.Bind(offer.Writes ? "Vox.Ai.Accept" : "Vox.Ai.Copy");
+        accept.Click += async (_, _) => await AcceptAiAsync();
+        var discard = new Button { Classes = { "btn", "sm", "ghost" } };
+        discard[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Discard");
+        discard.Click += (_, _) =>
+        {
+            _aiOffer = null;
+            ShowAiMessage(T("Vox.Ai.Discarded"));
+        };
+        ops.Children.Add(accept);
+        ops.Children.Add(discard);
+        cardBody.Children.Add(ops);
+
+        var footnote = new TextBlock
+        {
+            Text = T(offer.Writes ? "Vox.Ai.Footnote" : "Vox.Ai.Footnote.Copy"),
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = Fs(10),
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        Res(footnote, TextBlock.ForegroundProperty, "VoxFaint");
+        cardBody.Children.Add(footnote);
+
+        var card = new Border
+        {
+            Padding = new Thickness(12, 10),
+            CornerRadius = new CornerRadius(10),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 10, 0, 0),
+            Child = cardBody,
+        };
+        Res(card, Border.BackgroundProperty, "VoxAccentSoft");
+        Res(card, Border.BorderBrushProperty, "VoxAccentSoft");
+        _aiResult.Children.Add(card);
+    }
+
+    private Control BuildAiPlainView(string text)
+    {
+        var block = new TextBlock
+        {
+            Text = text,
+            FontFamily = MonoFont,
+            FontSize = Fs(10.5),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        var border = new Border
+        {
+            Padding = new Thickness(8, 4),
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
+            Child = new ScrollViewer { Content = block, MaxHeight = 180 },
+        };
+        Res(border, Border.BackgroundProperty, "VoxSurface");
+        Res(border, Border.BorderBrushProperty, "VoxLine");
+        return border;
+    }
+
+    private Control BuildAiDiffView(string before, string after, string section)
+    {
+        var lines = new StackPanel { Spacing = 1 };
+        var context = new TextBlock { Text = $"@@ {section} @@", FontFamily = MonoFont, FontSize = Fs(10) };
+        Res(context, TextBlock.ForegroundProperty, "VoxFaint");
+        lines.Children.Add(context);
+        foreach (var line in AiDiff.Build(before, after))
+        {
+            var prefix = line.Kind switch { '+' => "+ ", '-' => "− ", _ => "  " };
+            var row = new TextBlock
+            {
+                Text = prefix + line.Text,
+                FontFamily = MonoFont,
+                FontSize = Fs(10),
+                TextWrapping = TextWrapping.NoWrap,
+            };
+            Res(row, TextBlock.ForegroundProperty, line.Kind switch
+            {
+                '+' => "VoxAccent",
+                '-' => "VoxDanger",
+                _ => "VoxMuted",
+            });
+            lines.Children.Add(row);
+        }
+
+        var border = new Border
+        {
+            Margin = new Thickness(0, 8, 0, 0),
+            Padding = new Thickness(8, 4),
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
+            Child = new ScrollViewer
+            {
+                Content = lines,
+                MaxHeight = 160,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            },
+        };
+        Res(border, Border.BackgroundProperty, "VoxSurface");
+        Res(border, Border.BorderBrushProperty, "VoxLine");
+        return border;
+    }
+
+    private async Task AcceptAiAsync()
+    {
+        if (_aiOffer is not { } offer || _aiText.Length == 0) return;
+        var text = _aiText;
+        if (offer.Writes)
+        {
+            var document = Editor.Document;
+            var replaced = false;
+            if (offer.Length > 0
+                && offer.Offset + offer.Length <= document.TextLength
+                && document.Text.Substring(offer.Offset, offer.Length) == offer.Source)
+            {
+                document.Replace(offer.Offset, offer.Length, text);
+                Editor.CaretOffset = offer.Offset + text.Length;
+                replaced = true;
+            }
+            if (!replaced)
+            {
+                // 生成期间正文被改动：退化为光标处插入，绝不按旧区间硬覆盖。
+                var at = Math.Clamp(Editor.CaretOffset, 0, document.TextLength);
+                var prefix = at > 0 && document.GetCharAt(at - 1) is not ('\n' or '\r') ? "\n\n" : string.Empty;
+                var suffix = at < document.TextLength && document.GetCharAt(at) is not ('\n' or '\r') ? "\n" : string.Empty;
+                document.Insert(at, prefix + text + suffix);
+                Editor.CaretOffset = at + prefix.Length + text.Length;
+                if (offer.Length > 0) _shell.ShowToast(T("Vox.Ai.Msg.SourceChanged"));
+            }
+            Editor.Focus();
+            if (_current != null)
+            {
+                ToolAuditStore.Append(new ToolAuditEntry
+                {
+                    Client = T("Vox.Ai.Client"),
+                    Tool = "article_write",
+                    Target = $"{_current.MarkdownPath} · §{offer.Section}",
+                    Result = "ok",
+                    Detail = $"{offer.DisplayName} · {text.Length} 字",
+                    DurationMs = (int)offer.Elapsed.TotalMilliseconds,
+                });
+            }
+            ShowAiMessage(T("Vox.Ai.Accepted"), success: true);
+        }
+        else
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null) await clipboard.SetTextAsync(text);
+            ShowAiMessage(T("Vox.Ai.Copied"), success: true);
+        }
+        _aiOffer = null;
+    }
+
+    private sealed record AiOffer(
+        string PresetKey,
+        string DisplayName,
+        string Section,
+        int Offset,
+        int Length,
+        string Source,
+        bool Writes)
+    {
+        public TimeSpan Elapsed { get; init; }
     }
 
     private void RefreshPreview()

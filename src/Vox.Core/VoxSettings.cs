@@ -44,6 +44,15 @@ public sealed class VoxSettings
     /// </summary>
     public bool AutoSave { get; set; }
 
+    /// <summary>写作页 AI 助手开关（右下角指令条显隐）。</summary>
+    public bool LlmEnabled { get; set; } = true;
+
+    /// <summary>大模型服务商标识（DeepSeek / OpenAI / Claude / Ollama），密钥按服务商存凭据管理器。</summary>
+    public string LlmProvider { get; set; } = "DeepSeek";
+
+    /// <summary>模型名（随服务商切换写默认值，可手改）。</summary>
+    public string LlmModel { get; set; } = "deepseek-chat";
+
     [JsonIgnore]
     public LinkOptions Link => new() { CdnBase = string.IsNullOrWhiteSpace(CdnBase) ? LinkStrategy.DefaultCdnBase : CdnBase };
 }
