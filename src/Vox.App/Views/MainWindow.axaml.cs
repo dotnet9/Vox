@@ -68,7 +68,7 @@ public partial class MainWindow : Window
         // 调试钩子：VOX_START_PAGE=library|publish|site|settings 直开对应页
         var startPage = Environment.GetEnvironmentVariable("VOX_START_PAGE");
         var initial = string.IsNullOrWhiteSpace(startPage) ? "write" : startPage;
-        if (initial is not ("write" or "library" or "publish" or "site" or "settings")) initial = "write";
+        if (initial is not ("write" or "library" or "images" or "publish" or "site" or "settings")) initial = "write";
         _currentKey = initial;
         PageHost.Content = GetPage(initial);
         MarkActive(initial);
@@ -523,6 +523,7 @@ public partial class MainWindow : Window
     {
         AddNavItem(NavItems, "write", LucideIconKind.PenLine, Nav.Label.Write);
         AddNavItem(NavItems, "library", LucideIconKind.ChartColumn, Nav.Label.Library);
+        AddNavItem(NavItems, "images", LucideIconKind.Image, Nav.Label.Images);
         AddNavItem(NavItems, "publish", LucideIconKind.GitBranch, Nav.Label.Publish);
         AddNavItem(NavItems, "site", LucideIconKind.Braces, Nav.Label.SiteData);
         AddNavItem(NavItems, "settings", LucideIconKind.Settings, Nav.Label.Settings);
@@ -830,6 +831,7 @@ public partial class MainWindow : Window
             {
                 "write" => new WritePage(this),
                 "library" => new LibraryPage(this),
+                "images" => new ImagesPage(this),
                 "publish" => new PublishPage(this),
                 "site" => new SiteDataPage(this),
                 "settings" => new SettingsPage(this),
