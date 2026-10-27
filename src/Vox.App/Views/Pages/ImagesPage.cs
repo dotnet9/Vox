@@ -145,6 +145,19 @@ public sealed class ImagesPage : UserControl
         RebuildDetail();
     }
 
+    /// <summary>全局搜索定位：清掉筛选（否则目标可能被过滤掉）后选中该图并展开详情。</summary>
+    public void SelectImage(string relativePath)
+    {
+        _search.Text = string.Empty;
+        foreach (var filter in new[] { _yearFilter, _refFilter, _formatFilter })
+        {
+            if (filter.Items.Count > 0) filter.Selected = filter.Items[0];
+        }
+        _selectedPath = relativePath;
+        Rebuild();
+        _detailPanel?.BringIntoView();
+    }
+
     private void RebuildStats()
     {
         var all = AppState.Instance.Scan?.Images ?? [];

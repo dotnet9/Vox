@@ -302,6 +302,8 @@ public partial class MainWindow : Window
     // ---------- 全局搜索 ----------
 
     private string _searchTab = "all";
+    private readonly List<(Button Button, SearchRow Row)> _searchItems = new();
+    private int _searchIndex = -1;
 
     private void OpenSearch()
     {
@@ -317,7 +319,7 @@ public partial class MainWindow : Window
     private void BuildSearchTabs()
     {
         SearchTabs.Children.Clear();
-        foreach (var (label, key) in new[] { ("Vox.Shell.Search.TabAll", "all"), ("Vox.Shell.Search.TabArticles", "art"), ("Vox.Shell.Search.TabActions", "op") })
+        foreach (var (label, key) in new[] { ("Vox.Shell.Search.TabAll", "all"), ("Vox.Shell.Search.TabArticles", "art"), ("Vox.Shell.Search.TabImages", "img"), ("Vox.Shell.Search.TabActions", "op") })
         {
             var button = new Button { Classes = { "sptab", key == _searchTab ? "active" : string.Empty }, Tag = key };
             button[!Button.ContentProperty] = I18n.Bind(label);
@@ -341,8 +343,12 @@ public partial class MainWindow : Window
     {
         var host = new StackPanel();
         SearchList.Content = host;
+        _searchItems.Clear();
+        _searchIndex = -1;
         var query = SearchInput.Text?.Trim().ToLowerInvariant() ?? string.Empty;
-        var rows = new List<SearchRow>();
+        var arts = new List<SearchRow>();
+        var imgs = new List<SearchRow>();
+        var ops = new List<SearchRow>();
 
         if (_searchTab is "all" or "art" && AppState.Instance.Scan is { } scan)
         {
@@ -350,22 +356,46 @@ public partial class MainWindow : Window
             {
                 var a = article;
                 if (query.Length > 0 && !a.Title.Contains(query, StringComparison.OrdinalIgnoreCase) && !a.Slug.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
-                rows.Add(new SearchRow("art", string.IsNullOrEmpty(a.Title) ? a.Slug : a.Title,
+                arts.Add(new SearchRow("art", string.IsNullOrEmpty(a.Title) ? a.Slug : a.Title,
                     a.Year + "/" + a.Month + " · " + TF("Vox.Shell.Search.Words", a.WordCount.ToString("N0")),
                     () => { CloseSearch(); ShowPage("write"); if (PageHost.Content is WritePage w) _ = w.OpenArticleAsync(a); }));
             }
         }
+        if (_searchTab is "all" or "img" && AppState.Instance.Scan is { } scanImages)
+        {
+            foreach (var image in scanImages.Images.OrderBy(i => i.RelativePath))
+            {
+                var img = image;
+                if (query.Length > 0 && !img.FileName.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                var meta = new List<string> { img.YearMonth.Replace('-', '/') };
+                if (img.ReferencedBy.Count > 0) meta.Add(TF("Vox.Images.Label.Refs", img.ReferencedBy.Count));
+                else if (img.IsOrphan) meta.Add(T("Vox.Images.Pick.Orphan"));
+                if (img.IsCover) meta.Add(T("Vox.Images.Badge.Cover"));
+                imgs.Add(new SearchRow("img", img.FileName, string.Join(" · ", meta.Where(s => s.Length > 0)),
+                    () => { CloseSearch(); ShowPage("images"); (PageHost.Content as ImagesPage)?.SelectImage(img.RelativePath); }));
+            }
+        }
         if (_searchTab is "all" or "op")
         {
-            rows.AddRange(new[]
+            ops.AddRange(new[]
             {
                 new SearchRow("op", T("Vox.Shell.Search.OpPublish"), T("Vox.Shell.Search.TabPublish"), () => { CloseSearch(); ShowPage("publish"); }),
+                new SearchRow("op", T("Vox.Shell.Search.OpDialog"), T("Vox.Nav.Label.Write"), () => { CloseSearch(); ShowPage("write"); OpenCurrentArticlePublish(); }),
+                new SearchRow("op", T("Vox.Shell.Search.OpMcp"), T("Vox.Nav.Label.Mcp"), () => { CloseSearch(); ShowPage("mcp"); }),
                 new SearchRow("op", T("Vox.Shell.Search.OpRescan"), T("Vox.Nav.Label.Settings"), () => { CloseSearch(); AppState.Instance.Rescan(); Services.PublishHub.Invalidate(); ShowToast(T("Vox.Shell.Toast.Rescanned")); }),
             }.Where(r => query.Length == 0 || r.Title.Contains(query, StringComparison.OrdinalIgnoreCase)));
         }
 
+        // 原型的「全部」按组配额：文章 4 / 图片 3 / 操作 3；单独分页取前 9 条。
+        var shown = _searchTab switch
+        {
+            "art" => arts.Take(9),
+            "img" => imgs.Take(9),
+            "op" => ops.Take(9),
+            _ => arts.Take(4).Concat(imgs.Take(3)).Concat(ops.Take(3)),
+        };
+
         var lastKind = string.Empty;
-        var shown = rows.Take(9).ToList();
         foreach (var row in shown)
         {
             if (row.Kind != lastKind)
@@ -373,15 +403,20 @@ public partial class MainWindow : Window
                 lastKind = row.Kind;
                 host.Children.Add(new TextBlock
                 {
-                    Text = row.Kind == "art" ? T("Vox.Shell.Search.TabArticles") : T("Vox.Shell.Search.TabActions"),
+                    Text = row.Kind switch
+                    {
+                        "art" => T("Vox.Shell.Search.TabArticles"),
+                        "img" => T("Vox.Shell.Search.TabImages"),
+                        _ => T("Vox.Shell.Search.TabActions"),
+                    },
                     FontSize = 9.5, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.4,
                     Foreground = TryBrush("VoxFaint"), Margin = new Thickness(10, 9, 10, 4),
                 });
             }
-            // .sp-it：左图标（文章 FileText / 操作 Send，原型同款）+ 标题 + 右侧 meta 灰字。
+            // .sp-it：左图标（文章 FileText / 图片 Image / 操作 Send）+ 标题 + 右侧 meta 灰字。
             var icon = new LucideIcon
             {
-                Kind = row.Kind == "art" ? LucideIconKind.FileText : LucideIconKind.Send,
+                Kind = row.Kind switch { "art" => LucideIconKind.FileText, "img" => LucideIconKind.Image, _ => LucideIconKind.Send },
                 Width = 15, Height = 15, StrokeThickness = 2,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 10, 0),
@@ -402,14 +437,47 @@ public partial class MainWindow : Window
             var captured = row;
             item.Click += (_, _) => captured.Open();
             host.Children.Add(item);
+            _searchItems.Add((item, row));
         }
-        if (shown.Count == 0)
+        if (_searchItems.Count == 0)
         {
             host.Children.Add(new TextBlock
             {
                 Text = T("Vox.Shell.Search.NoResults"), FontSize = 12, Margin = new Thickness(12, 16), Foreground = TryBrush("VoxFaint"),
             });
         }
+    }
+
+    /// <summary>↑↓ 移动高亮、Enter 打开当前项（与浮层底部提示一致）。</summary>
+    private void OnSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!SearchOverlay.IsVisible || _searchItems.Count == 0) return;
+        if (e.Key is Key.Down or Key.Up)
+        {
+            var delta = e.Key == Key.Down ? 1 : -1;
+            _searchIndex = (_searchIndex + delta + _searchItems.Count) % _searchItems.Count;
+            for (var i = 0; i < _searchItems.Count; i++)
+            {
+                _searchItems[i].Button.Classes.Set("active", i == _searchIndex);
+            }
+            _searchItems[_searchIndex].Button.BringIntoView();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter && _searchIndex >= 0)
+        {
+            _searchItems[_searchIndex].Row.Open();
+            e.Handled = true;
+        }
+    }
+
+    private void OpenCurrentArticlePublish()
+    {
+        if (CachedWritePage?.CurrentArticle is not { } article)
+        {
+            ShowToast(T("Vox.Shell.Search.MsgNoArticle"));
+            return;
+        }
+        ShowModal(new Dialogs.PublishDialog(this, article));
     }
 
     // ---------- 文件名行（写作页联动） ----------
@@ -586,6 +654,7 @@ public partial class MainWindow : Window
 
         BtnTbSearch.Click += (_, _) => OpenSearch();
         SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
+        SearchInput.KeyDown += OnSearchKeyDown;
         SearchInput.PropertyChanged += (_, e) =>
         {
             if (e.Property == TextBox.TextProperty)

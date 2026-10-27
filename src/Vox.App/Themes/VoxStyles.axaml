@@ -662,6 +662,9 @@
   <Style Selector="Button.sp-it:pointerover">
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
   </Style>
+  <Style Selector="Button.sp-it.active">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+  </Style>
 
   <!-- ToolTip：Arc 未提供 ToolTip 主题，覆盖 Avalonia 默认（白盒紧贴）为 Vox 卡片风格 -->
   <Style Selector="ToolTip">
