@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Vox.App.Dialogs;
@@ -38,6 +39,31 @@ public sealed class SettingsPage : UserControl
         var pageTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 2) };
         pageTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Label.Title");
         host.Children.Add(pageTitle);
+
+        // ---------- 写作与保存 ----------
+        var writeCard = Card("Vox.Settings.Write.Title", "Vox.Settings.Write.Desc");
+        var autoSaveSwitch = new ToggleButton { Classes = { "vswitch" } };
+        var autoSaveDesc = new TextBlock { FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
+        Res(autoSaveDesc, TextBlock.ForegroundProperty, "VoxFaint");
+        autoSaveDesc[!TextBlock.TextProperty] = I18n.Bind(AppState.Instance.Settings.AutoSave
+            ? "Vox.Settings.Write.AutoSaveOn"
+            : "Vox.Settings.Write.AutoSaveOff");
+        autoSaveSwitch.IsChecked = AppState.Instance.Settings.AutoSave;
+        autoSaveSwitch.IsCheckedChanged += (_, _) =>
+        {
+            var on = autoSaveSwitch.IsChecked == true;
+            autoSaveDesc[!TextBlock.TextProperty] = I18n.Bind(on
+                ? "Vox.Settings.Write.AutoSaveOn"
+                : "Vox.Settings.Write.AutoSaveOff");
+            SaveSetting(s => s.AutoSave = on);
+            _shell.ShowToast(T(on ? "Vox.Settings.Write.AutoSaveEnabled" : "Vox.Settings.Write.AutoSaveDisabled"));
+        };
+        writeCard.Add(Row("Vox.Settings.Write.AutoSave", new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 10,
+            Children = { autoSaveSwitch, autoSaveDesc },
+        }));
+        host.Children.Add(writeCard.Host);
 
         // ---------- 内容仓库 ----------
         var repoCard = Card("Vox.Settings.Repo.Title", "Vox.Settings.Repo.Desc");

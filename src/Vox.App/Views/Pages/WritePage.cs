@@ -84,6 +84,21 @@ public sealed class WritePage : UserControl
     private bool _loading;
     private bool _dirty;
 
+    // 自动保存（2026-10-27 需求）：磁盘为唯一真值——2s 落盘定时、500ms 外部改动防抖、当前文件监视。
+    private readonly DispatcherTimer _autoSaveTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private readonly DispatcherTimer _externalTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private FileSystemWatcher? _watcher;
+
+    /// <summary>最近一次已知的磁盘全文（打开 / 自身写入 / 外部载入后更新）：自写回声与外部改写都靠它判定。</summary>
+    private string? _diskBaseline;
+
+    /// <summary>保存状态 pill（原型 .savestate.pill）：自动保存开启时悬浮源码卡右下。</summary>
+    private Border _savePill = null!;
+    private TextBlock _saveStateText = null!;
+
+    /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>
+    private bool _attached;
+
     /// <summary>大纲/跳转共用的解析管线（与 MarkdownViewer 内置管线同口径 + YAML front matter）。</summary>
     private static readonly MarkdownPipeline OutlinePipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
@@ -125,6 +140,12 @@ public sealed class WritePage : UserControl
         _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
         _debounce.Tick += (_, _) => { _debounce.Stop(); RefreshPreview(); };
+        _autoSaveTimer.Tick += (_, _) => { _autoSaveTimer.Stop(); AutoSaveTick(); };
+        _externalTimer.Tick += (_, _) => { _externalTimer.Stop(); InspectExternalChange(); };
+        // 设置热应用 + 页面 attach/detach 生命周期（语言切换会重建页面，旧实例必须停表停监视）。
+        AppState.Instance.SettingsChanged += () => Dispatcher.UIThread.Post(ApplyAutoSaveMode);
+        AttachedToVisualTree += (_, _) => { _attached = true; ApplyAutoSaveMode(); InspectExternalChange(); };
+        DetachedFromVisualTree += (_, _) => { _attached = false; SuspendWatchers(); };
 
         BuildLayout();
 
@@ -134,6 +155,12 @@ public sealed class WritePage : UserControl
             _dirty = true;
             _debounce.Stop();
             _debounce.Start();
+            if (AppState.Instance.Settings.AutoSave)
+            {
+                _autoSaveTimer.Stop();
+                _autoSaveTimer.Start();
+            }
+            UpdateSaveState();
         };
         Editor.KeyDown += OnEditorKey;
         // 预览里的任务勾选回写源码（库返回新 Markdown 与变更区间，整串应用即可）。
@@ -474,7 +501,8 @@ public sealed class WritePage : UserControl
         // 对编辑器视图施加圆角几何裁剪（半径 = 卡片圆角 - 1px 边框内缩），四角弧线完整可见。
         ApplyEditorCornerClip();
         _editorView.SizeChanged += (_, _) => ApplyEditorCornerClip();
-        _srcCard = Card(_editorView, new Thickness(2, 10, 2, 10));
+        BuildSaveStatePill();
+        _srcCard = Card(new Panel { Children = { _editorView, _savePill } }, new Thickness(2, 10, 2, 10));
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
@@ -1041,6 +1069,7 @@ public sealed class WritePage : UserControl
             _current = article;
             using var reader = new StreamReader(file, System.Text.Encoding.UTF8, true);
             var text = await reader.ReadToEndAsync();
+            _diskBaseline = text; // 外部修改判定基线：全文（含 front matter），与 ReadDiskContent 同口径
             // 编辑器与预览只放正文：front matter（元数据）剥离，不进源码视图、不参与渲染。
             YamlSidecar.TrySplitFrontMatter(text, out _, out var body);
             _editorView.Text = body;
@@ -1048,6 +1077,10 @@ public sealed class WritePage : UserControl
             _preview.ImageBasePath = Path.GetDirectoryName(file);
             _preview.Markdown = body;
             _dirty = false;
+            _autoSaveTimer.Stop();
+            StopWatcher();
+            ApplyAutoSaveMode();
+            UpdateSaveState();
 
             UpdateBadges();
             RebuildOutline();
@@ -1080,6 +1113,15 @@ public sealed class WritePage : UserControl
         try
         {
             var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+            // 外部改写守卫（修静默覆盖丢数据）：磁盘内容偏离上次已知基线时绝不覆盖。
+            // 自动保存开：跳过本次写入，文件监视马上会静默载入外部版本；关闭：提示用户外部改动存在。
+            if (ReadDiskContent(file) is { } disk && disk != _diskBaseline)
+            {
+                if (!silent) _shell.ShowToast(T(AppState.Instance.Settings.AutoSave
+                    ? "Vox.Write.Status.ExternalSkipped"
+                    : "Vox.Write.Status.ExternalBlocked"));
+                return;
+            }
             // 保存前重读磁盘剥离最新 front matter（元数据弹层可能改过），
             // 与编辑器正文按库存格式拼接回写：---\n{yaml}\n---\n\n{body}（见 YamlSidecar.SerializeInline）；
             // 正文仅去掉头部空行（避免与分隔符拼出双空行且逐次漂移），其余原样保留。
@@ -1091,7 +1133,9 @@ public sealed class WritePage : UserControl
             var body = _editorView.Text.TrimStart('\r', '\n');
             var content = frontMatter.Length > 0 ? $"---\n{frontMatter}\n---\n\n{body}" : body;
             File.WriteAllText(file, content);
+            _diskBaseline = content;
             _dirty = false;
+            UpdateSaveState();
             if (!silent) _shell.ShowToast(T(Write.Status.Saved));
             Services.PublishHub.Invalidate();
             AppState.Instance.NotifyRepoChanged();
@@ -1101,6 +1145,133 @@ public sealed class WritePage : UserControl
         {
             _shell.ShowToast(TF("Vox.Write.Status.SaveFailed", ex.Message));
         }
+    }
+
+    // ---------- 自动保存与外部修改（2026-10-27 需求：自动保存开 = 磁盘为唯一真值，绝不弹「请先比较」） ----------
+
+    /// <summary>按设置与当前文章起停文件监视；开关关闭时自动落盘定时器一并停。
+    /// 旧实例（语言切换重建页面后的泄漏订阅方）在可视树外一律挂起。</summary>
+    private void ApplyAutoSaveMode()
+    {
+        if (!_attached)
+        {
+            SuspendWatchers();
+            return;
+        }
+        var autoSave = AppState.Instance.Settings.AutoSave;
+        if (autoSave && _current != null && _repoRoot != null && _watcher == null) StartWatcher();
+        else if ((!autoSave || _current == null) && _watcher != null) StopWatcher();
+        if (!autoSave) _autoSaveTimer.Stop();
+        UpdateSaveState();
+    }
+
+    /// <summary>页面从可视树摘除（切页 / 语言重建）：停表停监视，旧实例不得再后台写盘或 toast。</summary>
+    private void SuspendWatchers()
+    {
+        _autoSaveTimer.Stop();
+        _externalTimer.Stop();
+        StopWatcher();
+    }
+
+    private void StartWatcher()
+    {
+        if (_current == null || _repoRoot == null) return;
+        var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+        var dir = Path.GetDirectoryName(file);
+        if (dir is not { Length: > 0 } || !Directory.Exists(dir)) return;
+        var watcher = new FileSystemWatcher(dir, Path.GetFileName(file))
+        {
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+            IncludeSubdirectories = false,
+        };
+        watcher.Changed += (_, _) => Dispatcher.UIThread.Post(() => { _externalTimer.Stop(); _externalTimer.Start(); });
+        watcher.EnableRaisingEvents = true;
+        _watcher = watcher;
+    }
+
+    private void StopWatcher()
+    {
+        if (_watcher == null) return;
+        _watcher.EnableRaisingEvents = false;
+        _watcher.Dispose();
+        _watcher = null;
+        _externalTimer.Stop();
+    }
+
+    /// <summary>自动落盘到点：磁盘仍与基线一致才写；已偏离说明外部改写未处理，让文件监视流程静默载入。</summary>
+    private void AutoSaveTick()
+    {
+        if (!_attached || _loading || !_dirty) return;
+        if (!AppState.Instance.Settings.AutoSave || _current == null || _repoRoot == null) return;
+        var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+        if (ReadDiskContent(file) is { } disk && disk != _diskBaseline) return;
+        SaveCurrent(silent: true);
+    }
+
+    /// <summary>文件监视防抖到点：磁盘偏离基线即外部修改（自身写入先更新基线，天然过滤回声）。
+    /// 取消挂起的自动保存并静默载入磁盘版本；未落盘键入随载入丢弃，toast 告知。</summary>
+    private void InspectExternalChange()
+    {
+        if (!_attached || _watcher == null || _loading || _current == null || _repoRoot == null) return;
+        var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+        var disk = ReadDiskContent(file);
+        if (disk is null || disk == _diskBaseline) return;
+        _autoSaveTimer.Stop();
+        var hadUnsavedEdits = _dirty;
+        YamlSidecar.TrySplitFrontMatter(disk, out _, out var body);
+        _editorView.Text = body;
+        _preview.Markdown = body;
+        _diskBaseline = disk;
+        _dirty = false;
+        UpdateBadges();
+        RebuildOutline();
+        RebuildMap();
+        UpdateSaveState();
+        _shell.ShowToast(T(hadUnsavedEdits
+            ? "Vox.Write.Status.ExternalReloadedWithUnsavedEdits"
+            : "Vox.Write.Status.ExternalReloaded"));
+    }
+
+    /// <summary>读磁盘全文；读取失败（外部占用 / 写入中）返回 null，按「未知」处理，不误判为外部修改。</summary>
+    private static string? ReadDiskContent(string file)
+    {
+        try
+        {
+            return File.ReadAllText(file, System.Text.Encoding.UTF8);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>保存状态 pill：自动保存开启且有当前文章时显示，脏 = 未保存，否则已保存。</summary>
+    private void UpdateSaveState()
+    {
+        if (_savePill == null) return;
+        _savePill.IsVisible = AppState.Instance.Settings.AutoSave && _attached && _current != null;
+        if (!_savePill.IsVisible) return;
+        _saveStateText.Text = $"{T(_dirty ? Write.Status.Unsaved : Write.Status.Saved)} · {T("Vox.Write.AutoSave.Badge")}";
+    }
+
+    private void BuildSaveStatePill()
+    {
+        _saveStateText = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+        Res(_saveStateText, TextBlock.ForegroundProperty, "VoxMuted");
+        _savePill = new Border
+        {
+            Child = _saveStateText,
+            Padding = new Thickness(10, 3),
+            CornerRadius = new CornerRadius(9),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 14, 10),
+            IsVisible = false,
+            ZIndex = 30,
+        };
+        Res(_savePill, Border.BackgroundProperty, "VoxSurface");
+        Res(_savePill, Border.BorderBrushProperty, "VoxLine");
     }
 
     private void RefreshPreview()

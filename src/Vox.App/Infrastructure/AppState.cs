@@ -80,6 +80,9 @@ public sealed class AppState
 
     public event Action? ScanChanged;
 
+    /// <summary>设置持久化后广播（写作页据此热应用自动保存开关等，无需重启）。</summary>
+    public event Action? SettingsChanged;
+
     public bool HasRepo => !string.IsNullOrWhiteSpace(Settings.RepoPath) && Directory.Exists(Settings.RepoPath);
 
     public void LoadSettings()
@@ -94,12 +97,15 @@ public sealed class AppState
         if (!AppBootstrap.RepoOverridden)
         {
             SettingsStore.Save(Settings);
-            return;
         }
-        var sessionRepo = Settings.RepoPath;
-        Settings.RepoPath = AppBootstrap.OriginalRepoPath;
-        SettingsStore.Save(Settings);
-        Settings.RepoPath = sessionRepo; // 会话内继续使用覆盖目录
+        else
+        {
+            var sessionRepo = Settings.RepoPath;
+            Settings.RepoPath = AppBootstrap.OriginalRepoPath;
+            SettingsStore.Save(Settings);
+            Settings.RepoPath = sessionRepo; // 会话内继续使用覆盖目录
+        }
+        SettingsChanged?.Invoke();
     }
 
     /// <summary>设置仓库路径并重建索引；失败时保留旧索引。</summary>
