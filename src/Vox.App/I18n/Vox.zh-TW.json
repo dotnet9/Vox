@@ -864,5 +864,14 @@
   "Vox.Settings.Mcp.Stopped": "已停止 · 用戶端無法連線",
   "Vox.Settings.Mcp.Configure": "設定…",
   "Vox.Settings.Mcp.Disabled": "未啟用 · 在 MCP 服務頁開啟後用戶端可接入",
-  "Vox.Settings.Mcp.Status": "狀態"
+  "Vox.Settings.Mcp.Status": "狀態",
+  "Vox.Image.Label.IntakeOnly": "入庫",
+  "Vox.Images.Pick.Cover": "封面",
+  "Vox.Images.Label.Dimensions": "尺寸",
+  "Vox.Images.Badge.Cover": "封面",
+  "Vox.Images.Action.Intake": "圖片入庫…",
+  "Vox.Images.Action.SetCover": "設為封面",
+  "Vox.Images.Confirm.DeleteTitle": "刪除圖片",
+  "Vox.Images.Confirm.DeleteBody": "要刪除「{0}」嗎？檔案經 git 提交刪除，歷史中可回滾。",
+  "Vox.Images.Msg.CoverSet": "已設為封面：{0}"
 }

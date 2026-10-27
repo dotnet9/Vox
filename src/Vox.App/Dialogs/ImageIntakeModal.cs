@@ -13,12 +13,13 @@ using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
-/// <summary>图片入库弹层（原型 #mImg）：选择/拖入 → 自动命名 → 落位年月目录 → 插入形态 → 可选设封面。</summary>
+/// <summary>图片入库弹层（原型 #mImg）：选择/拖入 → 自动命名 → 落位年月目录 → 插入形态 → 可选设封面。
+/// 无文章上下文（图片库页且写作页未打开文章）时收起插入形态与封面开关，只做落位。</summary>
 public sealed class ImageIntakeModal : Border
 {
     private readonly MainWindow _shell;
     private readonly string _repoRoot;
-    private readonly Article _article;
+    private readonly Article? _article;
     private readonly LinkOptions _link;
     private readonly Action<string> _onInserted;
 
@@ -30,7 +31,8 @@ public sealed class ImageIntakeModal : Border
     private string? _pickedSource;
     private readonly TextBlock _dropText = new();
 
-    public ImageIntakeModal(MainWindow shell, string repoRoot, Article article, LinkOptions link, Action<string> onInserted)
+    /// <summary>article 为 null 时是图片库的独立入库：目录默认当年当月、不写封面、插入动作交给回调。</summary>
+    public ImageIntakeModal(MainWindow shell, string repoRoot, Article? article, LinkOptions link, Action<string> onInserted)
     {
         _shell = shell;
         _repoRoot = repoRoot;
@@ -71,12 +73,18 @@ public sealed class ImageIntakeModal : Border
         body.Children.Add(drop);
 
         // 自动命名
-        _nameInput = Modal.Input($"{article.Slug}-{DateTime.Now:HHmmss}.jpg", mono: true);
+        var suggestion = article == null
+            ? $"image-{DateTime.Now:yyyyMMdd-HHmmss}"
+            : $"{article.Slug}-{DateTime.Now:HHmmss}.jpg";
+        _nameInput = Modal.Input(suggestion, mono: true);
         body.Children.Add(BoundLabel("Vox.Image.Label.AutoNameFull"));
         body.Children.Add(_nameInput);
 
         // 落位目录
-        _dirInput = Modal.Input($"{article.Year}/{article.Month}/", mono: true);
+        var dirSuggestion = article == null
+            ? $"{DateTime.Now:yyyy}/{DateTime.Now:MM}/"
+            : $"{article.Year}/{article.Month}/";
+        _dirInput = Modal.Input(dirSuggestion, mono: true);
         _dirInput.Width = 200;
         var dirRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         dirRow.Children.Add(_dirInput);
@@ -87,31 +95,37 @@ public sealed class ImageIntakeModal : Border
         body.Children.Add(BoundLabel("Vox.Image.Label.Dir"));
         body.Children.Add(dirRow);
 
-        // 插入形态
-        body.Children.Add(BoundLabel("Vox.Image.Label.LinkForm"));
-        var choices = new StackPanel { Spacing = 8 };
-        _relativeChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Relative");
-        _cdnChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Cdn");
-        _relativeChoice.Classes.Add("vcheck");
-        _cdnChoice.Classes.Add("vcheck");
-        choices.Children.Add(_relativeChoice);
-        choices.Children.Add(_cdnChoice);
-        body.Children.Add(choices);
+        // 插入形态（独立入库没有正文可插，只把文件落位）
+        if (article != null)
+        {
+            body.Children.Add(BoundLabel("Vox.Image.Label.LinkForm"));
+            var choices = new StackPanel { Spacing = 8 };
+            _relativeChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Relative");
+            _cdnChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Cdn");
+            _relativeChoice.Classes.Add("vcheck");
+            _cdnChoice.Classes.Add("vcheck");
+            choices.Children.Add(_relativeChoice);
+            choices.Children.Add(_cdnChoice);
+            body.Children.Add(choices);
+        }
 
-        // 设为封面
-        var coverRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
-        coverRow.Children.Add(_coverSwitch);
-        var coverText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-        coverText[!TextBlock.TextProperty] = I18n.Bind("Vox.Image.Label.SetCoverFull");
-        WritePage.Res(coverText, TextBlock.ForegroundProperty, "VoxMuted");
-        coverRow.Children.Add(coverText);
-        body.Children.Add(coverRow);
+        // 设为封面（独立入库没有可写回的文章）
+        if (article != null)
+        {
+            var coverRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
+            coverRow.Children.Add(_coverSwitch);
+            var coverText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            coverText[!TextBlock.TextProperty] = I18n.Bind("Vox.Image.Label.SetCoverFull");
+            WritePage.Res(coverText, TextBlock.ForegroundProperty, "VoxMuted");
+            coverRow.Children.Add(coverText);
+            body.Children.Add(coverRow);
+        }
 
         var cancel = new Button { Classes = { "btn" } };
         cancel[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Cancel");
         cancel.Click += (_, _) => shell.CloseModal();
         var insert = new Button { Classes = { "btn", "primary" } };
-        insert[!Button.ContentProperty] = I18n.Bind("Vox.Image.Label.Insert");
+        insert[!Button.ContentProperty] = I18n.Bind(article == null ? "Vox.Image.Label.IntakeOnly" : "Vox.Image.Label.Insert");
         insert.Click += async (_, _) => await InsertAsync();
         footer.Children.Add(cancel);
         footer.Children.Add(insert);
@@ -155,7 +169,7 @@ public sealed class ImageIntakeModal : Border
         _pickedSource = localPath;
         var fileName = Path.GetFileName(localPath);
         _dropText.Text = TF("Vox.Image.Label.Picked", fileName);
-        if (_nameInput.Text is { Length: > 0 } text && text.StartsWith(_article.Slug))
+        if (_article != null && _nameInput.Text is { Length: > 0 } text && text.StartsWith(_article.Slug))
         {
             _nameInput.Text = $"{_article.Slug}-{Path.GetFileNameWithoutExtension(fileName).Truncate(24)}{Path.GetExtension(localPath).ToLowerInvariant()}";
         }
@@ -203,7 +217,7 @@ public sealed class ImageIntakeModal : Border
                 }
             });
 
-            if (_coverSwitch.IsChecked == true)
+            if (_coverSwitch.IsChecked == true && _article != null)
             {
                 YamlSidecar.RewriteMarkdown(
                     LinkStrategy.ToLocalFile(_repoRoot, _article.MarkdownPath),

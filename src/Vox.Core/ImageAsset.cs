@@ -12,8 +12,12 @@ public sealed class ImageAsset
     public long Bytes { get; init; }
     public DateTime Modified { get; init; }
     public List<string> ReferencedBy { get; } = [];
+
+    /// <summary>以本图作为 front matter cover 的文章（md 路径）；同一张图可被多篇复用。</summary>
+    public List<string> CoverOf { get; } = [];
     public bool IsOrphan => ReferencedBy.Count == 0 && Bytes >= 0;
     public bool IsMissing => Bytes < 0;
+    public bool IsCover => CoverOf.Count > 0;
 
     public string FileName => RelativePath.Split('/').LastOrDefault() ?? RelativePath;
 

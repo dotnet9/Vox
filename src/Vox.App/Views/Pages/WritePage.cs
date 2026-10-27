@@ -1148,9 +1148,9 @@ public sealed class WritePage : UserControl
         }
     }
 
-    private void SaveCurrent(bool silent = false)
+    private bool SaveCurrent(bool silent = false)
     {
-        if (_current == null || _repoRoot == null) return;
+        if (_current == null || _repoRoot == null) return false;
         try
         {
             var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
@@ -1161,7 +1161,7 @@ public sealed class WritePage : UserControl
                 if (!silent) _shell.ShowToast(T(AppState.Instance.Settings.AutoSave
                     ? "Vox.Write.Status.ExternalSkipped"
                     : "Vox.Write.Status.ExternalBlocked"));
-                return;
+                return false;
             }
             // 保存前重读磁盘剥离最新 front matter（元数据弹层可能改过），
             // 与编辑器正文按库存格式拼接回写：---\n{yaml}\n---\n\n{body}（见 YamlSidecar.SerializeInline）；
@@ -1181,10 +1181,12 @@ public sealed class WritePage : UserControl
             Services.PublishHub.Invalidate();
             AppState.Instance.NotifyRepoChanged();
             UpdateBadges();
+            return true;
         }
         catch (Exception ex)
         {
             _shell.ShowToast(TF("Vox.Write.Status.SaveFailed", ex.Message));
+            return false;
         }
     }
 
@@ -1993,6 +1995,9 @@ public sealed class WritePage : UserControl
         }));
     }
 
+    /// <summary>已打开的文章（图片库跨页取封面/插入上下文用）。</summary>
+    public Article? CurrentArticle => _current;
+
     /// <summary>把图片按正文相对路径插入当前光标处（图片库详情面板调用）；没有打开文章时返回 false。</summary>
     public bool InsertImageMarkdown(string imageRelativePath)
     {
@@ -2003,6 +2008,35 @@ public sealed class WritePage : UserControl
             $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})");
         SaveCurrent(silent: true);
         return true;
+    }
+
+    /// <summary>把图片写回当前文章 front matter 的 cover（图片库详情面板调用）；没有打开文章或保存失败时返回 false。</summary>
+    public bool SetCoverImage(string imageRelativePath)
+    {
+        if (_current == null || _repoRoot == null) return false;
+        var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+        // 先把编辑器正文按守卫落盘，再改写 front matter：两步不会互相判为外部改动，未保存的正文也不会被丢弃。
+        if (!SaveCurrent(silent: true)) return false;
+        try
+        {
+            YamlSidecar.RewriteMarkdown(file, meta =>
+            {
+                meta.Cover = imageRelativePath;
+                meta.LastMod = DateTime.Now;
+                return meta;
+            });
+            _current.Meta.Cover = imageRelativePath;
+            _diskBaseline = File.ReadAllText(file);
+            Services.PublishHub.Invalidate();
+            AppState.Instance.NotifyRepoChanged();
+            UpdateBadges();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _shell.ShowToast(TF("Vox.Write.Status.SaveFailed", ex.Message));
+            return false;
+        }
     }
 
     public void OpenPublishDialog()

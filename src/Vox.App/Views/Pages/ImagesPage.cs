@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -34,6 +35,7 @@ public sealed class ImagesPage : UserControl
     private readonly StackPanel _detailHost = new();
     private readonly TextBlock _footer = new() { FontSize = 11 };
     private readonly Button _cleanOrphans = new() { Classes = { "btn", "danger" } };
+    private readonly Button _intake = new() { Classes = { "btn" } };
     private Border? _detailPanel;
     private string? _selectedPath;
     private readonly Dictionary<string, Bitmap?> _thumbCache = new();
@@ -70,6 +72,10 @@ public sealed class ImagesPage : UserControl
         _cleanOrphans.Click += (_, _) => CleanOrphans();
         head.Children.Add(_cleanOrphans);
         DockPanel.SetDock(_cleanOrphans, Dock.Right);
+        _intake.Content = T("Vox.Images.Action.Intake");
+        _intake.Click += (_, _) => OpenIntake();
+        head.Children.Add(_intake);
+        DockPanel.SetDock(_intake, Dock.Right);
         host.Children.Add(head);
 
         // 统计条（4 卡）
@@ -157,7 +163,7 @@ public sealed class ImagesPage : UserControl
         var scan = AppState.Instance.Scan;
         var years = scan?.Images.Select(i => i.YearMonth).Where(m => m.Length >= 4).Select(m => m[..4]).Distinct().OrderByDescending(y => y).ToList() ?? [];
         _yearFilter.Items = new[] { T("Vox.Images.Pick.Year") }.Concat(years).ToList();
-        _refFilter.Items = new[] { T("Vox.Images.Pick.RefState"), T("Vox.Images.Pick.Used"), T("Vox.Images.Pick.Orphan"), T("Vox.Images.Pick.Missing") };
+        _refFilter.Items = new[] { T("Vox.Images.Pick.RefState"), T("Vox.Images.Pick.Used"), T("Vox.Images.Pick.Orphan"), T("Vox.Images.Pick.Cover"), T("Vox.Images.Pick.Missing") };
         _formatFilter.Items = new[] { T("Vox.Images.Pick.Format") }
             .Concat(scan?.Images.Select(i => FormatOf(i.FileName)).Distinct().OrderBy(f => f).ToList() ?? []).ToList();
         foreach (var filter in new[] { _yearFilter, _refFilter, _formatFilter })
@@ -175,6 +181,7 @@ public sealed class ImagesPage : UserControl
         if (_yearFilter.Selected is { Length: > 0 } year && year != T("Vox.Images.Pick.Year")) query = query.Where(i => i.YearMonth.StartsWith(year, StringComparison.Ordinal));
         if (_refFilter.Selected == T("Vox.Images.Pick.Used")) query = query.Where(i => !i.IsMissing && i.ReferencedBy.Count > 0);
         if (_refFilter.Selected == T("Vox.Images.Pick.Orphan")) query = query.Where(i => i.IsOrphan);
+        if (_refFilter.Selected == T("Vox.Images.Pick.Cover")) query = query.Where(i => i.IsCover);
         if (_refFilter.Selected == T("Vox.Images.Pick.Missing")) query = query.Where(i => i.IsMissing);
         if (_formatFilter.Selected is { Length: > 0 } fmt && fmt != T("Vox.Images.Pick.Format")) query = query.Where(i => FormatOf(i.FileName) == fmt);
 
@@ -230,10 +237,13 @@ public sealed class ImagesPage : UserControl
             _thumbRequests[image.RelativePath] = img;
         }
 
-        var badge = image.IsMissing ? T("Vox.Images.Badge.Missing") : image.IsOrphan ? T("Vox.Images.Badge.Orphan") : null;
+        var badge = image.IsMissing ? T("Vox.Images.Badge.Missing")
+            : image.IsOrphan ? T("Vox.Images.Badge.Orphan")
+            : image.IsCover ? T("Vox.Images.Badge.Cover")
+            : null;
         var flag = badge == null ? null : new Border
         {
-            Classes = { "badge", image.IsMissing ? "danger" : "warn" },
+            Classes = { "badge", image.IsMissing ? "danger" : image.IsOrphan ? "warn" : "accent" },
             Child = new TextBlock { Text = badge, FontSize = 10 },
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
@@ -397,10 +407,13 @@ public sealed class ImagesPage : UserControl
         var badges = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 6, 0, 0) };
         if (stateBadge != null)
             badges.Children.Add(new Border { Classes = { "badge", image.IsMissing ? "danger" : "warn" }, Child = new TextBlock { Text = stateBadge, FontSize = 10 } });
+        if (image.IsCover)
+            badges.Children.Add(new Border { Classes = { "badge", "accent" }, Child = new TextBlock { Text = T("Vox.Images.Badge.Cover"), FontSize = 10 } });
         badges.Children.Add(new Border { Classes = { "badge" }, Child = new TextBlock { Text = FormatOf(image.FileName).ToUpperInvariant(), FontSize = 10 } });
         _detailHost.Children.Add(badges);
 
         _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Path"), image.RelativePath));
+        _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Dimensions"), ReadDimensions(image)));
         _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Size"), image.IsMissing ? "—" : FormatBytes(image.Bytes)));
         _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Intake"), image.Modified == default ? "—" : image.Modified.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
 
@@ -425,6 +438,8 @@ public sealed class ImagesPage : UserControl
         if (!image.IsMissing)
             ops.Children.Add(OpButton(T("Vox.Images.Action.Insert"), primary: true, () => InsertIntoCurrentArticle(image)));
         ops.Children.Add(OpButton(T("Vox.Images.Action.CopyPath"), primary: false, () => CopyPathAsync(image)));
+        if (!image.IsMissing)
+            ops.Children.Add(OpButton(T("Vox.Images.Action.SetCover"), primary: false, () => SetAsCover(image)));
         ops.Children.Add(OpButton(T("Vox.Images.Action.Reveal"), primary: false, () => RevealInExplorer(image)));
         if (image.IsOrphan)
             ops.Children.Add(OpButton(T("Vox.Images.Action.Delete"), primary: false, () => DeleteOrphanAsync(image), danger: true));
@@ -437,6 +452,27 @@ public sealed class ImagesPage : UserControl
             _shell.ShowToast(TF("Vox.Images.Msg.Inserted", image.FileName));
         else
             _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
+    }
+
+    private void SetAsCover(ImageAsset image)
+    {
+        if (_shell.CachedWritePage is { } write && write.SetCoverImage(image.RelativePath))
+            _shell.ShowToast(TF("Vox.Images.Msg.CoverSet", image.FileName));
+        else
+            _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
+    }
+
+    private void OpenIntake()
+    {
+        var root = AppState.Instance.CurrentRepoRoot;
+        if (root == null) return;
+        var write = _shell.CachedWritePage;
+        _shell.ShowModal(new ImageIntakeModal(_shell, root, write?.CurrentArticle, AppState.Instance.Settings.Link, relative =>
+        {
+            // 扫描完成的通知已排队，这里先钉住选中项，重扫后详情面板直接打开这张新图。
+            _selectedPath = relative;
+            if (write?.CurrentArticle != null) write.InsertImageMarkdown(relative);
+        }));
     }
 
     private Button OpButton(string label, bool primary, Action action, bool danger = false)
@@ -504,18 +540,31 @@ public sealed class ImagesPage : UserControl
     {
         var root = AppState.Instance.CurrentRepoRoot;
         if (root == null) return;
-        try
+
+        var (modal, body, footer, _) = Modal.Create(T("Vox.Images.Confirm.DeleteTitle"), width: 440, maxHeight: 220);
+        body.Children.Add(new TextBlock { Text = TF("Vox.Images.Confirm.DeleteBody", image.FileName), TextWrapping = TextWrapping.Wrap, FontSize = 12 });
+        var cancel = new Button { Classes = { "btn" }, Content = T("Vox.Common.Action.Cancel") };
+        var ok = new Button { Classes = { "btn", "danger" }, Content = T("Vox.Images.Action.Delete") };
+        footer.Children.Add(cancel);
+        footer.Children.Add(ok);
+        cancel.Click += (_, _) => _shell.CloseModal();
+        ok.Click += (_, _) =>
         {
-            File.Delete(Path.Combine(root, image.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
-            _shell.ShowToast(TF("Vox.Images.Msg.Deleted", image.FileName));
-        }
-        catch (Exception ex)
-        {
-            _shell.ShowToast(ex.Message);
-            return;
-        }
-        if (_selectedPath == image.RelativePath) _selectedPath = null;
-        AppState.Instance.NotifyRepoChanged();
+            _shell.CloseModal();
+            try
+            {
+                File.Delete(Path.Combine(root, image.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
+                _shell.ShowToast(TF("Vox.Images.Msg.Deleted", image.FileName));
+            }
+            catch (Exception ex)
+            {
+                _shell.ShowToast(ex.Message);
+                return;
+            }
+            if (_selectedPath == image.RelativePath) _selectedPath = null;
+            AppState.Instance.NotifyRepoChanged();
+        };
+        _shell.ShowModal(modal);
         await Task.CompletedTask;
     }
 
@@ -599,5 +648,51 @@ public sealed class ImagesPage : UserControl
     {
         var ext = Path.GetExtension(fileName).TrimStart('.');
         return string.IsNullOrEmpty(ext) ? "—" : ext.ToLowerInvariant();
+    }
+
+    /// <summary>详情「尺寸」行：位图取解码后的像素尺寸，SVG 读 width/height 或 viewBox 声明。</summary>
+    private string ReadDimensions(ImageAsset image)
+    {
+        if (image.IsMissing) return "—";
+        var root = AppState.Instance.CurrentRepoRoot;
+        if (root == null) return "—";
+        var full = Path.Combine(root, image.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(full)) return "—";
+        try
+        {
+            if (image.RelativePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+                return SvgDimensions(File.ReadAllText(full)) ?? "—";
+            using var stream = File.OpenRead(full);
+            using var bitmap = new Bitmap(stream);
+            return $"{bitmap.PixelSize.Width}×{bitmap.PixelSize.Height}";
+        }
+        catch
+        {
+            return "—";
+        }
+    }
+
+    private static string? SvgDimensions(string svg)
+    {
+        var match = Regex.Match(svg, @"<svg\b[^>]*>", RegexOptions.IgnoreCase);
+        if (!match.Success) return null;
+        var tag = match.Value;
+        static double? Number(string tag, string pattern)
+        {
+            var m = Regex.Match(tag, pattern, RegexOptions.IgnoreCase);
+            return m.Success && double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0
+                ? value
+                : null;
+        }
+        var width = Number(tag, @"\bwidth\s*=\s*""\s*([\d.]+)");
+        var height = Number(tag, @"\bheight\s*=\s*""\s*([\d.]+)");
+        if (width == null || height == null)
+        {
+            var box = Regex.Match(tag, @"viewBox\s*=\s*""\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)", RegexOptions.IgnoreCase);
+            if (!box.Success) return null;
+            width = double.Parse(box.Groups[1].Value, CultureInfo.InvariantCulture);
+            height = double.Parse(box.Groups[2].Value, CultureInfo.InvariantCulture);
+        }
+        return $"{width:0}×{height:0}";
     }
 }

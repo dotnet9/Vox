@@ -54,6 +54,7 @@ public static class RepoScanner
     {
         var link = linkOptions ?? LinkOptions.Default;
         var scan = new RepoScan { RepoRoot = Path.GetFullPath(repoRoot) };
+        var coverReferences = new List<(string Path, string By)>();
 
         foreach (var md in Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.AllDirectories))
         {
@@ -112,8 +113,12 @@ public static class RepoScanner
             // 引用面含 yml cover（存量 cover 为 CDN 形态，也归一入索引）——漏了会把封面图误判为孤儿。
             if (!string.IsNullOrWhiteSpace(article.Meta.Cover))
             {
-                var coverPath = NormalizeReference(article.Meta.Cover, link, scan.RepoRoot, mdDir);
-                if (coverPath != null) article.ImageReferences.Add(coverPath);
+                var coverPath = NormalizeCoverReference(article.Meta.Cover, link, scan.RepoRoot, mdDir);
+                if (coverPath != null)
+                {
+                    article.ImageReferences.Add(coverPath);
+                    coverReferences.Add((coverPath, article.MarkdownPath));
+                }
             }
             scan.Articles.Add(article);
         }
@@ -157,6 +162,12 @@ public static class RepoScanner
         foreach (var (path, by) in references)
         {
             scan.RegisterReference(path, by);
+        }
+
+        foreach (var (path, by) in coverReferences)
+        {
+            var image = scan.FindImage(path);
+            if (image != null && !image.CoverOf.Contains(by)) image.CoverOf.Add(by);
         }
 
         return scan;
@@ -206,6 +217,24 @@ public static class RepoScanner
         var mdDirFull = Path.GetFullPath(Path.Combine(repoRoot, mdDir.Replace('/', Path.DirectorySeparatorChar)));
         var combined = Path.GetFullPath(Path.Combine(mdDirFull, url));
         return PathText.ToForwardSlashes(Path.GetRelativePath(repoRoot, combined));
+    }
+
+    /// <summary>
+    /// cover 归一：CDN → 仓库路径；YYYY/MM/ 归档形态按仓库相对解析（图片入库写回的形态），
+    /// 其余相对值仍按 md 目录解析（存量「与文章同目录」写法）。
+    /// </summary>
+    private static string? NormalizeCoverReference(string cover, LinkOptions link, string repoRoot, string mdDir)
+    {
+        var normalized = PathText.ToForwardSlashes(cover.Trim());
+        if (normalized.Length >= 8
+            && char.IsAsciiDigit(normalized[0]) && char.IsAsciiDigit(normalized[1])
+            && char.IsAsciiDigit(normalized[2]) && char.IsAsciiDigit(normalized[3])
+            && normalized[4] == '/' && char.IsAsciiDigit(normalized[5]) && char.IsAsciiDigit(normalized[6])
+            && normalized[7] == '/')
+        {
+            return NormalizeReference(normalized, link, repoRoot);
+        }
+        return NormalizeReference(cover, link, repoRoot, mdDir);
     }
 
     /// <summary>site/*.json 中的裸文本也按“可能指向图片”抽取（引用面含 site 数据，防孤儿图误报——基线 D6）。</summary>

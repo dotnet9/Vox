@@ -864,5 +864,14 @@
   "Vox.Settings.Mcp.Stopped": "Stopped · clients cannot connect",
   "Vox.Settings.Mcp.Configure": "Configure…",
   "Vox.Settings.Mcp.Disabled": "Disabled · enable it on the MCP service page",
-  "Vox.Settings.Mcp.Status": "Status"
+  "Vox.Settings.Mcp.Status": "Status",
+  "Vox.Image.Label.IntakeOnly": "Import",
+  "Vox.Images.Pick.Cover": "Cover",
+  "Vox.Images.Label.Dimensions": "Dimensions",
+  "Vox.Images.Badge.Cover": "Cover",
+  "Vox.Images.Action.Intake": "Add images…",
+  "Vox.Images.Action.SetCover": "Set as cover",
+  "Vox.Images.Confirm.DeleteTitle": "Delete image",
+  "Vox.Images.Confirm.DeleteBody": "Delete \"{0}\"? The file is removed through git and can be restored from history.",
+  "Vox.Images.Msg.CoverSet": "Cover set: {0}"
 }

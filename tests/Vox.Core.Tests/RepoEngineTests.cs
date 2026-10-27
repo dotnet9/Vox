@@ -95,7 +95,7 @@ public class RepoScannerTests
 
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta.md"),
             "# Beta\n\n![死链](missing.png)\n\n![CDN 形态](https://img1.dotnet9.com/2026/10/beta-pic.jpg)\n");
-        File.WriteAllText(Path.Combine(root, "2026", "10", "beta.yml"), "title: Beta\nslug: beta\ndate: 2026-10-01 08:00:00\nalbums: [x]\n");
+        File.WriteAllText(Path.Combine(root, "2026", "10", "beta.yml"), "title: Beta\nslug: beta\ndate: 2026-10-01 08:00:00\nalbums: [x]\ncover: 2026/10/beta-pic.jpg\n");
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta-pic.jpg"), "jpg");
         File.WriteAllText(Path.Combine(root, "2026", "10", "beta-pic.webp"), "webp");
 
@@ -125,6 +125,9 @@ public class RepoScannerTests
 
             var betaPic = scan.FindImage("2026/10/beta-pic.jpg")!;
             Assert.False(betaPic.IsOrphan);
+            Assert.True(betaPic.IsCover); // yml cover 标记封面（正文同图引用不重复计数）
+            Assert.Equal(new[] { "2026/10/beta.md" }, betaPic.CoverOf);
+            Assert.False(cover.IsCover); // 仅正文引用、未写 cover 的图不算封面
             Assert.Single(scan.SiteFiles);
             Assert.Equal("2026-09", cover.YearMonth); // 年/月 归档目录优先
             Assert.Equal("2026-10", missing.YearMonth); // 死链仍按引用路径归月
@@ -140,6 +143,29 @@ public class RepoScannerTests
     {
         Assert.Equal("2025-03", new ImageAsset { RelativePath = "cover.png", Modified = new DateTime(2025, 3, 8, 10, 0, 0) }.YearMonth);
         Assert.Equal(string.Empty, new ImageAsset { RelativePath = "cover.png", Bytes = -1 }.YearMonth);
+    }
+
+    [Fact]
+    public void Scan_marks_cover_from_front_matter_relative_to_article_directory()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-cover").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2026", "10"));
+            File.WriteAllText(Path.Combine(root, "2026", "10", "post.md"),
+                "---\ntitle: Post\ncover: local-cover.png\n---\n\n正文\n");
+            File.WriteAllText(Path.Combine(root, "2026", "10", "local-cover.png"), "png");
+
+            var scan = RepoScanner.Scan(root);
+            var cover = scan.FindImage("2026/10/local-cover.png")!;
+            Assert.True(cover.IsCover);
+            Assert.Equal(new[] { "2026/10/post.md" }, cover.CoverOf);
+            Assert.False(cover.IsOrphan);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 }
 

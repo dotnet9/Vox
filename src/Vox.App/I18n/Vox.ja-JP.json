@@ -864,5 +864,14 @@
   "Vox.Settings.Mcp.Stopped": "停止中 · クライアントは接続できません",
   "Vox.Settings.Mcp.Configure": "設定…",
   "Vox.Settings.Mcp.Disabled": "無効 · MCP サービスページで有効にすると接続できます",
-  "Vox.Settings.Mcp.Status": "状態"
+  "Vox.Settings.Mcp.Status": "状態",
+  "Vox.Image.Label.IntakeOnly": "取り込み",
+  "Vox.Images.Pick.Cover": "カバー",
+  "Vox.Images.Label.Dimensions": "サイズ",
+  "Vox.Images.Badge.Cover": "カバー",
+  "Vox.Images.Action.Intake": "画像を取り込む…",
+  "Vox.Images.Action.SetCover": "カバーに設定",
+  "Vox.Images.Confirm.DeleteTitle": "画像を削除",
+  "Vox.Images.Confirm.DeleteBody": "「{0}」を削除しますか？git に記録され、履歴から復元できます。",
+  "Vox.Images.Msg.CoverSet": "カバーに設定しました：{0}"
 }
