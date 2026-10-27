@@ -124,6 +124,15 @@ public partial class MainWindow : Window
             AppState.Instance.Settings.Density, ThemeService.ChangeDensity);
         var themeSeg = MakeSeg(new[] { ("Vox.Settings.Appearance.ThemeLight", "light"), ("Vox.Settings.Appearance.ThemeDark", "dark"), ("Vox.Settings.Appearance.ThemeSystem", "auto") }, CurrentDarkKey(),
             mode => ThemeService.ChangeDark(mode switch { "dark" => true, "auto" => (bool?)null, _ => false }));
+        // 动效三档（ArcMotionLevel）：与原型 #motionSeg 同口径，完整 / 减弱 / 关闭。
+        var motionSeg = MakeSeg(new[]
+            {
+                ("Vox.Settings.Appearance.MotionFull", "Full"),
+                ("Vox.Settings.Appearance.MotionReduced", "Reduced"),
+                ("Vox.Settings.Appearance.MotionOff", "Off"),
+            },
+            ThemeService.NormalizeMotionLevel(AppState.Instance.Settings.MotionLevel),
+            ThemeService.ChangeMotion);
 
         var swatches = new WrapPanel { Margin = new Thickness(2, 2, 2, 4) };
         var current = ThemeService.NormalizeAccentName(AppState.Instance.Settings.Accent);
@@ -161,6 +170,8 @@ public partial class MainWindow : Window
         pop.Children.Add(densitySeg);
         pop.Children.Add(PopTitle("Vox.Settings.Appearance.ThemeMode", 12));
         pop.Children.Add(themeSeg);
+        pop.Children.Add(PopTitle("Vox.Settings.Appearance.Motion", 12));
+        pop.Children.Add(motionSeg);
         pop.Children.Add(PopTitle("Vox.Settings.Appearance.ArcPresets", 12));
         pop.Children.Add(swatches);
         BtnTbLook.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(pop) };

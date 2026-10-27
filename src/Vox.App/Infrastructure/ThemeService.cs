@@ -65,6 +65,19 @@ public static class ThemeService
         VoxTheme.SetDensity(density);
     }
 
+    /// <summary>动效三档（ArcMotionLevel）：持久化后立刻对主窗生效，无需重启。</summary>
+    public static void ChangeMotion(string level)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.MotionLevel = NormalizeMotionLevel(level);
+        AppState.Instance.SaveSettings();
+        ApplyMotion(settings.MotionLevel);
+    }
+
+    /// <summary>设置里的动效档名归一（大小写无关，未知值回落 Full），与原型 data-motion 三档同口径。</summary>
+    public static string NormalizeMotionLevel(string? level) =>
+        Enum.TryParse<ArcMotionLevel>(level, ignoreCase: true, out var motion) ? motion.ToString() : ArcMotionLevel.Full.ToString();
+
     public static void ApplyDarkAsync(bool? isDark)
     {
         _ = ApplyThemeAsync(builder => isDark == true
