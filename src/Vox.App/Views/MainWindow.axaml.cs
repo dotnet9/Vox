@@ -147,8 +147,10 @@ public partial class MainWindow : Window
 
         var swatches = new WrapPanel { Margin = new Thickness(2, 2, 2, 4) };
         var current = ThemeService.NormalizeAccentName(AppState.Instance.Settings.Accent);
-        foreach (var (name, lightHex, _) in VoxTheme.Accents)
+        foreach (var accentPreset in VoxTheme.Accents)
         {
+            var name = accentPreset.Name;
+            var lightHex = accentPreset.Light;
             var dot = new Border
             {
                 Width = 26, Height = 26, CornerRadius = new CornerRadius(8),

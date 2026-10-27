@@ -19,17 +19,21 @@ public static class VoxTheme
     public const string AccentCoral = "coral";
     public const string AccentRose = "rose";
 
+    /// <summary>单个强调色预设：主色、下压色与前景色（原型 tokens.css 的 --accent / --accent-deep / --on-accent）。</summary>
+    public sealed record AccentPreset(string Name, string Light, string LightDeep, string LightOn,
+        string Dark, string DarkDeep, string DarkOn);
+
     /// <summary>全部 Arc 预设（顺序 = 原型外观弹层色板顺序）。</summary>
-    public static readonly (string Name, string Light, string Dark)[] Accents =
+    public static readonly AccentPreset[] Accents =
     [
-        (AccentNeutral, "#353535", "#BEBEBE"),
-        (AccentViolet, "#7747FF", "#A78BFF"),
-        (AccentBlue, "#0562EF", "#6BA3FF"),
-        (AccentGreen, "#0DB879", "#53DCA6"),
-        (AccentAmber, "#F3AD20", "#FFCB62"),
-        (AccentOrange, "#F48120", "#FFAD5E"),
-        (AccentCoral, "#F15F55", "#FF9386"),
-        (AccentRose, "#ED4E9D", "#FF8BC5"),
+        new(AccentNeutral, "#353535", "#1F1F1F", "#FFFFFF", "#BEBEBE", "#E1E1E1", "#141414"),
+        new(AccentViolet, "#7747FF", "#5528CE", "#FFFFFF", "#A78BFF", "#C7B7FF", "#141414"),
+        new(AccentBlue, "#0562EF", "#074DB7", "#FFFFFF", "#6BA3FF", "#A4C7FF", "#141414"),
+        new(AccentGreen, "#0DB879", "#087C54", "#102016", "#53DCA6", "#93EFD0", "#102016"),
+        new(AccentAmber, "#F3AD20", "#9C6300", "#20190D", "#FFCB62", "#FFE0A1", "#20190D"),
+        new(AccentOrange, "#F48120", "#AA4700", "#FFFFFF", "#FFAD5E", "#FFD0A0", "#17130F"),
+        new(AccentCoral, "#F15F55", "#B92C27", "#FFFFFF", "#FF9386", "#FFC1BA", "#21110F"),
+        new(AccentRose, "#ED4E9D", "#AE2570", "#FFFFFF", "#FF8BC5", "#FFC0DF", "#250F1B"),
     ];
 
     /// <summary>Vox 侧强调色名 → Arc AccentPreset（Arc 主题侧最近似预设）。</summary>
@@ -124,8 +128,8 @@ public static class VoxTheme
     {
         if (Application.Current is not { } app) return;
         var p = isDark ? Dark : Light;
-        var preset = Array.Find(Accents, a => a.Name == accentName.ToLowerInvariant());
-        if (preset.Name is null) preset = Array.Find(Accents, a => a.Name == AccentViolet);
+        var preset = Array.Find(Accents, a => a.Name == accentName.ToLowerInvariant())
+                     ?? Array.Find(Accents, a => a.Name == AccentViolet)!;
         var accent = isDark ? preset.Dark : preset.Light;
 
         var r = app.Resources;
@@ -146,6 +150,7 @@ public static class VoxTheme
         r["VoxDanger"] = Brush(p.Danger);
         r["VoxDangerSoft"] = Brush(p.DangerSoft);
         r["VoxAccent"] = Brush(accent);
+        r["VoxAccentDeep"] = Brush(isDark ? preset.DarkDeep : preset.LightDeep);
         r["VoxAccentSoft"] = Brush(HexSoft(accent));
         // DataGrid 的 Semi 主题默认蓝调，这里把悬停/选中/分隔线接到 Vox 画刷
         r["DataGridRowBackground"] = Brushes.Transparent;
@@ -160,7 +165,7 @@ public static class VoxTheme
         r["DataGridColumnHeaderPressedBackground"] = Brush(p.Surface3);
         r["DataGridCellCurrentBorderBrush"] = Brushes.Transparent;
         r["DataGridCellFocusBorderBrush"] = Brushes.Transparent;
-        r["VoxOnAccent"] = Brush("#FFFFFF");
+        r["VoxOnAccent"] = Brush(isDark ? preset.DarkOn : preset.LightOn);
         r["VoxMaskBg"] = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
         r["VoxTransparent"] = Brushes.Transparent;
         r["VoxRadius"] = new Avalonia.CornerRadius(Radius);
