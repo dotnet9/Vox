@@ -29,8 +29,32 @@ html[data-density="roomy"]   { font-size: 14px; --den-radius: 17px; }
   --font-ui: "Geist", Inter, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
   --font-mono: "Geist Mono", "Cascadia Code", Consolas, monospace;
   --motion: cubic-bezier(.32, .72, .24, 1);   /* Arc 弹簧动效的 CSS 近似 */
-  --t-fast: 140ms;
-  --t-med: 220ms;
+  /* --t-fast / --t-med 由下方「动效总闸」按三档乘算，这里不再钉死。 */
+}
+
+/* ---------- 动效总闸 ----------
+   三档（完整／减弱／关闭）乘算全部时长：data-motion="reduced" 缩到 .35，
+   data-motion="off" 归零。减弱与关闭同时把可过渡属性夹进白名单，
+   免得 layout 属性（width/height/left/top）还在跳。未显式设档时由
+   prefers-reduced-motion 接管，与 Vex 原型 prototype.css 的动效令牌同一结构，
+   原生侧对应 ArcMotionLevel（ArcMotion.SetLevel）。 */
+:root {
+  --motion-scale: 1;
+  --t-fast: calc(140ms * var(--motion-scale));
+  --t-med: calc(220ms * var(--motion-scale));
+}
+html[data-motion="reduced"] { --motion-scale: .35; }
+html[data-motion="off"], html[data-motion="false"] { --motion-scale: 0; }
+html[data-motion="off"] *,
+html[data-motion="false"] *,
+html[data-motion="reduced"] * {
+  transition-property: opacity, color, background-color, border-color, box-shadow, fill, stroke;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion]) { --motion-scale: .35; }
+  html:not([data-motion]) * {
+    transition-property: opacity, color, background-color, border-color, box-shadow, fill, stroke;
+  }
 }
 
 /* ---------- 明暗 ---------- */

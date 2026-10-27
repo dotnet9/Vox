@@ -26,6 +26,8 @@
               <div class="seg" id="densitySeg"><button>紧凑</button><button class="active">标准</button><button>宽松</button></div>
               <div class="tp-title">明暗模式</div>
               <div class="seg" id="popThemeSeg"><button data-mode="light" class="active">亮色</button><button data-mode="dark">暗色</button><button data-mode="auto">跟随系统</button></div>
+              <div class="tp-title">动效 <span class="tp-sub">ArcMotionLevel</span></div>
+              <div class="seg" id="motionSeg"><button class="active" data-m="full">完整</button><button data-m="reduced">减弱</button><button data-m="off">关闭</button></div>
               <div class="tp-title">界面配色 <span class="tp-sub">Arc 预设</span></div>
               <div class="swatches" id="arcSwatches"><i class="sw" data-c="neutral" style="--sw:#353535" title="Neutral"></i><i class="sw active" data-c="violet" style="--sw:#7747FF" title="Violet"></i><i class="sw" data-c="blue" style="--sw:#0562EF" title="Blue"></i><i class="sw" data-c="green" style="--sw:#0DB879" title="Green"></i><i class="sw" data-c="amber" style="--sw:#F3AD20" title="Amber"></i><i class="sw" data-c="orange" style="--sw:#F48120" title="Orange"></i><i class="sw" data-c="coral" style="--sw:#F15F55" title="Coral"></i><i class="sw" data-c="rose" style="--sw:#ED4E9D" title="Rose"></i></div>
             </div>
@@ -709,6 +711,16 @@ document.querySelectorAll('#styleSeg button').forEach(function(b){
   b.addEventListener('click', function(){
     document.querySelectorAll('#styleSeg button').forEach(function(x){ x.classList.toggle('active', x===b); });
     document.documentElement.dataset.style = b.dataset.s;
+  });
+});
+/* ---------- 动效三档（ArcMotionLevel）：完整／减弱／关闭 ----------
+   tokens.css 按 data-motion 乘算时长并夹 transition-property 白名单；
+   「完整」不设属性，交回 prefers-reduced-motion 判断。 */
+document.querySelectorAll('#motionSeg button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('#motionSeg button').forEach(function(x){ x.classList.toggle('active', x===b); });
+    if (b.dataset.m === 'full') delete document.documentElement.dataset.motion;
+    else document.documentElement.dataset.motion = b.dataset.m;
   });
 });
 /* ---------- Segmented 滑块增强（Arc SegmentedControl 同款动效） ---------- */
