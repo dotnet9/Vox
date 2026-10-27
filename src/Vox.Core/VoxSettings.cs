@@ -53,6 +53,27 @@ public sealed class VoxSettings
     /// <summary>模型名（随服务商切换写默认值，可手改）。</summary>
     public string LlmModel { get; set; } = "deepseek-chat";
 
+    /// <summary>MCP 本机服务开关（仅监听 127.0.0.1，Bearer Token 鉴权）。</summary>
+    public bool McpEnabled { get; set; }
+
+    /// <summary>MCP 监听端口（1024–65535，重启生效）。</summary>
+    public int McpPort { get; set; } = 17891;
+
+    /// <summary>MCP 访问令牌（vox_ 前缀，至少 24 字符）。</summary>
+    public string McpToken { get; set; } = string.Empty;
+
+    /// <summary>授权范围：repo / articles / status。</summary>
+    public string McpScope { get; set; } = "repo";
+
+    /// <summary>写入工具调用前在应用内确认（关闭即直接执行，谨慎）。</summary>
+    public bool McpConfirmWrites { get; set; } = true;
+
+    /// <summary>允许 git 操作（开放 git_commit / git_push 两个写入工具）。</summary>
+    public bool McpAllowGit { get; set; }
+
+    /// <summary>被逐个下线的工具名（默认下线 image_replace，与原型一致）。</summary>
+    public List<string> McpDisabledTools { get; set; } = ["image_replace"];
+
     [JsonIgnore]
     public LinkOptions Link => new() { CdnBase = string.IsNullOrWhiteSpace(CdnBase) ? LinkStrategy.DefaultCdnBase : CdnBase };
 }
