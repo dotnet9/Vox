@@ -31,7 +31,12 @@ public sealed class UpdateChecker
         if (!string.IsNullOrEmpty(exe))
         {
             var info = FileVersionInfo.GetVersionInfo(exe);
-            if (!string.IsNullOrEmpty(info.ProductVersion)) return info.ProductVersion;
+            if (!string.IsNullOrEmpty(info.ProductVersion))
+            {
+                // 产品版本带 +提交号 的构建元数据，界面只显示语义版本。
+                var plus = info.ProductVersion.IndexOf('+');
+                return plus > 0 ? info.ProductVersion[..plus] : info.ProductVersion;
+            }
         }
         var name = typeof(UpdateChecker).Assembly.GetName().Version;
         return name is null ? "0.0.0" : name.ToString();

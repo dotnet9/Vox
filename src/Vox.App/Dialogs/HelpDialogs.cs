@@ -41,7 +41,7 @@ public static class HelpDialogs
     {
         public AboutModal(MainWindow shell)
         {
-            var (modal, body, footer, close) = Modal.Create(TF0("Vox.Help.About.Title"), 420, 300);
+            var (modal, body, footer, close) = Modal.Create(TF0("Vox.Help.About.Title"), 420, 340);
             Classes.AddRange(modal.Classes);
             Width = modal.Width;
             MaxHeight = modal.MaxHeight;
