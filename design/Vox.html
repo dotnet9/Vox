@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=50"><link rel="stylesheet" href="assets/app.css?v=50">
+<link rel="stylesheet" href="assets/tokens.css?v=51"><link rel="stylesheet" href="assets/app.css?v=51">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -16,6 +16,7 @@
           <span class="tb-file"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span></span>
   <span class="spacer"></span>
           <span class="tb-extras" id="tbExtras">
+            <button class="tb-ico mcp-tb" id="btnTbMcp" title="MCP 服务（运行中 · 2 个客户端在线）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></button>
             <button class="tb-ico" id="btnTbSearch" title="搜索（Ctrl K）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
             <button class="tb-ico" id="btnTbLook" title="外观"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></button>
             <button class="tb-ico" id="btnTbLang" title="语言 / Language"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></button>
@@ -53,6 +54,7 @@
     <div class="it" data-view="library" title="文章库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span><span class="lb">文章库</span><span class="cnt">37</span></div>
     <div class="it" data-view="publish" title="发布中心"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="lb">发布中心</span><span class="cnt">2</span></div>
     <div class="it" data-view="site" title="站点数据"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></span><span class="lb">站点数据</span></div>
+      <div class="it" data-view="mcp" title="MCP 服务"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></span><span class="lb">MCP 服务</span><span class="cnt" id="mcpNavCnt" title="在线 AI 客户端">2</span></div>
       <div class="it" data-view="settings" title="设置"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="lb">设置</span></div>
   </div>
   <button class="edge-btn" id="btnNav" title="收起 / 展开边栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -82,6 +84,7 @@
         <div class="sp-group">操作</div>
         <a class="sp-it" data-k="op" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg><span class="sp-t">提交并推送到网站（git）</span><span class="sp-m">发布中心</span></a>
         <a class="sp-it" data-k="op" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg><span class="sp-t">打开发布对话框（当前文章）</span><span class="sp-m">写作页</span></a>
+        <a class="sp-it" data-k="op" onclick="gotoMcp()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg><span class="sp-t">打开 MCP 服务（AI 客户端接入）</span><span class="sp-m">MCP 服务</span></a>
       </div>
       <div class="sp-foot"><span>↑↓ 导航</span><span>Enter 打开</span><span>Esc 关闭</span></div>
     </div>
@@ -287,6 +290,113 @@
     </div>
   </section>
 
+  <!-- ======== 视图：MCP 服务（参考 Vex 服务/客户端/审计三分页，扩展工具目录） ======== -->
+  <section class="view" id="view-mcp">
+    <div class="pub-tabs">
+      <div class="seg" id="mcpSeg">
+        <button data-t="server" class="active">服务</button>
+        <button data-t="clients">客户端</button>
+        <button data-t="tools">工具目录</button>
+        <button data-t="audit">调用审计</button>
+      </div>
+      <span style="flex:1"></span>
+      <span class="pub-sum" id="mcpHeadState"></span>
+    </div>
+
+    <!-- 页 1：服务配置 -->
+    <div class="pub-page" id="mcpServer">
+      <div class="sync-top" style="margin-bottom:12px">
+        <div class="br"><span class="mcp-dot run" id="mcpDot"></span><b id="mcpStateTxt" style="font-size:.9615rem">服务运行中</b>
+          <code class="mono" id="mcpEndpointTxt" style="font-size:.8462rem;color:var(--muted)"></code></div>
+        <span style="flex:1"></span>
+        <button class="btn" id="btnMcpRestart">⟳ 重启服务</button>
+        <button class="btn danger" id="btnMcpStop">停止服务</button>
+      </div>
+      <div class="mcp-cols">
+        <div class="setting">
+          <h3>服务配置</h3>
+          <div class="sdesc">仅监听本机回环地址 127.0.0.1，AI 客户端经 Bearer Token 鉴权访问；修改端口或令牌后需重启生效</div>
+          <div class="srow"><label>启用服务</label><div class="val"><div class="row"><span class="switch on" data-switch id="swMcp"></span><span class="desc">关闭后客户端连接立即断开，审计记录保留</span></div></div></div>
+          <div class="srow"><label>端口</label><div class="val"><div class="row"><input class="input mono" id="mcpPort" value="17891" style="width:110px"><span class="desc" id="mcpPortHint">1024–65535 · 重启后生效</span></div></div></div>
+          <div class="srow"><label>访问令牌</label><div class="val"><div class="row" style="flex-wrap:wrap"><input class="input mono" id="mcpToken" type="password" value="vox_9f3ac21e77b04d5c" style="width:250px"><button class="btn sm" id="btnMcpTokenGen">生成新令牌</button><button class="btn sm ghost" id="btnMcpTokenShow">显示</button><button class="btn sm ghost" id="btnMcpTokenCopy">复制</button></div><div class="desc">至少 24 个字符 · 重新生成并重启后旧令牌立即失效</div></div></div>
+          <div class="srow"><label>端点</label><div class="val"><div class="row"><code class="mono" id="mcpEndpointRow" style="font-size:.8462rem;color:var(--accent)"></code><button class="btn sm ghost" id="btnMcpEpCopy">复制地址</button></div></div></div>
+        </div>
+        <div>
+          <div class="setting">
+            <h3>授权范围</h3>
+            <div class="sdesc">客户端可访问的内容边界，收紧后立即生效（无需重启）</div>
+            <div class="optstack">
+              <label class="opt"><input type="radio" name="mcpScope" value="repo" checked><span><b>整个内容仓库</b><span class="d">文章 · 图片 · 站点数据 · 发布状态（推荐）</span></span></label>
+              <label class="opt"><input type="radio" name="mcpScope" value="articles"><span><b>仅文章与元数据</b><span class="d">md / yml 读写开放，图片与 git 组工具下线</span></span></label>
+              <label class="opt"><input type="radio" name="mcpScope" value="status"><span><b>仅状态查询</b><span class="d">publish_status / stats_summary 等只读工具</span></span></label>
+            </div>
+          </div>
+          <div class="setting">
+            <h3>安全</h3>
+            <div class="srow"><label>写操作确认</label><div class="val"><div class="row"><span class="switch on" data-switch id="swMcpConfirm"></span><span class="desc">article_write / git_push 等写入工具调用时在应用内确认</span></div></div></div>
+            <div class="srow"><label>允许 git 操作</label><div class="val"><div class="row"><span class="switch" data-switch id="swMcpGit"></span><span class="desc">默认关闭 · 开放 git_commit / git_push 两个写入工具</span></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页 2：客户端接入 -->
+    <div class="pub-page" id="mcpClients" style="display:none">
+      <div class="pagehead"><h2>客户端接入</h2><span class="sub">把 Vox 挂进 AI 客户端，让大模型直接读写文章库 · 配置含当前令牌，注意保密</span></div>
+      <div class="mcp-cols">
+        <div class="setting">
+          <div class="seg" id="mcpClientSeg">
+            <button data-c="claude" class="active">Claude Desktop</button><button data-c="cursor">Cursor</button><button data-c="zcode">ZCode</button><button data-c="cherry">Cherry Studio</button><button data-c="http">通用 HTTP</button>
+          </div>
+          <div class="f-label" id="mcpClientPath"></div>
+          <pre class="mcp-code" id="mcpClientCfg"></pre>
+          <div class="row" style="gap:8px;margin-top:10px">
+            <button class="btn sm" id="btnMcpCfgCopy">复制配置</button>
+            <button class="btn sm primary" id="btnMcpTest">测试连接</button>
+            <span class="desc" id="mcpTestOut" style="margin:0"></span>
+          </div>
+        </div>
+        <div class="setting">
+          <h3>在线客户端</h3>
+          <div class="sdesc">当前经令牌鉴权连接的本机客户端</div>
+          <div id="mcpCliList"></div>
+          <div class="f-label" style="margin-top:14px">模拟一次调用 <span style="color:var(--faint);font-weight:400;font-size:.7692rem">原型演示 · 走完整确认与审计链路</span></div>
+          <div class="row" style="gap:8px">
+            <button class="btn sm" id="btnDemoRead">article_list 读取</button>
+            <button class="btn sm" id="btnDemoWrite">article_write 请求写入</button>
+          </div>
+          <div id="mcpReqBox" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页 3：工具目录 -->
+    <div class="pub-page" id="mcpTools" style="display:none">
+      <div class="pagehead"><h2>工具目录</h2><span class="sub" id="mcpToolSub"></span><span style="flex:1"></span>
+        <input class="input" id="mcpToolSearch" placeholder="按工具名 / 说明过滤…" style="width:220px"></div>
+      <div id="mcpToolGroups"></div>
+      <p class="pm-hint">权限口径：只读工具直接放行 · 写入工具须通过「写操作确认」 · 关闭某工具后客户端的工具列表立即移除该条目。<br>「允许 git 操作」总开关关闭时，git 组的两个写入工具对客户端不可见；授权范围收到「仅状态查询」时，只保留只读工具。</p>
+    </div>
+
+    <!-- 页 4：调用审计 -->
+    <div class="pub-page" id="mcpAudit" style="display:none">
+      <div class="pagehead"><h2>调用审计</h2><span class="sub" id="mcpAuditSub"></span><span style="flex:1"></span>
+        <button class="btn sm" onclick="toast('已导出 CSV（含参数摘要与结果）')">导出 CSV</button>
+        <button class="btn sm ghost" onclick="mcpAuditClear()">清空</button></div>
+      <div class="filters">
+        <select class="select" id="mcpFApi"><option>全部客户端</option><option>Cursor</option><option>ZCode</option><option>Claude Desktop</option><option>原型演示</option></select>
+        <select class="select" id="mcpFTool"><option>全部工具</option></select>
+        <select class="select" id="mcpFRes"><option>全部结果</option><option>成功</option><option>已确认</option><option>已拒绝</option><option>失败</option></select>
+      </div>
+      <div class="tblwrap">
+        <table class="tbl" id="mcpAuditTbl">
+          <tr><th>时间</th><th>客户端</th><th>工具</th><th>参数摘要</th><th>结果</th><th>耗时</th></tr>
+        </table>
+      </div>
+      <p class="pm-hint">审计日志本地保留 30 天 · 写入类调用记录参数摘要与变更范围，不记录令牌 · 拒绝记录同样留痕。</p>
+    </div>
+  </section>
+
   <!-- ======== 视图：设置 ======== -->
   <section class="view" id="view-settings">
     <div class="pagehead"><h2>设置</h2></div>
@@ -316,6 +426,11 @@
       <div class="srow"><label>博客园</label><div class="val"><span class="badge">未配置</span> · MetaWeblog API<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
       <div class="srow"><label>CSDN</label><div class="val"><span class="badge warn">token 失效</span> · 上次推送 401<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">更新凭据…</button></div></div>
       <div class="srow"><label>复制型平台</label><div class="val">知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布</div></div>
+    </div>
+    <div class="setting">
+      <h3>MCP 服务</h3><div class="sdesc">把文章库经本机 MCP 接口开放给 AI 客户端（Claude Desktop / Cursor / ZCode…），Bearer Token 鉴权，写入操作应用内确认</div>
+      <div class="srow"><label>服务状态</label><div class="val"><div class="row"><span class="mcp-dot run" id="mcpSetDot"></span><span id="mcpSetState">运行中 · 127.0.0.1:17891 · 2 个客户端在线 · 今日 23 次调用</span><button class="btn sm" style="margin-left:10px" onclick="gotoMcp()">配置…</button></div></div></div>
+      <div class="srow"><label>写操作确认</label><div class="val">已开启 · article_write、git_push 等写入工具调用时弹窗确认</div></div>
     </div>
     <div class="setting">
       <h3>关于</h3><div class="sdesc">Vox · 维声 0.1.0-preview.1 · 出品 码坊 CodeWF</div>
@@ -513,7 +628,7 @@ draft: true
 <script>
 const $=id=>document.getElementById(id);
 /* ---------- 视图切换 ---------- */
-const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','536 篇 · 全库浏览与筛选'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],settings:['设置']};
+const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','536 篇 · 全库浏览与筛选'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],mcp:['MCP 服务','本机 AI 接口 · 18 个工具 · 调用审计'],settings:['设置']};
 document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
   document.querySelectorAll('.nav .it').forEach(x=>x.classList.toggle('active',x===it));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+it.dataset.view));
@@ -1447,6 +1562,274 @@ renderMatrix();renderChecks();
   bar.addEventListener('pointerup', endDrag);
   bar.addEventListener('pointercancel', endDrag);
 })();
+
+
+/* ---------- MCP 服务：服务 / 客户端 / 工具目录 / 调用审计（参考 Vex MCP 原型） ---------- */
+var MCP={running:true,port:17891,token:'vox_9f3ac21e77b04d5c',confirm:true,gitOk:false,scope:'repo',calls:23,
+  clients:[{n:'Cursor',mode:'stdio 桥接',since:'14:32',calls:18},{n:'ZCode',mode:'HTTP',since:'15:04',calls:5}]};
+var MCP_TOOLS=[
+ {g:'文章',items:[
+  {n:'article_list',d:'列出文章（年月 / 分类 / 草稿筛选）',p:'ro',on:true},
+  {n:'article_read',d:'读取正文与 front matter 元数据',p:'ro',on:true},
+  {n:'article_search',d:'全文检索（标题 / slug / 正文）',p:'ro',on:true},
+  {n:'article_write',d:'写回正文，可指定章节范围（附 diff 预览）',p:'rw',on:true},
+  {n:'article_create',d:'新建文章，自动生成 slug 与同名 yml',p:'rw',on:true},
+  {n:'article_meta',d:'读写元数据（分类 / 标签 / 封面 / 草稿位）',p:'rw',on:true}]},
+ {g:'图片',items:[
+  {n:'image_list',d:'图片库清单（年月 / 被引用 / 孤儿筛选）',p:'ro',on:true},
+  {n:'image_usage',d:'查询图片被哪些文章引用',p:'ro',on:true},
+  {n:'image_import',d:'入库新图：网图下载 · 压缩 · 落位年月目录',p:'rw',on:true},
+  {n:'image_replace',d:'替换正文图片引用，旧档保留可回滚',p:'rw',on:false}]},
+ {g:'发布',items:[
+  {n:'publish_status',d:'各平台发布状态矩阵（含需更新原因）',p:'ro',on:true},
+  {n:'publish_check',d:'运行发布前检查并取回结果',p:'ro',on:true},
+  {n:'publish_article',d:'发布 / 更新到指定平台（公众号仅草稿箱）',p:'rw',on:true}]},
+ {g:'git',items:[
+  {n:'git_status',d:'变更清单 · 分支 · ahead/behind',p:'ro',on:true},
+  {n:'git_commit',d:'提交勾选的变更（复用自动 Summary）',p:'rw',on:true,lock:true},
+  {n:'git_push',d:'推送到远端，网站随之更新',p:'rw',on:true,lock:true}]},
+ {g:'系统',items:[
+  {n:'outline_read',d:'读取大纲结构（导图数据）',p:'ro',on:true},
+  {n:'stats_summary',d:'文章库统计（篇数 / 字数 / 图片 / 待发布）',p:'ro',on:true}]}
+];
+var MCP_AUDIT=[
+ {t:'15:21',cli:'Cursor',tool:'article_write',args:'2026/10/vex-mcp-ai-upgrade.md · §接入方式',res:'okc',resTxt:'已确认 · 写入完成',ms:'1.8s'},
+ {t:'15:18',cli:'ZCode',tool:'article_search',args:'关键词「NativeAOT Win7」',res:'ok',resTxt:'成功 · 3 篇命中',ms:'0.3s'},
+ {t:'15:04',cli:'ZCode',tool:'connect',args:'HTTP · 初始化握手',res:'ok',resTxt:'成功',ms:'0.2s'},
+ {t:'14:58',cli:'Cursor',tool:'image_import',args:'url → 2026/09/city-panorama.jpg',res:'deny',resTxt:'已拒绝（未确认）',ms:'0.9s'},
+ {t:'14:32',cli:'Cursor',tool:'connect',args:'stdio 桥接 · 初始化握手',res:'ok',resTxt:'成功',ms:'0.2s'},
+ {t:'14:30',cli:'Cursor',tool:'article_read',args:'2026/10/vex-mcp-ai-upgrade.md',res:'ok',resTxt:'成功',ms:'0.4s'},
+ {t:'14:05',cli:'Cursor',tool:'publish_status',args:'全库 37 篇',res:'ok',resTxt:'成功',ms:'0.6s'},
+ {t:'13:47',cli:'未知客户端',tool:'—',args:'Bearer 令牌无效',res:'err',resTxt:'失败 · 401',ms:'—'}
+];
+var MCP_CLIENTS={
+ claude:{name:'Claude Desktop',path:'%APPDATA%\\Claude\\claude_desktop_config.json（macOS：~/Library/Application Support/Claude/）',mode:'stdio'},
+ cursor:{name:'Cursor',path:'项目级 .cursor/mcp.json，或 Settings → MCP → Add Server（全局）',mode:'http'},
+ zcode:{name:'ZCode',path:'会话 MCP 配置（.zcode/mcp.json 或客户端设置 → MCP 服务器）',mode:'http'},
+ cherry:{name:'Cherry Studio',path:'设置 → MCP 服务器 → 添加（HTTP / SSE）',mode:'http'},
+ http:{name:'通用 HTTP',path:'任何支持 MCP Streamable HTTP 的客户端：端点 + Bearer 请求头',mode:'raw'}
+};
+var MCP_RESBADGE={ok:'ok',okc:'accent',deny:'warn',err:'danger'};
+function mcpEndpoint(){return 'http://127.0.0.1:'+MCP.port+'/mcp/';}
+function mcpAvailCount(){
+  var n=0;
+  MCP_TOOLS.forEach(function(g){g.items.forEach(function(it){
+    if(!it.on)return;
+    if(it.lock&&!MCP.gitOk)return;
+    if(MCP.scope==='status'&&it.p!=='ro')return;
+    if(MCP.scope==='articles'&&(g.g==='图片'||g.g==='git'))return;
+    n++;});});
+  return n;
+}
+function renderMcpState(){
+  var dot=MCP.running?'run':'off';
+  $('mcpDot').className='mcp-dot '+dot;
+  $('mcpStateTxt').textContent=MCP.running?'服务运行中':'服务已停止';
+  $('mcpEndpointTxt').textContent=MCP.running?mcpEndpoint():'—';
+  $('mcpEndpointRow').textContent=mcpEndpoint();
+  $('btnMcpRestart').textContent=MCP.running?'⟳ 重启服务':'▸ 启动服务';
+  $('btnMcpStop').disabled=!MCP.running;
+  var cliN=MCP.running?MCP.clients.length:0;
+  $('mcpHeadState').innerHTML=MCP.running
+    ?'运行中 · <b style="color:var(--ok)">'+mcpAvailCount()+'</b> 个工具 · '+cliN+' 个客户端在线 · 今日 '+MCP.calls+' 次调用'
+    :'<b style="color:var(--danger)">已停止</b> · 客户端无法连接';
+  $('mcpNavCnt').textContent=cliN;
+  $('btnTbMcp').classList.toggle('off',!MCP.running);
+  $('btnTbMcp').title=MCP.running?('MCP 服务（运行中 · '+cliN+' 个客户端在线）'):'MCP 服务（已停止）';
+  $('mcpSetDot').className='mcp-dot '+dot;
+  $('mcpSetState').textContent=MCP.running
+    ?('运行中 · 127.0.0.1:'+MCP.port+' · '+cliN+' 个客户端在线 · 今日 '+MCP.calls+' 次调用')
+    :'已停止 · 客户端无法连接';
+  renderMcpToolSub();
+}
+function renderMcpToolSub(){
+  var total=0;MCP_TOOLS.forEach(function(g){total+=g.items.length;});
+  $('mcpToolSub').textContent='共 '+total+' 个工具 · 客户端当前可见 '+mcpAvailCount()+' 个';
+}
+function renderMcpClients(){
+  var host=$('mcpCliList');
+  if(!MCP.running){host.innerHTML='<div class="note warn">服务已停止，无客户端在线。</div>';return;}
+  host.innerHTML=MCP.clients.map(function(c){
+    return '<div class="mcp-cli"><b>'+c.n+'</b><span class="badge ok">'+c.mode+'</span><span class="d">'+c.since+' 接入 · 今日 '+c.calls+' 次调用</span></div>';
+  }).join('');
+}
+function mcpClientCfg(k){
+  var c=MCP_CLIENTS[k],ep=mcpEndpoint();
+  if(c.mode==='stdio')return JSON.stringify({mcpServers:{vox:{command:'vox',args:['mcp','bridge','--endpoint',ep],env:{VOX_MCP_TOKEN:MCP.token}}}},null,2);
+  if(c.mode==='raw')return '端点\n  '+ep+'\n请求头\n  Authorization: Bearer '+MCP.token+'\n协议\n  MCP Streamable HTTP（JSON-RPC 2.0）';
+  return JSON.stringify({mcpServers:{vox:{url:ep,headers:{Authorization:'Bearer '+MCP.token}}}},null,2);
+}
+function renderMcpClient(){
+  var c=MCP_CLIENTS[mcpClientCur];
+  $('mcpClientPath').innerHTML='接入位置<span style="color:var(--faint);font-weight:400;font-size:.7692rem;margin-left:8px">'+esc(c.path)+'</span>';
+  $('mcpClientCfg').textContent=mcpClientCfg(mcpClientCur);
+}
+function mcpAuditAdd(cli,tool,args,res,resTxt,ms){
+  var d=new Date();
+  MCP_AUDIT.unshift({t:('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2),cli:cli,tool:tool,args:args,res:res,resTxt:resTxt,ms:ms});
+  MCP.calls++;renderMcpAudit();renderMcpState();
+}
+function renderMcpAudit(){
+  var fc=$('mcpFApi').value,ft=$('mcpFTool').value,fr=$('mcpFRes').value;
+  var resMap={'成功':'ok','已确认':'okc','已拒绝':'deny','失败':'err'};
+  var rows=MCP_AUDIT.filter(function(a){
+    if(fc!=='全部客户端'&&a.cli!==fc)return false;
+    if(ft!=='全部工具'&&a.tool!==ft)return false;
+    if(fr!=='全部结果'&&a.res!==resMap[fr])return false;
+    return true;});
+  var tb=$('mcpAuditTbl');
+  tb.querySelectorAll('tr').forEach(function(r,i){if(i>0)r.remove();});
+  rows.forEach(function(a){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td class="mono" style="font-size:.8077rem">'+a.t+'</td><td>'+esc(a.cli)+'</td><td><span class="tool-name">'+esc(a.tool)+'</span></td><td style="max-width:340px">'+esc(a.args)+'</td><td><span class="badge '+MCP_RESBADGE[a.res]+'">'+esc(a.resTxt)+'</span></td><td class="mono" style="font-size:.8077rem">'+a.ms+'</td>';
+    tb.appendChild(tr);
+  });
+  if(!rows.length){var tr=document.createElement('tr');tr.innerHTML='<td colspan="6" style="text-align:center;color:var(--faint);padding:22px">暂无匹配的审计记录</td>';tb.appendChild(tr);}
+  $('mcpAuditSub').textContent='共 '+MCP_AUDIT.length+' 条 · 今日 '+MCP.calls+' 次调用';
+}
+function mcpAuditClear(){
+  if(!confirm('清空全部审计记录？此操作不可撤销。'))return;
+  MCP_AUDIT=[];MCP.calls=0;renderMcpAudit();renderMcpState();toast('审计记录已清空');
+}
+function renderMcpTools(q){
+  q=(q||'').toLowerCase();
+  var host=$('mcpToolGroups');host.innerHTML='';
+  MCP_TOOLS.forEach(function(g){
+    var items=g.items.filter(function(it){return !q||(it.n+' '+it.d).toLowerCase().indexOf(q)>=0;});
+    if(!items.length)return;
+    var grp=document.createElement('div');grp.className='chgroup';
+    var gh=document.createElement('div');gh.className='gh';
+    gh.innerHTML='<b class="num">'+items.length+'</b><span>'+g.g+'</span>';
+    grp.appendChild(gh);
+    var tb=document.createElement('table');tb.className='tbl';
+    tb.innerHTML='<tr><th style="width:170px">工具</th><th>说明</th><th style="width:130px">权限</th><th style="width:60px"></th></tr>';
+    items.forEach(function(it){
+      var locked=it.lock&&!MCP.gitOk;
+      var tr=document.createElement('tr');tr.className='tool-row'+(locked?' locked':'');
+      tr.innerHTML='<td><span class="tool-name">'+it.n+'</span></td><td>'+esc(it.d)+(locked?'<span class="tool-note"> · 已随「允许 git 操作」总开关关闭</span>':'')+'</td>'
+        +'<td>'+(it.p==='ro'?'<span class="badge">只读</span>':'<span class="badge warn">写入 · 需确认</span>')+'</td>'
+        +'<td style="text-align:right"><span class="switch'+(it.on&&!locked?' on':'')+'" style="cursor:pointer"></span></td>';
+      tr.querySelector('.switch').onclick=function(){
+        if(locked){toast('先在「服务 → 安全」打开「允许 git 操作」');return;}
+        it.on=!it.on;this.classList.toggle('on',it.on);
+        toast(it.n+(it.on?' 已开放':' 已下线（客户端立即不可见）'));
+        renderMcpState();
+      };
+      tb.appendChild(tr);
+    });
+    grp.appendChild(tb);host.appendChild(grp);
+  });
+  if(!host.children.length)host.innerHTML='<div style="border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--faint)">没有匹配「'+esc(q)+'」的工具</div>';
+}
+function gotoMcp(){
+  closeSearch();
+  var it=document.querySelector('.nav .it[data-view="mcp"]');
+  if(it)it.click();
+}
+function mcpDemoGuard(){
+  if(!MCP.running){$('mcpReqBox').innerHTML='<div class="note warn">服务未启动，客户端无法调用。先在「服务」页启用。</div>';return false;}
+  return true;
+}
+function mcpDemoWriteResolve(ok){
+  $('mcpReqBox').innerHTML=ok?'<div class="note">已允许并写入完成 · 写作页可撤销（Ctrl+Z）</div>':'<div class="note warn">已拒绝本次写入</div>';
+  mcpAuditAdd('原型演示','article_write','2026/10/vex-mcp-ai-upgrade.md · §接入方式',ok?'okc':'deny',ok?'已确认 · 写入完成':'已拒绝（未确认）',ok?'1.8s':'0.1s');
+}
+/* 分页切换（与发布中心同款） */
+document.querySelectorAll('#mcpSeg button').forEach(function(b){b.onclick=function(){
+  document.querySelectorAll('#mcpSeg button').forEach(function(x){x.classList.toggle('active',x===b);});
+  var t=b.dataset.t;
+  $('mcpServer').style.display=t==='server'?'':'none';
+  $('mcpClients').style.display=t==='clients'?'':'none';
+  $('mcpTools').style.display=t==='tools'?'':'none';
+  $('mcpAudit').style.display=t==='audit'?'':'none';
+};});
+/* 启停 / 重启 */
+$('swMcp').addEventListener('click',function(){
+  MCP.running=this.classList.contains('on');
+  mcpAuditAdd('系统','—',MCP.running?'启动服务':'停止服务',MCP.running?'ok':'deny',MCP.running?'成功':'已停止','0.1s');
+  renderMcpState();renderMcpClients();
+  toast(MCP.running?'MCP 服务已启动：'+mcpEndpoint():'MCP 服务已停止，客户端连接已断开');
+});
+$('btnMcpStop').onclick=function(){if(MCP.running)$('swMcp').click();};
+$('btnMcpRestart').onclick=function(){
+  var p=parseInt($('mcpPort').value,10);
+  if(!(p>=1024&&p<=65535)){$('mcpPortHint').textContent='端口须为 1024–65535 的整数';$('mcpPortHint').style.color='var(--danger)';toast('端口无效，未重启');return;}
+  $('mcpPortHint').style.color='';$('mcpPortHint').textContent='1024–65535 · 重启后生效';
+  MCP.port=p;MCP.token=$('mcpToken').value.trim()||MCP.token;
+  var btn=this;btn.disabled=true;btn.textContent='正在重启…';
+  setTimeout(function(){btn.disabled=false;btn.textContent='⟳ 重启服务';MCP.running=true;
+    mcpAuditAdd('系统','—','重启服务','ok','成功 · '+mcpEndpoint(),'0.3s');
+    renderMcpState();renderMcpClient();toast('服务已重启：'+mcpEndpoint());},600);
+};
+/* 令牌与端点 */
+$('btnMcpTokenGen').onclick=function(){
+  MCP.token='vox_'+((window.crypto&&crypto.randomUUID)?crypto.randomUUID().replace(/-/g,''):Math.random().toString(16).slice(2)+Date.now().toString(16));
+  $('mcpToken').value=MCP.token;renderMcpClient();
+  toast('已生成新令牌 · 重启服务后生效，旧令牌随即失效');
+};
+$('btnMcpTokenShow').onclick=function(){var i=$('mcpToken');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'显示':'隐藏';};
+$('btnMcpTokenCopy').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText($('mcpToken').value);toast('已复制访问令牌');};
+$('btnMcpEpCopy').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(mcpEndpoint());toast('已复制端点地址');};
+/* 授权范围与安全开关 */
+document.querySelectorAll('input[name="mcpScope"]').forEach(function(r){r.onchange=function(){
+  MCP.scope=this.value;
+  var txt={repo:'整个内容仓库',articles:'仅文章与元数据（图片 / git 组工具已下线）',status:'仅状态查询（只保留只读工具）'}[this.value];
+  toast('授权范围：'+txt+' · 立即生效');
+  renderMcpState();
+};});
+$('swMcpConfirm').addEventListener('click',function(){
+  MCP.confirm=this.classList.contains('on');
+  toast(MCP.confirm?'写操作确认已开启':'写操作确认已关闭 · 写入工具将直接执行（谨慎）');
+});
+$('swMcpGit').addEventListener('click',function(){
+  MCP.gitOk=this.classList.contains('on');
+  toast(MCP.gitOk?'已开放 git_commit / git_push（仍逐次确认）':'git 写入工具已对客户端下线');
+  renderMcpTools($('mcpToolSearch').value);renderMcpState();
+});
+/* 客户端接入 */
+var mcpClientCur='claude';
+document.querySelectorAll('#mcpClientSeg button').forEach(function(b){b.onclick=function(){
+  document.querySelectorAll('#mcpClientSeg button').forEach(function(x){x.classList.toggle('active',x===b);});
+  mcpClientCur=b.dataset.c;renderMcpClient();
+};});
+$('btnMcpCfgCopy').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText($('mcpClientCfg').textContent);toast('已复制 '+MCP_CLIENTS[mcpClientCur].name+' 接入配置');};
+$('btnMcpTest').onclick=function(){
+  var out=$('mcpTestOut');out.style.color='';out.textContent='正在握手…';
+  setTimeout(function(){
+    if(!MCP.running){out.style.color='var(--danger)';out.textContent='连接失败：服务未启动';return;}
+    out.style.color='var(--ok)';out.textContent='连接成功 · '+mcpAvailCount()+' 个工具可见';
+    mcpAuditAdd(MCP_CLIENTS[mcpClientCur].name,'connect','测试连接','ok','成功','0.4s');
+  },500);
+};
+/* 模拟一次调用（走确认与审计链路） */
+$('btnDemoRead').onclick=function(){
+  if(!mcpDemoGuard())return;
+  $('mcpReqBox').innerHTML='<div class="mcp-req"><b>article_list · 返回（截取 2 / 37）</b><pre>'+esc(JSON.stringify({total:37,items:[{slug:'dotnet-native-aot-win7-skia-dependency',title:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',draft:false},{slug:'vex-mcp-ai-upgrade',title:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',draft:false}]},null,2))+'</pre></div>';
+  mcpAuditAdd('原型演示','article_list','keyword=空 · 返回 2/37','ok','成功 · 2 条','0.2s');
+};
+$('btnDemoWrite').onclick=function(){
+  if(!mcpDemoGuard())return;
+  if(!MCP.confirm){
+    $('mcpReqBox').innerHTML='<div class="note warn">已直接写入（写操作确认已关闭）· 建议保持确认开启</div>';
+    mcpAuditAdd('原型演示','article_write','2026/10/vex-mcp-ai-upgrade.md · §接入方式','okc','写入完成 · 未经确认','1.2s');
+    return;
+  }
+  $('mcpReqBox').innerHTML='<div class="mcp-req"><b>客户端请求写入：article_write</b>'
+    +'目标：2026/10/vex-mcp-ai-upgrade.md · §接入方式（+1 段 · 约 120 字）'
+    +'<pre>@@ §接入方式 @@\n+ 经 stdio 桥接接入 Claude Desktop 后，AI 可直接索引全库 37 篇文章…</pre>'
+    +'<div class="ops"><button class="btn sm" onclick="mcpDemoWriteResolve(0)">拒绝</button><button class="btn sm primary" onclick="mcpDemoWriteResolve(1)">允许本次写入</button></div></div>';
+};
+/* 审计过滤与工具过滤 */
+['mcpFApi','mcpFTool','mcpFRes'].forEach(function(id){$(id).onchange=renderMcpAudit;});
+(function(){
+  var sel=$('mcpFTool');
+  ['connect'].concat(MCP_TOOLS.reduce(function(a,g){return a.concat(g.items.map(function(it){return it.n;}));},[])).forEach(function(n){
+    var o=document.createElement('option');o.textContent=n;sel.appendChild(o);
+  });
+})();
+$('mcpToolSearch').oninput=function(){renderMcpTools(this.value);};
+$('btnTbMcp').onclick=function(e){e.stopPropagation();closeTbPops();gotoMcp();};
+renderMcpState();renderMcpClient();renderMcpClients();renderMcpTools('');renderMcpAudit();
 
 
 </script>
