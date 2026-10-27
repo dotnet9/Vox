@@ -62,8 +62,10 @@ public sealed class SettingsPage : UserControl
 
     private void BuildLayout()
     {
-        var scroll = new ScrollViewer { Padding = new Thickness(18) };
+        var scroll = new ScrollViewer { Padding = new Thickness(18), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         var host = new StackPanel { Spacing = 12, MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left };
+        // 原型 .setting 是 max-width: 860 的块级元素：左贴页面留白、满宽到 860，而不是按内容收缩
+        scroll.SizeChanged += (_, e) => host.Width = Math.Min(860, Math.Max(0, e.NewSize.Width - 36));
 
         var pageTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 2) };
         pageTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Label.Title");

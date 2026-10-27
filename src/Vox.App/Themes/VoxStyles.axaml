@@ -5,7 +5,8 @@
      ============================================================ -->
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ap="clr-namespace:Avalonia.Controls.Presenters;assembly=Avalonia.Controls">
+        xmlns:ap="clr-namespace:Avalonia.Controls.Presenters;assembly=Avalonia.Controls"
+        xmlns:conv="using:Avalonia.Data.Converters">
 
   <Styles.Resources>
     <FontFamily x:Key="VoxFontUi">Geist, Inter, $Default, Segoe UI, Microsoft YaHei UI</FontFamily>
@@ -30,16 +31,25 @@
                     CornerRadius="{TemplateBinding CornerRadius}"
                     Padding="{TemplateBinding Padding}"
                     MinWidth="1" MinHeight="1">
-              <ap:TextPresenter Name="PART_TextPresenter"
-                                Text="{TemplateBinding Text}"
-                                TextWrapping="{TemplateBinding TextWrapping}"
-                                PasswordChar="{TemplateBinding PasswordChar}"
-                                TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"
-                                CaretBrush="{TemplateBinding CaretBrush}"
-                                SelectionBrush="{TemplateBinding SelectionBrush}"
-                                SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
-                                Background="Transparent"
-                                VerticalAlignment="Center"/>
+              <Panel>
+                <ap:TextPresenter Name="PART_TextPresenter"
+                                  Text="{TemplateBinding Text}"
+                                  TextWrapping="{TemplateBinding TextWrapping}"
+                                  PasswordChar="{TemplateBinding PasswordChar}"
+                                  TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"
+                                  CaretBrush="{TemplateBinding CaretBrush}"
+                                  SelectionBrush="{TemplateBinding SelectionBrush}"
+                                  SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+                                  Background="Transparent"
+                                  VerticalAlignment="Center"/>
+                <TextBlock Name="PART_Watermark"
+                           Text="{TemplateBinding Watermark}"
+                           Foreground="{DynamicResource VoxFaint}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           IsHitTestVisible="False"
+                           IsVisible="{TemplateBinding Text, Converter={x:Static conv:StringConverters.IsNullOrEmpty}}"/>
+              </Panel>
             </Border>
           </ControlTemplate>
         </Setter>

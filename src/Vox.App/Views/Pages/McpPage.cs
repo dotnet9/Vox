@@ -940,28 +940,13 @@ public sealed class McpPage : UserControl
         Res(_toolSub, TextBlock.ForegroundProperty, "VoxFaint");
         pagehead.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { title, _toolSub } });
         _toolSearch.VerticalAlignment = VerticalAlignment.Center;
-        var searchPh = new TextBlock
-        {
-            FontSize = 11.5,
-            Margin = new Thickness(12, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            IsHitTestVisible = false,
-        };
-        searchPh[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Tools.Search");
-        Res(searchPh, TextBlock.ForegroundProperty, "VoxFaint");
-        void SyncSearchHint() => searchPh.IsVisible = string.IsNullOrEmpty(_toolSearch.Text);
+        _toolSearch[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Mcp.Tools.Search");
         _toolSearch.PropertyChanged += (_, e) =>
         {
-            if (e.Property != TextBox.TextProperty) return;
-            SyncSearchHint();
-            RefreshTools();
+            if (e.Property == TextBox.TextProperty) RefreshTools();
         };
         Grid.SetColumn(_toolSearch, 2);
         pagehead.Children.Add(_toolSearch);
-        // 占位层必须晚于输入框加入，否则被输入框底色盖住
-        Grid.SetColumn(searchPh, 2);
-        pagehead.Children.Add(searchPh);
-        SyncSearchHint();
         _toolsTab.Children.Add(pagehead);
 
         _toolsTab.Children.Add(_toolHost);

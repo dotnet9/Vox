@@ -154,6 +154,7 @@ public static class VoxTheme
         r["DataGridRowSelectedPointeroverBackground"] = Brush(p.Surface3);
         r["DataGridRowErrorBackground"] = Brush(p.DangerSoft);
         r["DataGridLineBrush"] = Brush(p.Line);
+        r["DataGridColumnHeaderForeground"] = Brush(p.Faint);
         r["DataGridColumnHeaderBackground"] = Brush(p.Surface2);
         r["DataGridColumnHeaderPointeroverBackground"] = Brush(p.Surface2);
         r["DataGridColumnHeaderPressedBackground"] = Brush(p.Surface3);

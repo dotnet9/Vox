@@ -1,8 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
+using CodeWF.Avalonia.DataGrid;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
 using Vox.App.Views;
@@ -17,7 +21,13 @@ public sealed class LibraryPage : UserControl
 {
     private readonly MainWindow _shell;
     private StackPanel _statsHost = new();
-    private StackPanel _tableHost = new();
+    private readonly DataGrid _libGrid = new();
+    private readonly TextBlock _libEmpty = new()
+    {
+        FontSize = 12,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        IsVisible = false,
+    };
     private readonly Controls.MiniSelect _yearFilter = new();
     private readonly Controls.MiniSelect _categoryFilter = new();
     private readonly Controls.MiniSelect _statusFilter = new();
@@ -55,8 +65,11 @@ public sealed class LibraryPage : UserControl
         _statsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         host.Children.Add(_statsHost);
 
-        // 筛选行
-        var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）
+        var filters = new DockPanel();
+        _search.Dock(Dock.Right);
+        filters.Children.Add(_search);
+        var selects = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var (select, allLabel) in new[]
                  {
                      (_yearFilter, T("Vox.Library.Filter.Year")), (_categoryFilter, T("Vox.Library.Filter.Category")),
@@ -66,10 +79,9 @@ public sealed class LibraryPage : UserControl
             select.Items = new[] { allLabel };
             select.Selected = allLabel;
             select.SelectionChanged += _ => { _page = 0; RebuildTable(); };
-            filters.Children.Add(select);
+            selects.Children.Add(select);
         }
-        filters.Children.Add(new Border { Width = 10 });
-        filters.Children.Add(_search);
+        filters.Children.Add(selects);
         _search.PropertyChanged += (_, e) =>
         {
             if (e.Property == TextBox.TextProperty)
@@ -80,13 +92,20 @@ public sealed class LibraryPage : UserControl
         };
         host.Children.Add(filters);
 
-        // 表格 + 分页脚
+        // 表格 + 分页脚（同一圆角容器，原型 .tblwrap 口径）
         var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
         Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
         Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
         tableWrap.BorderThickness = new Thickness(1);
-        _tableHost = new StackPanel();
-        tableWrap.Child = _tableHost;
+
+        ConfigureGrid();
+        var tableHost = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto") };
+        tableHost.Children.Add(_libGrid);
+        _libEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Library.Label.NoMatch");
+        _libEmpty.Margin = new Thickness(0, 22);
+        Grid.SetRow(_libEmpty, 1);
+        Res(_libEmpty, TextBlock.ForegroundProperty, "VoxFaint");
+        tableHost.Children.Add(_libEmpty);
 
         var foot = new Border { Padding = new Thickness(14, 9) };
         Res(foot, Border.BackgroundProperty, "VoxSurface2");
@@ -102,8 +121,13 @@ public sealed class LibraryPage : UserControl
         _footInfo.FontSize = 11;
         foot.Child = footRow;
 
-        var tableWithFoot = new StackPanel { Children = { tableWrap, foot } };
-        host.Children.Add(tableWithFoot);
+        tableWrap.Child = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            Children = { tableHost, foot },
+        };
+        Grid.SetRow(foot, 1);
+        host.Children.Add(tableWrap);
 
         scroll.Content = host;
         Content = scroll;
@@ -171,6 +195,10 @@ public sealed class LibraryPage : UserControl
         _categoryFilter.Items = new[] { T("Vox.Library.Filter.Category") }.Concat(categories).ToList();
         _statusFilter.Items = new[] { T("Vox.Library.Filter.Status"), T("Vox.Library.Badge.Published"), T("Vox.Library.Badge.Draft") };
         _platformFilter.Items = new[] { T("Vox.Library.Filter.Platform"), T("Vox.Library.Filter.Pending"), T("Vox.Library.Filter.Stale"), T("Vox.Library.Filter.Error") };
+        foreach (var filter in new[] { _yearFilter, _categoryFilter, _statusFilter, _platformFilter })
+        {
+            if (filter.Selected.Length == 0 || !filter.Items.Contains(filter.Selected)) filter.Selected = filter.Items[0];
+        }
     }
 
     private List<Article> Filtered()
@@ -199,51 +227,166 @@ public sealed class LibraryPage : UserControl
         return query.OrderByDescending(a => a.Meta.Date).ToList();
     }
 
+    private void ConfigureGrid()
+    {
+        _libGrid.AutoGenerateColumns = false;
+        _libGrid.CanUserSortColumns = false;
+        _libGrid.CanUserReorderColumns = false;
+        _libGrid.CanUserResizeColumns = false;
+        _libGrid.IsReadOnly = true;
+        _libGrid.SelectionMode = DataGridSelectionMode.Single;
+        _libGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
+        _libGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
+        _libGrid.FontSize = 12;
+        _libGrid.RowHeight = 36;
+        _libGrid.MinHeight = 0;
+        _libGrid.MaxHeight = 600;
+        _libGrid.BorderThickness = new Thickness(0);
+        _libGrid.CornerRadius = new CornerRadius(0);
+        Res(_libGrid, TemplatedControl.BackgroundProperty, "VoxSurface");
+
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Title"), new DataGridLength(1, DataGridLengthUnitType.Star), TitleCell));
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Date"), new DataGridLength(84), row => Cell(row.YearMonth, false)));
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Category"), new DataGridLength(110), row => Cell(string.Join("、", row.Article.Meta.Categories), true)));
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Tags"), new DataGridLength(150), row => Cell(string.Join(" · ", row.Article.Meta.Tags), true)));
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Words"), new DataGridLength(72), row => Cell(row.Article.WordCount.ToString("N0"), false)));
+        foreach (var (header, channel) in new[]
+                 {
+                     (T("Vox.Library.Column.Site"), PublishChannel.Site),
+                     (T("Vox.Library.Column.Wx"), PublishChannel.WeChat),
+                     (T("Vox.Library.Column.Cnb"), PublishChannel.Cnblogs),
+                     ("CSDN", PublishChannel.Csdn),
+                 })
+        {
+            _libGrid.Columns.Add(Column(header, new DataGridLength(70), row => StatusCell(row, channel)));
+        }
+        _libGrid.Columns.Add(Column(string.Empty, new DataGridLength(148), ActionCell));
+
+        _libGrid.EnableDefaults(enableSorting: false);
+        _libGrid.LoadingRow += (_, e) => e.Row.Cursor = new Cursor(StandardCursorType.Hand);
+        _libGrid.DoubleTapped += (_, e) =>
+        {
+            if (e.Source is Control control && control.FindAncestorOfType<DataGridRow>()?.DataContext is LibRowModel row)
+            {
+                e.Handled = true;
+                _ = EditAsync(row.Article);
+            }
+        };
+    }
+
+    private static DataGridTemplateColumn Column(string header, DataGridLength width, Func<LibRowModel, Control> cell)
+        => new()
+        {
+            Header = header,
+            Width = width,
+            CellTemplate = new FuncDataTemplate<LibRowModel>((row, _) => row is null ? new TextBlock() : cell(row)),
+        };
+
+    private static TextBlock Cell(string text, bool trim)
+    {
+        var block = new TextBlock
+        {
+            Text = text,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 4, 12, 4),
+            TextTrimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+        };
+        Res(block, TextBlock.ForegroundProperty, "VoxMuted");
+        return block;
+    }
+
+    private static Control TitleCell(LibRowModel row)
+    {
+        var title = new TextBlock
+        {
+            Text = string.IsNullOrEmpty(row.Article.Title) ? row.Article.Slug : row.Article.Title,
+            FontWeight = FontWeight.SemiBold,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        Res(title, TextBlock.ForegroundProperty, "VoxFg");
+        ToolTip.SetTip(title, title.Text);
+        if (!row.Article.IsDraft)
+        {
+            title.Margin = new Thickness(14, 4, 12, 4);
+            return title;
+        }
+
+        var badge = new Border
+        {
+            Classes = { "badge", "accent" },
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock { Text = T("Vox.Library.Badge.Draft"), FontSize = 10 },
+        };
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 4, 12, 4),
+            Children = { title, badge },
+        };
+    }
+
+    private Control StatusCell(LibRowModel row, PublishChannel channel)
+    {
+        var cell = new TextBlock
+        {
+            Text = "—",
+            Classes = { "pm-st" },
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
+        if (row.Row is not { } publish) return cell;
+
+        var (status, note) = publish.Channels[(int)channel];
+        cell.Text = StatusGlyph(status);
+        cell.Classes.Add(status switch
+        {
+            PublishStatus.Ok => "ok",
+            PublishStatus.Stale => "stale",
+            PublishStatus.Error => "err",
+            _ => "off",
+        });
+        ToolTip.SetTip(cell, TF("Vox.Library.Tip.ChannelStatus", ChannelName(channel), StatusText(status), note));
+        cell.PointerReleased += (_, e) =>
+        {
+            e.Handled = true;
+            _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
+        };
+        return cell;
+    }
+
+    private Control ActionCell(LibRowModel row)
+    {
+        var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Edit") };
+        edit.Click += async (_, _) => await EditAsync(row.Article);
+        var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Library.Action.Publish") };
+        publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 2, 12, 2),
+            Children = { edit, publish },
+        };
+    }
+
     private void RebuildTable()
     {
-        _tableHost.Children.Clear();
         var all = Filtered();
         var totalPages = Math.Max(1, (int)Math.Ceiling(all.Count / (double)PageSize));
         _page = Math.Clamp(_page, 0, totalPages - 1);
         var pageItems = all.Skip(_page * PageSize).Take(PageSize).ToList();
 
-        // 表头
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,90,110,150,70,44,44,44,44,120") };
-        foreach (var (text, index) in new[] { T("Vox.Library.Column.Title"), T("Vox.Library.Column.Date"), T("Vox.Library.Column.Category"), T("Vox.Library.Column.Tags"), T("Vox.Library.Column.Words"), T("Vox.Library.Column.Site"), T("Vox.Library.Column.Wx"), T("Vox.Library.Column.Cnb"), "CSDN", "" }.Select((t, i) => (t, i)))
-        {
-            var cell = new TextBlock { Text = text, FontSize = 10.5, FontWeight = FontWeight.SemiBold };
-            Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
-            if (index >= 5 && index < 9) cell.HorizontalAlignment = HorizontalAlignment.Center;
-            header.Children.Add(cell);
-            Grid.SetColumn(cell, index);
-        }
-        var headerBorder = new Border
-        {
-            Padding = new Thickness(14, 9),
-            Child = header,
-        };
-        Res(headerBorder, Border.BackgroundProperty, "VoxSurface2");
-        Res(headerBorder, Border.BorderBrushProperty, "VoxLine");
-        headerBorder.BorderThickness = new Thickness(0, 0, 0, 1);
-        _tableHost.Children.Add(headerBorder);
-
-        // 行
         var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
-        foreach (var article in pageItems)
-        {
-            var row = BuildRow(article, rows.GetValueOrDefault(article.MarkdownPath));
-            _tableHost.Children.Add(row);
-        }
-        if (pageItems.Count == 0)
-        {
-            var empty = new TextBlock
-            {
-                Text = T("Vox.Library.Label.NoMatch"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 24),
-            };
-            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
-            _tableHost.Children.Add(empty);
-        }
+        _libGrid.ItemsSource = pageItems.Select(a => new LibRowModel(a, rows.GetValueOrDefault(a.MarkdownPath))).ToList();
+        _libEmpty.IsVisible = pageItems.Count == 0;
 
         // 分页
         _footInfo.Text = all.Count == 0
@@ -273,86 +416,6 @@ public sealed class LibraryPage : UserControl
         return button;
     }
 
-    private Border BuildRow(Article article, ArticlePublishRow? row)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,90,110,150,70,44,44,44,44,120") };
-
-        var title = new TextBlock
-        {
-            Text = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
-            FontWeight = FontWeight.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis,
-        };
-        AddCell(grid, 0, title);
-
-        var meta = new TextBlock { Text = $"{article.Year}/{article.Month}", FontSize = 12 };
-        AddCell(grid, 1, meta);
-        AddCell(grid, 2, new TextBlock { Text = string.Join("、", article.Meta.Categories), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
-        AddCell(grid, 3, new TextBlock { Text = string.Join(" · ", article.Meta.Tags), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
-        AddCell(grid, 4, new TextBlock { Text = article.WordCount.ToString("N0"), FontSize = 12 });
-
-        // 平台状态列（site/wx/cnb/csdn）
-        for (var column = 0; column < 4; column++)
-        {
-            var channel = (PublishChannel)column;
-            var cell = new TextBlock
-            {
-                Text = "—",
-                Classes = { "pm-st" },
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-            if (row != null)
-            {
-                var (status, note) = row.Channels[column];
-                cell.Text = StatusGlyph(status);
-                cell.Classes.Add(status switch
-                {
-                    PublishStatus.Ok => "ok",
-                    PublishStatus.Stale => "stale",
-                    PublishStatus.Error => "err",
-                    _ => "off",
-                });
-                ToolTip.SetTip(cell, TF("Vox.Library.Tip.ChannelStatus", ChannelName(channel), StatusText(status), note));
-                var captured = article;
-                cell.PointerReleased += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, captured));
-            }
-            AddCell(grid, 5 + column, cell);
-        }
-
-        // 操作
-        var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
-        var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Edit") };
-        edit.Click += async (_, _) => await EditAsync(article);
-        var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Library.Action.Publish") };
-        publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, article));
-        ops.Children.Add(edit);
-        ops.Children.Add(publish);
-        AddCell(grid, 9, ops);
-
-        var rowBorder = new Border
-        {
-            Padding = new Thickness(14, 9),
-            Child = grid,
-            Cursor = new Cursor(StandardCursorType.Hand),
-        };
-        Res(rowBorder, Border.BorderBrushProperty, "VoxLine");
-        rowBorder.BorderThickness = new Thickness(0, 0, 0, 1);
-        rowBorder.PointerEntered += (_, _) => Res(rowBorder, Border.BackgroundProperty, "VoxSurface2");
-        rowBorder.PointerExited += (_, _) =>
-        {
-            rowBorder[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxSurface");
-        };
-        rowBorder.DoubleTapped += async (_, _) => await EditAsync(article);
-        return rowBorder;
-    }
-
-    private static void AddCell(Grid grid, int column, Control cell)
-    {
-        grid.Children.Add(cell);
-        Grid.SetColumn(cell, column);
-        cell.VerticalAlignment = VerticalAlignment.Center;
-        cell.Margin = new Thickness(column == 0 ? 0 : 8, 0, 0, 0);
-    }
-
     private async Task EditAsync(Article article)
     {
         _shell.ShowPage("write");
@@ -360,5 +423,12 @@ public sealed class LibraryPage : UserControl
         {
             await write.OpenArticleAsync(article);
         }
+    }
+
+    private sealed class LibRowModel(Article article, ArticlePublishRow? row)
+    {
+        public Article Article { get; } = article;
+        public ArticlePublishRow? Row { get; } = row;
+        public string YearMonth => $"{Article.Year}/{Article.Month}";
     }
 }

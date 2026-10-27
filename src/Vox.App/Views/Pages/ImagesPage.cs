@@ -31,6 +31,7 @@ public sealed class ImagesPage : UserControl
     private readonly WrapPanel _grid = new() { Orientation = Orientation.Horizontal };
     private readonly ScrollViewer _gridScroll = new();
     private readonly StackPanel _detailHost = new();
+    private Border? _detailPanel;
     private string? _selectedPath;
     private readonly Dictionary<string, Bitmap?> _thumbCache = new();
     private int _thumbGeneration;
@@ -73,15 +74,17 @@ public sealed class ImagesPage : UserControl
         _statsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         host.Children.Add(_statsHost);
 
-        // 筛选行
-        var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）
+        var filters = new DockPanel();
+        _search.Dock(Dock.Right);
+        filters.Children.Add(_search);
+        var selects = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var f in new[] { _yearFilter, _refFilter, _formatFilter })
         {
             f.SelectionChanged += _ => Rebuild();
-            filters.Children.Add(f);
+            selects.Children.Add(f);
         }
-        filters.Children.Add(new Border { Width = 10 });
-        filters.Children.Add(_search);
+        filters.Children.Add(selects);
         _search.PropertyChanged += (_, e) =>
         {
             if (e.Property == TextBox.TextProperty) Rebuild();
@@ -102,6 +105,8 @@ public sealed class ImagesPage : UserControl
         Res(detailBorder, Border.BackgroundProperty, "VoxSurface");
         Res(detailBorder, Border.BorderBrushProperty, "VoxLine");
         detailBorder.BorderThickness = new Thickness(1);
+        detailBorder.IsVisible = false;
+        _detailPanel = detailBorder;
         var body = new DockPanel { LastChildFill = true };
         body.Children.Add(detailBorder);
         DockPanel.SetDock(detailBorder, Dock.Right);
@@ -124,10 +129,11 @@ public sealed class ImagesPage : UserControl
     {
         var all = AppState.Instance.Scan?.Images ?? [];
         _statsHost.Children.Clear();
-        _statsHost.Children.Add(StatCard($"{all.Count}", T("Vox.Images.Stats.Total")));
-        _statsHost.Children.Add(StatCard($"{all.Count(i => i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
-        _statsHost.Children.Add(StatCard($"{all.Count(i => i.IsOrphan)}", T("Vox.Images.Stats.Orphan")));
+        var years = all.Count == 0 ? "—" : $"{all.Min(i => i.YearMonth)[..4]}–{all.Max(i => i.YearMonth)[..4]}";
+        _statsHost.Children.Add(StatCard($"{all.Count}", TF("Vox.Images.Stats.TotalSpan", years)));
         _statsHost.Children.Add(StatCard(FormatBytes(all.Sum(i => Math.Max(i.Bytes, 0))), T("Vox.Images.Stats.Bytes")));
+        _statsHost.Children.Add(StatCard($"{all.Count(i => i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
+        _statsHost.Children.Add(StatCard($"{all.Count(i => i.IsOrphan)}", T("Vox.Images.Stats.Orphan"), "VoxWarn"));
     }
 
     private void RebuildFilters()
@@ -138,6 +144,10 @@ public sealed class ImagesPage : UserControl
         _refFilter.Items = new[] { T("Vox.Images.Pick.RefState"), T("Vox.Images.Pick.Used"), T("Vox.Images.Pick.Orphan"), T("Vox.Images.Pick.Missing") };
         _formatFilter.Items = new[] { T("Vox.Images.Pick.Format") }
             .Concat(scan?.Images.Select(i => FormatOf(i.FileName)).Distinct().OrderBy(f => f).ToList() ?? []).ToList();
+        foreach (var filter in new[] { _yearFilter, _refFilter, _formatFilter })
+        {
+            if (filter.Selected.Length == 0 || !filter.Items.Contains(filter.Selected)) filter.Selected = filter.Items[0];
+        }
     }
 
     private IEnumerable<ImageAsset> Filtered()
@@ -213,8 +223,9 @@ public sealed class ImagesPage : UserControl
         };
         if (flag != null)
         {
-            var layer = new Panel { Children = { thumb.Child, flag } };
-            thumb.Child = layer;
+            var content = thumb.Child;
+            thumb.Child = null;
+            thumb.Child = new Panel { Children = { content, flag } };
         }
 
         var info = new StackPanel
@@ -330,9 +341,11 @@ public sealed class ImagesPage : UserControl
         if (image == null)
         {
             _detailHost.IsVisible = false;
+            if (_detailPanel != null) _detailPanel.IsVisible = false;
             return;
         }
         _detailHost.IsVisible = true;
+        if (_detailPanel != null) _detailPanel.IsVisible = true;
 
         // 预览
         var preview = new Border { Height = 150, CornerRadius = new CornerRadius(10), ClipToBounds = true, Child = BuildThumbVisual(image), Margin = new Thickness(0, 0, 0, 10) };
@@ -508,7 +521,7 @@ public sealed class ImagesPage : UserControl
             await write.OpenArticleAsync(article);
     }
 
-    private Border StatCard(string number, string label)
+    private Border StatCard(string number, string label, string? colorKey = null)
     {
         var card = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 12), MinWidth = 200 };
         Res(card, Border.BackgroundProperty, "VoxSurface");
@@ -516,11 +529,13 @@ public sealed class ImagesPage : UserControl
         card.BorderThickness = new Thickness(1);
         var labelBlock = new TextBlock { Text = label, FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0) };
         Res(labelBlock, TextBlock.ForegroundProperty, "VoxFaint");
+        var numberBlock = new TextBlock { Text = number, FontSize = 19, FontWeight = FontWeight.Bold };
+        if (colorKey != null) Res(numberBlock, TextBlock.ForegroundProperty, colorKey);
         card.Child = new StackPanel
         {
             Children =
             {
-                new TextBlock { Text = number, FontSize = 19, FontWeight = FontWeight.Bold },
+                numberBlock,
                 labelBlock,
             },
         };
