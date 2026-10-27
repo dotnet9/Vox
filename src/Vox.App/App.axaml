@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:markdownThemes="https://codewf.com"
+             xmlns:codewf="https://codewf.com"
              x:Class="Vox.App.App">
   <!-- AvaloniaEdit Simple 主题要求宿主提供三个字体令牌（Fluent 过去自带） -->
   <Application.Resources>
@@ -8,6 +9,9 @@
       <FontFamily x:Key="FontFamilyNormal">Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI, PingFang SC, Noto Sans SC</FontFamily>
       <x:Double x:Key="FontSizeNormal">14</x:Double>
       <FontWeight x:Key="FontWeightNormal">Normal</FontWeight>
+      <!-- DataGrid 排序箭头：Semi 主题里这两个键指向未随包的 SemiIcon 资源，这里直接给出几何 -->
+      <StreamGeometry x:Key="DataGridColumnHeaderAscendingGlyph">M0,5 L5,0 L10,5 Z</StreamGeometry>
+      <StreamGeometry x:Key="DataGridColumnHeaderDescendingGlyph">M0,0 L10,0 L5,5 Z</StreamGeometry>
     </ResourceDictionary>
   </Application.Resources>
 
@@ -20,5 +24,7 @@
     <markdownThemes:MarkdownFullThemes TypographyTheme="Simple"/>
     <!-- CodeWF.Avalonia.MindView 导图控件样式（MarkdownMindMapView 模板与点阵）。 -->
     <markdownThemes:MindViewThemes/>
+    <!-- DataGrid 的 Semi 主题入口（只注入 DataGrid 相关模板与调色板，不影响 Arc 其它控件）。 -->
+    <codewf:DataGridSemiTheme/>
   </Application.Styles>
 </Application>

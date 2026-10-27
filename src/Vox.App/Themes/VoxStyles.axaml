@@ -675,4 +675,52 @@
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="LineHeight" Value="18"/>
   </Style>
+
+  <!-- ══════════ 数据表格：CodeWF Semi 主题之上套原型 .tbl 口径 ══════════ -->
+  <Style Selector="DataGrid">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource VoxFontUi}"/>
+    <Setter Property="RowBackground" Value="Transparent"/>
+    <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+  <Style Selector="DataGridColumnHeader">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFaint}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Padding" Value="14,9"/>
+    <Setter Property="MinHeight" Value="34"/>
+  </Style>
+  <!-- Semi 主题的悬停/按下底色与 Vox 画刷不一致，这里压平 -->
+  <Style Selector="DataGridColumnHeader:pointerover /template/ Border#HeaderBackground">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="DataGridColumnHeader:pressed /template/ Border#HeaderBackground">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="DataGridRow /template/ Border#BackgroundBorder">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="DataGridRow:pointerover /template/ Border#BackgroundBorder">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="DataGridRow:selected /template/ Border#BackgroundBorder">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="DataGridRow:selected:pointerover /template/ Border#BackgroundBorder">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="DataGridRow /template/ Rectangle#PART_BottomGridLine">
+    <Setter Property="Fill" Value="{DynamicResource VoxLine}"/>
+  </Style>
+  <Style Selector="DataGridCell">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="DataGridCell:current /template/ Rectangle#CurrencyVisual">
+    <Setter Property="IsVisible" Value="False"/>
+  </Style>
 </Styles>

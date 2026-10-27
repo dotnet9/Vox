@@ -18,6 +18,7 @@
     <PackageReference Include="TKCode.Arc.Icons.Lucide" />
     <PackageReference Include="CodeWF.Toolkit.Lang" />
     <PackageReference Include="CodeWF.Avalonia.Lang" />
+    <PackageReference Include="CodeWF.Avalonia.DataGrid" />
     <PackageReference Include="CodeWF.Avalonia.Markdown" />
     <PackageReference Include="CodeWF.Avalonia.MindView" />
     <PackageReference Include="CommunityToolkit.Mvvm" />

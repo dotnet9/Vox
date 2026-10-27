@@ -17,6 +17,7 @@
     <PackageVersion Include="TKCode.Arc.Icons.Lucide" Version="$(ArcVersion)" />
     <PackageVersion Include="CodeWF.Toolkit.Lang" Version="1.1.0" />
     <PackageVersion Include="CodeWF.Avalonia.Lang" Version="$(CodeWfLangVersion)" />
+    <PackageVersion Include="CodeWF.Avalonia.DataGrid" Version="12.2.20" />
     <PackageVersion Include="CodeWF.Avalonia.Markdown" Version="12.2.18" />
     <PackageVersion Include="CodeWF.Avalonia.MindView" Version="12.2.18" />
     <PackageVersion Include="CodeWF.Avalonia.Lang.Generator" Version="$(CodeWfLangVersion)" />

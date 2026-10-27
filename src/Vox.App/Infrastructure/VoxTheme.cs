@@ -147,6 +147,18 @@ public static class VoxTheme
         r["VoxDangerSoft"] = Brush(p.DangerSoft);
         r["VoxAccent"] = Brush(accent);
         r["VoxAccentSoft"] = Brush(HexSoft(accent));
+        // DataGrid 的 Semi 主题默认蓝调，这里把悬停/选中/分隔线接到 Vox 画刷
+        r["DataGridRowBackground"] = Brushes.Transparent;
+        r["DataGridRowPointeroverBackground"] = Brush(p.Surface2);
+        r["DataGridRowSelectedBackground"] = Brush(p.Surface2);
+        r["DataGridRowSelectedPointeroverBackground"] = Brush(p.Surface3);
+        r["DataGridRowErrorBackground"] = Brush(p.DangerSoft);
+        r["DataGridLineBrush"] = Brush(p.Line);
+        r["DataGridColumnHeaderBackground"] = Brush(p.Surface2);
+        r["DataGridColumnHeaderPointeroverBackground"] = Brush(p.Surface2);
+        r["DataGridColumnHeaderPressedBackground"] = Brush(p.Surface3);
+        r["DataGridCellCurrentBorderBrush"] = Brushes.Transparent;
+        r["DataGridCellFocusBorderBrush"] = Brushes.Transparent;
         r["VoxOnAccent"] = Brush("#FFFFFF");
         r["VoxMaskBg"] = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
         r["VoxTransparent"] = Brushes.Transparent;
