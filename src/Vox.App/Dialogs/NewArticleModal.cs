@@ -19,7 +19,11 @@ public sealed class NewArticleModal : Border
     private readonly string _repoRoot;
     private readonly Func<ScaffoldedArticle, Task> _onCreated;
 
-    private readonly StackPanel _stepsBar = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
+    private readonly Grid _stepsBar = new()
+    {
+        ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
+        Margin = new Thickness(0, 0, 0, 14),
+    };
     private readonly Border[] _stepPages = new Border[4];
     private readonly TextBox _titleInput = Modal.Input();
     private readonly TextBox _slugInput = Modal.Input("new-article-slug", mono: true);
@@ -52,8 +56,9 @@ public sealed class NewArticleModal : Border
         // 步骤条
         for (var i = 0; i < 4; i++)
         {
-            var bar = new Border { Height = 4, CornerRadius = new CornerRadius(99) };
+            var bar = new Border { Height = 4, CornerRadius = new CornerRadius(99), Margin = new Thickness(0, 0, i < 3 ? 6 : 0, 0) };
             WritePage.Res(bar, Border.BackgroundProperty, "VoxSurface3");
+            Grid.SetColumn(bar, i);
             _stepsBar.Children.Add(bar);
         }
 

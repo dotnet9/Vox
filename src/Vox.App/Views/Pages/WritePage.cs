@@ -1985,12 +1985,15 @@ public sealed class WritePage : UserControl
             _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
             return;
         }
-        _shell.ShowModal(new ImageIntakeModal(_shell, _repoRoot, _current, AppState.Instance.Settings.Link, relative =>
+        _shell.ShowModal(new ImageIntakeModal(_shell, _repoRoot, _current, AppState.Instance.Settings.Link, (relative, useCdn) =>
         {
             var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot!, _current.MarkdownPath))!;
             var articleRelative = FixOps.ToArticleRelative(mdDir, _repoRoot!, relative);
+            var src = useCdn
+                ? LinkStrategy.ToCdnUrl(relative, AppState.Instance.Settings.Link.CdnBase, _repoRoot)
+                : articleRelative;
             Editor.Document.Insert(Editor.TextArea.Caret.Offset,
-                $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})");
+                $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({src})");
             SaveCurrent(silent: true);
         }));
     }
@@ -1999,13 +2002,16 @@ public sealed class WritePage : UserControl
     public Article? CurrentArticle => _current;
 
     /// <summary>把图片按正文相对路径插入当前光标处（图片库详情面板调用）；没有打开文章时返回 false。</summary>
-    public bool InsertImageMarkdown(string imageRelativePath)
+    public bool InsertImageMarkdown(string imageRelativePath, bool useCdn = false)
     {
         if (_current == null || _repoRoot == null) return false;
         var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath))!;
         var articleRelative = FixOps.ToArticleRelative(mdDir, _repoRoot, imageRelativePath);
+        var src = useCdn
+            ? LinkStrategy.ToCdnUrl(imageRelativePath, AppState.Instance.Settings.Link.CdnBase, _repoRoot)
+            : articleRelative;
         Editor.Document.Insert(Editor.TextArea.Caret.Offset,
-            $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})");
+            $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({src})");
         SaveCurrent(silent: true);
         return true;
     }

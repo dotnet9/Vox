@@ -480,11 +480,11 @@ public sealed class ImagesPage : UserControl
         var root = AppState.Instance.CurrentRepoRoot;
         if (root == null) return;
         var write = _shell.CachedWritePage;
-        _shell.ShowModal(new ImageIntakeModal(_shell, root, write?.CurrentArticle, AppState.Instance.Settings.Link, relative =>
+        _shell.ShowModal(new ImageIntakeModal(_shell, root, write?.CurrentArticle, AppState.Instance.Settings.Link, (relative, useCdn) =>
         {
             // 扫描完成的通知已排队，这里先钉住选中项，重扫后详情面板直接打开这张新图。
             _selectedPath = relative;
-            if (write?.CurrentArticle != null) write.InsertImageMarkdown(relative);
+            if (write?.CurrentArticle != null) write.InsertImageMarkdown(relative, useCdn);
         }));
     }
 

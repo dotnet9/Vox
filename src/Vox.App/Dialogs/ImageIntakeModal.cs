@@ -21,18 +21,21 @@ public sealed class ImageIntakeModal : Border
     private readonly string _repoRoot;
     private readonly Article? _article;
     private readonly LinkOptions _link;
-    private readonly Action<string> _onInserted;
+    private readonly Action<string, bool> _onInserted;
 
     private readonly TextBox _nameInput;
     private readonly TextBox _dirInput;
-    private readonly RadioButton _relativeChoice = new() { IsChecked = true };
-    private readonly RadioButton _cdnChoice = new();
     private readonly ToggleButton _coverSwitch = new() { Classes = { "vswitch" } };
+    private readonly TextBlock _relativeExample = new();
+    private readonly TextBlock _cdnExample = new();
+    private Border? _relativeRow;
+    private Border? _cdnRow;
+    private bool _useCdn;
     private string? _pickedSource;
     private readonly TextBlock _dropText = new();
 
     /// <summary>article 为 null 时是图片库的独立入库：目录默认当年当月、不写封面、插入动作交给回调。</summary>
-    public ImageIntakeModal(MainWindow shell, string repoRoot, Article? article, LinkOptions link, Action<string> onInserted)
+    public ImageIntakeModal(MainWindow shell, string repoRoot, Article? article, LinkOptions link, Action<string, bool> onInserted)
     {
         _shell = shell;
         _repoRoot = repoRoot;
@@ -99,14 +102,15 @@ public sealed class ImageIntakeModal : Border
         if (article != null)
         {
             body.Children.Add(BoundLabel("Vox.Image.Label.LinkForm"));
-            var choices = new StackPanel { Spacing = 8 };
-            _relativeChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Relative");
-            _cdnChoice[!ContentControl.ContentProperty] = I18n.Bind("Vox.Image.Label.Cdn");
-            _relativeChoice.Classes.Add("vcheck");
-            _cdnChoice.Classes.Add("vcheck");
-            choices.Children.Add(_relativeChoice);
-            choices.Children.Add(_cdnChoice);
-            body.Children.Add(choices);
+            var rows = new StackPanel { Spacing = 6 };
+            _relativeRow = LinkRow("Vox.Image.Label.Relative", _relativeExample, cdn: false);
+            _cdnRow = LinkRow("Vox.Image.Label.Cdn", _cdnExample, cdn: true);
+            rows.Children.Add(_relativeRow);
+            rows.Children.Add(_cdnRow);
+            body.Children.Add(rows);
+            _nameInput.TextChanged += (_, _) => RefreshLinkRows();
+            _dirInput.TextChanged += (_, _) => RefreshLinkRows();
+            RefreshLinkRows();
         }
 
         // 设为封面（独立入库没有可写回的文章）
@@ -137,6 +141,72 @@ public sealed class ImageIntakeModal : Border
         var label = Modal.Label(string.Empty);
         label[!TextBlock.TextProperty] = I18n.Bind(key);
         return label;
+    }
+
+    private Border LinkRow(string titleKey, TextBlock example, bool cdn)
+    {
+        var title = new TextBlock { FontSize = 11.5, FontWeight = FontWeight.SemiBold };
+        title[!TextBlock.TextProperty] = I18n.Bind(titleKey);
+        example.FontSize = 10.5;
+        example.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        example.TextWrapping = TextWrapping.Wrap;
+        WritePage.Res(example, TextBlock.ForegroundProperty, "VoxMuted");
+
+        var dot = new Border { Width = 14, Height = 14, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1.5), VerticalAlignment = VerticalAlignment.Center };
+        WritePage.Res(dot, Border.BorderBrushProperty, "VoxLineStrong");
+        dot.Background = Brushes.Transparent;
+
+        var row = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 8),
+            BorderThickness = new Thickness(1),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 9,
+                Children = { dot, new StackPanel { Spacing = 1, Children = { title, example } } },
+            },
+        };
+        row.PointerReleased += (_, _) =>
+        {
+            _useCdn = cdn;
+            RefreshLinkRows();
+        };
+        return row;
+    }
+
+    /// <summary>选项行选中态直接落到本地值：圆点填充 + accent-soft 底。</summary>
+    private void RefreshLinkRows()
+    {
+        if (_relativeRow == null || _cdnRow == null) return;
+        var dir = (_dirInput.Text ?? string.Empty).Trim().Trim('/').Replace("\\", "/");
+        var name = Path.GetFileName(_nameInput.Text?.Trim() is { Length: > 0 } n ? n : "image.png");
+        var relative = $"{dir}/{name}".TrimStart('/');
+        _relativeExample.Text = $"![]({relative})";
+        _cdnExample.Text = $"![]({LinkStrategy.ToCdnUrl(relative, _link.CdnBase, _link.RepoRoot)})";
+        StyleLinkRow(_relativeRow, !_useCdn);
+        StyleLinkRow(_cdnRow, _useCdn);
+    }
+
+    private static void StyleLinkRow(Border row, bool selected)
+    {
+        WritePage.Res(row, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
+        WritePage.Res(row, Border.BackgroundProperty, selected ? "VoxAccentSoft" : "VoxSurface");
+        if (row.Child is StackPanel { Children: [Border dot, _] })
+        {
+            if (selected)
+            {
+                WritePage.Res(dot, Border.BackgroundProperty, "VoxAccent");
+                WritePage.Res(dot, Border.BorderBrushProperty, "VoxAccent");
+            }
+            else
+            {
+                dot.Background = Brushes.Transparent;
+                WritePage.Res(dot, Border.BorderBrushProperty, "VoxLineStrong");
+            }
+        }
     }
 
     private void DropHandlers(Border drop)
@@ -230,7 +300,7 @@ public sealed class ImageIntakeModal : Border
             Services.PublishHub.Invalidate();
             _shell.CloseModal();
             _shell.ShowToast(TF("Vox.Image.Msg.Done", repoRelative));
-            _onInserted(repoRelative);
+            _onInserted(repoRelative, _useCdn);
         }
         catch (Exception ex)
         {
