@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using AvaloniaEdit;
 using CodeWF.Avalonia.Markdown.Controls;
@@ -48,6 +49,7 @@ public sealed class WritePage : UserControl
 
     // 中列（源码卡 | 预览卡 | 导图卡）
     private readonly MarkdownEditorView _editorView = new();
+    private readonly ThemeVariantScope _editorScope = new();
     private TextEditor Editor => _editorView.Editor;
     private readonly MarkdownViewer _preview = new();
     private readonly ScrollViewer _previewScroll = new();
@@ -158,6 +160,7 @@ public sealed class WritePage : UserControl
         {
             ApplyAutoSaveMode();
             ApplyAiChrome();
+            ApplyEditorTheme();
         });
         AttachedToVisualTree += (_, _) =>
         {
@@ -198,6 +201,7 @@ public sealed class WritePage : UserControl
         _preview.ParagraphFontSize = Math.Clamp(settings.MarkdownSize, 12, 22);
         _preview.ParagraphLineHeight = Math.Round(_preview.ParagraphFontSize * 1.8);
         UpdateTypoLabel();
+        ApplyEditorTheme();
 
         AttachedToVisualTree += (_, _) => OnRepoReady();
         AppState.Instance.ScanChanged += () => Dispatcher.UIThread.Post(() =>
@@ -522,9 +526,10 @@ public sealed class WritePage : UserControl
         // 对编辑器视图施加圆角几何裁剪（半径 = 卡片圆角 - 1px 边框内缩），四角弧线完整可见。
         ApplyEditorCornerClip();
         _editorView.SizeChanged += (_, _) => ApplyEditorCornerClip();
+        _editorScope.Child = _editorView;
         BuildSaveStatePill();
         BuildAiTrigger();
-        _srcCard = Card(new Panel { Children = { _editorView, _savePill, _aiBtn, BuildAiPopup() } }, new Thickness(2, 10, 2, 10));
+        _srcCard = Card(new Panel { Children = { _editorScope, _savePill, _aiBtn, BuildAiPopup() } }, new Thickness(2, 10, 2, 10));
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
@@ -1386,6 +1391,11 @@ public sealed class WritePage : UserControl
         if (!enabled && _aiPop != null) _aiPop.IsVisible = false;
     }
 
+    /// <summary>编辑器的调色板按 ThemeVariant 解析，而 Vox 只换资源不切变体——这里给控件本身钉住明暗，
+    /// 否则系统/应用变体缺省为 Light，暗色主题下编辑器仍是白底。</summary>
+    private void ApplyEditorTheme() =>
+        _editorScope.RequestedThemeVariant = AppState.Instance.Settings.IsDark == true ? ThemeVariant.Dark : ThemeVariant.Light;
+
     private Border BuildAiPopup()
     {
         var head = new DockPanel();
@@ -1981,6 +1991,18 @@ public sealed class WritePage : UserControl
                 $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})");
             SaveCurrent(silent: true);
         }));
+    }
+
+    /// <summary>把图片按正文相对路径插入当前光标处（图片库详情面板调用）；没有打开文章时返回 false。</summary>
+    public bool InsertImageMarkdown(string imageRelativePath)
+    {
+        if (_current == null || _repoRoot == null) return false;
+        var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath))!;
+        var articleRelative = FixOps.ToArticleRelative(mdDir, _repoRoot, imageRelativePath);
+        Editor.Document.Insert(Editor.TextArea.Caret.Offset,
+            $"![{Path.GetFileNameWithoutExtension(articleRelative)}]({articleRelative})");
+        SaveCurrent(silent: true);
+        return true;
     }
 
     public void OpenPublishDialog()

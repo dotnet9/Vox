@@ -126,11 +126,20 @@ public class RepoScannerTests
             var betaPic = scan.FindImage("2026/10/beta-pic.jpg")!;
             Assert.False(betaPic.IsOrphan);
             Assert.Single(scan.SiteFiles);
+            Assert.Equal("2026-09", cover.YearMonth); // 年/月 归档目录优先
+            Assert.Equal("2026-10", missing.YearMonth); // 死链仍按引用路径归月
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void ImageAsset_year_month_falls_back_to_file_time_outside_archive_folders()
+    {
+        Assert.Equal("2025-03", new ImageAsset { RelativePath = "cover.png", Modified = new DateTime(2025, 3, 8, 10, 0, 0) }.YearMonth);
+        Assert.Equal(string.Empty, new ImageAsset { RelativePath = "cover.png", Bytes = -1 }.YearMonth);
     }
 }
 

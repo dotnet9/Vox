@@ -142,6 +142,7 @@ public static class RepoScanner
             {
                 RelativePath = PathText.ToForwardSlashes(Path.GetRelativePath(repoRoot, image)),
                 Bytes = file.Length,
+                Modified = file.LastWriteTime,
             });
         }
 

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -31,6 +32,8 @@ public sealed class ImagesPage : UserControl
     private readonly WrapPanel _grid = new() { Orientation = Orientation.Horizontal };
     private readonly ScrollViewer _gridScroll = new();
     private readonly StackPanel _detailHost = new();
+    private readonly TextBlock _footer = new() { FontSize = 11 };
+    private readonly Button _cleanOrphans = new() { Classes = { "btn", "danger" } };
     private Border? _detailPanel;
     private string? _selectedPath;
     private readonly Dictionary<string, Bitmap?> _thumbCache = new();
@@ -64,10 +67,9 @@ public sealed class ImagesPage : UserControl
         var subtitle = new TextBlock { Text = T("Vox.Images.Subtitle"), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 2, 0, 0) };
         Res(subtitle, TextBlock.ForegroundProperty, "VoxFaint");
         head.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { title, subtitle } });
-        var clean = new Button { Classes = { "btn", "sm" }, Content = T("Vox.Images.Action.CleanOrphans") };
-        clean.Click += (_, _) => CleanOrphans();
-        head.Children.Add(clean);
-        DockPanel.SetDock(clean, Dock.Right);
+        _cleanOrphans.Click += (_, _) => CleanOrphans();
+        head.Children.Add(_cleanOrphans);
+        DockPanel.SetDock(_cleanOrphans, Dock.Right);
         host.Children.Add(head);
 
         // 统计条（4 卡）
@@ -113,6 +115,18 @@ public sealed class ImagesPage : UserControl
         body.Children.Add(_gridScroll);
         host.Children.Add(body);
 
+        var foot = new Border
+        {
+            CornerRadius = new CornerRadius(10),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(14, 9),
+            Margin = new Thickness(0, 10, 0, 0),
+            Child = _footer,
+        };
+        Res(foot, Border.BorderBrushProperty, "VoxLine");
+        Res(_footer, TextBlock.ForegroundProperty, "VoxFaint");
+        host.Children.Add(foot);
+
         scroll.Content = host;
         Content = scroll;
     }
@@ -129,17 +143,19 @@ public sealed class ImagesPage : UserControl
     {
         var all = AppState.Instance.Scan?.Images ?? [];
         _statsHost.Children.Clear();
-        var years = all.Count == 0 ? "—" : $"{all.Min(i => i.YearMonth)[..4]}–{all.Max(i => i.YearMonth)[..4]}";
-        _statsHost.Children.Add(StatCard($"{all.Count}", TF("Vox.Images.Stats.TotalSpan", years)));
+        var years = all.Select(i => i.YearMonth).Where(m => m.Length >= 4).Select(m => m[..4]).Distinct().OrderBy(y => y).ToList();
+        var span = years.Count == 0 ? null : years.Count == 1 ? years[0] : $"{years[0]}–{years[^1]}";
+        _statsHost.Children.Add(StatCard($"{all.Count}", span == null ? T("Vox.Images.Stats.Total") : TF("Vox.Images.Stats.TotalSpan", span)));
         _statsHost.Children.Add(StatCard(FormatBytes(all.Sum(i => Math.Max(i.Bytes, 0))), T("Vox.Images.Stats.Bytes")));
-        _statsHost.Children.Add(StatCard($"{all.Count(i => i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
+        _statsHost.Children.Add(StatCard($"{all.Count(i => !i.IsMissing && i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => i.IsOrphan)}", T("Vox.Images.Stats.Orphan"), "VoxWarn"));
+        _cleanOrphans.Content = $"{T("Vox.Images.Action.CleanOrphans")} {all.Count(i => i.IsOrphan)}";
     }
 
     private void RebuildFilters()
     {
         var scan = AppState.Instance.Scan;
-        var years = scan?.Images.Select(i => i.YearMonth[..^3]).Distinct().OrderByDescending(y => y).ToList() ?? [];
+        var years = scan?.Images.Select(i => i.YearMonth).Where(m => m.Length >= 4).Select(m => m[..4]).Distinct().OrderByDescending(y => y).ToList() ?? [];
         _yearFilter.Items = new[] { T("Vox.Images.Pick.Year") }.Concat(years).ToList();
         _refFilter.Items = new[] { T("Vox.Images.Pick.RefState"), T("Vox.Images.Pick.Used"), T("Vox.Images.Pick.Orphan"), T("Vox.Images.Pick.Missing") };
         _formatFilter.Items = new[] { T("Vox.Images.Pick.Format") }
@@ -156,8 +172,8 @@ public sealed class ImagesPage : UserControl
         if (scan == null) return [];
 
         IEnumerable<ImageAsset> query = scan.Images;
-        if (_yearFilter.Selected is { Length: > 0 } year && year != T("Vox.Images.Pick.Year")) query = query.Where(i => i.RelativePath.StartsWith(year + "/"));
-        if (_refFilter.Selected == T("Vox.Images.Pick.Used")) query = query.Where(i => i.ReferencedBy.Count > 0);
+        if (_yearFilter.Selected is { Length: > 0 } year && year != T("Vox.Images.Pick.Year")) query = query.Where(i => i.YearMonth.StartsWith(year, StringComparison.Ordinal));
+        if (_refFilter.Selected == T("Vox.Images.Pick.Used")) query = query.Where(i => !i.IsMissing && i.ReferencedBy.Count > 0);
         if (_refFilter.Selected == T("Vox.Images.Pick.Orphan")) query = query.Where(i => i.IsOrphan);
         if (_refFilter.Selected == T("Vox.Images.Pick.Missing")) query = query.Where(i => i.IsMissing);
         if (_formatFilter.Selected is { Length: > 0 } fmt && fmt != T("Vox.Images.Pick.Format")) query = query.Where(i => FormatOf(i.FileName) == fmt);
@@ -176,11 +192,13 @@ public sealed class ImagesPage : UserControl
         _grid.Children.Clear();
         var selectionAlive = false;
 
-        foreach (var image in Filtered())
+        var items = Filtered().ToList();
+        foreach (var image in items)
         {
             if (_selectedPath == image.RelativePath) selectionAlive = true;
             _grid.Children.Add(BuildCard(image));
         }
+        _footer.Text = TF("Vox.Images.Stats.Footer", items.Count, AppState.Instance.Scan?.Images.Count ?? 0);
 
         if (_thumbCache.Count > 600) _thumbCache.Clear(); // 粗略上限：防止长会话内存膨胀
         _ = DecodeThumbsAsync(_thumbGeneration);
@@ -228,6 +246,10 @@ public sealed class ImagesPage : UserControl
             thumb.Child = new Panel { Children = { content, flag } };
         }
 
+        var refsLabel = image.ReferencedBy.Count > 0 ? TF("Vox.Images.Label.Refs", image.ReferencedBy.Count) : T("Vox.Images.Pick.Orphan");
+        var metaLine = image.IsMissing
+            ? T("Vox.Images.Badge.Missing")
+            : string.Join(" · ", new[] { image.YearMonth, FormatBytes(image.Bytes), refsLabel }.Where(s => s.Length > 0));
         var info = new StackPanel
         {
             Margin = new Thickness(8, 6),
@@ -237,9 +259,7 @@ public sealed class ImagesPage : UserControl
                 new TextBlock
                 {
                     FontSize = 9.5,
-                    Text = image.IsMissing
-                        ? T("Vox.Images.Badge.Missing")
-                        : $"{image.YearMonth} · {FormatBytes(image.Bytes)} · {(image.ReferencedBy.Count > 0 ? TF("Vox.Images.Label.Refs", image.ReferencedBy.Count) : T("Vox.Images.Pick.Orphan"))}",
+                    Text = metaLine,
                 },
             },
         };
@@ -374,11 +394,15 @@ public sealed class ImagesPage : UserControl
         });
 
         var stateBadge = image.IsMissing ? T("Vox.Images.Badge.Missing") : image.IsOrphan ? T("Vox.Images.Badge.Orphan") : null;
+        var badges = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 6, 0, 0) };
         if (stateBadge != null)
-            _detailHost.Children.Add(new Border { Classes = { "badge", image.IsMissing ? "danger" : "warn" }, Child = new TextBlock { Text = stateBadge, FontSize = 10 }, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) });
+            badges.Children.Add(new Border { Classes = { "badge", image.IsMissing ? "danger" : "warn" }, Child = new TextBlock { Text = stateBadge, FontSize = 10 } });
+        badges.Children.Add(new Border { Classes = { "badge" }, Child = new TextBlock { Text = FormatOf(image.FileName).ToUpperInvariant(), FontSize = 10 } });
+        _detailHost.Children.Add(badges);
 
         _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Path"), image.RelativePath));
         _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Size"), image.IsMissing ? "—" : FormatBytes(image.Bytes)));
+        _detailHost.Children.Add(KvRow(T("Vox.Images.Label.Intake"), image.Modified == default ? "—" : image.Modified.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
 
         if (image.ReferencedBy.Count > 0)
         {
@@ -398,11 +422,21 @@ public sealed class ImagesPage : UserControl
         }
 
         var ops = new StackPanel { Orientation = Orientation.Vertical, Spacing = 7, Margin = new Thickness(0, 12, 0, 0) };
-        ops.Children.Add(OpButton(T("Vox.Images.Action.CopyPath"), primary: true, () => CopyPathAsync(image)));
+        if (!image.IsMissing)
+            ops.Children.Add(OpButton(T("Vox.Images.Action.Insert"), primary: true, () => InsertIntoCurrentArticle(image)));
+        ops.Children.Add(OpButton(T("Vox.Images.Action.CopyPath"), primary: false, () => CopyPathAsync(image)));
         ops.Children.Add(OpButton(T("Vox.Images.Action.Reveal"), primary: false, () => RevealInExplorer(image)));
         if (image.IsOrphan)
             ops.Children.Add(OpButton(T("Vox.Images.Action.Delete"), primary: false, () => DeleteOrphanAsync(image), danger: true));
         _detailHost.Children.Add(ops);
+    }
+
+    private void InsertIntoCurrentArticle(ImageAsset image)
+    {
+        if (_shell.CachedWritePage is { } write && write.InsertImageMarkdown(image.RelativePath))
+            _shell.ShowToast(TF("Vox.Images.Msg.Inserted", image.FileName));
+        else
+            _shell.ShowToast(T("Vox.Write.Msg.NeedArticle"));
     }
 
     private Button OpButton(string label, bool primary, Action action, bool danger = false)

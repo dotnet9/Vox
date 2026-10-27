@@ -844,6 +844,9 @@ public partial class MainWindow : Window
         });
     }
 
+    /// <summary>已缓存的写作页实例（切到其它页后仍存活），供跨页调用编辑器动作。</summary>
+    public WritePage? CachedWritePage => _pages.TryGetValue("write", out var page) ? page as WritePage : null;
+
     private Control GetPage(string key)
     {
         if (!_pages.TryGetValue(key, out var page))
