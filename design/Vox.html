@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=51"><link rel="stylesheet" href="assets/app.css?v=51">
+<link rel="stylesheet" href="assets/tokens.css?v=51"><link rel="stylesheet" href="assets/app.css?v=55">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -52,6 +52,7 @@
   <div class="items">
     <div class="it active" data-view="write" title="写作"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><span class="lb">写作</span></div>
     <div class="it" data-view="library" title="文章库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span><span class="lb">文章库</span><span class="cnt">37</span></div>
+    <div class="it" data-view="images" title="图片库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></span><span class="lb">图片库</span></div>
     <div class="it" data-view="publish" title="发布中心"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="lb">发布中心</span><span class="cnt">2</span></div>
     <div class="it" data-view="site" title="站点数据"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></span><span class="lb">站点数据</span></div>
       <div class="it" data-view="mcp" title="MCP 服务"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></span><span class="lb">MCP 服务</span><span class="cnt" id="mcpNavCnt" title="在线 AI 客户端">2</span></div>
@@ -96,7 +97,7 @@
       <div class="wlist">
         <div class="lhead">
           <div class="lrow">
-            <input class="input" placeholder="搜索 37 篇…" style="flex:1">
+            <input class="input" id="artListSearch" placeholder="搜索 37 篇…" style="flex:1">
             <div class="viewseg" id="listSeg">
               <button data-l="list" class="active" title="列表视图"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
               <button data-l="tree" title="树形视图"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10h7a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 0-1 1v.5H13V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1.5"/><rect width="8" height="7" x="3" y="14" rx="1"/></svg></button>
@@ -114,6 +115,13 @@
         <div class="wsrc" id="paneSrc">
           <div class="edscroll"><div class="gutter" id="gutter"></div><div class="elines" id="elines"></div></div>
           <div class="savestate pill" id="saveState" style="display:none"><b>已保存</b></div>
+          <button class="ai-trigger" id="btnAi" aria-expanded="false"><span class="spark">✦</span>AI 助手</button>
+          <section class="ai-pop" id="aiPop" hidden>
+            <div class="ai-head">AI 助手<span class="x" id="aiClose">×</span></div>
+            <div class="ai-chips"><span class="chip">续写本节</span><span class="chip">润色改写</span><span class="chip">生成摘要 description</span><span class="chip">起标题</span><span class="chip">翻译英文</span><span class="chip">图片补 alt</span></div>
+            <div class="ai-row"><input class="input" id="aiInput" placeholder="自定义指令，回车发送…"><button class="btn sm primary" id="aiSend">发送</button></div>
+            <div id="aiResult"><div class="desc" style="color:var(--faint);margin-top:8px">选择上方预设或输入指令 · 生成结果带 diff 预览，采纳才写入正文</div></div>
+          </section>
         </div>
         <div class="modeseg-float"><div class="seg" id="modeSeg">
           <button data-m="src" class="active">源码</button><button data-m="split">分屏</button><button data-m="prev">预览</button><button data-m="map">导图</button>
@@ -145,6 +153,7 @@
           <svg class="map-links" id="mapLinks"></svg>
           <div class="map-nodes" id="mapNodes"></div>
         </div>
+      </div>
       <div class="wpanel off" id="wpanel">
         <div class="wtab active" data-tab="outline" id="outlineTab">
           <div class="outl">
@@ -155,6 +164,7 @@
         </div>
       </div>
     </div>
+    </div><!-- /write-body -->
   </section>
 
   <!-- ======== 视图：文章库 ======== -->
@@ -166,33 +176,54 @@
       <div class="stat"><b>12</b><span>待发布 / 需更新（全平台）</span></div>
     </div>
     <div class="filters">
-      <select class="select"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select>
-      <select class="select"><option>全部分类</option><option>.NET</option><option>C#开源项目</option><option>Avalonia</option><option>AI</option></select>
-      <select class="select"><option>全部状态</option><option>已发布</option><option>草稿</option></select>
-      <select class="select"><option>全平台状态</option><option>待发布</option><option>需更新</option><option>失败</option></select>
+      <select class="select" id="libFYear"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
+      <select class="select" id="libFCat"><option>全部分类</option><option>.NET</option><option>C#开源项目</option><option>Avalonia</option><option>AI</option><option>工具</option><option>数据库</option></select>
+      <select class="select" id="libFStatus"><option>全部状态</option><option>已发布</option><option>草稿</option></select>
+      <select class="select" id="libFPlat"><option>全平台状态</option><option>待发布</option><option>需更新</option><option>失败</option></select>
       <span style="flex:1"></span>
-      <input class="input" style="width:220px" placeholder="标题 / slug / 正文全文…">
+      <input class="input" id="libSearch" style="width:220px" placeholder="标题 / slug / 正文全文…">
     </div>
     <div class="tblwrap">
-      <table class="tbl">
+      <table class="tbl" id="libTable">
         <tr><th>标题</th><th>年月</th><th>分类</th><th>标签</th><th>字数</th><th>网站</th><th>公众号</th><th>博客园</th><th>CSDN</th><th></th></tr>
-        <tr><td class="title">.NET Native AOT 依赖 Win7：Skia 依赖链排查记</td><td>2026/09</td><td>.NET</td><td>Native AOT · SkiaSharp</td><td>4,820</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st stale" title="原文 10-02 修改未重发">◐</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')">发布…</button></div></td></tr>
-        <tr><td class="title">Vex 升级：编辑器长出 AI 的手——MCP 支持全记录</td><td>2026/10</td><td>.NET</td><td>Vex · MCP</td><td>6,140</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2026/10/vex-mcp-ai-upgrade.md')">发布…</button></div></td></tr>
-        <tr><td class="title">qtzu：一个 3D 英语学习游戏的开源实现</td><td>2026/09</td><td>C#开源项目</td><td>OpenGL · 游戏</td><td>6,140</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st err" title="token 已过期（401）">✕</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2026/09/qtzu-3d-english-learning-game.md')">发布…</button></div></td></tr>
-        <tr><td class="title">Avalonia 自绘控件的渲染管线剖析</td><td>2024/06</td><td>Avalonia</td><td>Avalonia · 渲染</td><td>8,332</td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td style="text-align:center"><span class="pm-st off">○</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2024/06/avalonia-render-pipeline.md')">发布…</button></div></td></tr>
-        <tr><td class="title">C#百万对象序列化深度剖析</td><td>2023/12</td><td>.NET</td><td>序列化 · 性能</td><td>7,4xx</td><td style="text-align:center"><span class="pm-st stale" title="本地修改未提交">◐</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td style="text-align:center"><span class="pm-st ok">●</span></td><td><div class="t-actions"><button class="btn sm ghost">编辑</button><button class="btn sm primary" onclick="openPublishDlg('2023/12/deep-analysis-…-serialization.md')">发布…</button></div></td></tr>
       </table>
-      <div class="tblfoot">显示 1–5 篇 · 共 37 篇<span class="spacer"></span><div class="pager"><button>‹</button><button class="cur">1</button><button>2</button><button>…</button><button>8</button><button>›</button></div></div>
+      <div class="tblfoot">显示 <span id="libShown">0</span> 篇 · 共 37 篇<span class="spacer"></span><div class="pager"><button>‹</button><button class="cur">1</button><button>2</button><button>…</button><button>8</button><button>›</button></div></div>
     </div>
   </section>
 
-  <!-- ======== 视图：发布中心（git 同步 + 平台发布矩阵 + 发布前检查） ======== -->
+  <!-- ======== 视图：图片库（缩略图墙 + 引用面板 + 孤儿清理，复用遗留 .agrid/.acard/.apanel 零件） ======== -->
+  <section class="view" id="view-images">
+    <div class="pagehead"><h2>图片库</h2><span class="sub">仓库内全部图片 · 相对路径为唯一规范形态 · CDN 域名渲染时拼接</span><span class="spacer"></span>
+      <button class="btn" onclick="openModal('mImg')">图片入库…</button>
+      <button class="btn danger" id="btnOrphanClean">清理孤儿图 <span class="cnt" id="orphanN" style="margin-left:2px">3</span></button></div>
+    <div class="stats">
+      <div class="stat"><b id="imgStatTotal">259</b><span>张图片 · 跨 2019–2026</span></div>
+      <div class="stat"><b>41.2 MB</b><span>入库压缩后占用</span></div>
+      <div class="stat"><b id="imgStatUsed">238</b><span>已被文章引用</span></div>
+      <div class="stat"><b id="imgStatOrphan" style="color:var(--warn)">3</b><span>孤儿图（可回滚清理）</span></div>
+    </div>
+    <div class="filters">
+      <select class="select" id="imgFYear"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option><option>2019</option></select>
+      <select class="select" id="imgFRef"><option>全部引用状态</option><option>已引用</option><option>孤儿</option><option>封面</option></select>
+      <select class="select" id="imgFFmt"><option>全部格式</option><option>SVG</option><option>JPG</option><option>PNG</option></select>
+      <span style="flex:1"></span>
+      <input class="input" id="imgSearch" style="width:220px" placeholder="文件名搜索…">
+    </div>
+    <div class="assets-body">
+      <div class="agrid" id="agrid"></div>
+      <aside class="apanel" id="apanel" style="display:none"></aside>
+    </div>
+    <div class="tblfoot" style="margin-top:10px;border:1px solid var(--line);border-radius:10px">显示 <span id="imgShown">0</span> / 259 张 · 演示数据为 2019–2026 抽样</div>
+  </section>
+
+  <!-- ======== 视图：发布中心（git 同步 + 平台发布矩阵 + 发布前检查 + 发布历史） ======== -->
   <section class="view" id="view-publish">
     <div class="pub-tabs">
       <div class="seg" id="pubSeg">
         <button data-p="site" class="active">网站（git）</button>
         <button data-p="matrix">多平台</button>
         <button data-p="check">发布前检查</button>
+        <button data-p="history">发布历史</button>
       </div>
       <span style="flex:1"></span>
       <span class="pub-sum" id="pubSummary"></span>
@@ -240,9 +271,9 @@
         <button class="btn primary" onclick="openModal('mPlatformCfg')">平台账户…</button>
       </div>
       <div class="pm-filters">
-        <select class="select" style="width:auto"><option>全部文章</option><option>仅待发布</option><option>仅需更新</option><option>仅失败</option></select>
-        <select class="select" style="width:auto"><option>全部平台</option><option>微信公众号</option><option>博客园</option><option>CSDN</option><option>知乎（复制）</option></select>
-        <input class="input" style="width:200px" placeholder="标题搜索…">
+        <select class="select" style="width:auto" id="pmFStatus"><option>全部文章</option><option>仅待发布</option><option>仅需更新</option><option>仅失败</option></select>
+        <select class="select" style="width:auto" id="pmFPlat"><option>全部平台</option><option>网站</option><option>公众号</option><option>博客园</option><option>CSDN</option><option>知乎（复制）</option></select>
+        <input class="input" id="pmFSearch" style="width:200px" placeholder="标题搜索…">
       </div>
       <div class="tblwrap">
         <table class="tbl" id="pmTable">
@@ -258,6 +289,20 @@
       </div>
       <div class="chk-groups" id="chkGroups"></div>
     </div>
+
+    <div class="pub-page" id="pubHistory" style="display:none">
+      <div class="pagehead"><h2>发布历史</h2><span class="sub">每次首发 / 更新的留痕 · 失败原因与线上链接回溯</span></div>
+      <div class="pm-filters">
+        <select class="select" id="phFPlat" style="width:auto"><option>全部平台</option><option>网站（git）</option><option>公众号</option><option>博客园</option><option>CSDN</option><option>知乎（复制）</option></select>
+        <select class="select" id="phFRes" style="width:auto"><option>全部结果</option><option>成功</option><option>失败</option></select>
+      </div>
+      <div class="tblwrap">
+        <table class="tbl" id="phTable">
+          <tr><th>时间</th><th>文章</th><th>平台</th><th>动作</th><th>结果</th><th>关联提交</th><th>线上</th></tr>
+        </table>
+      </div>
+      <p class="pm-hint">关联提交指向发布时内容对应的 git 提交 · 复制型平台（知乎等）无提交关联 · 失败记录悬停查看原因，可在发布对话框重试。</p>
+    </div>
   </section>
 
   <!-- ======== 视图：站点数据 ======== -->
@@ -266,14 +311,14 @@
       <button class="btn primary" onclick="toast('已写回 site/categories.json（git 待提交）')">保存</button>
     </div>
     <div class="split">
-      <div class="sidenav">
-        <a class="active">categories.json<span class="cnt badge">9</span></a>
-        <a>friend-links.json<span class="cnt badge">32</span></a>
-        <a>timelines.json</a>
-        <a>search-keywords.json</a>
-        <a>tools/tools.json</a>
+      <div class="sidenav" id="siteNav">
+        <a class="active" data-f="categories.json">categories.json<span class="cnt badge">9</span></a>
+        <a data-f="friend-links.json">friend-links.json<span class="cnt badge">32</span></a>
+        <a data-f="timelines.json">timelines.json</a>
+        <a data-f="search-keywords.json">search-keywords.json</a>
+        <a data-f="tools/tools.json">tools/tools.json</a>
       </div>
-      <div class="scontent">
+      <div class="scontent" id="scontent">
         <div class="pagehead" style="margin-bottom:8px"><h2 style="font-size:1.0385rem" class="mono">site/categories.json</h2></div>
         <div class="tblwrap" style="border-radius:10px">
           <table class="tbl">
@@ -337,6 +382,29 @@
             <div class="srow"><label>允许 git 操作</label><div class="val"><div class="row"><span class="switch" data-switch id="swMcpGit"></span><span class="desc">默认关闭 · 开放 git_commit / git_push 两个写入工具</span></div></div></div>
           </div>
         </div>
+      </div>
+      <div class="setting" style="margin-top:12px">
+        <h3>能力暴露</h3>
+        <div class="sdesc">除工具（Tools）外，服务同时暴露 MCP Resources 与 Prompts，客户端资源面板可直接浏览订阅</div>
+        <div class="mcp-caps">
+          <div>
+            <div class="f-label">Resources <span class="badge">312</span></div>
+            <code class="mcp-uri" title="文章以 md 原文暴露">vox://article/2026/10/vex-mcp-ai-upgrade.md</code>
+            <code class="mcp-uri" title="图片暴露相对路径与 CDN 形态">vox://image/2026/09/qtzu-city-panorama.jpg</code>
+            <code class="mcp-uri" title="站点数据 JSON 直出">vox://site/friend-links.json</code>
+            <div class="desc" style="color:var(--faint);font-size:0.8077rem">文章 37 · 图片 259 · 站点数据 12 · 随「授权范围」过滤，收窄后列表立即减项</div>
+          </div>
+          <div>
+            <div class="f-label">Prompts <span class="badge">4</span></div>
+            <div class="chips"><span class="chip">公众号改写</span><span class="chip">摘要 description</span><span class="chip">翻译英文</span><span class="chip">正文校对</span></div>
+            <div class="desc" style="color:var(--faint);font-size:0.8077rem;margin-top:8px">预设指令模板 · 客户端选择后自动带参数填充，与写作页 AI 助手同源</div>
+          </div>
+        </div>
+      </div>
+      <div class="setting" style="margin-top:12px">
+        <h3>实时调用</h3>
+        <div class="sdesc">最近 6 次调用 · 与「调用审计」同源，写入类调用同样先确认</div>
+        <div class="mcp-live" id="mcpLive"></div>
       </div>
     </div>
 
@@ -426,6 +494,12 @@
       <div class="srow"><label>博客园</label><div class="val"><span class="badge">未配置</span> · MetaWeblog API<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
       <div class="srow"><label>CSDN</label><div class="val"><span class="badge warn">token 失效</span> · 上次推送 401<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">更新凭据…</button></div></div>
       <div class="srow"><label>复制型平台</label><div class="val">知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布</div></div>
+    </div>
+    <div class="setting">
+      <h3>大模型</h3><div class="sdesc">写作页 AI 助手的模型通道，凭据存系统凭据管理器；AI 改稿与 MCP 写入共用同一套工具层与审计</div>
+      <div class="srow"><label>服务商</label><div class="val"><div class="row"><select class="select" id="llmProv" style="width:auto"><option>DeepSeek</option><option>OpenAI</option><option>Claude</option><option>Ollama（本机）</option></select><input class="input mono" id="llmModel" value="deepseek-chat" style="width:200px"></div></div></div>
+      <div class="srow"><label>API Key</label><div class="val"><div class="row"><span class="badge ok">已配置</span><span class="mono" style="font-size:0.8462rem">sk-****·****</span><span class="desc" style="margin:0">存于系统凭据管理器</span><button class="btn sm" style="margin-left:8px" onclick="toast('连接正常 · deepseek-chat 可用 ✓')">测试连接</button><button class="btn sm ghost" onclick="toast('已更新密钥（系统凭据管理器）')">更换…</button></div></div></div>
+      <div class="srow"><label>AI 助手</label><div class="val"><div class="row"><span class="switch on" data-switch id="swAi"></span><span class="desc">写作页右下角显示 AI 指令条 · 关闭后隐藏</span></div></div></div>
     </div>
     <div class="setting">
       <h3>MCP 服务</h3><div class="sdesc">把文章库经本机 MCP 接口开放给 AI 客户端（Claude Desktop / Cursor / ZCode…），Bearer Token 鉴权，写入操作应用内确认</div>
@@ -583,21 +657,19 @@ draft: true
     <div class="typography-grid" role="group" aria-label="排版效果预览"><button type="button" class="typography-card" data-typography-key="Simple" aria-pressed="false"><span class="type-swatch" data-preview-type="Simple" aria-hidden="true"><span class="type-document"><h2>简约</h2><p>素面朝天的默认阅读面，无装饰。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>简约 <i>Minimal</i></strong><span class="typography-card-purpose">无装饰 · 无衬线 · 1.9 行距</span></button><button type="button" class="typography-card" data-typography-key="Basic" aria-pressed="false"><span class="type-swatch" data-preview-type="Basic" aria-hidden="true"><span class="type-document"><h2>文档</h2><p>标题下划线分隔，办公文档气质。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>文档 <i>Document</i></strong><span class="typography-card-purpose">H2 底部细线 · 蓝色 accent</span></button><button type="button" class="typography-card" data-typography-key="InkBlack" aria-pressed="false"><span class="type-swatch" data-preview-type="InkBlack" aria-hidden="true"><span class="type-document"><h2>书卷</h2><p>衬线字体 · 段落首行缩进两字符。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>书卷 <i>Book</i></strong><span class="typography-card-purpose">宋体系 · 段落缩进 · 2.0 行距</span></button><button type="button" class="typography-card" data-typography-key="TechnologyBlue" aria-pressed="false"><span class="type-swatch" data-preview-type="TechnologyBlue" aria-hidden="true"><span class="type-document"><h2>技术</h2><p>H2 色块加左竖线，代码友好。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>技术 <i>Technical</i></strong><span class="typography-card-purpose">H2 左竖线+浅底 · 等宽代码</span></button><button type="button" class="typography-card" data-typography-key="WeChatFormat" aria-pressed="false"><span class="type-swatch" data-preview-type="WeChatFormat" aria-hidden="true"><span class="type-document"><h2>刊物</h2><p>标题居中上下细线，杂志排版。</p><blockquote><p>写下想法，看见脉络。</p></blockquote><h3>今天的小计划</h3><ul><li>梳理章节结构</li><li>补充观察与例子</li></ul></span></span><strong>刊物 <i>Editorial</i></strong><span class="typography-card-purpose">居中标题 · 上下线 · 青绿</span></button></div>
   </section>
 
-  <!-- 导图样式弹层（Vex map-appearance-popover 规格：528px / 结构+风格 Tab / 迷你图） -->
+  <!-- 导图样式弹层（Vex map-appearance 规格 + Vox 改版：结构/配色上下平铺，无页签，①②步骤引导） -->
   <section class="map-appearance-popover" id="mapPop" hidden role="dialog" aria-label="导图样式">
     <header class="appearance-heading"><strong>导图样式</strong><button class="icon-button" id="mapClose" aria-label="关闭导图样式">×</button></header>
-    <div class="appearance-tabs" role="tablist" aria-label="导图外观">
-      <button role="tab" data-map-tab="structure" aria-selected="true">结构</button>
-      <button role="tab" data-map-tab="style" aria-selected="false">风格</button>
-    </div>
-    <div class="map-choice-grid" id="mapStructGrid" role="tabpanel"><button type="button" class="map-choice" data-map-layout="right" aria-pressed="true">
+    <div class="map-step-label"><i>1</i>结构<span class="hint">先选一种布局</span></div>
+    <div class="map-choice-grid" id="mapStructGrid"><button type="button" class="map-choice" data-map-layout="right" aria-pressed="true">
       <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M10 37 H 34 M34 37 V 15 H 52 M34 37 V 59 H 52"/><rect class="map-preview-root" x="0" y="27" width="34" height="18" rx="4"/><rect class="map-preview-node" x="52" y="8" width="52" height="14" rx="4"/><rect class="map-preview-node" x="52" y="52" width="52" height="14" rx="4"/></svg><strong>单侧树形</strong></button><button type="button" class="map-choice" data-map-layout="balanced" aria-pressed="false">
       <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M60 37 H 44 M44 37 V 15 H 30 M44 37 V 59 H 30 M60 37 H 76 M76 37 V 15 H 92 M76 37 V 59 H 92"/><rect class="map-preview-root" x="44" y="27" width="32" height="18" rx="4"/><rect class="map-preview-node" x="14" y="8" width="46" height="14" rx="4"/><rect class="map-preview-node" x="14" y="52" width="46" height="14" rx="4"/><rect class="map-preview-node" x="76" y="8" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="52" width="44" height="14" rx="4"/></svg><strong>双侧平衡</strong></button><button type="button" class="map-choice" data-map-layout="radial" aria-pressed="false">
       <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M60 37 L 20 12 M60 37 L 100 12 M60 37 L 20 62 M60 37 L 100 62"/><rect class="map-preview-root" x="44" y="27" width="32" height="18" rx="4"/><rect class="map-preview-node" x="2" y="4" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="4" width="42" height="14" rx="4"/><rect class="map-preview-node" x="2" y="56" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="56" width="42" height="14" rx="4"/></svg><strong>中心放射</strong></button><button type="button" class="map-choice" data-map-layout="down" aria-pressed="false">
       <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M60 14 V 30 M60 30 H 22 M60 30 H 98 M22 30 V 42 M98 30 V 42"/><rect class="map-preview-root" x="42" y="4" width="36" height="16" rx="4"/><rect class="map-preview-node" x="2" y="42" width="44" height="14" rx="4"/><rect class="map-preview-node" x="76" y="42" width="42" height="14" rx="4"/></svg><strong>向下树形</strong></button><button type="button" class="map-choice" data-map-layout="outline" aria-pressed="false">
       <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M14 8 V 62 M22 15 H 44 M22 29 H 52 M22 43 H 44 M22 57 H 52"/><rect class="map-preview-root" x="8" y="0" width="40" height="15" rx="4"/><rect class="map-preview-node" x="44" y="8" width="52" height="13" rx="4"/><rect class="map-preview-node" x="52" y="22" width="52" height="13" rx="4"/><rect class="map-preview-node" x="44" y="36" width="52" height="13" rx="4"/><rect class="map-preview-node" x="52" y="50" width="52" height="13" rx="4"/></svg><strong>目录树</strong></button><button type="button" class="map-choice" data-map-layout="fishbone" aria-pressed="false">
       <svg class="map-miniature" viewBox="0 0 120 74" aria-hidden="true"><path class="map-preview-link" d="M8 37 H 112 M36 37 L 52 16 M36 37 L 52 58 M76 37 L 92 16 M76 37 L 92 58"/><rect class="map-preview-root" x="0" y="28" width="34" height="17" rx="4"/><rect class="map-preview-node" x="52" y="8" width="48" height="13" rx="4"/><rect class="map-preview-node" x="52" y="52" width="48" height="13" rx="4"/><rect class="map-preview-node" x="92" y="8" width="26" height="13" rx="4"/><rect class="map-preview-node" x="92" y="52" width="26" height="13" rx="4"/></svg><strong>鱼骨图</strong></button></div>
-    <div class="map-choice-grid" id="mapStyleGrid" role="tabpanel" hidden></div>
+    <div class="map-step-label" id="mapSchemeLabel"><i>2</i>配色<span class="hint">迷你图随上方所选结构实时重绘</span></div>
+    <div class="map-choice-grid" id="mapStyleGrid"></div>
   </section>
 
 <div class="mask" id="mUpdate"><div class="modal" style="width:480px">
@@ -628,7 +700,7 @@ draft: true
 <script>
 const $=id=>document.getElementById(id);
 /* ---------- 视图切换 ---------- */
-const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','536 篇 · 全库浏览与筛选'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],mcp:['MCP 服务','本机 AI 接口 · 18 个工具 · 调用审计'],settings:['设置']};
+const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','37 篇 · 全库浏览与筛选'],images:['图片库','259 张图片 · 引用与孤儿管理'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],mcp:['MCP 服务','本机 AI 接口 · 18 个工具 · 调用审计'],settings:['设置']};
 document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
   document.querySelectorAll('.nav .it').forEach(x=>x.classList.toggle('active',x===it));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+it.dataset.view));
@@ -645,11 +717,6 @@ window.applyViewMode=function(m){
   window.dispatchEvent(new CustomEvent('voxmode',{detail:m}));
 };
 document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>window.applyViewMode(b.dataset.m));
-/* ---------- 面板页签 ---------- */
-document.querySelectorAll('.wtabs button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.wtabs button').forEach(x=>x.classList.toggle('active',x===b));
-  document.querySelectorAll('.wtab').forEach(t=>t.classList.toggle('active',t.dataset.tab===b.dataset.tab));
-});
 /* ---------- 开关 ---------- */
 document.querySelectorAll('[data-switch]').forEach(s=>s.onclick=()=>s.classList.toggle('on'));
 /* ---------- 弹层 ---------- */
@@ -744,7 +811,13 @@ sq:{year:'2024',path:'2024/12',title:'SQLite 在桌面应用中的 12 个最佳�
  prev:'<p>桌面场景没有 DBA，SQLite 的坑要提前绕开。</p><h2>清单速览</h2><div class="task"><i></i>WAL 模式 + busy_timeout 是标配</div><div class="task"><i></i>单写多读：一个写连接 + 只读连接池</div><div class="task"><i></i>索引要在数据量小的时候就建好</div><h2>展开</h2><p>逐条展开前 6 条，后 6 条下篇再谈。</p>'},
 av:{year:'2024',path:'2024/06',title:'Avalonia 自绘控件的渲染管线剖析',slug:'avalonia-custom-control-render-pipeline',date:'2024-06-18 20:00',min:14,cats:['Avalonia'],tags:['Avalonia','渲染'],draft:false,g:'g4',cur:8,desc:'从 Measure 到 Render，把 Avalonia 自绘控件的每一步拆开看。',
  lines:[['h','# Avalonia 自绘控件的渲染管线剖析'],['',''],['','从 Measure / Arrange 到 Render，'],['','把自绘控件的每一步拆开看。'],['',''],['h2','## 管线全景'],['',''],['img','![管线](2024/06/avalonia-render-pipeline.svg)'],['',''],['h2','## 关键结论'],['',''],['','- InvalidatedMeasure 别滥用'],['','- Render 帧内禁止分配大对象']],
- prev:'<p>从 Measure / Arrange 到 Render，把自绘控件的每一步拆开看。</p><h2>管线全景</h2><div class="codeblock"><div class="cb-h">avalonia-render-pipeline.svg<span class="spacer"></span>查看原图</div><div class="ph g4" style="height:96px;border-radius:0"></div></div><h2>关键结论</h2><div class="task"><i></i>InvalidatedMeasure 别滥用</div><div class="task"><i></i>Render 帧内禁止分配大对象</div>'}};
+ prev:'<p>从 Measure / Arrange 到 Render，把自绘控件的每一步拆开看。</p><h2>管线全景</h2><div class="codeblock"><div class="cb-h">avalonia-render-pipeline.svg<span class="spacer"></span>查看原图</div><div class="ph g4" style="height:96px;border-radius:0"></div></div><h2>关键结论</h2><div class="task"><i></i>InvalidatedMeasure 别滥用</div><div class="task"><i></i>Render 帧内禁止分配大对象</div>'},
+vex:{year:'2026',path:'2026/10',title:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',slug:'vex-mcp-ai-upgrade',date:'2026-10-12 20:00',min:9,cats:['.NET'],tags:['Vex','MCP'],draft:false,g:'g4',cur:9,desc:'给 Vex 内置本机 MCP 服务，让 Claude Desktop / Cursor 直接读写当前文档。',
+ lines:[['h','# Vex 升级：编辑器长出 AI 的手——MCP 支持全记录'],['',''],['','给 Vex 接上 MCP：外部 AI 客户端经本机接口直接读写文档。'],['',''],['h2','## 接入方式'],['',''],['','stdio 桥接 Claude Desktop / Cursor，HTTP 直连亦可'],['',''],['h2','## 工具与审计'],['',''],['tk','- [x] 29 个工具 · 操作审计'],['tk','- [ ] 写操作应用内确认'],['',''],['h2','## 小结'],['',''],['bq','> 编辑器长出 AI 的手，关键是不失控。']],
+ prev:'<p>给 Vex 接上 MCP：外部 AI 客户端经本机接口直接读写文档。</p><h2>接入方式</h2><p>stdio 桥接 Claude Desktop / Cursor，HTTP 直连亦可。</p><h2>工具与审计</h2><div class="task done"><i></i>29 个工具 · 操作审计</div><div class="task"><i></i>写操作应用内确认</div><h2>小结</h2><blockquote>编辑器长出 AI 的手，关键是不失控。</blockquote>'},
+ser:{year:'2023',path:'2023/12',title:'C#百万对象序列化深度剖析',slug:'deep-analysis-million-object-serialization',date:'2023-12-09 20:00',min:12,cats:['.NET'],tags:['序列化','性能'],draft:false,g:'g5',cur:7,desc:'MessagePack / MemoryPack / System.Text.Json 在百万对象下的吞吐与内存对比。',
+ lines:[['h','# C#百万对象序列化深度剖析'],['',''],['','三个序列化器，一百万个对象，跑在同一台机器上。'],['',''],['h2','## 基准设置'],['',''],['','- MessagePack · MemoryPack · System.Text.Json'],['','- 对象图：100 万个扁平 POCO'],['',''],['h2','## 结论'],['',''],['','MemoryPack 吞吐最高，MessagePack 兼容性最稳。']],
+ prev:'<p>三个序列化器，一百万个对象，跑在同一台机器上。</p><h2>基准设置</h2><div class="task"><i></i>MessagePack · MemoryPack · System.Text.Json</div><div class="task"><i></i>对象图：100 万个扁平 POCO</div><h2>结论</h2><p>MemoryPack 吞吐最高，MessagePack 兼容性最稳。</p>'}};
 let curArt='aot',listMode='list';
 function bindSwitches(){document.querySelectorAll('[data-switch]').forEach(s=>s.onclick=()=>s.classList.toggle('on'));}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
@@ -762,9 +835,12 @@ function artItem(k,a){
 }
 function renderList(){
   const el=$('artList');
-  if(listMode==='list'){el.innerHTML=Object.keys(ARTS).map(k=>artItem(k,ARTS[k])).join('');}
-  else{const tree={};Object.keys(ARTS).forEach(k=>{const a=ARTS[k];const seg=a.path.split('/');(tree[seg[0]]=tree[seg[0]]||{})[seg[1]]=(tree[seg[0]][seg[1]]||[]).concat(k);});
-    el.innerHTML=Object.keys(tree).sort().reverse().map(y=>{
+  const q=(($('artListSearch').value)||'').toLowerCase();
+  const keys=Object.keys(ARTS).filter(k=>!q||(ARTS[k].title+' '+ARTS[k].tags.join(' ')+' '+ARTS[k].cats.join(' ')).toLowerCase().includes(q));
+  if(listMode==='list'){el.innerHTML=keys.map(k=>artItem(k,ARTS[k])).join('');}
+  else{const tree={};keys.forEach(k=>{const a=ARTS[k];const seg=a.path.split('/');(tree[seg[0]]=tree[seg[0]]||{})[seg[1]]=(tree[seg[0]][seg[1]]||[]).concat(k);});
+    if(!keys.length){el.innerHTML='<div style="padding:22px;text-align:center;color:var(--faint)">无匹配文章</div>';}
+    else el.innerHTML=Object.keys(tree).sort().reverse().map(y=>{
       const months=tree[y];const total=Object.values(months).reduce((s,x)=>s+x.length,0);
       return '<div class="ygroup"><div class="yhead"><span class="yt">'+y+' 年</span><span class="ycnt">'+total+' 篇<span class="tri">▾</span></span></div><div class="ykids">'+
         Object.keys(months).sort().reverse().map(m=>
@@ -789,6 +865,7 @@ function loadArt(k){curArt=k;const a=ARTS[k];
 document.querySelectorAll('#listSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#listSeg button').forEach(x=>x.classList.toggle('active',x===b));
   listMode=b.dataset.l;renderList();});
+$('artListSearch').oninput=function(){renderList();};
 /* ---------- 边栏折叠 ---------- */
 const navEl=$('nav'),btnNav=$('btnNav');
 const icoFold='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 9l-3 3 3 3"/></svg>';
@@ -808,7 +885,6 @@ function setPanel(open){
   bp.title=open?'收起文章面板':'展开文章面板';
 }
 bp.addEventListener('click',()=>setPanel(document.getElementById('wpanel').classList.contains('off')));
-function panelTo(tab){setPanel(true);const btn=document.querySelector('.wtabs button[data-tab="'+tab+'"]');if(btn)btn.click();}
 $('btnNav').onclick=()=>{navEl.classList.toggle('collapsed');$('btnNav').innerHTML=navEl.classList.contains('collapsed')?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';};
 $('mFileBtn').onclick=e=>{e.stopPropagation();$('mFile').classList.toggle('open');$('mHelp').classList.remove('open');};
 $('mHelpBtn').onclick=e=>{e.stopPropagation();$('mHelp').classList.toggle('open');$('mFile').classList.remove('open');};
@@ -869,9 +945,6 @@ function enhanceSeg(seg){
 document.querySelectorAll('.seg').forEach(enhanceSeg);
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
-document.querySelectorAll('.acard').forEach(w=>w.onclick=()=>{document.querySelectorAll('.acard').forEach(x=>x.classList.toggle('sel',x===w))});
-document.querySelectorAll('.ag').forEach(w=>w.onclick=()=>{document.querySelectorAll('.ag').forEach(x=>x.classList.toggle('sel',x===w))});
-document.querySelectorAll('.badge.quick').forEach(w=>w.onclick=()=>w.classList.toggle('on'));
 function newSlug(t){const s=(t||'新文章').toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g,'-').replace(/^-+|-+$/g,'')||'new-article-slug';
   return '2026/10/'+s+'.md + '+s+'.yml';}
 let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
@@ -1174,15 +1247,28 @@ const PUB_ARTICLES=[
   wxNote:'2024-06-12 发布 · 已同步', check:[['ok','封面'],['ok','description'],['ok','图片引用 5/5 有效']]},
  {t:'C#百万对象序列化深度剖析', p:'2023/12/deep-analysis-…-serialization.md', st:{site:'stale', wx:'ok', cnb:'ok', csdn:'ok', zh:'ok'},
   siteNote:'本地修改未提交（2 处图片引用修正）', wxNote:'2023-12-09 发布 · 已同步', check:[['ok','封面'],['ok','description'],['warn','site 未推送——先完成 git 提交']]},
+ {t:'自己动手写依赖注入框架', p:'2025/03/write-your-own-di-container.md', st:{site:'off', wx:'off', cnb:'off', csdn:'off', zh:'off'},
+  check:[['warn','草稿未完成（draft: true）'],['ok','图片引用 0/0'],['warn','无封面']]},
+ {t:'SQLite 在桌面应用中的 12 个最佳实践', p:'2024/12/sqlite-desktop-12-best-practices.md', st:{site:'ok', wx:'ok', cnb:'off', csdn:'off', zh:'off'},
+  wxNote:'2024-12-05 发布 · 已同步', check:[['ok','封面'],['ok','description'],['ok','图片引用 3/3 有效']]},
+ {t:'Markdown 一键导出社媒配图实战', p:'2026/05/codewf-markdown-export-images-social-copy.md', st:{site:'ok', wx:'off', cnb:'ok', csdn:'off', zh:'off'},
+  check:[['ok','封面'],['ok','description'],['ok','图片引用 2/2 有效']]},
 ];
 const ST_GLYPH={ok:'●',stale:'◐',off:'○',err:'✕',na:'—'};
 const ST_CLS={ok:'ok',stale:'stale',off:'off',err:'err',na:'na'};
 const ST_TXT={ok:'已同步',stale:'需更新',off:'未发布',err:'失败',na:'不适用'};
 function stTip(a,pl){const n=a.st[pl.id];const note=a[pl.id+'Note']||ST_TXT[n];return `${pl.name}：${ST_TXT[n]} · ${note}`;}
 function renderMatrix(){
+  const fs=$('pmFStatus').value,fp=$('pmFPlat').value,q=($('pmFSearch').value||'').toLowerCase();
+  const rows=PUB_ARTICLES.filter(a=>{
+    if(fs==='仅待发布'&&!Object.values(a.st).some(s=>s==='off'))return false;
+    if(fs==='仅需更新'&&!Object.values(a.st).some(s=>s==='stale'))return false;
+    if(fs==='仅失败'&&!Object.values(a.st).some(s=>s==='err'))return false;
+    if(q&&!a.t.toLowerCase().includes(q))return false;
+    return true;});
   const tb=$('pmTable');
   tb.querySelectorAll('tr').forEach((r,i)=>{if(i>0)r.remove();});
-  PUB_ARTICLES.forEach(a=>{
+  rows.forEach(a=>{
     const tr=document.createElement('tr');
     let cells=`<td class="title">${esc(a.t)}<br><span class="mono" style="font-size:0.7692rem;color:var(--faint)">${esc(a.p)}</span></td>`;
     PLATFORMS.forEach(pl=>{
@@ -1193,6 +1279,15 @@ function renderMatrix(){
     tr.innerHTML=cells;
     tb.appendChild(tr);
   });
+  // 平台列聚焦：选中平台时隐藏其他平台列（表头 + 数据行）
+  const platIdx={site:1,wx:2,cnb:3,csdn:4,zh:5};
+  const platId={网站:'site',公众号:'wx',博客园:'cnb',CSDN:'csdn','知乎（复制）':'zh'}[fp];
+  tb.querySelectorAll('tr').forEach(tr=>{
+    tr.querySelectorAll('td,th').forEach((cell,i)=>{
+      if(i>=1&&i<=5)cell.style.display=(fp==='全部平台'||i===platIdx[platId])?'':'none';
+    });
+  });
+  if(!rows.length){const tr=document.createElement('tr');tr.innerHTML='<td colspan="7" style="text-align:center;color:var(--faint);padding:22px">没有匹配的文章</td>';tb.appendChild(tr);}
   // 汇总条
   const sum=$('pubSummary');
   const counts={ok:0,stale:0,off:0,err:0};
@@ -1245,14 +1340,16 @@ function renderChecks(){
 /* 标签切换 */
 document.querySelectorAll('#pubSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#pubSeg button').forEach(x=>x.classList.toggle('active',x===b));
-  const site=b.dataset.p==='site';
-  const matrix=b.dataset.p==='matrix';
-  document.querySelector('.sync-top').style.display=site?'':'none';
-  document.querySelector('.sync-body').style.display=site?'':'none';
-  $('pubMatrix').style.display=matrix?'':'none';
-  $('pubCheck').style.display=(site||matrix)?'none':'';
+  const p=b.dataset.p;
+  document.querySelector('.sync-top').style.display=p==='site'?'':'none';
+  document.querySelector('.sync-body').style.display=p==='site'?'':'none';
+  $('pubMatrix').style.display=p==='matrix'?'':'none';
+  $('pubCheck').style.display=p==='check'?'':'none';
+  $('pubHistory').style.display=p==='history'?'':'none';
 });
 renderMatrix();renderChecks();
+['pmFStatus','pmFPlat'].forEach(id=>$(id).onchange=renderMatrix);
+$('pmFSearch').oninput=function(){renderMatrix();};
 
 /* ---------- 导图动态渲染（Vex workbench renderMap 同款：VoxMapLayout 打包 + 绝对定位 + 过渡） ---------- */
 (function(){
@@ -1275,7 +1372,7 @@ renderMatrix();renderChecks();
   };
   var branchColors = ['var(--accent)', 'color-mix(in srgb, var(--accent) 60%, var(--success))',
     'color-mix(in srgb, var(--accent) 55%, var(--warning))', 'var(--muted)'];
-  var settings = { layout: 'right', style: 'quiet' };
+  var settings = { layout: 'right', style: 'quiet', scheme: 'indigo' };
   var stage = document.getElementById('mapStage');
   var elements = new Map();
 
@@ -1324,7 +1421,7 @@ renderMatrix();renderChecks();
   function renderSchemeMinis() {
     var grid = document.getElementById('mapStyleGrid');
     grid.innerHTML = schemes.map(function (item) {
-      var miniTree = {children:[{children:[{},{}]},{children:[{},{}]}]};
+      var miniTree = {children:[{children:[{leaf:true},{leaf:true}]},{children:[{leaf:true},{leaf:true}]}]};
       var g = VoxMapLayout.layout(miniTree, {mode:settings.layout, measure:function (n) {n.width=52;n.height=22;}});
       var links = g.links.map(function (link) {
         return '<path class="map-preview-link" d="'+link.path+'"/>';
@@ -1333,10 +1430,23 @@ renderMatrix();renderChecks();
         var cls = 'map-preview-node' + (node === miniTree ? ' map-preview-root' : '') + (node.leaf ? ' map-preview-content' : '');
         return '<rect class="'+cls+'" x="'+node.x+'" y="'+node.y+'" width="'+node.width+'" height="'+node.height+'" rx="6"/>';
       }).join('');
-      return '<button type="button" class="map-scheme-card" data-map-scheme="'+item.key+'" aria-pressed="false">'
+      return '<button type="button" class="map-scheme-card" data-map-scheme="'+item.key+'" data-scheme="'+item.key+'" aria-pressed="'+(settings.scheme===item.key)+'">'
         + '<span class="type-swatch-scheme" data-scheme="'+item.key+'"><svg class="map-miniature" viewBox="-12 -12 '+(g.width+24)+' '+(g.height+24)+'" aria-hidden="true">'+links+nodes+'</svg></span>'
         + '<strong>'+item.label+'</strong><span class="scheme-desc">'+item.desc+'</span></button>';
     }).join('');
+    // 事件随重绘重绑：结构切换会整表重建 innerHTML，不能只在初始绑一次（Vex 用委托，这里等价）
+    grid.querySelectorAll('.map-scheme-card').forEach(function (card) {
+      card.onclick = function () {
+        settings.scheme = card.dataset.mapScheme;
+        document.getElementById('paneMap').dataset.mapScheme = settings.scheme;
+        document.getElementById('mapPop').dataset.scheme = settings.scheme;
+        grid.querySelectorAll('.map-scheme-card').forEach(function (x) { x.setAttribute('aria-pressed', String(x === card)); });
+        toast('导图配色：' + card.querySelector('strong').textContent);
+      };
+    });
+    // 结构迷你图跟随当前配色（Vex 口径：结构 × 配色双向联动）
+    document.getElementById('mapPop').dataset.scheme = settings.scheme;
+    document.getElementById('paneMap').dataset.mapScheme = settings.scheme;
   }
   window.__renderSchemeMinis = renderSchemeMinis;
   // addEventListener 并存（不覆盖弹层 IIFE 稍后赋值的 onclick toast 处理器）
@@ -1413,29 +1523,19 @@ renderMatrix();renderChecks();
     if (!pop.hidden && !pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) close();
   });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !pop.hidden) close(); });
-  pop.querySelectorAll('.appearance-tabs button').forEach(function(tab){
-    tab.onclick = function(){
-      pop.querySelectorAll('.appearance-tabs button').forEach(function(x){ x.setAttribute('aria-selected', String(x === tab)); });
-      document.getElementById('mapStructGrid').hidden = tab.dataset.mapTab !== 'structure';
-      document.getElementById('mapStyleGrid').hidden = tab.dataset.mapTab !== 'style';
-    };
-  });
+    // 页签已移除：结构 / 配色上下平铺，由 .map-step-label 分组引导（①→② 联想顺序）
   document.querySelectorAll('#mapStructGrid .map-choice').forEach(function(ch){
     ch.onclick = function(){
       document.querySelectorAll('#mapStructGrid .map-choice').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
       ch.setAttribute('aria-pressed', 'true');
       document.getElementById('paneMap').dataset.mapLayout = ch.dataset.mapLayout;
       toast('导图结构：' + ch.querySelector('strong').textContent);
+      // 步骤联想：选完结构，高亮提示下一步去「② 配色」
+      var lbl = document.getElementById('mapSchemeLabel');
+      lbl.classList.add('nudge'); setTimeout(function(){ lbl.classList.remove('nudge'); }, 900);
     };
   });
-  document.querySelectorAll('#mapStyleGrid .map-scheme-card').forEach(function(ch){
-    ch.onclick = function(){
-      document.querySelectorAll('#mapStyleGrid .map-scheme-card').forEach(function(x){ x.setAttribute('aria-pressed', 'false'); });
-      ch.setAttribute('aria-pressed', 'true');
-      document.getElementById('paneMap').dataset.mapScheme = ch.dataset.mapScheme;
-      toast('导图配色：' + ch.querySelector('strong').textContent);
-    };
-  });
+  // 配色卡片的绑定已移入 renderSchemeMinis（结构切换重绘后仍有效）
 })();
 
 /* ---------- 视图 ↔ 右面板 悬浮拖拽条（240–460） ---------- */
@@ -1667,7 +1767,7 @@ function renderMcpClient(){
 function mcpAuditAdd(cli,tool,args,res,resTxt,ms){
   var d=new Date();
   MCP_AUDIT.unshift({t:('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2),cli:cli,tool:tool,args:args,res:res,resTxt:resTxt,ms:ms});
-  MCP.calls++;renderMcpAudit();renderMcpState();
+  MCP.calls++;renderMcpAudit();renderMcpState();renderMcpLive();
 }
 function renderMcpAudit(){
   var fc=$('mcpFApi').value,ft=$('mcpFTool').value,fr=$('mcpFRes').value;
@@ -1830,6 +1930,245 @@ $('btnDemoWrite').onclick=function(){
 $('mcpToolSearch').oninput=function(){renderMcpTools(this.value);};
 $('btnTbMcp').onclick=function(e){e.stopPropagation();closeTbPops();gotoMcp();};
 renderMcpState();renderMcpClient();renderMcpClients();renderMcpTools('');renderMcpAudit();
+
+/* ---------- 文章库「编辑」→ 写作视图加载文章 ---------- */
+function editArticle(k){
+  document.querySelector('.nav .it[data-view="write"]').click();
+  loadArt(k);
+  toast('已在写作页打开：'+ARTS[k].title);
+}
+
+/* ---------- 文章库：数据驱动渲染 + 筛选/搜索 ---------- */
+const LIB_ROWS=[
+ {key:'aot',t:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',ym:'2026/09',cat:'.NET',tags:'Native AOT · SkiaSharp',wc:'4,820',pub:'2026/09/dotnet-native-aot-…-dependency.md',draft:false,st:{site:'ok',wx:'stale',cnb:'off',csdn:'off'},tips:{wx:'原文 10-02 修改未重发'}},
+ {key:'vex',t:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',ym:'2026/10',cat:'.NET',tags:'Vex · MCP',wc:'6,140',pub:'2026/10/vex-mcp-ai-upgrade.md',draft:false,st:{site:'ok',wx:'off',cnb:'off',csdn:'off'}},
+ {key:'qtzu',t:'qtzu：一个 3D 英语学习游戏的开源实现',ym:'2026/09',cat:'C#开源项目',tags:'OpenGL · 游戏',wc:'6,140',pub:'2026/09/qtzu-3d-english-learning-game.md',draft:false,st:{site:'ok',wx:'ok',cnb:'ok',csdn:'err'},tips:{csdn:'token 已过期（401）'}},
+ {key:'exp',t:'Markdown 一键导出社媒配图实战',ym:'2026/05',cat:'工具',tags:'Markdown',wc:'3,2xx',pub:'2026/05/codewf-markdown-export-images-social-copy.md',draft:false,st:{site:'ok',wx:'off',cnb:'ok',csdn:'off'}},
+ {key:'di',t:'自己动手写依赖注入框架',ym:'2025/03',cat:'.NET',tags:'DI · 源码',wc:'—',pub:'2025/03/write-your-own-di-container.md',draft:true,st:{site:'off',wx:'off',cnb:'off',csdn:'off'}},
+ {key:'sq',t:'SQLite 在桌面应用中的 12 个最佳实践',ym:'2024/12',cat:'数据库',tags:'SQLite',wc:'5,1xx',pub:'2024/12/sqlite-desktop-12-best-practices.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
+ {key:'av',t:'Avalonia 自绘控件的渲染管线剖析',ym:'2024/06',cat:'Avalonia',tags:'Avalonia · 渲染',wc:'8,332',pub:'2024/06/avalonia-render-pipeline.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
+ {key:'ser',t:'C#百万对象序列化深度剖析',ym:'2023/12',cat:'.NET',tags:'序列化 · 性能',wc:'7,4xx',pub:'2023/12/deep-analysis-…-serialization.md',draft:false,st:{site:'stale',wx:'ok',cnb:'ok',csdn:'ok'},tips:{site:'本地修改未提交'}},
+];
+const LIB_GLYPH={ok:['ok','●'],stale:['stale','◐'],off:['off','○'],err:['err','✕']};
+function renderLibrary(){
+  const fy=$('libFYear').value,fc=$('libFCat').value,fs=$('libFStatus').value,fp=$('libFPlat').value;
+  const q=($('libSearch').value||'').toLowerCase();
+  const rows=LIB_ROWS.filter(r=>{
+    if(fy!=='全部年份'&&!r.ym.startsWith(fy))return false;
+    if(fc!=='全部分类'&&r.cat!==fc)return false;
+    if(fs==='草稿'&&!r.draft)return false;
+    if(fs==='已发布'&&r.draft)return false;
+    if(fp!=='全平台状态'&&!Object.values(r.st).some(s=>s===({待发布:'off',需更新:'stale',失败:'err'})[fp]))return false;
+    if(q&&!(r.t+' '+(r.tags||'')+' '+(r.cat||'')).toLowerCase().includes(q))return false;
+    return true;});
+  const tb=$('libTable');
+  tb.querySelectorAll('tr').forEach((r,i)=>{if(i>0)r.remove();});
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    const flag=r.draft?'<span class="badge accent" style="margin-left:6px">草稿</span>':'';
+    const cells=['site','wx','cnb','csdn'].map(p=>{
+      const g=LIB_GLYPH[r.st[p]];
+      return '<td style="text-align:center"><span class="pm-st '+g[0]+'" title="'+esc(r.tips&&r.tips[p]||'')+'">'+g[1]+'</span></td>';
+    }).join('');
+    tr.innerHTML='<td class="title">'+esc(r.t)+flag+'</td><td>'+r.ym+'</td><td>'+esc(r.cat)+'</td><td>'+esc(r.tags)+'</td><td>'+r.wc+'</td>'+cells
+      +'<td><div class="t-actions"><button class="btn sm ghost" onclick="editArticle(\''+r.key+'\')">编辑</button><button class="btn sm primary" onclick="openPublishDlg(\''+r.pub+'\')">发布…</button></div></td>';
+    tb.appendChild(tr);
+  });
+  if(!rows.length){const tr=document.createElement('tr');tr.innerHTML='<td colspan="10" style="text-align:center;color:var(--faint);padding:22px">没有匹配的文章 · 调整筛选或搜索词</td>';tb.appendChild(tr);}
+  $('libShown').textContent=rows.length;
+}
+['libFYear','libFCat','libFStatus','libFPlat'].forEach(id=>$(id).onchange=renderLibrary);
+$('libSearch').oninput=function(){renderLibrary();};
+renderLibrary();
+
+/* ---------- MCP：实时调用尾随（与审计同源） ---------- */
+function renderMcpLive(){
+  var el=$('mcpLive');if(!el)return;
+  if(!MCP.running){el.innerHTML='<div class="desc" style="color:var(--faint)">服务已停止 · 暂无调用</div>';return;}
+  var rows=MCP_AUDIT.filter(function(a){return a.cli!=='系统';}).slice(0,6);
+  el.innerHTML=rows.length?rows.map(function(a){
+    return '<div class="mcp-live-row"><span class="mono">'+a.t+'</span><span class="mcp-cli-n">'+esc(a.cli)+'</span><span class="tool-name">'+esc(a.tool)+'</span><span class="d">'+esc(a.resTxt)+'</span><span class="ms">'+a.ms+'</span></div>';
+  }).join(''):'<div class="desc" style="color:var(--faint)">尚无调用 · 从「客户端」页发起一次试试</div>';
+}
+renderMcpLive();
+
+/* ---------- 图片库：清单 / 筛选 / 引用面板 / 孤儿清理 ---------- */
+const IMAGES=[
+ {id:'i01',name:'dotnet-native-aot-win7-skia-dependency-chain.svg',path:'2026/09/',fmt:'SVG',g:'g1',dim:'1920×1080',size:'86 KB',date:'2026-09-28',refs:['.NET Native AOT 依赖 Win7：Skia 依赖链排查记'],cover:false,orphan:false},
+ {id:'i02',name:'qtzu-city-panorama.jpg',path:'2026/09/',fmt:'JPG',g:'g2',dim:'1920×1080',size:'512 KB',date:'2026-09-21',refs:['qtzu：一个 3D 英语学习游戏的开源实现'],cover:true,orphan:false},
+ {id:'i03',name:'qtzu-egg-challenge.jpg',path:'2026/09/',fmt:'JPG',g:'g2',dim:'1600×1067',size:'312 KB',date:'2026-09-21',refs:['qtzu：一个 3D 英语学习游戏的开源实现'],cover:false,orphan:false},
+ {id:'i04',name:'vex-mcp-architecture.svg',path:'2026/10/',fmt:'SVG',g:'g4',dim:'1880×940',size:'74 KB',date:'2026-10-12',refs:['Vex 升级：编辑器长出 AI 的手——MCP 支持全记录'],cover:true,orphan:false},
+ {id:'i05',name:'codewf-markdown-export-social.svg',path:'2026/05/',fmt:'SVG',g:'g3',dim:'900×383',size:'41 KB',date:'2026-05-12',refs:['Markdown 一键导出社媒配图实战'],cover:false,orphan:false},
+ {id:'i06',name:'avalonia-render-pipeline.svg',path:'2024/06/',fmt:'SVG',g:'g4',dim:'1760×880',size:'69 KB',date:'2024-06-18',refs:['Avalonia 自绘控件的渲染管线剖析'],cover:true,orphan:false},
+ {id:'i07',name:'sqlite-wal-mode.png',path:'2024/12/',fmt:'PNG',g:'g6',dim:'1280×720',size:'208 KB',date:'2024-12-02',refs:['SQLite 在桌面应用中的 12 个最佳实践'],cover:false,orphan:false},
+ {id:'i08',name:'di-container-lifecycle.png',path:'2025/03/',fmt:'PNG',g:'g5',dim:'1400×760',size:'156 KB',date:'2025-03-08',refs:['自己动手写依赖注入框架（草稿）'],cover:false,orphan:false},
+ {id:'i09',name:'diagram-mermaid-flow.svg',path:'2022/03/',fmt:'SVG',g:'g6',dim:'1200×600',size:'38 KB',date:'2022-03-15',refs:['自己动手写依赖注入框架（草稿）'],cover:false,orphan:false},
+ {id:'i10',name:'cover_01.png',path:'2019/11/',fmt:'PNG',g:'g1',dim:'1280×720',size:'84 KB',date:'2019-11-06',refs:[],cover:false,orphan:true},
+ {id:'i11',name:'old-banner.jpg',path:'2020/04/',fmt:'JPG',g:'g3',dim:'1600×400',size:'121 KB',date:'2020-04-18',refs:[],cover:false,orphan:true},
+ {id:'i12',name:'screenshot-bug-03.png',path:'2021/08/',fmt:'PNG',g:'g5',dim:'1024×640',size:'97 KB',date:'2021-08-22',refs:[],cover:false,orphan:true},
+];
+var imgSel=null;
+function renderImages(){
+  var q=($('imgSearch').value||'').toLowerCase();
+  var fy=$('imgFYear').value,fr=$('imgFRef').value,ff=$('imgFFmt').value;
+  var list=IMAGES.filter(function(im){
+    if(fy!=='全部年份'&&im.path.indexOf(fy)!==0)return false;
+    if(ff!=='全部格式'&&im.fmt!==ff)return false;
+    if(fr==='已引用'&&im.refs.length===0)return false;
+    if(fr==='孤儿'&&!im.orphan)return false;
+    if(fr==='封面'&&!im.cover)return false;
+    if(q&&im.name.toLowerCase().indexOf(q)<0)return false;
+    return true;});
+  var grid=$('agrid');grid.innerHTML='';
+  list.forEach(function(im){
+    var d=document.createElement('div');d.className='acard'+(imgSel===im.id?' sel':'');
+    var flag=im.orphan?'<span class="badge warn">孤儿</span>':im.cover?'<span class="badge accent">封面</span>':'';
+    d.innerHTML='<div class="ph '+im.g+'"><span class="flag">'+flag+'</span></div>'
+      +'<div class="info"><b>'+esc(im.name)+'</b><span>'+im.path.slice(0,-1)+' · '+im.size+' · '+(im.refs.length?('被引用 '+im.refs.length+' 篇'):'未被引用')+'</span></div>';
+    d.onclick=function(){imgSel=im.id;renderImages();};
+    grid.appendChild(d);
+  });
+  $('imgShown').textContent=list.length;
+  var orphans=IMAGES.filter(function(im){return im.orphan;});
+  $('orphanN').textContent=orphans.length;
+  $('imgStatOrphan').textContent=orphans.length;
+  $('imgStatUsed').textContent=259-orphans.length;
+  renderImgPanel();
+}
+function renderImgPanel(){
+  var p=$('apanel');
+  var im=IMAGES.find(function(x){return x.id===imgSel;});
+  if(!im){p.style.display='none';return;}
+  p.style.display='';
+  p.innerHTML='<div class="big '+im.g+'"></div>'
+    +'<b style="font:500 0.8462rem var(--font-mono);word-break:break-all">'+esc(im.name)+'</b>'
+    +'<div style="margin:6px 0 10px">'+(im.orphan?'<span class="badge warn">孤儿图</span> ':'')+(im.cover?'<span class="badge accent">封面</span> ':'')+'<span class="badge">'+im.fmt+'</span></div>'
+    +'<div class="kv"><span>相对路径</span><b title="'+esc(im.path+im.name)+'">'+esc(im.path+im.name)+'</b></div>'
+    +'<div class="kv"><span>尺寸</span><b>'+im.dim+'</b></div>'
+    +'<div class="kv"><span>大小</span><b>'+im.size+'</b></div>'
+    +'<div class="kv"><span>入库时间</span><b>'+im.date+'</b></div>'
+    +(im.refs.length
+      ?'<div class="f-label">被引用 · '+im.refs.length+' 篇</div><div class="refs">'+im.refs.map(function(r){return '<a>'+esc(r)+'</a>';}).join('')+'</div>'
+      :'<div class="f-label">引用关系</div><div class="desc" style="color:var(--faint);font-size:.8462rem">未被任何文章引用，可安全清理（git 历史可回滚）</div>')
+    +'<div class="ops">'
+    +'<button class="btn sm primary" onclick="toast(\'已插入正文：![]('+im.path+im.name+')\')">插入到当前文章</button>'
+    +'<button class="btn sm" onclick="toast(\'已复制相对路径\')">复制相对路径</button>'
+    +'<button class="btn sm" onclick="toast(\'已设为封面（写回 yml cover）\')">设为封面</button>'
+    +'<button class="btn sm" onclick="toast(\'已在资源管理器中定位\')">在资源管理器中显示</button>'
+    +(im.orphan?'<button class="btn sm danger" onclick="imgDelete(\''+im.id+'\')">删除（可回滚）</button>':'')
+    +'</div>';
+}
+function imgDelete(id){
+  var im=IMAGES.find(function(x){return x.id===id;});if(!im)return;
+  if(!confirm('删除「'+im.name+'」？文件经 git 提交删除，历史中可回滚。'))return;
+  IMAGES.splice(IMAGES.indexOf(im),1);imgSel=null;renderImages();toast('已删除（git 待提交）：'+im.name);
+}
+$('btnOrphanClean').onclick=function(){
+  var n=IMAGES.filter(function(im){return im.orphan;}).length;
+  if(!n){toast('没有孤儿图，工作区很干净');return;}
+  if(!confirm('清理 '+n+' 张孤儿图？文件经 git 提交删除，推送前可在同步视图「删除（可回滚）」分组撤回。'))return;
+  for(var i=IMAGES.length-1;i>=0;i--)if(IMAGES[i].orphan)IMAGES.splice(i,1);
+  imgSel=null;renderImages();toast('已清理 '+n+' 张孤儿图 · 变更已进 git 同步视图');
+};
+['imgFYear','imgFRef','imgFFmt'].forEach(function(id){$(id).onchange=renderImages;});
+$('imgSearch').oninput=function(){renderImages();};
+renderImages();
+
+/* ---------- 站点数据：五个 json 文件切换 ---------- */
+var SITE_ORIGINAL=$('scontent').innerHTML;
+var SITE_FILES={
+ 'friend-links.json':{cols:['名称','URL','备注'],total:32,rows:[['沙漠尽头的狼','https://dotnet9.com','个人主站'],['CodeWF 工具站','https://tools.dotnet9.com','在线工具集'],['麦麦的书签','https://maimai.fun','书签导航'],['小灰的博客','https://hui.pro','独立开发者']]},
+ 'timelines.json':{cols:['日期','标题','链接'],total:3,rows:[['2026-10-20','Vox 原型启动','design/Vox.html'],['2026-09-28','AOT 排查记发布','2026/09/dotnet-native-aot…'],['2026-09-21','qtzu 开源','github.com/dotnet9/qtzu']]},
+ 'search-keywords.json':{cols:['关键词','命中文章数'],total:56,rows:[['Native AOT',42],['Avalonia',36],['MCP',28],['SQLite',19]]},
+ 'tools/tools.json':{cols:['工具','slug','描述'],total:12,rows:[['JSON 格式化','json-formatter','校验 / 压缩 / 转义'],['时间戳转换','timestamp','毫秒 / 秒互转'],['正则测试','regex','高亮匹配与分组']]},
+};
+document.querySelectorAll('#siteNav a').forEach(function(a){a.onclick=function(){
+  document.querySelectorAll('#siteNav a').forEach(function(x){x.classList.toggle('active',x===a);});
+  var f=a.dataset.f;
+  if(!SITE_FILES[f]){$('scontent').innerHTML=SITE_ORIGINAL;return;}
+  var d=SITE_FILES[f];
+  $('scontent').innerHTML='<div class="pagehead" style="margin-bottom:8px"><h2 style="font-size:1.0385rem" class="mono">site/'+f+'</h2><span class="badge">'+d.total+'</span></div>'
+    +'<div class="tblwrap" style="border-radius:10px"><table class="tbl"><tr>'+d.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr>'
+    +d.rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(String(c))+'</td>';}).join('')+'<td><button class="btn sm ghost" onclick="toast(\'演示：编辑 '+String(r[0]).replace(/'/g,'')+'\')">编辑</button></td></tr>';}).join('')
+    +'</table></div><div class="row" style="margin-top:12px"><span style="color:var(--faint);font-size:.8462rem">共 '+d.total+' 条 · 演示数据 · 保存时校验与全库引用一致</span></div>';
+};});
+
+/* ---------- 发布历史 ---------- */
+const PUB_HIST=[
+ {t:'2026-10-26 20:35',art:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',plat:'博客园',act:'首发',res:'ok',sha:'c87de8d',url:'cnblogs.com/dotnet9/p/…'},
+ {t:'2026-10-26 20:31',art:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',plat:'网站（git）',act:'首发',res:'ok',sha:'c87de8d',url:'dotnet9.com/blog/2026/10/vex-mcp-ai-upgrade'},
+ {t:'2026-10-24 09:12',art:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',plat:'公众号',act:'更新（重发）',res:'ok',sha:'6fcbb2b',url:'mp.weixin.qq.com 草稿箱'},
+ {t:'2026-10-23 18:40',art:'qtzu：一个 3D 英语学习游戏的开源实现',plat:'CSDN',act:'首发',res:'err',sha:'—',url:'—',note:'token 已过期（401）· 更新凭据后可重试'},
+ {t:'2026-09-30 21:04',art:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',plat:'公众号',act:'首发',res:'ok',sha:'1fca956',url:'mp.weixin.qq.com 已群发'},
+ {t:'2026-09-21 20:00',art:'qtzu：一个 3D 英语学习游戏的开源实现',plat:'网站（git）',act:'首发',res:'ok',sha:'7f3a19c',url:'dotnet9.com/blog/2026/09/qtzu-3d-english-learning-game'},
+ {t:'2024-06-12 19:22',art:'Avalonia 自绘控件的渲染管线剖析',plat:'知乎（复制）',act:'首发',res:'ok',sha:'—',url:'zhuanlan.zhihu.com/p/…'},
+];
+function renderPubHist(){
+  var fp=$('phFPlat').value,fr=$('phFRes').value;
+  var rows=PUB_HIST.filter(function(h){
+    if(fp!=='全部平台'&&h.plat!==fp)return false;
+    if(fr==='成功'&&h.res!=='ok')return false;
+    if(fr==='失败'&&h.res!=='err')return false;
+    return true;});
+  var tb=$('phTable');
+  tb.querySelectorAll('tr').forEach(function(r,i){if(i>0)r.remove();});
+  rows.forEach(function(h){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td class="mono" style="font-size:.8077rem">'+h.t+'</td><td class="title" style="max-width:260px">'+esc(h.art)+'</td><td>'+h.plat+'</td><td>'+h.act+'</td>'
+      +'<td>'+(h.res==='ok'?'<span class="badge ok">成功</span>':'<span class="badge danger" title="'+esc(h.note||'')+'">失败</span>')+'</td>'
+      +'<td class="mono" style="font-size:.8077rem">'+h.sha+'</td>'
+      +'<td class="mono" style="font-size:.8077rem">'+(h.url!=='—'?'<span class="linklike" title="在浏览器打开">'+esc(h.url)+' ↗</span>':'<span style="color:var(--faint)">—</span>')+(h.res==='err'?'<div style="color:var(--danger);font-size:.7692rem">'+esc(h.note||'')+'</div>':'')+'</td>';
+    tb.appendChild(tr);
+  });
+  if(!rows.length){var tr=document.createElement('tr');tr.innerHTML='<td colspan="7" style="text-align:center;color:var(--faint);padding:22px">暂无匹配的发布记录</td>';tb.appendChild(tr);}
+}
+$('phFPlat').onchange=renderPubHist;$('phFRes').onchange=renderPubHist;
+$('phTable').addEventListener('click',function(e){
+  var lk=e.target.closest('.linklike');
+  if(lk)toast('在浏览器打开：'+lk.textContent.replace(' ↗',''));
+});
+renderPubHist();
+
+/* ---------- 写作页 AI 助手（与 MCP 共用工具层与审计） ---------- */
+var aiPending='';
+function aiRun(label){
+  var out=$('aiResult');
+  var inst=($('aiInput').value||'').trim();
+  var name=label==='custom'?'自定义指令'+(inst?'：'+inst:''):label;
+  out.innerHTML='<div class="ai-gen">⏳ 正在生成…</div>';
+  var gen='gen-'+Date.now();aiPending=gen;
+  setTimeout(function(){
+    if(aiPending!==gen)return;
+    out.innerHTML='<div class="ai-res"><div class="ai-res-h">✦ '+esc(name)+' · <span class="mono">'+$('llmModel').value+'</span></div>'
+      +'<pre>'+esc('@@ ## 排查过程 @@\n+ （AI 生成 · 约 120 字）\n+ 重扫依赖树后，问题收敛到 libSkiaSharp.dll 的 VC 运行库依赖……')+'</pre>'
+      +'<div class="ops"><button class="btn sm primary" onclick="aiAccept()">采纳写入正文</button><button class="btn sm ghost" onclick="aiDiscard()">放弃</button></div>'
+      +'<div class="desc" style="color:var(--faint);margin-top:8px">经工具层 article_write 写入 · 计入 MCP 调用审计</div></div>';
+  },600);
+}
+function aiAccept(){
+  $('aiResult').innerHTML='<div class="note">已写入正文 · Ctrl+Z 可撤销</div>';
+  mcpAuditAdd('内置 AI','article_write','当前文章 · §排查过程 · AI 续写','okc','已采纳 · 写入完成','1.4s');
+}
+function aiDiscard(){$('aiResult').innerHTML='<div class="desc" style="color:var(--faint);margin-top:8px">已放弃本次生成</div>';}
+$('btnAi').onclick=function(e){e.stopPropagation();var pop=$('aiPop');pop.hidden=!pop.hidden;this.setAttribute('aria-expanded',String(!pop.hidden));};
+$('aiClose').onclick=function(){$('aiPop').hidden=true;$('btnAi').setAttribute('aria-expanded','false');};
+document.addEventListener('click',function(e){
+  var pop=$('aiPop');
+  if(!pop.hidden&&!pop.contains(e.target)&&!$('btnAi').contains(e.target)){$('aiPop').hidden=true;$('btnAi').setAttribute('aria-expanded','false');}
+});
+document.querySelectorAll('.ai-chips .chip').forEach(function(c){c.onclick=function(){aiRun(this.textContent.trim());};});
+$('aiSend').onclick=function(){aiRun('custom');};
+$('aiInput').onkeydown=function(e){if(e.key==='Enter')aiRun('custom');};
+$('swAi').addEventListener('click',function(){
+  var on=this.classList.contains('on');
+  $('btnAi').style.display=on?'':'none';
+  if(!on)$('aiPop').hidden=true;
+  toast(on?'AI 助手已显示在写作页右下角':'AI 助手已隐藏');
+});
+$('llmProv').onchange=function(){
+  var m={'DeepSeek':'deepseek-chat','OpenAI':'gpt-4o','Claude':'claude-sonnet-4-5','Ollama（本机）':'qwen3:14b'}[this.value];
+  $('llmModel').value=m;toast('已切换服务商：'+this.value+' · '+m);
+};
 
 
 </script>

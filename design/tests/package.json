@@ -1,0 +1,11 @@
+{
+  "name": "vox-design-tests",
+  "private": true,
+  "description": "Vox 原型浏览器冒烟测试（Playwright）",
+  "scripts": {
+    "smoke": "node browser-smoke.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

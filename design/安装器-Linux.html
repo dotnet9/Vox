@@ -131,7 +131,7 @@ btn.onclick=()=>{
     stage=1;txt.textContent='安装中…';
     let p=0;const t=setInterval(()=>{p=Math.min(100,p+7+Math.random()*9);bar.style.width=p+'%';
       if(p>=100){clearInterval(t);stage=2;bar.style.width='0%';txt.textContent='打开';}},240);
-  }else if(stage===2){ window.location.href='Vox软件原型.html'; }
+  }else if(stage===2){ window.location.href='Vox.html'; }
 };
 document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
 document.querySelectorAll('.proto-bar .dot').forEach(d=>d.onclick=()=>{document.documentElement.dataset.accent=d.dataset.c;document.querySelectorAll('.proto-bar .dot').forEach(x=>x.classList.toggle('active',x===d));});

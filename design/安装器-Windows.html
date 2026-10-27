@@ -184,7 +184,7 @@ $('langSel').onchange = e => { lang = e.target.value; applyLang(); };
 
 const btn = $('btnInstall');
 btn.onclick = () => {
-  if (btn.dataset.state === 'done') { location.href = 'Vox软件原型.html'; return; }
+  if (btn.dataset.state === 'done') { location.href = 'Vox.html'; return; }
   $('stepOptions').style.display = 'none';
   $('stepProgress').style.display = 'block';
   btn.disabled = true; btn.textContent = I18N[lang].installing;
@@ -200,7 +200,7 @@ btn.onclick = () => {
       btn.dataset.state = 'done';
       btn.disabled = false;
       btn.textContent = I18N[lang].launch;
-      btn.onclick = () => { location.href = 'Vox软件原型.html'; };
+      btn.onclick = () => { location.href = 'Vox.html'; };
     }
   }, 240);
 };

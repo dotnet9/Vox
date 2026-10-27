@@ -23,13 +23,46 @@ for (const file of fs.readdirSync(designDir).filter(f => f.endsWith('.html'))) {
   const views = [...html.matchAll(/data-view="([^"]+)"/g)].map(m => m[1]);
   const titlesMatch = html.match(/titles=\{([^}]*)\}/);
   if (titlesMatch) {
-    const titleKeys = [...titlesMatch[1].matchAll(/([a-zA-Z]+):\[/g)].map(m => m[1]);
+    const titleEntries = [...titlesMatch[1].matchAll(/([a-zA-Z]+):\[((?:[^\]\\]|\\.)*)\]/g)];
+    const titleKeys = titleEntries.map(m => m[1]);
     checks++;
     for (const v of new Set(views))
       if (!titleKeys.includes(v)) failures.push(`${file}: data-view "${v}" 没有 titles 条目`);
     for (const k of new Set(titleKeys))
       if (!views.includes(k)) failures.push(`${file}: titles 键 "${k}" 没有对应视图（7→5 页改版类死数据）`);
     checks++;
+
+    // 3. 数据口径一致性：titles 文案里的「N 篇」必须与同导航项 .cnt 徽标数字一致（防 37/536 漂移）。
+    const navCnt = {};
+    for (const line of html.split('\n')) {
+      const v = line.match(/data-view="(\w+)"/);
+      const c = line.match(/class="cnt"[^>]*>(\d+)</);
+      if (v && c) navCnt[v[1]] = c[1];
+    }
+    checks++;
+    for (const [, key, label] of titleEntries) {
+      const n = label.match(/(\d+)\s*篇/);
+      if (n && navCnt[key] && navCnt[key] !== n[1])
+        failures.push(`${file}: titles「${key}」篇数 ${n[1]} 与导航徽标 ${navCnt[key]} 不一致`);
+    }
+  }
+
+  // 4. onclick 引用的自定义函数必须已定义（抓拼写错误 / 漏定义）。
+  const definedNames = new Set();
+  for (const m of html.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)) definedNames.add(m[1]);
+  for (const m of html.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g)) definedNames.add(m[1]);
+  for (const m of html.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) definedNames.add(m[1]);
+  const jsBuiltins = new Set(['document', 'window', 'confirm', 'alert', 'navigator', 'event', 'parseInt', 'parseFloat', 'String', 'Number', 'Boolean', 'var', 'if', 'for', 'while', 'return']);
+  let onclickCalls = 0;
+  for (const m of html.matchAll(/onclick="([^"]+)"/g)) {
+    for (const c of m[1].matchAll(/([A-Za-z_$][\w$]*)\s*\(/g)) {
+      if (m[1][c.index - 1] === '.') continue; // 方法调用（如 document.getElementById）
+      const fn = c[1];
+      if (jsBuiltins.has(fn)) continue;
+      checks++;
+      onclickCalls++;
+      if (!definedNames.has(fn)) failures.push(`${file}: onclick 引用了未定义的函数 — ${fn}()`);
+    }
   }
 }
 assertCount();
