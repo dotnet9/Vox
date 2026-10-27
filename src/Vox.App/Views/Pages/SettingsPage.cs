@@ -251,6 +251,15 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal, Spacing = 8,
             Children = { _mcpDot, _mcpState, mcpOpen },
         }));
+        var confirmWrites = new TextBlock
+        {
+            FontSize = 11.5,
+            Text = T(AppState.Instance.Settings.McpConfirmWrites
+                ? "Vox.Settings.Mcp.ConfirmWritesOn"
+                : "Vox.Settings.Mcp.ConfirmWritesOff"),
+        };
+        Res(confirmWrites, TextBlock.ForegroundProperty, "VoxMuted");
+        mcpCard.Add(Row("Vox.Settings.Mcp.ConfirmWrites", confirmWrites));
         host.Children.Add(mcpCard.Host);
 
         // ---------- 关于 ----------

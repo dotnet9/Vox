@@ -92,15 +92,23 @@ public sealed class SiteDataPage : UserControl
         foreach (var file in scan.SiteFiles)
         {
             var name = Path.GetFileName(file.RelativePath);
+            var content = new DockPanel();
+            var count = MainArrayCount(file.RawJson);
+            if (count > 0)
+            {
+                content.Children.Add(new Border
+                {
+                    Classes = { "badge" },
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock { Text = count.ToString(), FontSize = 9.5 },
+                }.Dock(Dock.Right));
+            }
+            content.Children.Add(new TextBlock { Text = name, FontSize = 11, Classes = { "mono" }, VerticalAlignment = VerticalAlignment.Center });
             var item = new Button
             {
-                Content = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Children = { new TextBlock { Text = name, FontSize = 11, Classes = { "mono" } } },
-                },
+                Content = content,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Padding = new Thickness(10, 7),
                 FontSize = 11,
                 Tag = file,
@@ -110,7 +118,23 @@ public sealed class SiteDataPage : UserControl
             ApplyNavStyle(item, file.RelativePath == _selectedFile);
         }
 
-        if (_selectedFile == null && scan.SiteFiles.Count > 0)
+        if (scan.SiteFiles.Count == 0)
+        {
+            _selectedFile = null;
+            _navHost.Children.Add(new TextBlock
+            {
+                Text = T("Vox.Site.Label.NoFiles"), FontSize = 11,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4),
+            });
+            _contentTitle.Text = string.Empty;
+            _contentHost.Children.Clear();
+            var empty = new TextBlock { Text = T("Vox.Site.Label.NoFiles"), FontSize = 12, Margin = new Thickness(0, 8) };
+            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
+            _contentHost.Children.Add(empty);
+            return;
+        }
+
+        if (_selectedFile == null)
         {
             Select(scan.SiteFiles[0].RelativePath);
         }
@@ -205,11 +229,16 @@ public sealed class SiteDataPage : UserControl
         }
         properties.Remove("id");
 
-        var columns = new ColumnDefinitions();
-        foreach (var _ in properties) columns.Add(new ColumnDefinition(1, GridUnitType.Star));
-        columns.Add(new ColumnDefinition(70, GridUnitType.Pixel));
+        // 每张表各自持有列定义：同一 ColumnDefinitions 被多个 Grid 共用会争 Owner，布局期空引用。
+        static ColumnDefinitions NewColumns(IReadOnlyList<string> props)
+        {
+            var columns = new ColumnDefinitions();
+            foreach (var _ in props) columns.Add(new ColumnDefinition(1, GridUnitType.Star));
+            columns.Add(new ColumnDefinition(70, GridUnitType.Pixel));
+            return columns;
+        }
 
-        var headerGrid = new Grid { ColumnDefinitions = columns };
+        var headerGrid = new Grid { ColumnDefinitions = NewColumns(properties) };
         foreach (var (prop, index) in properties.Select((p, i) => (p, i)))
         {
             var cell = new TextBlock { Text = prop, FontSize = 10.5, FontWeight = FontWeight.SemiBold };
@@ -221,7 +250,7 @@ public sealed class SiteDataPage : UserControl
 
         foreach (var element in array.OfType<JsonObject>())
         {
-            var row = new Grid { ColumnDefinitions = columns, Margin = new Thickness(0, 4, 0, 0) };
+            var row = new Grid { ColumnDefinitions = NewColumns(properties), Margin = new Thickness(0, 4, 0, 0) };
             for (var index = 0; index < properties.Count; index++)
             {
                 var prop = properties[index];
@@ -277,6 +306,24 @@ public sealed class SiteDataPage : UserControl
     }
 
     private static bool IsNumericLike(string text) => double.TryParse(text, out _);
+
+    /// <summary>侧栏徽标：与编辑器同一口径取主数组（第一个对象数组属性）的条目数。</summary>
+    private static int MainArrayCount(string rawJson)
+    {
+        try
+        {
+            if (JsonNode.Parse(rawJson) is not JsonObject root) return 0;
+            foreach (var (_, value) in root)
+            {
+                if (value is JsonArray { Count: > 0 } array && array[0] is JsonObject) return array.Count;
+            }
+        }
+        catch
+        {
+            // 非法 JSON 由编辑器内提示，侧栏不加徽标。
+        }
+        return 0;
+    }
 
     private void Save()
     {
