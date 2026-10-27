@@ -107,7 +107,7 @@ public static class AuditEngine
             var body = ReadArticleBody(scan.RepoRoot, article.MarkdownPath);
             foreach (Match match in Regex.Matches(body, @"!\[[^\]]*\]\(\s*<?([^)<>\s]+)", RegexOptions.IgnoreCase))
             {
-                if (LinkStrategy.ToRelativePath(match.Groups[1].Value, lnk.CdnBase) is { } mapped)
+                if (LinkStrategy.ToRepoRelative(match.Groups[1].Value, lnk.CdnBase, scan.RepoRoot) is { } mapped)
                 {
                     issues.Add(new AuditIssue(AuditRule.NonCanonicalLink, AuditSeverity.Fixable, article.MarkdownPath,
                         $"正文使用 CDN 绝对 URL：{match.Groups[1].Value}", mapped));

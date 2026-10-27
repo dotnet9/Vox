@@ -167,6 +167,30 @@ public class RepoScannerTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void Scan_maps_cdn_cover_when_repo_root_is_month_directory()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-month").FullName;
+        root = Directory.CreateDirectory(Path.Combine(root, "2026", "10")).FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "post.md"),
+                "---\ntitle: Post\ncover: https://img1.dotnet9.com/2026/10/post-cover.png\n---\n\n正文\n");
+            File.WriteAllText(Path.Combine(root, "post-cover.png"), "png");
+
+            var scan = RepoScanner.Scan(root);
+            var cover = scan.FindImage("post-cover.png")!;
+            Assert.True(cover.IsCover);
+            Assert.Equal(new[] { "post.md" }, cover.CoverOf);
+            Assert.False(cover.IsOrphan);
+            Assert.DoesNotContain(scan.Images, i => i.IsMissing);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(Path.GetDirectoryName(root))!, recursive: true);
+        }
+    }
 }
 
 public class AuditEngineTests

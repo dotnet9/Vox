@@ -345,7 +345,7 @@ public sealed class PublishDialog : Border
             var markdown = await File.ReadAllTextAsync(file);
             var hash = PublishStateStore.ContentHash(file);
             var cover = _article.Meta.Cover is { Length: > 0 } coverPath
-                ? LinkStrategy.ToCdnUrl(coverPath, AppState.Instance.Settings.Link.CdnBase)
+                ? LinkStrategy.ToCdnUrl(coverPath, AppState.Instance.Settings.Link.CdnBase, AppState.Instance.Settings.Link.RepoRoot)
                 : null;
             var result = await publisher.PublishAsync(_article.Title, markdown, cover);
             var states = PublishStateStore.Load();

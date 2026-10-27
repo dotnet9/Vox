@@ -77,9 +77,16 @@ public sealed class MetaModal : Border
         var cover = new Border { Height = 118, CornerRadius = new CornerRadius(11), ClipToBounds = true };
         var loaded = false;
         var coverPath = _article.Meta.Cover;
-        if (!string.IsNullOrWhiteSpace(coverPath) && !coverPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        // CDN 形态若能反解到本仓库就本地预览；其余 http 封面仍走占位。
+        var coverRelative = string.IsNullOrWhiteSpace(coverPath)
+            ? null
+            : coverPath.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? LinkStrategy.ToRepoRelative(coverPath, AppState.Instance.Settings.Link.CdnBase, _repoRoot)
+                : LinkStrategy.TrimRepoPrefix(coverPath, _repoRoot);
+        if (coverRelative is { Length: > 0 })
         {
-            var local = LinkStrategy.ToLocalFile(_repoRoot, coverPath);
+            // cover 按站点根形态存档（YYYY/MM 仓库根要先剥年月才落到本地文件）。
+            var local = LinkStrategy.ToLocalFile(_repoRoot, coverRelative);
             if (File.Exists(local))
             {
                 try

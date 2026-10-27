@@ -99,7 +99,7 @@ public sealed partial class McpServer
             var image = Scan().FindImage(path);
             if (image == null) throw new RpcException(-32602, $"资源不存在：{path}");
             var payload = ImageJson(image, includeReferences: true);
-            payload["cdn"] = LinkStrategy.ToCdnUrl(image.RelativePath, _options.CdnBase);
+            payload["cdn"] = LinkStrategy.ToCdnUrl(image.RelativePath, _options.CdnBase, _options.RepoRoot);
             return Contents(uri, "application/json", payload.ToJsonString());
         }
 

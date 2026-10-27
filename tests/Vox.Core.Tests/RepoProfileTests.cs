@@ -39,4 +39,17 @@ public class RepoProfileTests
         Assert.Equal("2026/09/a.png", LinkStrategy.ToRelativePath(cdn));
         Assert.Null(LinkStrategy.ToRelativePath("https://other.example/a.png"));
     }
+
+    [Fact]
+    public void LinkStrategy_maps_month_root_repo_with_year_month_prefix()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "Assets", "2026", "10");
+        Assert.Equal("2026/10/", LinkStrategy.RepoPrefixOf(root));
+        Assert.Equal("a.png", LinkStrategy.ToRepoRelative("https://img1.dotnet9.com/2026/10/a.png", null, root));
+        Assert.Equal("a.png", LinkStrategy.TrimRepoPrefix("2026/10/a.png", root));
+        Assert.Equal("a.png", LinkStrategy.TrimRepoPrefix("a.png", root));
+        Assert.Equal("https://img1.dotnet9.com/2026/10/a.png", LinkStrategy.ToCdnUrl("a.png", null, root));
+        Assert.Equal("https://img1.dotnet9.com/2026/10/a.png", LinkStrategy.ToCdnUrl("2026/10/a.png", null, root));
+        Assert.Equal(string.Empty, LinkStrategy.RepoPrefixOf(@"C:\repo"));
+    }
 }

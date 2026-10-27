@@ -75,7 +75,11 @@ public sealed class VoxSettings
     public List<string> McpDisabledTools { get; set; } = ["image_replace"];
 
     [JsonIgnore]
-    public LinkOptions Link => new() { CdnBase = string.IsNullOrWhiteSpace(CdnBase) ? LinkStrategy.DefaultCdnBase : CdnBase };
+    public LinkOptions Link => new()
+    {
+        CdnBase = string.IsNullOrWhiteSpace(CdnBase) ? LinkStrategy.DefaultCdnBase : CdnBase,
+        RepoRoot = RepoPath ?? string.Empty,
+    };
 }
 
 public static class SettingsStore

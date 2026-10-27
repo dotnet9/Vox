@@ -2017,15 +2017,17 @@ public sealed class WritePage : UserControl
         var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
         // 先把编辑器正文按守卫落盘，再改写 front matter：两步不会互相判为外部改动，未保存的正文也不会被丢弃。
         if (!SaveCurrent(silent: true)) return false;
+        // cover 按站点根形态落盘（YYYY/MM 仓库根补年月），换到站点根打开时仍指向同一张图。
+        var cover = LinkStrategy.RepoPrefixOf(_repoRoot) + imageRelativePath.TrimStart('/');
         try
         {
             YamlSidecar.RewriteMarkdown(file, meta =>
             {
-                meta.Cover = imageRelativePath;
+                meta.Cover = cover;
                 meta.LastMod = DateTime.Now;
                 return meta;
             });
-            _current.Meta.Cover = imageRelativePath;
+            _current.Meta.Cover = cover;
             _diskBaseline = File.ReadAllText(file);
             Services.PublishHub.Invalidate();
             AppState.Instance.NotifyRepoChanged();

@@ -219,9 +219,11 @@ public sealed class ImageIntakeModal : Border
 
             if (_coverSwitch.IsChecked == true && _article != null)
             {
+                // 与设为封面同口径：cover 存站点根形态，YYYY/MM 仓库根要补上年月。
+                var cover = LinkStrategy.RepoPrefixOf(_repoRoot) + repoRelative.TrimStart('/');
                 YamlSidecar.RewriteMarkdown(
                     LinkStrategy.ToLocalFile(_repoRoot, _article.MarkdownPath),
-                    meta => { meta.Cover = repoRelative; meta.LastMod = DateTime.Now; return meta; });
+                    meta => { meta.Cover = cover; meta.LastMod = DateTime.Now; return meta; });
             }
 
             AppState.Instance.NotifyRepoChanged();

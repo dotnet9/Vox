@@ -551,7 +551,7 @@ public sealed partial class McpServer
         {
             ["path"] = relative,
             ["bytes"] = total,
-            ["cdn"] = LinkStrategy.ToCdnUrl(relative, _options.CdnBase),
+            ["cdn"] = LinkStrategy.ToCdnUrl(relative, _options.CdnBase, _options.RepoRoot),
         };
         return Ok(json.ToJsonString(), relative, $"{total / 1024} KB · {detail}");
     }
@@ -569,8 +569,8 @@ public sealed partial class McpServer
         }
         var relative = RelativePath(_options.RepoRoot, full) ?? article!;
         var raw = File.ReadAllText(full);
-        var oldCdn = LinkStrategy.ToCdnUrl(oldPath.Trim(), _options.CdnBase);
-        var newCdn = LinkStrategy.ToCdnUrl(newPath.Trim(), _options.CdnBase);
+        var oldCdn = LinkStrategy.ToCdnUrl(oldPath.Trim(), _options.CdnBase, _options.RepoRoot);
+        var newCdn = LinkStrategy.ToCdnUrl(newPath.Trim(), _options.CdnBase, _options.RepoRoot);
         var count = CountOccurrences(raw, oldPath.Trim()) + CountOccurrences(raw, oldCdn);
         if (count == 0) return Fail("正文未出现旧图片引用。", relative);
 

@@ -210,9 +210,11 @@ public static class RepoScanner
     {
         url = Uri.UnescapeDataString(url.Trim());
         if (url.Length == 0 || url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return null;
-        var relative = LinkStrategy.ToRelativePath(url, link.CdnBase);
+        var relative = LinkStrategy.ToRepoRelative(url, link.CdnBase, repoRoot);
         if (relative != null) return relative;
         if (Uri.TryCreate(url, UriKind.Absolute, out _)) return null;
+        // 仓库根是 YYYY/MM 月目录时，站点根形态的「年月/文件」引用要剥掉年月才落得到仓库内。
+        url = LinkStrategy.TrimRepoPrefix(url, repoRoot);
         if (string.IsNullOrEmpty(mdDir)) return PathText.ToForwardSlashes(url);
         var mdDirFull = Path.GetFullPath(Path.Combine(repoRoot, mdDir.Replace('/', Path.DirectorySeparatorChar)));
         var combined = Path.GetFullPath(Path.Combine(mdDirFull, url));

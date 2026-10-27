@@ -23,7 +23,7 @@ public static partial class CopyExporter
         // cover 已是仓库相对路径（治理后唯一规范形态）→ CDN 投影；历史遗留的完整 URL 原样返回。
         return cover.StartsWith("http", StringComparison.OrdinalIgnoreCase)
             ? cover
-            : LinkStrategy.ToCdnUrl(cover, link.CdnBase);
+            : LinkStrategy.ToCdnUrl(cover, link.CdnBase, link.RepoRoot);
     }
 
     public static string Markdown(string fullText) => fullText;
@@ -134,7 +134,7 @@ public static partial class CopyExporter
                 var src = m.Groups[2].Value;
                 var url = src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                     ? src
-                    : LinkStrategy.ToCdnUrl(src, link.CdnBase);
+                    : LinkStrategy.ToCdnUrl(src, link.CdnBase, link.RepoRoot);
                 return $"<img src=\"{Escape(url)}\" alt=\"{alt}\" style=\"max-width:100%;border-radius:8px;\"/>";
             });
             text = BoldRegex().Replace(text, m => $"<strong>{m.Groups[1].Value}</strong>");
