@@ -1172,10 +1172,14 @@ public sealed class WritePage : UserControl
     {
         var items = new List<MarkdownOutlineItem>();
         var inFence = false;
-        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var normalized = text.Replace("\r\n", "\n");
+        var lines = normalized.Split('\n');
+        var offset = 0; // 行首在整篇中的字符偏移，供 SourceOffset（与库 GetOutline 同口径）
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
+            var lineOffset = offset;
+            offset += line.Length + 1; // +1 = 换行符
             if (line.TrimStart().StartsWith("```") || line.TrimStart().StartsWith("~~~"))
             {
                 inFence = !inFence;
@@ -1186,7 +1190,7 @@ public sealed class WritePage : UserControl
             if (!match.Success) continue;
             var title = match.Groups[2].Value.Trim();
             if (title.Length == 0) continue;
-            items.Add(new MarkdownOutlineItem(match.Groups[1].Value.Length, title, i + 1));
+            items.Add(new MarkdownOutlineItem(match.Groups[1].Value.Length, title, i + 1, lineOffset));
         }
         return items;
     }
