@@ -240,14 +240,14 @@ public sealed class PublishDialog : Border
 
         if (channel == PublishChannel.Zhihu)
         {
-            yield return Op(T("Vox.Publish.Op.CopyHelper"), async () => await CopyFieldAsync(FieldRichText), primary: true);
+            yield return Op(T("Vox.Publish.Op.CopyHelper"), async () => await CopyFieldAsync(FieldRichText, channel), primary: true);
             yield break;
         }
 
         // API 通道：未配置账户 → 降级复制助手
         if (Publishers.TryCreate(channel) is not { } publisher)
         {
-            yield return Op(T("Vox.Publish.Op.CopyHelperNoApi"), async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown), primary: true);
+            yield return Op(T("Vox.Publish.Op.CopyHelperNoApi"), async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown, channel), primary: true);
             if (status != PublishStatus.Off) yield return Op(T("Vox.Publish.Op.ConfigAccount"), () => OpenAccounts());
             yield break;
         }
@@ -271,11 +271,11 @@ public sealed class PublishDialog : Border
         {
             yield return Op(T("Vox.Publish.Op.ViewOnline"), () => OpenOnline(channel));
             yield return Op(status == PublishStatus.Stale ? T("Vox.Publish.Op.CopyNew") : T("Vox.Common.Action.Copy"),
-                async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown));
+                async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown, channel));
         }
         else if (status == PublishStatus.Off)
         {
-            yield return Op(T("Vox.Common.Action.Copy"), async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown));
+            yield return Op(T("Vox.Common.Action.Copy"), async () => await CopyFieldAsync(channel == PublishChannel.WeChat ? FieldWeChatHtml : FieldMarkdown, channel));
         }
     }
 
@@ -294,7 +294,10 @@ public sealed class PublishDialog : Border
 
     private void OpenAccounts() => _shell.ShowModal(new PlatformCfgModal(_shell, RebuildRows));
 
-    private void OpenSite() => OpenUrl($"{AppState.Instance.Settings.SiteBase.TrimEnd('/')}/{_article.Year}/{_article.Month}/{_article.Slug}");
+    private void OpenSite() => OpenUrl(SiteUrl());
+
+    private string SiteUrl() =>
+        $"{AppState.Instance.Settings.SiteBase.TrimEnd('/')}/{_article.Year}/{_article.Month}/{_article.Slug}";
 
     private void OpenOnline(PublishChannel channel)
     {
@@ -327,6 +330,13 @@ public sealed class PublishDialog : Border
             _shell.ShowToast(T("Vox.Publish.Msg.NoApi"));
             return;
         }
+        var (status, _) = PublishHub.EvaluateArticle(_article.MarkdownPath, channel);
+        var action = status switch
+        {
+            PublishStatus.Stale => PublishAction.Update,
+            PublishStatus.Error => PublishAction.Retry,
+            _ => PublishAction.First,
+        };
         _shell.ShowToast(TF("Vox.Publish.Msg.Publishing", ChannelText(channel)));
         try
         {
@@ -341,6 +351,7 @@ public sealed class PublishDialog : Border
             var states = PublishStateStore.Load();
             PublishStateStore.MarkPublished(states, _article.MarkdownPath, channel, hash, result);
             PublishStateStore.Save(states);
+            Record(channel, action, true, result, OnlineUrl(channel), HeadSha());
             PublishHub.Invalidate();
             _shell.ShowToast(TF("Vox.Publish.Msg.PublishResult", ChannelText(channel), result));
         }
@@ -349,13 +360,14 @@ public sealed class PublishDialog : Border
             var states = PublishStateStore.Load();
             PublishStateStore.MarkError(states, _article.MarkdownPath, channel, ex.Message);
             PublishStateStore.Save(states);
+            Record(channel, action, false, ex.Message, null, null);
             PublishHub.Invalidate();
             _shell.ShowToast(TF("Vox.Publish.Msg.PublishFail", ChannelText(channel), ex.Message));
         }
         RebuildRows();
     }
 
-    private async Task CopyFieldAsync(string field)
+    private async Task CopyFieldAsync(string field, PublishChannel? channel = null)
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard == null) return;
@@ -371,8 +383,49 @@ public sealed class PublishDialog : Border
             _ => string.Empty,
         };
         await clipboard.SetTextAsync(payload);
+        if (channel is { } copied)
+        {
+            Record(copied, PublishAction.Copy, true, FieldLabel(field), OnlineUrl(copied), null);
+        }
         _shell.ShowToast(TF("Vox.Sync.Msg.Copied", FieldLabel(field)));
     }
+
+    private void Record(PublishChannel channel, PublishAction action, bool success, string? note, string? url, string? sha)
+    {
+        PublishLogStore.Append(new PublishLogEntry
+        {
+            ArticlePath = _article.MarkdownPath,
+            Title = string.IsNullOrEmpty(_article.Title) ? _article.Slug : _article.Title,
+            Platform = channel.ToString(),
+            Action = action,
+            Success = success,
+            Note = note,
+            Sha = sha,
+            Url = url,
+        });
+    }
+
+    private static string? HeadSha()
+    {
+        try
+        {
+            return AppState.Instance.Git()?.History(1).FirstOrDefault()?.Sha;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>可回溯的线上入口：站点文章地址或各平台后台（复制型平台无线上地址）。</summary>
+    private string? OnlineUrl(PublishChannel channel) => channel switch
+    {
+        PublishChannel.Site => SiteUrl(),
+        PublishChannel.WeChat => "https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2",
+        PublishChannel.Cnblogs => "https://i.cnblogs.com/posts",
+        PublishChannel.Csdn => "https://editor.csdn.net/md",
+        _ => null,
+    };
 
     private async Task<string> ReadMarkdownAsync()
     {

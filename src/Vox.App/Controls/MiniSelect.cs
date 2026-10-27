@@ -97,4 +97,13 @@ public sealed class MiniSelect : ContentControl
         Content = new Panel { Children = { button, _popup } };
         _label.Text = Selected;
     }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == SelectedProperty && _label != null)
+        {
+            _label.Text = Selected;
+        }
+    }
 }

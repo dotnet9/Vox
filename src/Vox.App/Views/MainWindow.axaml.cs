@@ -844,6 +844,9 @@ public partial class MainWindow : Window
 
     // ---------- 弹层宿主 ----------
 
+    /// <summary>弹层关闭后广播（页面据此刷新弹层内触发的数据，如发布历史）。</summary>
+    public event Action? ModalClosed;
+
     /// <summary>在应用内遮罩中显示弹层（原型 .mask/.modal 形态）。点遮罩空白处关闭。</summary>
     public void ShowModal(Control content)
     {
@@ -857,6 +860,7 @@ public partial class MainWindow : Window
         ModalHost.Content = null;
         ModalMask.IsVisible = false;
         ModalMask.IsHitTestVisible = false;
+        ModalClosed?.Invoke();
     }
 
     private void OnModalMaskReleased(object? sender, PointerReleasedEventArgs e)

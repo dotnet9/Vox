@@ -54,6 +54,12 @@ public sealed class PublishPage : UserControl
     // 检查标签
     private readonly StackPanel _checkGroupsHost = new();
 
+    // 发布历史标签
+    private readonly StackPanel _logTab = new();
+    private readonly Controls.MiniSelect _logPlatformFilter = new();
+    private readonly Controls.MiniSelect _logResultFilter = new();
+    private readonly StackPanel _logHost = new();
+
     // 数据
     private readonly Dictionary<string, bool> _expandedGroups = new();
     private List<ChangeEntry> _changes = [];
@@ -66,6 +72,7 @@ public sealed class PublishPage : UserControl
         _shell = shell;
         BuildLayout();
         AppState.Instance.ScanChanged += () => Dispatcher.UIThread.Post(() => RefreshAll());
+        _shell.ModalClosed += () => Dispatcher.UIThread.Post(RefreshPublishLog);
         AttachedToVisualTree += (_, _) => RefreshAll();
     }
 
@@ -86,6 +93,7 @@ public sealed class PublishPage : UserControl
         var tabs = new (string Key, StackPanel Host)[]
         {
             ("Vox.Publish.Tab.Site", _siteTab), ("Vox.Publish.Tab.Matrix", _matrixTab), ("Vox.Publish.Tab.Check", _checkTab),
+            ("Vox.Publish.Tab.History", _logTab),
         };
         for (var i = 0; i < tabs.Length; i++)
         {
@@ -95,14 +103,13 @@ public sealed class PublishPage : UserControl
         {
             if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is int index)
             {
-                foreach (var host in new[] { _siteTab, _matrixTab, _checkTab }) host.IsVisible = false;
+                foreach (var host in new[] { _siteTab, _matrixTab, _checkTab, _logTab }) host.IsVisible = false;
                 tabs[index].Host.IsVisible = true;
+                if (index == 3) RefreshPublishLog();
             }
         };
-        seg.SelectedIndex = 0;
 
-        var tabsRow = new DockPanel { Margin = new Thickness(0, 0, 0, 12), Children = { seg } };
-        var summaryHost = new DockPanel { Children = { _pubSummary } };
+        var tabsRow = new DockPanel { Margin = new Thickness(0, 0, 0, 12), Children = { seg } };        var summaryHost = new DockPanel { Children = { _pubSummary } };
         Res(_pubSummary, TextBlock.ForegroundProperty, "VoxMuted");
         _pubSummary.FontSize = 11.5;
         tabsRow.Children.Add(summaryHost.Dock(Dock.Right));
@@ -113,13 +120,17 @@ public sealed class PublishPage : UserControl
         contentHost.Children.Add(_siteTab);
         contentHost.Children.Add(_matrixTab);
         contentHost.Children.Add(_checkTab);
+        contentHost.Children.Add(_logTab);
         _matrixTab.IsVisible = false;
         _checkTab.IsVisible = false;
+        _logTab.IsVisible = false;
         root.Children.Add(contentHost);
 
         BuildSiteTab();
         BuildMatrixTab();
         BuildCheckTab();
+        BuildLogTab();
+        seg.SelectedIndex = 0;
         Content = root;
     }
 
@@ -292,6 +303,7 @@ public sealed class PublishPage : UserControl
         RefreshMatrix();
         RefreshChecks();
         RefreshPubSummary();
+        RefreshPublishLog();
     }
 
     private void SafeGit(Action<GitService> action, Action? onError = null)
@@ -882,7 +894,8 @@ public sealed class PublishPage : UserControl
             {
                 var git = AppState.Instance.Git();
                 if (git == null) return;
-                git.CommitPaths(paths, message, name, email);
+                var commit = git.CommitPaths(paths, message, name, email);
+                var headSha = commit.Sha[..7];
                 if (push)
                 {
                     var pat = Vox.Git.CredentialStoreFactory.Create().GetPat("github.com");
@@ -890,6 +903,7 @@ public sealed class PublishPage : UserControl
                 }
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (push) RecordSitePush(paths, headSha);
                     _summaryInput.Text = string.Empty;
                     _descInput.Text = string.Empty;
                     RefreshAll();
@@ -935,10 +949,22 @@ public sealed class PublishPage : UserControl
             try
             {
                 var git = AppState.Instance.Git();
+                var pushed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                string? headSha = null;
+                if (git != null)
+                {
+                    headSha = git.History(1).FirstOrDefault()?.Sha;
+                    var ahead = git.BranchState().AheadBy ?? 0;
+                    foreach (var commit in git.History(ahead))
+                    {
+                        foreach (var path in git.ChangedFiles(commit.Sha)) pushed.Add(path);
+                    }
+                }
                 var pat = Vox.Git.CredentialStoreFactory.Create().GetPat("github.com");
                 git?.Push(pat ?? string.Empty);
                 Dispatcher.UIThread.Post(() =>
                 {
+                    RecordSitePush(pushed, headSha);
                     _shell.ShowToast(T("Vox.Publish.Msg.Pushed"));
                     RefreshAll();
                 });
@@ -948,6 +974,34 @@ public sealed class PublishPage : UserControl
                 Dispatcher.UIThread.Post(() => _shell.ShowToast(TF("Vox.Publish.Msg.PushFail", ex.Message)));
             }
         });
+    }
+
+    /// <summary>站点通道发布 = 推送成功：把本次推送涉及的文章按首发/更新写入发布历史。</summary>
+    private static void RecordSitePush(IEnumerable<string> paths, string? sha)
+    {
+        var scan = AppState.Instance.Scan;
+        if (scan == null) return;
+        var pushed = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var articles = scan.Articles.Where(a => pushed.Contains(a.MarkdownPath)).ToList();
+        if (articles.Count == 0) return;
+
+        var prior = PublishLogStore.List(platform: PublishChannel.Site.ToString(), limit: 5000)
+            .Select(e => e.ArticlePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var siteBase = AppState.Instance.Settings.SiteBase.TrimEnd('/');
+        foreach (var article in articles)
+        {
+            PublishLogStore.Append(new PublishLogEntry
+            {
+                ArticlePath = article.MarkdownPath,
+                Title = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
+                Platform = PublishChannel.Site.ToString(),
+                Action = prior.Contains(article.MarkdownPath) ? PublishAction.Update : PublishAction.First,
+                Success = true,
+                Sha = sha,
+                Url = $"{siteBase}/{article.Year}/{article.Month}/{article.Slug}",
+            });
+        }
     }
 
     private void RefreshHistory()
@@ -1362,6 +1416,240 @@ public sealed class PublishPage : UserControl
         PublishHub.Invalidate();
         RefreshAll();
         _shell.ShowToast(TF("Vox.Publish.Msg.AuthorFilled", missing.Count));
+    }
+
+    // ================= 标签 4：发布历史 =================
+
+    private const string LogColumns = "132,*,96,104,78,86,236";
+
+    private void BuildLogTab()
+    {
+        var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
+        var title = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold };
+        title[!TextBlock.TextProperty] = I18n.Bind("Vox.PublishLog.Title");
+        var sub = new TextBlock { FontSize = 11.5, Margin = new Thickness(0, 2, 0, 0) };
+        sub[!TextBlock.TextProperty] = I18n.Bind("Vox.PublishLog.Sub");
+        Res(sub, TextBlock.ForegroundProperty, "VoxFaint");
+        pagehead.Children.Add(new StackPanel { Children = { title, sub } });
+        _logTab.Children.Add(pagehead);
+
+        var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 10) };
+        _logPlatformFilter.Items = new[]
+        {
+            T("Vox.Publish.Filter.AllPlatforms"), PlatformText(PublishChannel.Site),
+            PlatformText(PublishChannel.WeChat), PlatformText(PublishChannel.Cnblogs),
+            PlatformText(PublishChannel.Csdn), PlatformText(PublishChannel.Zhihu),
+        };
+        _logPlatformFilter.Selected = T("Vox.Publish.Filter.AllPlatforms");
+        _logPlatformFilter.SelectionChanged += _ => RefreshPublishLog();
+        _logResultFilter.Items = new[]
+        {
+            T("Vox.PublishLog.Filter.AllResults"), T("Vox.PublishLog.Result.Ok"), T("Vox.PublishLog.Result.Fail"),
+        };
+        _logResultFilter.Selected = T("Vox.PublishLog.Filter.AllResults");
+        _logResultFilter.SelectionChanged += _ => RefreshPublishLog();
+        filters.Children.Add(_logPlatformFilter);
+        filters.Children.Add(_logResultFilter);
+        _logTab.Children.Add(filters);
+
+        var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
+        Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
+        Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
+        tableWrap.BorderThickness = new Thickness(1);
+        tableWrap.Child = new ScrollViewer { MaxHeight = 480, Content = _logHost };
+        _logTab.Children.Add(tableWrap);
+
+        var hint = new TextBlock { FontSize = 10.5, Margin = new Thickness(0, 10, 0, 0), TextWrapping = TextWrapping.Wrap };
+        hint[!TextBlock.TextProperty] = I18n.Bind("Vox.PublishLog.Hint");
+        Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        _logTab.Children.Add(hint);
+    }
+
+    /// <summary>历史表平台文案：网站标注 git、知乎标注复制型（与原型一致）。</summary>
+    private static string PlatformText(PublishChannel channel) => channel switch
+    {
+        PublishChannel.Site => T("Vox.PublishLog.Platform.Site"),
+        PublishChannel.Zhihu => T("Vox.PublishLog.Platform.Zhihu"),
+        _ => ChannelText(channel),
+    };
+
+    private static string ActionText(PublishAction action) => action switch
+    {
+        PublishAction.First => T("Vox.PublishLog.Action.First"),
+        PublishAction.Update => T("Vox.PublishLog.Action.Update"),
+        PublishAction.Retry => T("Vox.PublishLog.Action.Retry"),
+        _ => T("Vox.PublishLog.Action.Copy"),
+    };
+
+    private string? SelectedPlatform()
+    {
+        foreach (PublishChannel channel in Enum.GetValues<PublishChannel>())
+        {
+            if (_logPlatformFilter.Selected == PlatformText(channel)) return channel.ToString();
+        }
+        return null;
+    }
+
+    private void RefreshPublishLog()
+    {
+        _logHost.Children.Clear();
+        var success = _logResultFilter.Selected == T("Vox.PublishLog.Result.Ok") ? true
+            : _logResultFilter.Selected == T("Vox.PublishLog.Result.Fail") ? false
+            : (bool?)null;
+        var entries = PublishLogStore.List(platform: SelectedPlatform(), success: success, limit: 300);
+
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitions(LogColumns) };
+        var headerKeys = new[]
+        {
+            "Vox.PublishLog.Column.Time", "Vox.PublishLog.Column.Article", "Vox.PublishLog.Column.Platform",
+            "Vox.PublishLog.Column.Action", "Vox.PublishLog.Column.Result", "Vox.PublishLog.Column.Commit",
+            "Vox.PublishLog.Column.Online",
+        };
+        for (var i = 0; i < headerKeys.Length; i++)
+        {
+            var cell = new TextBlock { Text = T(headerKeys[i]), FontSize = 10.5, FontWeight = FontWeight.SemiBold };
+            Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
+            header.Children.Add(cell);
+            Grid.SetColumn(cell, i);
+        }
+        var headerBorder = new Border { Padding = new Thickness(14, 9), Child = header };
+        Res(headerBorder, Border.BackgroundProperty, "VoxSurface2");
+        Res(headerBorder, Border.BorderBrushProperty, "VoxLine");
+        headerBorder.BorderThickness = new Thickness(0, 0, 0, 1);
+        _logHost.Children.Add(headerBorder);
+
+        var mono = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        var scan = AppState.Instance.Scan;
+        foreach (var entry in entries)
+        {
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions(LogColumns) };
+
+            var time = new TextBlock
+            {
+                Text = entry.Time.ToString("yyyy-MM-dd HH:mm"), FontSize = 10.5, FontFamily = mono,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(time, TextBlock.ForegroundProperty, "VoxMuted");
+            grid.Children.Add(time);
+
+            var title = new TextBlock
+            {
+                Text = entry.Title, FontSize = 12, FontWeight = FontWeight.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0),
+            };
+            grid.Children.Add(title);
+            Grid.SetColumn(title, 1);
+
+            var platform = new TextBlock
+            {
+                Text = Enum.TryParse<PublishChannel>(entry.Platform, out var channel) ? PlatformText(channel) : entry.Platform,
+                FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center,
+            };
+            grid.Children.Add(platform);
+            Grid.SetColumn(platform, 2);
+
+            var action = new TextBlock
+            {
+                Text = ActionText(entry.Action), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(action, TextBlock.ForegroundProperty, "VoxMuted");
+            grid.Children.Add(action);
+            Grid.SetColumn(action, 3);
+
+            var badge = new Border
+            {
+                Classes = { "badge", entry.Success ? "ok" : "danger" },
+                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = entry.Success ? T("Vox.PublishLog.Result.Ok") : T("Vox.PublishLog.Result.Fail"),
+                    FontSize = 10,
+                },
+            };
+            if (!entry.Success && !string.IsNullOrWhiteSpace(entry.Note)) ToolTip.SetTip(badge, entry.Note);
+            grid.Children.Add(badge);
+            Grid.SetColumn(badge, 4);
+
+            var sha = new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(entry.Sha) ? "—" : entry.Sha, FontSize = 10.5, FontFamily = mono,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(sha, TextBlock.ForegroundProperty, string.IsNullOrWhiteSpace(entry.Sha) ? "VoxFaint" : "VoxMuted");
+            grid.Children.Add(sha);
+            Grid.SetColumn(sha, 5);
+
+            var online = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            if (!string.IsNullOrWhiteSpace(entry.Url))
+            {
+                var address = entry.Url.Replace("https://", string.Empty).Replace("http://", string.Empty);
+                var link = new TextBlock
+                {
+                    Text = $"{address} ↗",
+                    FontSize = 10.5, FontFamily = mono, Cursor = new Cursor(StandardCursorType.Hand),
+                    TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1,
+                };
+                Res(link, TextBlock.ForegroundProperty, "VoxAccent");
+                ToolTip.SetTip(link, entry.Url);
+                var url = entry.Url;
+                link.PointerReleased += (_, e) =>
+                {
+                    e.Handled = true;
+                    ShellOpen("cmd.exe", $"/c start \"\" \"{url}\"");
+                };
+                online.Children.Add(link);
+            }
+            else
+            {
+                var none = new TextBlock { Text = "—", FontSize = 10.5 };
+                Res(none, TextBlock.ForegroundProperty, "VoxFaint");
+                online.Children.Add(none);
+            }
+            if (!entry.Success && !string.IsNullOrWhiteSpace(entry.Note))
+            {
+                var note = new TextBlock
+                {
+                    Text = entry.Note, FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                    TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2,
+                };
+                Res(note, TextBlock.ForegroundProperty, "VoxDanger");
+                online.Children.Add(note);
+            }
+            grid.Children.Add(online);
+            Grid.SetColumn(online, 6);
+
+            var row = new Border
+            {
+                Padding = new Thickness(14, 8), Child = grid,
+                Cursor = new Cursor(StandardCursorType.Hand),
+            };
+            Res(row, Border.BorderBrushProperty, "VoxLine");
+            row.BorderThickness = new Thickness(0, 0, 0, 1);
+            row.PointerEntered += (_, _) => Res(row, Border.BackgroundProperty, "VoxSurface2");
+            row.PointerExited += (_, _) =>
+            {
+                row[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxSurface");
+            };
+            var article = scan?.Articles.FirstOrDefault(a => a.MarkdownPath == entry.ArticlePath);
+            row.PointerReleased += (_, _) =>
+            {
+                if (article != null) _shell.ShowModal(new PublishDialog(_shell, article));
+                else _shell.ShowToast(T("Vox.PublishLog.Msg.ArticleGone"));
+            };
+            _logHost.Children.Add(row);
+        }
+
+        if (entries.Count == 0)
+        {
+            var empty = new TextBlock
+            {
+                Text = T("Vox.PublishLog.Empty"), FontSize = 11.5,
+                HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 22, 0, 22),
+            };
+            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
+            _logHost.Children.Add(empty);
+        }
     }
 
     private void RefreshPubSummary()
