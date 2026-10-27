@@ -506,7 +506,7 @@ draft: true
 <script>
 const $=id=>document.getElementById(id);
 /* ---------- 视图切换 ---------- */
-const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','536 篇 · 全库浏览与筛选'],assets:['图片库','4203 张 · 仓库即图床'],audit:['规范体检','1143 个待处理'],sync:['同步','main · 领先远端 2 个提交'],site:['站点数据','site/*.json · 仅 zh-CN'],settings:['设置','']};
+const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','536 篇 · 全库浏览与筛选'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],settings:['设置']};
 document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
   document.querySelectorAll('.nav .it').forEach(x=>x.classList.toggle('active',x===it));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+it.dataset.view));

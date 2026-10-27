@@ -1,0 +1,28 @@
+# 质量 CI：构建 + 单元测试 + 原型门禁（此前只在打 tag 发布时跑流水线，质量检查缺位）。
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  build-test:
+    name: 构建与测试
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: 构建 + 单元测试（build.ps1 -Test）
+        shell: pwsh
+        run: ./scripts/build.ps1 -Test
+  prototype-gate:
+    name: 原型门禁
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 原型校验（视图清单 / 资产存在性 / 离线自治）
+        run: node design/scripts/check-prototype.cjs
