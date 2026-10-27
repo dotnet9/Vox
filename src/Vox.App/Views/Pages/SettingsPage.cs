@@ -26,6 +26,14 @@ public sealed class SettingsPage : UserControl
     private readonly TextBox _llmModel = new() { Classes = { "vinput" }, Width = 200, FontSize = 11 };
     private readonly Border _llmKeyBadge = new();
     private readonly TextBlock _llmKeyMask = new() { FontSize = 11 };
+    private readonly Border _mcpDot = new()
+    {
+        Width = 7,
+        Height = 7,
+        CornerRadius = new CornerRadius(4),
+        VerticalAlignment = VerticalAlignment.Center,
+    };
+    private readonly TextBlock _mcpState = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     private Button _llmTest = null!;
 
     public SettingsPage(MainWindow shell)
@@ -33,10 +41,24 @@ public sealed class SettingsPage : UserControl
         _shell = shell;
         BuildLayout();
         AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshIndex);
+        McpService.StateChanged += OnMcpStateChanged;
+        McpService.CallAudited += OnMcpCallAudited;
         RefreshIndex();
         RefreshPat();
         RefreshLlmKey();
+        RefreshMcp();
     }
+
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        McpService.StateChanged -= OnMcpStateChanged;
+        McpService.CallAudited -= OnMcpCallAudited;
+    }
+
+    private void OnMcpStateChanged() => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshMcp);
+
+    private void OnMcpCallAudited(ToolAuditEntry entry) => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshMcp);
 
     private void BuildLayout()
     {
@@ -217,6 +239,18 @@ public sealed class SettingsPage : UserControl
         }));
         host.Children.Add(llmCard.Host);
 
+        // ---------- MCP 服务 ----------
+        var mcpCard = Card("Vox.Settings.Mcp.Title", "Vox.Settings.Mcp.Desc");
+        var mcpOpen = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        mcpOpen[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Mcp.Configure");
+        mcpOpen.Click += (_, _) => _shell.ShowPage("mcp");
+        mcpCard.Add(Row("Vox.Settings.Mcp.Status", new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 8,
+            Children = { _mcpDot, _mcpState, mcpOpen },
+        }));
+        host.Children.Add(mcpCard.Host);
+
         // ---------- 关于 ----------
         var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
         var checkUpdate = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
@@ -346,6 +380,23 @@ public sealed class SettingsPage : UserControl
         };
         _llmKeyMask.Text = !preset.NeedsKey ? "127.0.0.1:11434" : configured ? MaskKey(key!) : "—";
         Res(_llmKeyMask, TextBlock.ForegroundProperty, "VoxMuted");
+    }
+
+    private void RefreshMcp()
+    {
+        var settings = AppState.Instance.Settings;
+        var running = McpService.IsRunning;
+        Res(_mcpDot, Border.BackgroundProperty, running ? "VoxOk" : "VoxFaint");
+        if (running)
+        {
+            var today = Vox.Core.ToolAuditStore.List(limit: 5000).Count(e => e.Time.Date == DateTime.Today);
+            _mcpState.Text = TF("Vox.Settings.Mcp.Running", settings.McpPort, McpService.Clients.Count, today);
+        }
+        else
+        {
+            _mcpState.Text = T(settings.McpEnabled ? "Vox.Settings.Mcp.Stopped" : "Vox.Settings.Mcp.Disabled");
+        }
+        Res(_mcpState, TextBlock.ForegroundProperty, running ? "VoxFg" : "VoxFaint");
     }
 
     private async Task TestLlmAsync()

@@ -144,9 +144,9 @@ public sealed partial class McpServer : IDisposable
         {
             throw new InvalidOperationException("端口须为 1024–65535 的整数。");
         }
-        if (options.Token.Trim().Length < 16)
+        if (options.Token.Trim().Length < 24)
         {
-            throw new InvalidOperationException("访问令牌至少 16 个字符，请先生成令牌。");
+            throw new InvalidOperationException("访问令牌至少 24 个字符，请先生成令牌。");
         }
     }
 

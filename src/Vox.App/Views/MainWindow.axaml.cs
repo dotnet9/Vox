@@ -24,6 +24,9 @@ namespace Vox.App.Views;
 /// </summary>
 public partial class MainWindow : Window
 {
+    /// <summary>当前主窗口（MCP 宿主桥从后台线程回投弹层用）。</summary>
+    public static MainWindow? Current { get; private set; }
+
     private readonly Dictionary<string, Control> _pages = new();
     private readonly List<(Button Btn, string Key)> _navButtons = new();
     private bool _navCollapsed = true; // 原型默认折叠为纯图标条
@@ -31,6 +34,11 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        Current = this;
+        Closed += (_, _) =>
+        {
+            if (ReferenceEquals(Current, this)) Current = null;
+        };
         InitializeComponent();
         try
         {
@@ -65,16 +73,18 @@ public partial class MainWindow : Window
 
         BuildNav();
         ApplyNavMode();
-        // 调试钩子：VOX_START_PAGE=library|publish|site|settings 直开对应页
+        // 调试钩子：VOX_START_PAGE=write|library|images|publish|site|mcp|settings 直开对应页
         var startPage = Environment.GetEnvironmentVariable("VOX_START_PAGE");
         var initial = string.IsNullOrWhiteSpace(startPage) ? "write" : startPage;
-        if (initial is not ("write" or "library" or "images" or "publish" or "site" or "settings")) initial = "write";
+        if (initial is not ("write" or "library" or "images" or "publish" or "site" or "mcp" or "settings")) initial = "write";
         _currentKey = initial;
         PageHost.Content = GetPage(initial);
         MarkActive(initial);
 
         ThemeService.Apply(AppState.Instance.Settings);
         AppState.Instance.ScanChanged += OnScanChanged;
+        Services.McpService.StateChanged += UpdateMcpBadge;
+        Services.McpService.CallAudited += _ => UpdateMcpBadge();
         UpdateNavCounts();
         ApplyChrome(); // 标题栏/菜单/搜索浮层固定文案接 I18n 动态绑定（含初始值）
 
@@ -90,6 +100,7 @@ public partial class MainWindow : Window
             {
                 AppState.Instance.Rescan();
                 Services.PublishHub.Invalidate();
+                Services.McpService.AutoStart();
             });
         }
         HookStartupTarget(); // 命令行目录/文件入口：首个索引完成后定位打开
@@ -526,6 +537,7 @@ public partial class MainWindow : Window
         AddNavItem(NavItems, "images", LucideIconKind.Image, Nav.Label.Images);
         AddNavItem(NavItems, "publish", LucideIconKind.GitBranch, Nav.Label.Publish);
         AddNavItem(NavItems, "site", LucideIconKind.Braces, Nav.Label.SiteData);
+        AddNavItem(NavItems, "mcp", LucideIconKind.Plug, Nav.Label.Mcp);
         AddNavItem(NavItems, "settings", LucideIconKind.Settings, Nav.Label.Settings);
     }
 
@@ -751,6 +763,12 @@ public partial class MainWindow : Window
 
     private void OnScanChanged() => Dispatcher.UIThread.Post(UpdateNavCounts);
 
+    private void UpdateMcpBadge() => Dispatcher.UIThread.Post(() =>
+    {
+        var clients = Services.McpService.Clients.Count;
+        SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
+    });
+
     private async void UpdateNavCounts()
     {
         // 角标计算走发布缓存（可能冷启动在后台构建）：放到后台线程算，UI 只收结果。
@@ -769,6 +787,9 @@ public partial class MainWindow : Window
         SetNavCount("library", scan?.Articles.Count.ToString());
         // 发布中心角标 = 待推送提交 + 待发布/需更新/失败的平台格子。
         SetNavCount("publish", pending > 0 ? pending.ToString() : null);
+        // MCP 角标 = 在线 AI 客户端数（服务未启动/无客户端时隐藏）。
+        var clients = Services.McpService.Clients.Count;
+        SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
     }
 
     private void SetNavCount(string key, string? text)
@@ -834,6 +855,7 @@ public partial class MainWindow : Window
                 "images" => new ImagesPage(this),
                 "publish" => new PublishPage(this),
                 "site" => new SiteDataPage(this),
+                "mcp" => new McpPage(this),
                 "settings" => new SettingsPage(this),
                 _ => new WritePage(this),
             };
