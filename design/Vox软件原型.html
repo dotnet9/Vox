@@ -110,6 +110,7 @@
         <button class="edge-btn gutter" id="btnPanel" title="展开文章面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
         <div class="wsrc" id="paneSrc">
           <div class="edscroll"><div class="gutter" id="gutter"></div><div class="elines" id="elines"></div></div>
+          <div class="savestate pill" id="saveState" style="display:none"><b>已保存</b></div>
         </div>
         <div class="modeseg-float"><div class="seg" id="modeSeg">
           <button data-m="src" class="active">源码</button><button data-m="split">分屏</button><button data-m="prev">预览</button><button data-m="map">导图</button>
@@ -289,6 +290,10 @@
   <!-- ======== 视图：设置 ======== -->
   <section class="view" id="view-settings">
     <div class="pagehead"><h2>设置</h2></div>
+    <div class="setting">
+      <h3>写作与保存</h3><div class="sdesc">自动保存开启时以磁盘为唯一真值：停止输入自动落盘，外部程序修改当前文件静默自动载入，全程无阻断</div>
+      <div class="srow"><label>自动保存</label><div class="val"><div class="row"><span class="switch" data-switch id="swAutoSave"></span><span class="desc" id="autoSaveDesc">关闭 · Ctrl+S 手动保存，保存前检测外部修改并提示比较</span></div></div></div>
+    </div>
     <div class="setting">
       <h3>内容仓库</h3><div class="sdesc">Vox 管理的内容源仓库，全量内存索引 + 文件监视增量维护</div>
       <div class="srow"><label>仓库路径</label><div class="val"><div class="row"><input class="input mono" style="font-size:0.8462rem" value="E:\github\Apps\Assets.Dotnet9"><button class="btn sm">更改…</button></div></div></div>
@@ -756,6 +761,19 @@ function newSlug(t){const s=(t||'新文章').toLowerCase().replace(/[^\w\u4e00-\
   return '2026/10/'+s+'.md + '+s+'.yml';}
 let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);}
+/* ---------- 需求 A：自动保存开关 → 写作视图保存状态 pill 联动（原型演示） ---------- */
+(function(){
+  var sw=document.getElementById('swAutoSave'),pill=document.getElementById('saveState'),desc=document.getElementById('autoSaveDesc');
+  if(!sw||!pill)return;
+  sw.addEventListener('click',function(){
+    var on=sw.classList.contains('on');
+    desc.textContent=on
+      ?'开启 · 停止输入约 2 秒自动落盘；外部修改静默自动载入并以 toast 告知，不弹「请先比较」'
+      :'关闭 · Ctrl+S 手动保存，保存前检测外部修改并提示比较';
+    pill.style.display=on?'':'none';
+    toast(on?'自动保存已开启：外部修改将静默自动载入':'自动保存已关闭');
+  });
+})();
 /* ---------- 同步 v4：文件行右键菜单（GitHub Desktop 同款） ---------- */
 const ctxMenu=document.createElement('div');ctxMenu.className='ctxmenu';ctxMenu.style.display='none';document.body.appendChild(ctxMenu);
 function closeCtx(){ctxMenu.style.display='none';}
