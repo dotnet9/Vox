@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <AvaloniaVersion>12.1.4</AvaloniaVersion>
     <ArcVersion>0.3.0-preview.5</ArcVersion>
-    <CodeWfLangVersion>12.2.16</CodeWfLangVersion>
+    <CodeWfLangVersion>12.2.17</CodeWfLangVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Avalonia" Version="$(AvaloniaVersion)" />
@@ -17,8 +17,8 @@
     <PackageVersion Include="TKCode.Arc.Icons.Lucide" Version="$(ArcVersion)" />
     <PackageVersion Include="CodeWF.Toolkit.Lang" Version="1.1.0" />
     <PackageVersion Include="CodeWF.Avalonia.Lang" Version="$(CodeWfLangVersion)" />
-    <PackageVersion Include="CodeWF.Avalonia.Markdown" Version="12.2.16" />
-    <PackageVersion Include="CodeWF.Avalonia.MindView" Version="12.2.16" />
+    <PackageVersion Include="CodeWF.Avalonia.Markdown" Version="12.2.17" />
+    <PackageVersion Include="CodeWF.Avalonia.MindView" Version="12.2.17" />
     <PackageVersion Include="CodeWF.Avalonia.Lang.Generator" Version="$(CodeWfLangVersion)" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="LibGit2Sharp" Version="0.31.0" />
