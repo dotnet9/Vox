@@ -1,5 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
+using Avalonia.VisualTree;
+using CodeWF.Avalonia.DataGrid;
 using IoPath = System.IO.Path;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -21,6 +25,8 @@ namespace Vox.App.Views.Pages;
 /// <summary>发布中心（原型 #view-publish）：网站(git) 两栏 ｜ 多平台矩阵 ｜ 发布前检查 三标签。</summary>
 public sealed class PublishPage : UserControl
 {
+    private static readonly FontFamily Mono = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+
     private readonly MainWindow _shell;
 
     // 标签
@@ -58,7 +64,14 @@ public sealed class PublishPage : UserControl
     private readonly StackPanel _logTab = new();
     private readonly Controls.MiniSelect _logPlatformFilter = new();
     private readonly Controls.MiniSelect _logResultFilter = new();
-    private readonly StackPanel _logHost = new();
+    private readonly DataGrid _logGrid = new();
+    private readonly TextBlock _logEmpty = new()
+    {
+        FontSize = 11.5,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        IsVisible = false,
+    };
 
     // 数据
     private readonly Dictionary<string, bool> _expandedGroups = new();
@@ -1420,8 +1433,6 @@ public sealed class PublishPage : UserControl
 
     // ================= 标签 4：发布历史 =================
 
-    private const string LogColumns = "132,*,96,104,78,86,236";
-
     private void BuildLogTab()
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
@@ -1452,12 +1463,13 @@ public sealed class PublishPage : UserControl
         filters.Children.Add(_logResultFilter);
         _logTab.Children.Add(filters);
 
-        var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
-        Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
-        Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
-        tableWrap.BorderThickness = new Thickness(1);
-        tableWrap.Child = new ScrollViewer { MaxHeight = 480, Content = _logHost };
-        _logTab.Children.Add(tableWrap);
+        var tableHost = new Grid();
+        ConfigureLogGrid();
+        tableHost.Children.Add(_logGrid);
+        _logEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.PublishLog.Empty");
+        Res(_logEmpty, TextBlock.ForegroundProperty, "VoxFaint");
+        tableHost.Children.Add(_logEmpty);
+        _logTab.Children.Add(tableHost);
 
         var hint = new TextBlock { FontSize = 10.5, Margin = new Thickness(0, 10, 0, 0), TextWrapping = TextWrapping.Wrap };
         hint[!TextBlock.TextProperty] = I18n.Bind("Vox.PublishLog.Hint");
@@ -1490,166 +1502,186 @@ public sealed class PublishPage : UserControl
         return null;
     }
 
+    private void ConfigureLogGrid()
+    {
+        _logGrid.AutoGenerateColumns = false;
+        _logGrid.CanUserSortColumns = true;
+        _logGrid.CanUserReorderColumns = false;
+        _logGrid.CanUserResizeColumns = false;
+        _logGrid.IsReadOnly = true;
+        _logGrid.SelectionMode = DataGridSelectionMode.Single;
+        _logGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
+        _logGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
+        _logGrid.FontSize = 12;
+        _logGrid.MinHeight = 120;
+        _logGrid.MaxHeight = 480;
+        Res(_logGrid, TemplatedControl.BackgroundProperty, "VoxSurface");
+        Res(_logGrid, TemplatedControl.BorderBrushProperty, "VoxLine");
+        _logGrid.BorderThickness = new Thickness(1);
+        _logGrid.CornerRadius = new CornerRadius(12);
+
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Time"), new DataGridLength(132),
+            row => CellText(row.Time, 10.5, Mono, "VoxMuted", false), nameof(LogRowModel.SortTime)));
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Article"),
+            new DataGridLength(1, DataGridLengthUnitType.Star), ArticleCell, nameof(LogRowModel.Title)));
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Platform"), new DataGridLength(96),
+            row => CellText(row.Platform, 11.5, null, null, true), nameof(LogRowModel.Platform)));
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Action"), new DataGridLength(104),
+            row => CellText(row.Action, 11.5, null, "VoxMuted", true), nameof(LogRowModel.Action)));
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Result"), new DataGridLength(78),
+            ResultCell, nameof(LogRowModel.ResultRank)));
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Commit"), new DataGridLength(86),
+            row => CellText(row.Sha, 10.5, Mono, row.HasSha ? "VoxMuted" : "VoxFaint", false),
+            nameof(LogRowModel.Sha)));
+        _logGrid.Columns.Add(LogColumn(T("Vox.PublishLog.Column.Online"), new DataGridLength(236), OnlineCell));
+        _logGrid.EnableDefaults(enableSmartTooltips: false);
+
+        _logGrid.LoadingRow += (_, e) => e.Row.Cursor = new Cursor(StandardCursorType.Hand);
+        _logGrid.PointerReleased += (_, e) =>
+        {
+            if (e.Source is not Control control) return;
+            if (control.FindAncestorOfType<DataGridRow>()?.DataContext is not LogRowModel row) return;
+            var article = AppState.Instance.Scan?.Articles.FirstOrDefault(a => a.MarkdownPath == row.Entry.ArticlePath);
+            if (article != null) _shell.ShowModal(new PublishDialog(_shell, article));
+            else _shell.ShowToast(T("Vox.PublishLog.Msg.ArticleGone"));
+        };
+    }
+
     private void RefreshPublishLog()
     {
-        _logHost.Children.Clear();
         var success = _logResultFilter.Selected == T("Vox.PublishLog.Result.Ok") ? true
             : _logResultFilter.Selected == T("Vox.PublishLog.Result.Fail") ? false
             : (bool?)null;
         var entries = PublishLogStore.List(platform: SelectedPlatform(), success: success, limit: 300);
+        _logGrid.ItemsSource = entries.Select(LogRowModel.From).ToList();
+        _logEmpty.IsVisible = entries.Count == 0;
+    }
 
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions(LogColumns) };
-        var headerKeys = new[]
+    private static DataGridTemplateColumn LogColumn(
+        string header, DataGridLength width, Func<LogRowModel, Control> cell, string? sortPath = null)
+        => new()
         {
-            "Vox.PublishLog.Column.Time", "Vox.PublishLog.Column.Article", "Vox.PublishLog.Column.Platform",
-            "Vox.PublishLog.Column.Action", "Vox.PublishLog.Column.Result", "Vox.PublishLog.Column.Commit",
-            "Vox.PublishLog.Column.Online",
+            Header = header,
+            Width = width,
+            SortMemberPath = sortPath,
+            CellTemplate = new FuncDataTemplate<LogRowModel>((row, _) => row is null ? new TextBlock() : cell(row)),
         };
-        for (var i = 0; i < headerKeys.Length; i++)
+
+    private static TextBlock CellText(string text, double size, FontFamily? mono, string? colorKey, bool trim)
+    {
+        var block = new TextBlock
         {
-            var cell = new TextBlock { Text = T(headerKeys[i]), FontSize = 10.5, FontWeight = FontWeight.SemiBold };
-            Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
-            header.Children.Add(cell);
-            Grid.SetColumn(cell, i);
-        }
-        var headerBorder = new Border { Padding = new Thickness(14, 9), Child = header };
-        Res(headerBorder, Border.BackgroundProperty, "VoxSurface2");
-        Res(headerBorder, Border.BorderBrushProperty, "VoxLine");
-        headerBorder.BorderThickness = new Thickness(0, 0, 0, 1);
-        _logHost.Children.Add(headerBorder);
+            Text = text,
+            FontSize = size,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 4, 12, 4),
+            TextTrimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+        };
+        if (mono != null) block.FontFamily = mono;
+        if (colorKey != null) Res(block, TextBlock.ForegroundProperty, colorKey);
+        return block;
+    }
 
-        var mono = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
-        var scan = AppState.Instance.Scan;
-        foreach (var entry in entries)
+    private static Control ArticleCell(LogRowModel row)
+    {
+        var title = CellText(row.Title, 12, null, null, true);
+        title.FontWeight = FontWeight.SemiBold;
+        if (!string.IsNullOrWhiteSpace(row.Entry.Note)) ToolTip.SetTip(title, row.Entry.Note);
+        return title;
+    }
+
+    private static Control ResultCell(LogRowModel row)
+    {
+        var badge = new Border
         {
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions(LogColumns) };
+            Classes = { "badge", row.Success ? "ok" : "danger" },
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 0, 12, 0),
+            Child = new TextBlock { Text = row.Result, FontSize = 10 },
+        };
+        if (!row.Success && !string.IsNullOrWhiteSpace(row.Note)) ToolTip.SetTip(badge, row.Note);
+        return badge;
+    }
 
-            var time = new TextBlock
+    private static Control OnlineCell(LogRowModel row)
+    {
+        var stack = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 4, 12, 4) };
+        if (!string.IsNullOrWhiteSpace(row.Entry.Url))
+        {
+            var address = row.Entry.Url.Replace("https://", string.Empty).Replace("http://", string.Empty);
+            var link = new TextBlock
             {
-                Text = entry.Time.ToString("yyyy-MM-dd HH:mm"), FontSize = 10.5, FontFamily = mono,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            Res(time, TextBlock.ForegroundProperty, "VoxMuted");
-            grid.Children.Add(time);
-
-            var title = new TextBlock
-            {
-                Text = entry.Title, FontSize = 12, FontWeight = FontWeight.SemiBold,
-                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0),
-            };
-            grid.Children.Add(title);
-            Grid.SetColumn(title, 1);
-
-            var platform = new TextBlock
-            {
-                Text = Enum.TryParse<PublishChannel>(entry.Platform, out var channel) ? PlatformText(channel) : entry.Platform,
-                FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center,
-            };
-            grid.Children.Add(platform);
-            Grid.SetColumn(platform, 2);
-
-            var action = new TextBlock
-            {
-                Text = ActionText(entry.Action), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center,
-            };
-            Res(action, TextBlock.ForegroundProperty, "VoxMuted");
-            grid.Children.Add(action);
-            Grid.SetColumn(action, 3);
-
-            var badge = new Border
-            {
-                Classes = { "badge", entry.Success ? "ok" : "danger" },
-                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = entry.Success ? T("Vox.PublishLog.Result.Ok") : T("Vox.PublishLog.Result.Fail"),
-                    FontSize = 10,
-                },
-            };
-            if (!entry.Success && !string.IsNullOrWhiteSpace(entry.Note)) ToolTip.SetTip(badge, entry.Note);
-            grid.Children.Add(badge);
-            Grid.SetColumn(badge, 4);
-
-            var sha = new TextBlock
-            {
-                Text = string.IsNullOrWhiteSpace(entry.Sha) ? "—" : entry.Sha, FontSize = 10.5, FontFamily = mono,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            Res(sha, TextBlock.ForegroundProperty, string.IsNullOrWhiteSpace(entry.Sha) ? "VoxFaint" : "VoxMuted");
-            grid.Children.Add(sha);
-            Grid.SetColumn(sha, 5);
-
-            var online = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-            if (!string.IsNullOrWhiteSpace(entry.Url))
-            {
-                var address = entry.Url.Replace("https://", string.Empty).Replace("http://", string.Empty);
-                var link = new TextBlock
-                {
-                    Text = $"{address} ↗",
-                    FontSize = 10.5, FontFamily = mono, Cursor = new Cursor(StandardCursorType.Hand),
-                    TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1,
-                };
-                Res(link, TextBlock.ForegroundProperty, "VoxAccent");
-                ToolTip.SetTip(link, entry.Url);
-                var url = entry.Url;
-                link.PointerReleased += (_, e) =>
-                {
-                    e.Handled = true;
-                    ShellOpen("cmd.exe", $"/c start \"\" \"{url}\"");
-                };
-                online.Children.Add(link);
-            }
-            else
-            {
-                var none = new TextBlock { Text = "—", FontSize = 10.5 };
-                Res(none, TextBlock.ForegroundProperty, "VoxFaint");
-                online.Children.Add(none);
-            }
-            if (!entry.Success && !string.IsNullOrWhiteSpace(entry.Note))
-            {
-                var note = new TextBlock
-                {
-                    Text = entry.Note, FontSize = 10, TextWrapping = TextWrapping.Wrap,
-                    TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2,
-                };
-                Res(note, TextBlock.ForegroundProperty, "VoxDanger");
-                online.Children.Add(note);
-            }
-            grid.Children.Add(online);
-            Grid.SetColumn(online, 6);
-
-            var row = new Border
-            {
-                Padding = new Thickness(14, 8), Child = grid,
+                Text = address + " \u2197",
+                FontSize = 10.5,
+                FontFamily = Mono,
                 Cursor = new Cursor(StandardCursorType.Hand),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxLines = 1,
             };
-            Res(row, Border.BorderBrushProperty, "VoxLine");
-            row.BorderThickness = new Thickness(0, 0, 0, 1);
-            row.PointerEntered += (_, _) => Res(row, Border.BackgroundProperty, "VoxSurface2");
-            row.PointerExited += (_, _) =>
+            Res(link, TextBlock.ForegroundProperty, "VoxAccent");
+            ToolTip.SetTip(link, row.Entry.Url);
+            var url = row.Entry.Url;
+            link.PointerReleased += (_, e) =>
             {
-                row[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxSurface");
+                e.Handled = true;
+                ShellOpen("cmd.exe", "/c start \"\" \"" + url + "\"");
             };
-            var article = scan?.Articles.FirstOrDefault(a => a.MarkdownPath == entry.ArticlePath);
-            row.PointerReleased += (_, _) =>
-            {
-                if (article != null) _shell.ShowModal(new PublishDialog(_shell, article));
-                else _shell.ShowToast(T("Vox.PublishLog.Msg.ArticleGone"));
-            };
-            _logHost.Children.Add(row);
+            stack.Children.Add(link);
+        }
+        else
+        {
+            var none = new TextBlock { Text = "\u2014", FontSize = 10.5 };
+            Res(none, TextBlock.ForegroundProperty, "VoxFaint");
+            stack.Children.Add(none);
         }
 
-        if (entries.Count == 0)
+        if (!row.Success && !string.IsNullOrWhiteSpace(row.Note))
         {
-            var empty = new TextBlock
+            var note = new TextBlock
             {
-                Text = T("Vox.PublishLog.Empty"), FontSize = 11.5,
-                HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 22, 0, 22),
+                Text = row.Note,
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxLines = 2,
             };
-            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
-            _logHost.Children.Add(empty);
+            Res(note, TextBlock.ForegroundProperty, "VoxDanger");
+            stack.Children.Add(note);
         }
+        return stack;
+    }
+
+    private sealed class LogRowModel
+    {
+        public required PublishLogEntry Entry { get; init; }
+        public required string Time { get; init; }
+        public required DateTime SortTime { get; init; }
+        public required string Title { get; init; }
+        public required string Platform { get; init; }
+        public required string Action { get; init; }
+        public required string Result { get; init; }
+        public required bool Success { get; init; }
+        public required int ResultRank { get; init; }
+        public required string Sha { get; init; }
+        public required bool HasSha { get; init; }
+        public required string Note { get; init; }
+
+        public static LogRowModel From(PublishLogEntry entry) => new()
+        {
+            Entry = entry,
+            Time = entry.Time.ToString("yyyy-MM-dd HH:mm"),
+            SortTime = entry.Time,
+            Title = entry.Title,
+            Platform = Enum.TryParse<PublishChannel>(entry.Platform, out var channel) ? PlatformText(channel) : entry.Platform,
+            Action = ActionText(entry.Action),
+            Result = entry.Success ? T("Vox.PublishLog.Result.Ok") : T("Vox.PublishLog.Result.Fail"),
+            Success = entry.Success,
+            ResultRank = entry.Success ? 0 : 1,
+            Sha = string.IsNullOrWhiteSpace(entry.Sha) ? "\u2014" : entry.Sha,
+            HasSha = !string.IsNullOrWhiteSpace(entry.Sha),
+            Note = entry.Note ?? string.Empty,
+        };
     }
 
     private void RefreshPubSummary()

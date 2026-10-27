@@ -136,6 +136,10 @@ public sealed class McpServerTests
         Assert.Contains("title: Hello Vox", text);
         Assert.Contains("2026/10/hello.md", repo.Host.Changed);
         Assert.Equal(2, repo.Host.Requests.Count);
+
+        // 确认后的写入在审计里与普通成功区分（原型「已确认」筛选）
+        var allowAudit = ToolAuditStore.List(repo.AuditPath, result: "okc");
+        Assert.Equal("article_write", Assert.Single(allowAudit).Tool);
     }
 
     [Fact]

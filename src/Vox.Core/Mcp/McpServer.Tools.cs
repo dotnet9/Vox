@@ -14,11 +14,21 @@ public sealed partial class McpServer
 
     private static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
 
+    /// <summary>本次调用是否经应用内确认（审计区分「成功」与「已确认」，并发请求各行其道）。</summary>
+    private sealed class CallState
+    {
+        public bool Confirmed;
+    }
+
+    private static readonly AsyncLocal<CallState?> CurrentCall = new();
+
     private sealed record McpToolOutcome(bool Ok, string Text, string Target, string Detail, bool Denied = false);
 
     private async Task<JsonObject> CallToolAsync(JsonObject? parameters, Session session, CancellationToken ct)
     {
         var started = Stopwatch.GetTimestamp();
+        var call = new CallState();
+        CurrentCall.Value = call;
         var name = McpJson.Str(parameters, "name") ?? string.Empty;
         var args = parameters?["arguments"] as JsonObject ?? [];
         var tool = McpCatalog.Find(name);
@@ -48,7 +58,10 @@ public sealed partial class McpServer
             }
         }
 
-        var result = outcome.Denied ? "deny" : outcome.Ok ? "ok" : "error";
+        var result = outcome.Denied ? "deny"
+            : !outcome.Ok ? "error"
+            : call.Confirmed ? "okc"
+            : "ok";
         Audit(session.Name, tool?.Name ?? name, string.IsNullOrWhiteSpace(outcome.Target) ? name : outcome.Target,
             result, outcome.Detail, ElapsedMs(started));
         lock (_sessionGate) session.Calls++;
@@ -747,8 +760,10 @@ public sealed partial class McpServer
         if (Host == null) return false;
         try
         {
-            return await Host.ConfirmWriteAsync(new McpWriteRequest(tool, client, target, detail, preview), ct)
+            var granted = await Host.ConfirmWriteAsync(new McpWriteRequest(tool, client, target, detail, preview), ct)
                 .ConfigureAwait(false);
+            if (granted && CurrentCall.Value is { } call) call.Confirmed = true;
+            return granted;
         }
         catch
         {

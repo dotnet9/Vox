@@ -14,7 +14,7 @@ public sealed class ToolAuditEntry
     public string Tool { get; set; } = string.Empty;
     public string Target { get; set; } = string.Empty;
 
-    /// <summary>ok / deny / error。</summary>
+    /// <summary>ok / okc（已确认写入）/ deny / error。</summary>
     public string Result { get; set; } = "ok";
 
     public string? Detail { get; set; }

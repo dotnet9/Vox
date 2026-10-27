@@ -4,10 +4,12 @@ using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using CodeWF.Avalonia.DataGrid;
 using Vox.App.Controls;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
@@ -36,11 +38,15 @@ public sealed class McpPage : UserControl
     private readonly StackPanel _serverTab = new();
     private readonly StackPanel _clientsTab = new();
     private readonly StackPanel _toolsTab = new();
-    private readonly StackPanel _auditTab = new();
+    private readonly Grid _auditTab = new();
     private readonly TextBlock _headState = new();
 
     // 服务页
-    private readonly TextBlock _dot = new() { Text = "●", FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Border _dot = new()
+    {
+        Width = 9, Height = 9, CornerRadius = new CornerRadius(5),
+        VerticalAlignment = VerticalAlignment.Center,
+    };
     private readonly TextBlock _stateText = new() { FontSize = 13, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _endpointText = new() { FontSize = 11, FontFamily = MonoFont, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _restartButton = new() { Classes = { "btn" } };
@@ -82,7 +88,14 @@ public sealed class McpPage : UserControl
     private readonly MiniSelect _auditTool = new();
     private readonly MiniSelect _auditResult = new();
     private readonly TextBlock _auditSub = new() { FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
-    private readonly StackPanel _auditHost = new();
+    private readonly DataGrid _auditGrid = new();
+    private readonly TextBlock _auditEmpty = new()
+    {
+        FontSize = 11.5,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        IsVisible = false,
+    };
 
     private bool _syncing;
     private bool _hooked;
@@ -135,12 +148,13 @@ public sealed class McpPage : UserControl
         var root = new DockPanel { Margin = new Thickness(18, 14, 18, 14) };
 
         var seg = new TKCode.Arc.SegmentedControl { HorizontalAlignment = HorizontalAlignment.Left };
-        var tabs = new (string Key, ScrollViewer Host)[]
+        var tabs = new (string Key, Control Host)[]
         {
             ("Vox.Mcp.Tab.Server", Scroll(_serverTab)),
             ("Vox.Mcp.Tab.Clients", Scroll(_clientsTab)),
             ("Vox.Mcp.Tab.Tools", Scroll(_toolsTab)),
-            ("Vox.Mcp.Tab.Audit", Scroll(_auditTab)),
+            // 审计表格自带滚动，页头与说明固定
+            ("Vox.Mcp.Tab.Audit", _auditTab),
         };
         for (var i = 0; i < tabs.Length; i++)
         {
@@ -275,7 +289,7 @@ public sealed class McpPage : UserControl
             Spacing = 8,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Res(_dot, TextBlock.ForegroundProperty, "VoxFaint");
+        Res(_dot, Border.BackgroundProperty, "VoxFaint");
         left.Children.Add(_dot);
         left.Children.Add(_stateText);
         Res(_endpointText, TextBlock.ForegroundProperty, "VoxMuted");
@@ -378,6 +392,7 @@ public sealed class McpPage : UserControl
         endpointRow.Children.Add(endpointValue);
         endpointRow.Children.Add(endpointCopy);
         config.Add(Row("Vox.Mcp.Config.Endpoint", endpointRow));
+        config.Host.VerticalAlignment = VerticalAlignment.Top;
         cols.Children.Add(config.Host);
 
         var right = new StackPanel { Spacing = 12, Margin = new Thickness(12, 0, 0, 0) };
@@ -403,7 +418,7 @@ public sealed class McpPage : UserControl
         var resCol = new StackPanel { Spacing = 6 };
         var resHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         resHead.Children.Add(new TextBlock { Text = "Resources", FontSize = 11, FontWeight = FontWeight.SemiBold });
-        var resBadgeBorder = new Border { Classes = { "badge", "accent" }, Child = _resBadge };
+        var resBadgeBorder = new Border { Classes = { "badge" }, Child = _resBadge };
         resHead.Children.Add(resBadgeBorder);
         resCol.Children.Add(resHead);
         resCol.Children.Add(_uriHost);
@@ -579,7 +594,11 @@ public sealed class McpPage : UserControl
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 2, 0, 0) };
         var cfgCopy = new Button { Classes = { "btn", "sm" } };
         cfgCopy[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Clients.CopyConfig");
-        cfgCopy.Click += (_, _) => CopyText(_clientConfig.Text ?? string.Empty, "Vox.Mcp.Clients.ConfigCopied");
+        cfgCopy.Click += async (_, _) =>
+        {
+            await CopyToClipboard(_clientConfig.Text ?? string.Empty);
+            _shell.ShowToast(TF("Vox.Mcp.Clients.ConfigCopiedFor", T(ClientNameKey(_clientKey))));
+        };
         var test = new Button { Classes = { "btn", "sm", "primary" } };
         test[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Clients.Test");
         test.Click += async (_, _) => await TestConnectionAsync();
@@ -695,18 +714,30 @@ public sealed class McpPage : UserControl
             };
             Res(row, Border.BorderBrushProperty, "VoxLine");
             row.BorderThickness = new Thickness(1);
-            var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            content.Children.Add(new TextBlock { Text = client.Name, FontSize = 12, FontWeight = FontWeight.SemiBold });
-            content.Children.Add(Badge("HTTP", "ok"));
+            var content = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*") };
+            var name = new TextBlock
+            {
+                Text = client.Name,
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            content.Children.Add(name);
+            var mode = Badge("HTTP", "ok");
+            mode.Margin = new Thickness(8, 0, 0, 0);
+            mode.VerticalAlignment = VerticalAlignment.Center;
+            content.Children.Add(mode);
+            Grid.SetColumn(mode, 1);
             var detail = new TextBlock
             {
                 Text = TF("Vox.Mcp.Clients.Since", client.ConnectedAt.ToString("HH:mm"), client.Calls),
                 FontSize = 10.5,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Right,
             };
             Res(detail, TextBlock.ForegroundProperty, "VoxFaint");
             content.Children.Add(detail);
+            Grid.SetColumn(detail, 2);
             row.Child = content;
             _onlineHost.Children.Add(row);
         }
@@ -925,10 +956,11 @@ public sealed class McpPage : UserControl
             SyncSearchHint();
             RefreshTools();
         };
-        Grid.SetColumn(searchPh, 2);
-        pagehead.Children.Add(searchPh);
         Grid.SetColumn(_toolSearch, 2);
         pagehead.Children.Add(_toolSearch);
+        // 占位层必须晚于输入框加入，否则被输入框底色盖住
+        Grid.SetColumn(searchPh, 2);
+        pagehead.Children.Add(searchPh);
         SyncSearchHint();
         _toolsTab.Children.Add(pagehead);
 
@@ -983,8 +1015,8 @@ public sealed class McpPage : UserControl
 
     private Control ToolGroup(string group, IReadOnlyList<McpToolDescriptor> tools, VoxSettings settings)
     {
-        var host = new StackPanel { Spacing = 0 };
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 6) };
+        var host = new StackPanel { Spacing = 6, Margin = new Thickness(0, 0, 0, 14) };
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         head.Children.Add(new Border
         {
             Classes = { "badge", "accent" },
@@ -994,92 +1026,117 @@ public sealed class McpPage : UserControl
         name[!TextBlock.TextProperty] = I18n.Bind(GroupKey(group));
         head.Children.Add(name);
         host.Children.Add(head);
-
-        var wrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
-        Res(wrap, Border.BackgroundProperty, "VoxSurface");
-        Res(wrap, Border.BorderBrushProperty, "VoxLine");
-        wrap.BorderThickness = new Thickness(1);
-        var rows = new StackPanel();
-        rows.Children.Add(ToolHeader());
-        foreach (var tool in tools) rows.Children.Add(ToolRow(tool, settings));
-        wrap.Child = rows;
-        host.Children.Add(wrap);
+        host.Children.Add(ToolGrid(tools, settings));
         return host;
     }
 
-    private static Control ToolHeader()
+    private DataGrid ToolGrid(IReadOnlyList<McpToolDescriptor> tools, VoxSettings settings)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("170,*,130,60") };
-        var keys = new[] { "Vox.Mcp.Tools.Column.Tool", "Vox.Mcp.Tools.Column.Desc", "Vox.Mcp.Tools.Column.Perm", null };
-        for (var i = 0; i < keys.Length; i++)
+        var rows = tools.Select(tool => ToolRowModel.For(tool, settings)).ToList();
+        var grid = new DataGrid
         {
-            var cell = new TextBlock { FontSize = 10.5, FontWeight = FontWeight.SemiBold };
-            if (keys[i] != null) cell[!TextBlock.TextProperty] = I18n.Bind(keys[i]!);
-            Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
-            grid.Children.Add(cell);
-            if (i > 0) Grid.SetColumn(cell, i);
-        }
-        var border = new Border { Padding = new Thickness(14, 8), Child = grid, BorderThickness = new Thickness(0, 0, 0, 1) };
-        Res(border, Border.BackgroundProperty, "VoxSurface2");
-        Res(border, Border.BorderBrushProperty, "VoxLine");
-        return border;
+            AutoGenerateColumns = false,
+            CanUserSortColumns = false,
+            CanUserReorderColumns = false,
+            CanUserResizeColumns = false,
+            IsReadOnly = true,
+            SelectionMode = DataGridSelectionMode.Single,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            RowHeight = 36,
+            FontSize = 12,
+            ItemsSource = rows,
+        };
+        Res(grid, TemplatedControl.BackgroundProperty, "VoxSurface");
+        Res(grid, TemplatedControl.BorderBrushProperty, "VoxLine");
+        grid.BorderThickness = new Thickness(1);
+        grid.CornerRadius = new CornerRadius(12);
+        grid.Columns.Add(Column<ToolRowModel>(T("Vox.Mcp.Tools.Column.Tool"), new DataGridLength(170),
+            row => CellText(row.Name, 11, MonoFont, "VoxFg", false)));
+        grid.Columns.Add(Column<ToolRowModel>(T("Vox.Mcp.Tools.Column.Desc"), new DataGridLength(1, DataGridLengthUnitType.Star),
+            row => CellText(row.Description, 12, null, row.Locked ? "VoxFaint" : "VoxMuted")));
+        grid.Columns.Add(Column<ToolRowModel>(T("Vox.Mcp.Tools.Column.Perm"), new DataGridLength(130),
+            row => row.PermissionBadge()));
+        grid.Columns.Add(Column<ToolRowModel>(string.Empty, new DataGridLength(60), ToolSwitch));
+        grid.EnableDefaults(enableSorting: false);
+        return grid;
     }
 
-    private Control ToolRow(McpToolDescriptor tool, VoxSettings settings)
+    private Control ToolSwitch(ToolRowModel row)
     {
-        var locked = tool.RequiresGit && !settings.McpAllowGit;
-        var disabled = settings.McpDisabledTools.Contains(tool.Name, StringComparer.OrdinalIgnoreCase);
-
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("170,*,130,60") };
-        var name = new TextBlock
-        {
-            Text = tool.Name,
-            FontSize = 11,
-            FontFamily = MonoFont,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        grid.Children.Add(name);
-
-        var descText = tool.Description + (locked ? T("Vox.Mcp.Tools.LockNote") : string.Empty);
-        var desc = new TextBlock
-        {
-            Text = descText,
-            FontSize = 11.5,
-            TextWrapping = TextWrapping.Wrap,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 12, 0),
-        };
-        if (locked) Res(desc, TextBlock.ForegroundProperty, "VoxFaint");
-        grid.Children.Add(desc);
-        Grid.SetColumn(desc, 1);
-
-        var perm = tool.ReadOnly
-            ? Badge(T("Vox.Mcp.Tools.Perm.ReadOnly"))
-            : Badge(T("Vox.Mcp.Tools.Perm.Write"), "warn");
-        perm.VerticalAlignment = VerticalAlignment.Center;
-        grid.Children.Add(perm);
-        Grid.SetColumn(perm, 2);
-
         var toggle = new ToggleButton
         {
             Classes = { "vswitch" },
-            IsChecked = !disabled && !locked,
-            IsEnabled = !locked,
+            IsChecked = row.Enabled && !row.Locked,
+            IsEnabled = !row.Locked,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
         };
         toggle.IsCheckedChanged += (_, _) =>
         {
-            if (locked) return;
-            ToggleTool(tool, toggle.IsChecked == true);
+            if (row.Locked) return;
+            ToggleTool(row.Tool, toggle.IsChecked == true);
         };
-        grid.Children.Add(toggle);
-        Grid.SetColumn(toggle, 3);
+        return new Border { Padding = new Thickness(14, 0, 14, 0), Child = toggle };
+    }
 
-        var row = new Border { Padding = new Thickness(14, 8), Child = grid, BorderThickness = new Thickness(0, 0, 0, 1) };
-        Res(row, Border.BorderBrushProperty, "VoxLine");
-        if (locked) row.Opacity = 0.45;
-        return row;
+    private static DataGridTemplateColumn Column<T>(string header, DataGridLength width, Func<T, Control> cell, string? sortPath = null)
+        where T : class
+        => new()
+        {
+            Header = header,
+            Width = width,
+            SortMemberPath = sortPath,
+            CellTemplate = new FuncDataTemplate<T>((row, _) => row is null ? new TextBlock() : cell(row)),
+        };
+
+    private static TextBlock CellText(string text, double size, FontFamily? mono = null, string? colorKey = null, bool trim = true)
+    {
+        var block = new TextBlock
+        {
+            Text = text,
+            FontSize = size,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 0, 12, 0),
+            TextTrimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+        };
+        if (mono != null) block.FontFamily = mono;
+        if (colorKey != null) Res(block, TextBlock.ForegroundProperty, colorKey);
+        return block;
+    }
+
+    private sealed class ToolRowModel
+    {
+        public required string Name { get; init; }
+        public required string Description { get; init; }
+        public required string Permission { get; init; }
+        public required bool Write { get; init; }
+        public required bool Locked { get; init; }
+        public required bool Enabled { get; init; }
+        public required McpToolDescriptor Tool { get; init; }
+
+        public static ToolRowModel For(McpToolDescriptor tool, VoxSettings settings)
+        {
+            var locked = tool.RequiresGit && !settings.McpAllowGit;
+            return new ToolRowModel
+            {
+                Name = tool.Name,
+                Description = tool.Description + (locked ? T("Vox.Mcp.Tools.LockNote") : string.Empty),
+                Permission = T(tool.ReadOnly ? "Vox.Mcp.Tools.Perm.ReadOnly" : "Vox.Mcp.Tools.Perm.Write"),
+                Write = !tool.ReadOnly,
+                Locked = locked,
+                Enabled = !settings.McpDisabledTools.Contains(tool.Name, StringComparer.OrdinalIgnoreCase),
+                Tool = tool,
+            };
+        }
+
+        public Border PermissionBadge()
+        {
+            var badge = Write ? Badge(Permission, "warn") : Badge(Permission);
+            badge.VerticalAlignment = VerticalAlignment.Center;
+            badge.Margin = new Thickness(14, 0, 12, 0);
+            return badge;
+        }
     }
 
     private void ToggleTool(McpToolDescriptor tool, bool enabled)
@@ -1109,6 +1166,10 @@ public sealed class McpPage : UserControl
 
     private void BuildAuditTab()
     {
+        // 表格随内容增高（最多 560 内滚），说明紧随其后
+        _auditTab.RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*");
+        _auditTab.Margin = new Thickness(0, 0, 8, 0);
+
         var pagehead = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
@@ -1135,7 +1196,7 @@ public sealed class McpPage : UserControl
 
         _auditClient.Items = new[]
         {
-            T("Vox.Mcp.Audit.Filter.AllClients"), "Cursor", "ZCode", "Claude Desktop", "MCP 客户端", "系统", "原型演示",
+            T("Vox.Mcp.Audit.Filter.AllClients"), "Cursor", "ZCode", "Claude Desktop", "MCP 客户端", "系统",
         };
         _auditClient.Selected = T("Vox.Mcp.Audit.Filter.AllClients");
         _auditClient.SelectionChanged += _ => RefreshAudit();
@@ -1145,7 +1206,7 @@ public sealed class McpPage : UserControl
         _auditTool.SelectionChanged += _ => RefreshAudit();
         _auditResult.Items = new[]
         {
-            T("Vox.Mcp.Audit.Filter.AllResults"), T("Vox.Mcp.Result.Ok"),
+            T("Vox.Mcp.Audit.Filter.AllResults"), T("Vox.Mcp.Result.Ok"), T("Vox.Mcp.Result.Confirmed"),
             T("Vox.Mcp.Result.Deny"), T("Vox.Mcp.Result.Error"),
         };
         _auditResult.Selected = T("Vox.Mcp.Audit.Filter.AllResults");
@@ -1155,19 +1216,75 @@ public sealed class McpPage : UserControl
         filters.Children.Add(_auditClient);
         filters.Children.Add(_auditTool);
         filters.Children.Add(_auditResult);
+        Grid.SetRow(filters, 1);
         _auditTab.Children.Add(filters);
 
-        var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
-        Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
-        Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
-        tableWrap.BorderThickness = new Thickness(1);
-        tableWrap.Child = new ScrollViewer { MaxHeight = 480, Content = _auditHost };
-        _auditTab.Children.Add(tableWrap);
+        var tableHost = new Grid();
+        ConfigureAuditGrid();
+        tableHost.Children.Add(_auditGrid);
+        _auditEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Audit.Empty");
+        Res(_auditEmpty, TextBlock.ForegroundProperty, "VoxFaint");
+        tableHost.Children.Add(_auditEmpty);
+        Grid.SetRow(tableHost, 2);
+        _auditTab.Children.Add(tableHost);
 
         var hint = new TextBlock { FontSize = 10.5, Margin = new Thickness(0, 10, 0, 0), TextWrapping = TextWrapping.Wrap };
         hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Audit.Hint");
         Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        hint.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetRow(hint, 3);
         _auditTab.Children.Add(hint);
+    }
+
+    private void ConfigureAuditGrid()
+    {
+        _auditGrid.AutoGenerateColumns = false;
+        _auditGrid.CanUserSortColumns = true;
+        _auditGrid.CanUserReorderColumns = false;
+        _auditGrid.CanUserResizeColumns = false;
+        _auditGrid.IsReadOnly = true;
+        _auditGrid.SelectionMode = DataGridSelectionMode.Single;
+        _auditGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
+        _auditGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
+        _auditGrid.RowHeight = 36;
+        _auditGrid.FontSize = 11;
+        _auditGrid.MinHeight = 120;
+        _auditGrid.MaxHeight = 560;
+        Res(_auditGrid, TemplatedControl.BackgroundProperty, "VoxSurface");
+        Res(_auditGrid, TemplatedControl.BorderBrushProperty, "VoxLine");
+        _auditGrid.BorderThickness = new Thickness(1);
+        _auditGrid.CornerRadius = new CornerRadius(12);
+
+        _auditGrid.Columns.Add(Column<AuditRowModel>(T("Vox.Mcp.Audit.Column.Time"), new DataGridLength(146),
+            row => CellText(row.Time, 10.5, MonoFont, "VoxMuted", false), nameof(AuditRowModel.SortTime)));
+        _auditGrid.Columns.Add(Column<AuditRowModel>(T("Vox.Mcp.Audit.Column.Client"), new DataGridLength(120),
+            row => CellText(row.Client, 12, null, "VoxMuted", true), nameof(AuditRowModel.Client)));
+        _auditGrid.Columns.Add(Column<AuditRowModel>(T("Vox.Mcp.Audit.Column.Tool"), new DataGridLength(140),
+            row => CellText(row.ToolName, 11, MonoFont, "VoxFg", false), nameof(AuditRowModel.ToolName)));
+        _auditGrid.Columns.Add(Column<AuditRowModel>(T("Vox.Mcp.Audit.Column.Target"),
+            new DataGridLength(1, DataGridLengthUnitType.Star), AuditTargetCell, nameof(AuditRowModel.Target)));
+        _auditGrid.Columns.Add(Column<AuditRowModel>(T("Vox.Mcp.Audit.Column.Result"), new DataGridLength(96),
+            AuditResultCell, nameof(AuditRowModel.ResultRank)));
+        _auditGrid.Columns.Add(Column<AuditRowModel>(T("Vox.Mcp.Audit.Column.Duration"), new DataGridLength(80),
+            row => CellText(row.Duration, 10.5, MonoFont, "VoxMuted", false), nameof(AuditRowModel.SortDuration)));
+        // 目标列自带详情提示，关掉智能提示以免覆盖
+        _auditGrid.EnableDefaults(enableSmartTooltips: false);
+    }
+
+    private static Control AuditTargetCell(AuditRowModel row)
+    {
+        var text = CellText(row.Target, 12, null, "VoxMuted", true);
+        if (!string.IsNullOrWhiteSpace(row.Detail)) ToolTip.SetTip(text, row.Detail);
+        return text;
+    }
+
+    private static Control AuditResultCell(AuditRowModel row)
+    {
+        var badge = Badge(row.Result, row.Variant);
+        badge.VerticalAlignment = VerticalAlignment.Center;
+        badge.Margin = new Thickness(14, 0, 12, 0);
+        if (!string.IsNullOrWhiteSpace(row.Detail)) ToolTip.SetTip(badge, row.Detail);
+        return badge;
     }
 
     private void RefreshAudit()
@@ -1181,126 +1298,55 @@ public sealed class McpPage : UserControl
         var result = _auditResult.Selected == T("Vox.Mcp.Audit.Filter.AllResults")
             ? null
             : _auditResult.Selected == T("Vox.Mcp.Result.Ok") ? "ok"
+            : _auditResult.Selected == T("Vox.Mcp.Result.Confirmed") ? "okc"
             : _auditResult.Selected == T("Vox.Mcp.Result.Deny") ? "deny"
             : "error";
 
         var entries = ToolAuditStore.List(client: client, tool: tool, result: result, limit: 300);
-        _auditHost.Children.Clear();
-        _auditHost.Children.Add(AuditHeader());
+        _auditGrid.ItemsSource = entries.Select(AuditRowModel.From).ToList();
+        _auditEmpty.IsVisible = entries.Count == 0;
+    }
 
-        foreach (var entry in entries)
-        {
-            _auditHost.Children.Add(AuditRow(entry));
-        }
+    private sealed class AuditRowModel
+    {
+        public required string Time { get; init; }
+        public required DateTime SortTime { get; init; }
+        public required string Client { get; init; }
+        public required string ToolName { get; init; }
+        public required string Target { get; init; }
+        public required string Detail { get; init; }
+        public required string Result { get; init; }
+        public required string Variant { get; init; }
+        public required int ResultRank { get; init; }
+        public required string Duration { get; init; }
+        public required int SortDuration { get; init; }
 
-        if (entries.Count == 0)
+        public static AuditRowModel From(ToolAuditEntry entry) => new()
         {
-            var empty = new TextBlock
+            Time = entry.Time.ToString("MM-dd HH:mm:ss"),
+            SortTime = entry.Time,
+            Client = entry.Client,
+            ToolName = entry.Tool,
+            Target = entry.Target,
+            Detail = entry.Detail ?? string.Empty,
+            Result = ResultText(entry.Result),
+            Variant = ResultVariant(entry.Result),
+            ResultRank = entry.Result switch
             {
-                Text = T("Vox.Mcp.Audit.Empty"),
-                FontSize = 11.5,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 22),
-            };
-            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
-            _auditHost.Children.Add(empty);
-        }
-    }
-
-    private static Control AuditHeader()
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("120,110,130,*,90,70") };
-        var keys = new[]
-        {
-            "Vox.Mcp.Audit.Column.Time", "Vox.Mcp.Audit.Column.Client", "Vox.Mcp.Audit.Column.Tool",
-            "Vox.Mcp.Audit.Column.Target", "Vox.Mcp.Audit.Column.Result", "Vox.Mcp.Audit.Column.Duration",
+                "ok" => 0,
+                "okc" => 1,
+                "deny" => 2,
+                _ => 3,
+            },
+            Duration = DurationText(entry.DurationMs),
+            SortDuration = entry.DurationMs,
         };
-        for (var i = 0; i < keys.Length; i++)
-        {
-            var cell = new TextBlock { FontSize = 10.5, FontWeight = FontWeight.SemiBold };
-            cell[!TextBlock.TextProperty] = I18n.Bind(keys[i]);
-            Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
-            grid.Children.Add(cell);
-            if (i > 0) Grid.SetColumn(cell, i);
-        }
-        var border = new Border { Padding = new Thickness(14, 9), Child = grid, BorderThickness = new Thickness(0, 0, 0, 1) };
-        Res(border, Border.BackgroundProperty, "VoxSurface2");
-        Res(border, Border.BorderBrushProperty, "VoxLine");
-        return border;
-    }
-
-    private static Control AuditRow(ToolAuditEntry entry)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("120,110,130,*,90,70") };
-
-        var time = new TextBlock
-        {
-            Text = entry.Time.ToString("MM-dd HH:mm:ss"),
-            FontSize = 10,
-            FontFamily = MonoFont,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Res(time, TextBlock.ForegroundProperty, "VoxMuted");
-        grid.Children.Add(time);
-
-        var client = new TextBlock
-        {
-            Text = entry.Client,
-            FontSize = 11.5,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        };
-        grid.Children.Add(client);
-        Grid.SetColumn(client, 1);
-
-        var tool = new TextBlock
-        {
-            Text = entry.Tool,
-            FontSize = 10.5,
-            FontFamily = MonoFont,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        grid.Children.Add(tool);
-        Grid.SetColumn(tool, 2);
-
-        var target = new TextBlock
-        {
-            Text = entry.Target,
-            FontSize = 11,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 12, 0),
-        };
-        Res(target, TextBlock.ForegroundProperty, "VoxMuted");
-        if (!string.IsNullOrWhiteSpace(entry.Detail)) ToolTip.SetTip(target, entry.Detail);
-        grid.Children.Add(target);
-        Grid.SetColumn(target, 3);
-
-        var badge = Badge(ResultText(entry.Result), ResultVariant(entry.Result));
-        badge.VerticalAlignment = VerticalAlignment.Center;
-        if (!string.IsNullOrWhiteSpace(entry.Detail)) ToolTip.SetTip(badge, entry.Detail);
-        grid.Children.Add(badge);
-        Grid.SetColumn(badge, 4);
-
-        var duration = new TextBlock
-        {
-            Text = entry.DurationMs < 1000 ? $"{entry.DurationMs} ms" : $"{entry.DurationMs / 1000.0:F1} s",
-            FontSize = 10,
-            FontFamily = MonoFont,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Res(duration, TextBlock.ForegroundProperty, "VoxFaint");
-        grid.Children.Add(duration);
-        Grid.SetColumn(duration, 5);
-
-        var row = new Border { Padding = new Thickness(14, 7), Child = grid, BorderThickness = new Thickness(0, 0, 0, 1) };
-        Res(row, Border.BorderBrushProperty, "VoxLine");
-        return row;
     }
 
     private static string ResultText(string result) => result switch
     {
         "ok" => T("Vox.Mcp.Result.Ok"),
+        "okc" => T("Vox.Mcp.Result.Confirmed"),
         "deny" => T("Vox.Mcp.Result.Deny"),
         "error" => T("Vox.Mcp.Result.Error"),
         _ => result,
@@ -1309,6 +1355,7 @@ public sealed class McpPage : UserControl
     private static string ResultVariant(string result) => result switch
     {
         "ok" => "ok",
+        "okc" => "accent",
         "deny" => "warn",
         _ => "danger",
     };
@@ -1394,7 +1441,7 @@ public sealed class McpPage : UserControl
         var running = McpService.IsRunning;
         var settings = AppState.Instance.Settings;
 
-        Res(_dot, TextBlock.ForegroundProperty, running ? "VoxOk" : "VoxFaint");
+        Res(_dot, Border.BackgroundProperty, running ? "VoxOk" : "VoxFaint");
         _stateText.Text = T(running ? "Vox.Mcp.State.Running" : "Vox.Mcp.State.Stopped");
         _endpointText.Text = running ? McpService.Endpoint : "—";
         _restartButton.Content = T(running ? "Vox.Mcp.Action.Restart" : "Vox.Mcp.Action.Start");
@@ -1486,7 +1533,18 @@ public sealed class McpPage : UserControl
     private void RefreshLive()
     {
         _liveHost.Children.Clear();
-        var entries = ToolAuditStore.List(limit: 6);
+        if (!McpService.IsRunning)
+        {
+            var stopped = Desc(T("Vox.Mcp.Live.Stopped"), 10.5);
+            stopped.Margin = new Thickness(0, 2);
+            _liveHost.Children.Add(stopped);
+            return;
+        }
+
+        var entries = ToolAuditStore.List(limit: 40)
+            .Where(entry => entry.Client != "系统")
+            .Take(6)
+            .ToList();
         if (entries.Count == 0)
         {
             var empty = Desc(T("Vox.Mcp.Live.Empty"), 10.5);
@@ -1497,7 +1555,7 @@ public sealed class McpPage : UserControl
 
         foreach (var entry in entries)
         {
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("50,96,120,*,70") };
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("44,96,130,*,56") };
             var time = new TextBlock
             {
                 Text = entry.Time.ToString("HH:mm"),
@@ -1515,6 +1573,7 @@ public sealed class McpPage : UserControl
                 FontWeight = FontWeight.SemiBold,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0),
             };
             grid.Children.Add(client);
             Grid.SetColumn(client, 1);
@@ -1524,35 +1583,50 @@ public sealed class McpPage : UserControl
                 Text = entry.Tool,
                 FontSize = 10.5,
                 FontFamily = MonoFont,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0),
             };
             grid.Children.Add(tool);
             Grid.SetColumn(tool, 2);
 
-            var target = new TextBlock
+            var result = new TextBlock
             {
-                Text = entry.Target,
+                Text = ResultText(entry.Result),
                 FontSize = 10.5,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0),
+                Margin = new Thickness(0, 0, 8, 0),
             };
-            Res(target, TextBlock.ForegroundProperty, "VoxMuted");
-            if (!string.IsNullOrWhiteSpace(entry.Detail)) ToolTip.SetTip(target, entry.Detail);
-            grid.Children.Add(target);
-            Grid.SetColumn(target, 3);
+            Res(result, TextBlock.ForegroundProperty, "VoxMuted");
+            if (!string.IsNullOrWhiteSpace(entry.Target))
+            {
+                ToolTip.SetTip(result, string.IsNullOrWhiteSpace(entry.Detail)
+                    ? entry.Target
+                    : $"{entry.Target} · {entry.Detail}");
+            }
+            grid.Children.Add(result);
+            Grid.SetColumn(result, 3);
 
-            var badge = Badge(ResultText(entry.Result), ResultVariant(entry.Result));
-            badge.VerticalAlignment = VerticalAlignment.Center;
-            badge.HorizontalAlignment = HorizontalAlignment.Left;
-            if (!string.IsNullOrWhiteSpace(entry.Detail)) ToolTip.SetTip(badge, entry.Detail);
-            grid.Children.Add(badge);
-            Grid.SetColumn(badge, 4);
+            var duration = new TextBlock
+            {
+                Text = DurationText(entry.DurationMs),
+                FontSize = 10.5,
+                FontFamily = MonoFont,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(duration, TextBlock.ForegroundProperty, "VoxFaint");
+            grid.Children.Add(duration);
+            Grid.SetColumn(duration, 4);
 
             var row = new Border { Padding = new Thickness(6, 4), Child = grid, CornerRadius = new CornerRadius(7) };
             _liveHost.Children.Add(row);
         }
     }
+
+    private static string DurationText(int milliseconds) =>
+        milliseconds < 1000 ? $"{milliseconds} ms" : $"{milliseconds / 1000.0:F1} s";
 
     // ================= 服务操作 =================
 
@@ -1686,10 +1760,15 @@ public sealed class McpPage : UserControl
         AppState.Instance.SaveSettings();
     }
 
-    private async void CopyText(string text, string toastKey)
+    private async Task CopyToClipboard(string text)
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard != null) await clipboard.SetTextAsync(text);
+    }
+
+    private async void CopyText(string text, string toastKey)
+    {
+        await CopyToClipboard(text);
         _shell.ShowToast(T(toastKey));
     }
 
