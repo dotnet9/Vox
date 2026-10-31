@@ -184,20 +184,21 @@ public sealed class LibraryPage : UserControl
     {
         var card = new Border
         {
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(16, 12),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(18, 14, 16, 12),
+            MinHeight = 82,
             MinWidth = 0,
         };
         Res(card, Border.BackgroundProperty, "VoxSurface");
         Res(card, Border.BorderBrushProperty, "VoxLine");
         card.BorderThickness = new Thickness(1);
-        var labelBlock = new TextBlock { Text = label, FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0) };
+        var labelBlock = new TextBlock { Text = label, FontSize = 10, Margin = new Thickness(0, 2, 0, 0) };
         Res(labelBlock, TextBlock.ForegroundProperty, "VoxFaint");
         card.Child = new StackPanel
         {
             Children =
             {
-                new TextBlock { Text = number, FontSize = 19, FontWeight = FontWeight.Bold },
+                new TextBlock { Text = number, FontSize = 20, FontWeight = FontWeight.Bold, CharacterSpacing = -0.8 },
                 labelBlock,
             },
         };
