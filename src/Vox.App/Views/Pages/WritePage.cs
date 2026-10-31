@@ -726,13 +726,34 @@ public sealed class WritePage : UserControl
         // 预览排版色接 Vox 令牌：明暗/强调色热切换即时跟随。
         Res(_preview, MarkdownViewer.TextBrushProperty, "VoxFg");
         Res(_preview, MarkdownViewer.MutedTextBrushProperty, "VoxMuted");
-        Res(_preview, MarkdownViewer.AccentBrushProperty, "VoxAccent");
+        ApplyPreviewAccent(AppState.Instance.Settings.MarkdownTheme);
         Res(_preview, MarkdownViewer.AccentForegroundBrushProperty, "VoxOnAccent");
         Res(_preview, MarkdownViewer.BorderLineBrushProperty, "VoxLine");
         Res(_preview, MarkdownViewer.QuoteBackgroundBrushProperty, "VoxAccentSoft");
         Res(_preview, MarkdownViewer.CodeBackgroundBrushProperty, "VoxCodeBg");
         Res(_preview, MarkdownViewer.InlineCodeBackgroundBrushProperty, "VoxCodeBg");
         Res(_preview, MarkdownViewer.TableHeaderBackgroundBrushProperty, "VoxSurface2");
+    }
+
+    /// <summary>主题强调色与 design/assets/app.css 的 #prevInner[data-typo] 规则一致。</summary>
+    private void ApplyPreviewAccent(string? theme)
+    {
+        switch (theme)
+        {
+            case "Basic":
+            case "TechnologyBlue":
+                _preview.AccentBrush = new SolidColorBrush(Color.Parse("#376C9A"));
+                break;
+            case "InkBlack":
+                _preview.AccentBrush = new SolidColorBrush(Color.Parse("#70604F"));
+                break;
+            case "WeChatFormat":
+                _preview.AccentBrush = new SolidColorBrush(Color.Parse("#24766B"));
+                break;
+            default:
+                Res(_preview, MarkdownViewer.AccentBrushProperty, "VoxFg");
+                break;
+        }
     }
 
     private void BindMapBrushes()
@@ -828,6 +849,7 @@ public sealed class WritePage : UserControl
                 settings.MarkdownTheme = captured;
                 AppState.Instance.SaveSettings();
                 _preview.TypographyTheme = captured;
+                ApplyPreviewAccent(captured);
                 _preview.ParagraphLineHeight = PreviewLineHeight(_preview.ParagraphFontSize);
                 UpdateTypoLabel();
                 _shell.ShowToast(TF("Vox.Write.Typo.SetToast", T(Array.Find(TypoThemes, t => t.Key == captured).NameKey)));
