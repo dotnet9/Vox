@@ -59,7 +59,7 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 
 ## 技术栈
 
-.NET 10 · Avalonia 12.1.4 · [TKCode.Arc](https://github.com/AtomUICommunity/TKCode.Arc)（Avalonia 原生组件、独立主题、强调色与弹簧动效）· [TKCode.StreamMark.*](https://github.com/TKCode/StreamMark)（Markdown 实时预览内核）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（Vex 同款，已在 Avalonia 12.1.4 + NativeAOT 生产验证）。
+.NET 10 · Avalonia 12.1.4 · [TKCode.Arc](https://github.com/AtomUICommunity/TKCode.Arc)（Avalonia 原生组件、独立主题、强调色与弹簧动效）· [CodeWF.Avalonia.Markdown](https://github.com/dotnet9/CodeWF.Avalonia)（Markdown 实时预览与排版内核）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（Vex 同款，已在 Avalonia 12.1.4 + NativeAOT 生产验证）。
 
 跨平台：支持 Windows / macOS / Linux，目标 **win-x64、linux-x64、linux-arm64、osx-x64、osx-arm64** 五个 RID；发布沿用 Vex 的 GitHub Actions 五平台原生 runner 矩阵。**分发只走 GitHub Releases**（原型见 [design/](design/Vox软件原型.html)）：Windows 安装器为 Arc 品牌向导，macOS 为标准 DMG 拖拽安装（签名 + 公证），Linux 由系统软件中心 / 包管理器接管——均遵循各平台惯例；应用内检查更新直接从 Releases 下载替换，不走应用商店。品牌资产（logo.svg / png / ico）在仓库根目录统一维护。
 
