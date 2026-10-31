@@ -156,9 +156,12 @@ public sealed class WritePage : UserControl
         _editorView.EditorLineHeight = Math.Round(Fs(11.5) * 1.95, 1);
         _editorView.EditorPadding = new Thickness(6, 12, 34, 12);
         _editorView.ShowLineNumbers = true;
-        if (_editorView.Editor.TextArea.LeftMargins.FirstOrDefault() is Control lineNumberMargin)
+        if (_editorView.Editor.TextArea.LeftMargins.FirstOrDefault() is MarkdownLineNumberMargin lineNumberMargin)
         {
             lineNumberMargin.MinWidth = 44;
+            // 原型 .gutter：11px 字号、右侧 12px 内边距、44px 列宽。
+            lineNumberMargin.FontSize = Fs(11);
+            lineNumberMargin.RightPadding = 12;
         }
         _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
