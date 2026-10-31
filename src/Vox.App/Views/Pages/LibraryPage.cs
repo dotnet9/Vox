@@ -150,7 +150,7 @@ public sealed class LibraryPage : UserControl
         _statsHost.Children.Clear();
 
         var articles = scan?.Articles.Count ?? 0;
-        var years = scan is { } s ? $"{s.Articles.Min(a => a.Year)}–{s.Articles.Max(a => a.Year)}" : "—";
+        var years = scan is { Articles.Count: > 0 } s ? $"{s.Articles.Min(a => a.Year)}–{s.Articles.Max(a => a.Year)}" : "—";
         var words = scan?.Articles.Sum(a => a.WordCount) ?? 0;
         var images = scan?.Images.Count(i => !i.IsMissing) ?? 0;
         var pending = scan is null ? 0 : PublishHub.Rows().Sum(r => r.Channels.Count(c => c.Status is PublishStatus.Stale or PublishStatus.Off or PublishStatus.Error));
