@@ -1147,7 +1147,8 @@ h1,h2,h3 { letter-spacing: -.025em; }
 #view-publish .commitpane {background:var(--surface);padding:15px}
 @media(max-width:900px) {
   .editorial-chip {display:none}
-  #view-library .stats {grid-template-columns:repeat(2,minmax(0,1fr))}
+  #view-library .stats,
+  #view-images .stats {grid-template-columns:repeat(2,minmax(0,1fr))}
   #pubMatrix .vox-pub-overview {grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
