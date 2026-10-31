@@ -109,6 +109,7 @@ public sealed class ImagesPage : UserControl
         // 主体：左缩略图墙 + 右详情面板
         _grid.HorizontalAlignment = HorizontalAlignment.Stretch;
         _gridScroll.Content = _grid;
+        _gridScroll.SizeChanged += (_, _) => LayoutImageCards();
         var detailBorder = new Border
         {
             Width = 300,
@@ -240,6 +241,23 @@ public sealed class ImagesPage : UserControl
             Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
             _grid.Children.Add(empty);
         }
+
+        LayoutImageCards();
+    }
+
+    /// <summary>按可用宽度计算列数与卡片宽度，复刻原型 auto-fill/minmax(150px, 1fr)。</summary>
+    private void LayoutImageCards()
+    {
+        var available = _gridScroll.Bounds.Width;
+        if (available <= 0) return;
+        const double gap = 10;
+        const double minCard = 150;
+        var columns = Math.Max(1, (int)Math.Floor((available + gap) / (minCard + gap)));
+        var width = Math.Max(minCard, (available - columns * gap) / columns);
+        foreach (var card in _grid.Children.OfType<Border>().Where(card => card.Classes.Contains("image-card")))
+        {
+            card.Width = width;
+        }
     }
 
     private Border BuildCard(ImageAsset image)
@@ -299,6 +317,7 @@ public sealed class ImagesPage : UserControl
 
         var card = new Border
         {
+            Classes = { "image-card" },
             Width = 150,
             Margin = new Thickness(0, 0, 10, 10),
             CornerRadius = new CornerRadius(8),
