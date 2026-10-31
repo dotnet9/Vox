@@ -886,5 +886,5 @@
   "Vox.Settings.Appearance.StyleLabel": "介面風格",
   "Vox.Write.Map.Legend.Root": "標題節點",
   "Vox.Write.Map.Legend.Leaf": "內容節點",
-  "Vox.Write.Map.Hint": "拖動畫布 · 雙擊節點編輯 · 滾輪縮放"
+  "Vox.Write.Map.Hint": "拖動畫布 · 雙擊節點定位原始碼 · 滾輪縮放"
 }
