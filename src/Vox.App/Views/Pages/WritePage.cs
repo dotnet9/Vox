@@ -152,10 +152,24 @@ public sealed class WritePage : UserControl
         _shell = shell;
         // 源码编辑器与 Vex 固定基线一致：Cascadia Code 字体栈、15px 标准字号、1.75 行高、
         // 24/22/24/60 内边距；编辑行为与行号布局由同一 CodeWF MarkdownEditorView 控件提供。
-        _editorView.Editor.FontFamily = new FontFamily("Cascadia Code, Cascadia Mono, Consolas, JetBrains Mono, Microsoft YaHei UI, monospace");
-        _editorView.EditorFontSize = Fs(15);
-        _editorView.EditorLineHeight = Math.Round(Fs(15) * 1.75, 1);
+        // 字体与字号沿用控件默认值（Cascadia Mono, Consolas, Microsoft YaHei UI；15px）；
+        // Vex 同样只覆盖编辑区内边距，不额外强制行高，保留 AvaloniaEdit 的默认行距。
         _editorView.EditorPadding = new Thickness(24, 22, 24, 60);
+        _editorView.EditorBackgroundKey = "VoxSurface";
+        _editorView.EditorForegroundKey = "VoxFg";
+        _editorView.CurrentLineBackgroundKey = "VoxSurface2";
+        _editorView.CurrentLineBorderKey = "VoxLine";
+        _editorView.LineNumberBrushKey = "VoxFaint";
+        _editorView.CurrentLineNumberBrushKey = "VoxAccent";
+        _editorView.MarkerKey = "VoxFaint";
+        _editorView.AccentKey = "VoxAccent";
+        _editorView.LinkKey = "VoxAccent";
+        _editorView.ImageKey = "VoxImage";
+        _editorView.CodeKey = "VoxCode";
+        _editorView.QuoteKey = "VoxMuted";
+        _editorView.SeparatorKey = "VoxLine";
+        _editorView.DangerKey = "VoxDanger";
+        _editorView.WarningKey = "VoxWarn";
         _editorView.ShowLineNumbers = true;
         _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
@@ -761,6 +775,11 @@ public sealed class WritePage : UserControl
         Res(_mapView, MarkdownMindMapView.TextBrushProperty, "VoxFg");
         Res(_mapView, MarkdownMindMapView.LineBrushProperty, "VoxLine");
         Res(_mapView, MarkdownMindMapView.DotBrushProperty, "VoxLine");
+        Res(_mapView, MarkdownMindMapView.AccentColorProperty, "VoxAccentColor");
+        Res(_mapView, MarkdownMindMapView.SuccessColorProperty, "VoxOkColor");
+        Res(_mapView, MarkdownMindMapView.WarningColorProperty, "VoxWarnColor");
+        Res(_mapView, MarkdownMindMapView.MinZoomProperty, "VoxMapMinZoom");
+        Res(_mapView, MarkdownMindMapView.MaxZoomProperty, "VoxMapMaxZoom");
         _mapView.CanvasBrush = Brushes.Transparent;
         _mapView.PreserveViewportOnRootChange = true;
     }
