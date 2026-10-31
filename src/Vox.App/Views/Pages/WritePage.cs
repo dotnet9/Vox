@@ -74,7 +74,7 @@ public sealed class WritePage : UserControl
     private StackPanel _outlineHost = null!;
     private TextBlock _outlineEmpty = null!;
     private Button _panelHandle = null!;
-    private double _lastPanelWidth = 292;
+    private double _lastPanelWidth = 300;
 
     // 模式条（源码/分屏/预览/导图）
     private int _mode;
@@ -588,8 +588,8 @@ public sealed class WritePage : UserControl
         BuildPanel();
         _panel.IsVisible = false;
 
-        // 视图区 | 可拖分隔条 | 大纲面板卡（展开宽 292，拖动 240–460）
-        var contentColumns = new ColumnDefinitions("*,6,292");
+        // 视图区 | 可拖分隔条 | 大纲面板卡（展开宽 300，拖动 240–460）
+        var contentColumns = new ColumnDefinitions("*,6,300");
         contentColumns[0].MinWidth = 320;
         contentColumns[2].MinWidth = 0; // 默认收起：MinWidth 必须一并归零，否则空列仍占 240px 白底
         contentColumns[2].MaxWidth = 460;
