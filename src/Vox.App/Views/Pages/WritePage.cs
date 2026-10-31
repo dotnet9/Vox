@@ -1231,13 +1231,10 @@ public sealed class WritePage : UserControl
         var windowWidth = TopLevel.GetTopLevel(this)?.ClientSize.Width ?? Bounds.Width;
         if (windowWidth <= 0) windowWidth = 1280;
 
-        // Vex：单栏阅读 max(820px, 50vw)，padding 52/30/52/88；
-        // 分屏阅读 max(800px, 42vw)，padding 32/24/32/56。
-        var reading = _mode == 2;
-        var margin = reading
-            ? new Thickness(52, 30, 52, 88)
-            : new Thickness(32, 24, 32, 56);
-        var outerMaxWidth = Math.Max(reading ? 820 : 800, windowWidth * (reading ? .50 : .42));
+        // 严格按 Vex 当前 ApplyDocumentGeometry 的实际执行路径（非演示态）：
+        // max(800px, 42vw)，左右 32px、顶部 24px、底部 56px。
+        var margin = new Thickness(32, 24, 32, 56);
+        var outerMaxWidth = Math.Max(800, windowWidth * .42);
 
         document.Margin = margin;
         document.MaxWidth = Math.Max(100, outerMaxWidth - margin.Left - margin.Right);
