@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace Vox.Core;
 
-/// <summary>发布通道。网站走 git；公众号/博客园/CSDN 为 API；知乎无公开 API 走复制助手。</summary>
+/// <summary>发布通道。网站走 git；公众号/博客园走 API，CSDN 使用编辑器内部接口；知乎无公开 API 走复制助手。</summary>
 public enum PublishChannel
 {
     Site,
