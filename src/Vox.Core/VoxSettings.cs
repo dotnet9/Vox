@@ -19,6 +19,9 @@ public sealed class VoxSettings
     /// <summary>界面密度：compact / normal / roomy（字号 + 面板圆角三档）。</summary>
     public string Density { get; set; } = "normal";
 
+    /// <summary>界面风格：Arc（柔和圆角）或 Pixel（直角像素风）。</summary>
+    public string UiStyle { get; set; } = "Arc";
+
     /// <summary>界面语言（zh-CN / en-US）。</summary>
     public string Language { get; set; } = "zh-CN";
 
