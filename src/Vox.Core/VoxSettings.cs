@@ -40,6 +40,12 @@ public sealed class VoxSettings
     /// <summary>预览排版主题（CodeWF MarkdownTypographyThemes 键：Simple/Basic/InkBlack/TechnologyBlue/WeChatFormat）。</summary>
     public string MarkdownTheme { get; set; } = "Simple";
 
+    /// <summary>脑图结构布局（与 Vex 的 MindMapLayout 设置键兼容）。</summary>
+    public string MindMapLayout { get; set; } = "right";
+
+    /// <summary>脑图节点样式（与 Vex 的 MindMapStyle 设置键兼容）。</summary>
+    public string MindMapStyle { get; set; } = "quiet";
+
     /// <summary>
     /// 自动保存（2026-10-27 需求）：开启时以磁盘为唯一真值——停止输入约 2 秒自动落盘，
     /// 外部程序修改当前文件静默自动载入（toast 告知），绝不弹「请先比较」；关闭时手动保存，
