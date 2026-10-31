@@ -100,7 +100,7 @@ public sealed class PublishPage : UserControl
         _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
         _summaryInput[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
         _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Description");
-        _matrixSearch[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Publish.Hint.SearchTitle");
+        _matrixSearch[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Publish.Hint.SearchTitle");
 
         var root = new DockPanel { Margin = new Thickness(18, 14, 18, 14) };
 
