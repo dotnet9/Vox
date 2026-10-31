@@ -181,7 +181,7 @@ public partial class MainWindow : Window
         }
 
         var pop = new StackPanel { Width = 268 };
-        pop.Children.Add(PopTitle("界面风格", 0));
+        pop.Children.Add(PopTitle("Vox.Settings.Appearance.StyleLabel", 0));
         pop.Children.Add(styleSeg);
         pop.Children.Add(PopTitle("Vox.Settings.Appearance.Density", 12));
         pop.Children.Add(densitySeg);
