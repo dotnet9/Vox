@@ -1,6 +1,4 @@
 using Avalonia;
-using AtomUI;
-using AtomUI.Desktop.Controls;
 using TKCode.Arc;
 using TKCode.Arc.Fonts;
 using Vox.App.Infrastructure;
@@ -23,9 +21,7 @@ internal static class Program
         .UsePlatformDetect()
         .WithInterFont()
         .WithArcFonts()
-        .UseAtomUI(builder =>
-        {
-            builder.UseDesktopControls();
-            builder.UseArc();
-        });
+        .UseArc(arc => arc
+            .UseArcControls()
+            .WithTheme(t => t.Appearance(ArcAppearance.System)));
 }
