@@ -162,6 +162,8 @@ public sealed class LibraryPage : UserControl
         _statsHost.Children.Add(StatCard(FormatWords(words), T("Vox.Library.Stats.WordsEngine")));
         _statsHost.Children.Add(StatCard($"{images}", T("Vox.Library.Stats.Images")));
         _statsHost.Children.Add(StatCard($"{pending}", T("Vox.Library.Stats.PendingAll")));
+        var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
+        foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
     }
 
     private static string FormatWords(int words) => words >= 10000
