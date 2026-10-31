@@ -175,6 +175,8 @@ public sealed class ImagesPage : UserControl
         _statsHost.Children.Add(StatCard(FormatBytes(all.Sum(i => Math.Max(i.Bytes, 0))), T("Vox.Images.Stats.Bytes")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => !i.IsMissing && i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => i.IsOrphan)}", T("Vox.Images.Stats.Orphan"), "VoxWarn"));
+        var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
+        foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
         _cleanOrphans.Content = $"{T("Vox.Images.Action.CleanOrphans")} {all.Count(i => i.IsOrphan)}";
     }
 
