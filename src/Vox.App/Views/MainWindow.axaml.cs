@@ -78,10 +78,10 @@ public partial class MainWindow : Window
         var initial = string.IsNullOrWhiteSpace(startPage) ? "write" : startPage;
         if (initial is not ("write" or "library" or "images" or "publish" or "site" or "mcp" or "settings")) initial = "write";
         _currentKey = initial;
+        // 先注入 Arc/Vox/Markdown 调色板，再创建页面；否则首屏编辑器会先吃到 CodeWF 默认蓝色兜底主题。
+        ThemeService.Apply(AppState.Instance.Settings);
         PageHost.Content = GetPage(initial);
         MarkActive(initial);
-
-        ThemeService.Apply(AppState.Instance.Settings);
         AppState.Instance.ScanChanged += OnScanChanged;
         Services.McpService.StateChanged += UpdateMcpBadge;
         Services.McpService.CallAudited += _ => UpdateMcpBadge();
