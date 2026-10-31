@@ -8,6 +8,8 @@ using Vox.App.Services;
 using Vox.App.Views;
 using Vox.App.Views.Pages;
 using static Vox.App.Infrastructure.I18n;
+using ArcButton = TKCode.Arc.Button;
+using ArcButtonVariant = TKCode.Arc.ButtonVariant;
 
 namespace Vox.App.Dialogs;
 
@@ -127,7 +129,7 @@ public sealed class PlatformCfgModal : Border
         body.Children.Add(draftOnly);
         body.Children.Add(autoHint);
 
-        var save = new Button { Classes = { "btn", "primary" } };
+        var save = new ArcButton { Variant = ArcButtonVariant.Primary };
         save[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
         save.Click += (_, _) =>
         {
@@ -143,7 +145,7 @@ public sealed class PlatformCfgModal : Border
     private Control PlatformRow(Control[] inputs, Border badge, string saveLabelKey, Action save)
     {
         var row = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
-        var saveButton = new Button { Classes = { "btn", "sm" } };
+        var saveButton = new ArcButton { Variant = ArcButtonVariant.Secondary };
         saveButton[!Button.ContentProperty] = I18n.Bind(saveLabelKey);
         saveButton.Click += (_, _) => save();
         row.Children.Add(saveButton.Dock(Dock.Right));
