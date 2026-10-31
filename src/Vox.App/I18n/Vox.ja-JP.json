@@ -886,5 +886,6 @@
   "Vox.Settings.Appearance.StyleLabel": "インターフェーススタイル",
   "Vox.Write.Map.Legend.Root": "タイトルノード",
   "Vox.Write.Map.Legend.Leaf": "コンテンツノード",
-  "Vox.Write.Map.Hint": "キャンバスをドラッグ · ダブルクリックでソース位置へ · ホイールでズーム"
+  "Vox.Write.Map.Hint": "キャンバスをドラッグ · ダブルクリックでソース位置へ · ホイールでズーム",
+  "Vox.Shell.Tooltip.Mcp": "MCP サービス"
 }
