@@ -96,6 +96,7 @@
         <div class="write-body">
       <div class="wlist">
         <div class="lhead">
+          <div class="workspace-kicker"><span class="workspace-mark">V</span><div><b>写作工作台</b><small>CONTENT WORKSPACE</small></div><span class="workspace-status"><i></i> 已保存</span></div>
           <div class="lrow">
             <input class="input" id="artListSearch" placeholder="搜索 37 篇…" style="flex:1">
             <div class="viewseg" id="listSeg">
@@ -169,6 +170,7 @@
 
   <!-- ======== 视图：文章库 ======== -->
   <section class="view" id="view-library">
+    <div class="pagehead editorial-head"><div><h2>文章库</h2><span class="sub">统一管理内容资产、分类与多平台发布状态</span></div><span class="spacer"></span><span class="editorial-chip">CONTENT LIBRARY</span><button class="btn primary" onclick="document.getElementById('btnNew')?.click()">＋ 新建文章</button></div>
     <div class="stats">
       <div class="stat"><b>37</b><span>篇文章 · 跨 2019–2026</span></div>
       <div class="stat"><b>14.7 万</b><span>总字数（引擎口径）</span></div>
@@ -266,7 +268,7 @@
       </aside>
     </div>
     <div class="pub-page" id="pubMatrix" style="display:none">
-      <div class="pagehead"><h2>多平台发布</h2><span class="sub">API 直发 · 复制助手兜底 · 状态库跟踪每篇文章 × 每个平台</span><span style="flex:1"></span>
+      <div class="pagehead editorial-head"><div><h2>分发与发布</h2><span class="sub">管理各渠道发布进度、内容一致性与失败重试</span></div><span class="spacer"></span><span class="editorial-chip">DISTRIBUTION</span><span style="flex:1"></span>
         <button class="btn" onclick="toast('已刷新各平台状态（内容快照对比）')">⟳ 刷新状态</button>
         <button class="btn primary" onclick="openModal('mPlatformCfg')">平台账户…</button>
       </div>
