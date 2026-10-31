@@ -19,6 +19,8 @@ using Vox.Core;
 using Vox.Git;
 using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
+using ArcButton = TKCode.Arc.Button;
+using ArcButtonVariant = TKCode.Arc.ButtonVariant;
 
 namespace Vox.App.Views.Pages;
 
@@ -40,8 +42,8 @@ public sealed class PublishPage : UserControl
     private readonly Border _aheadBadge = new() { Classes = { "badge", "ok" }, IsVisible = false, Child = new TextBlock() };
     private readonly Border _behindBadge = new() { Classes = { "badge", "warn" }, IsVisible = false, Child = new TextBlock() };
     private readonly TextBlock _syncState = new();
-    private readonly Button _pullButton = new() { Classes = { "btn" }, IsVisible = false };
-    private readonly Button _pushButton = new() { Classes = { "btn" }, IsVisible = false };
+    private readonly ArcButton _pullButton = new() { Variant = ArcButtonVariant.Secondary, IsVisible = false };
+    private readonly ArcButton _pushButton = new() { Variant = ArcButtonVariant.Primary, IsVisible = false };
     private readonly Border _changeCount = new() { Classes = { "badge" }, Child = new TextBlock { Text = "0" } };
     private readonly CheckBox _checkAll = new() { Classes = { "vcheck" }, IsChecked = true };
     private StackPanel _changeList = new();
@@ -92,7 +94,7 @@ public sealed class PublishPage : UserControl
     private void BuildLayout()
     {
         // 一次性构建的控件文案：动态绑定，语言切换实时刷新
-        _pullButton[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
+        _pullButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
         _pushButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Push");
         _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
         _summaryInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
@@ -267,9 +269,9 @@ public sealed class PublishPage : UserControl
         _descInput.MinHeight = 96;
         commit.Children.Add(_descInput);
 
-        var detailButton = new Button
+        var detailButton = new ArcButton
         {
-            Classes = { "btn", "sm", "ghost" },
+            Variant = ArcButtonVariant.Ghost,
             Margin = new Thickness(0, 6, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Left,
         };
@@ -278,10 +280,10 @@ public sealed class PublishPage : UserControl
         commit.Children.Add(detailButton);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
-        var commitOnly = new Button { Classes = { "btn" } };
+        var commitOnly = new ArcButton { Variant = ArcButtonVariant.Secondary };
         commitOnly[!Button.ContentProperty] = I18n.Bind("Vox.Sync.Label.CommitOnly");
         commitOnly.Click += async (_, _) => await CommitAsync(push: false);
-        var commitPush = new Button { Classes = { "btn", "primary" } };
+        var commitPush = new ArcButton { Variant = ArcButtonVariant.Primary };
         commitPush[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.CommitPush");
         commitPush.Click += async (_, _) => await CommitAsync(push: true);
         actions.Children.Add(commitOnly);
@@ -564,9 +566,9 @@ public sealed class PublishPage : UserControl
             Text = TF("Vox.Publish.Msg.DiscardDesc", change.Path),
             TextWrapping = TextWrapping.Wrap, FontSize = 12.5,
         });
-        var cancel = new Button { Classes = { "btn" }, Content = T("Vox.Common.Action.Cancel") };
+        var cancel = new ArcButton { Variant = ArcButtonVariant.Secondary, Content = T("Vox.Common.Action.Cancel") };
         cancel.Click += (_, _) => _shell.CloseModal();
-        var discard = new Button { Classes = { "btn", "danger" }, Content = T("Vox.Sync.Label.Discard") };
+        var discard = new ArcButton { Variant = ArcButtonVariant.Danger, Content = T("Vox.Sync.Label.Discard") };
         discard.Click += (_, _) =>
         {
             _shell.CloseModal();
@@ -1108,7 +1110,7 @@ public sealed class PublishPage : UserControl
     private void BuildMatrixTab()
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
-        var refresh = new Button { Classes = { "btn" } };
+        var refresh = new ArcButton { Variant = ArcButtonVariant.Secondary };
         refresh[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.RefreshStatus");
         refresh.Click += (_, _) =>
         {
@@ -1116,7 +1118,7 @@ public sealed class PublishPage : UserControl
             RefreshAll();
             _shell.ShowToast(T("Vox.Publish.Msg.Refreshed"));
         };
-        var accounts = new Button { Classes = { "btn", "primary" } };
+        var accounts = new ArcButton { Variant = ArcButtonVariant.Primary };
         accounts[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Accounts");
         accounts.Click += (_, _) => _shell.ShowModal(new PlatformCfgModal(_shell, RefreshMatrix));
         pagehead.Children.Add(accounts.Dock(Dock.Right));
@@ -1249,7 +1251,7 @@ public sealed class PublishPage : UserControl
             }
 
             var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 14, 0) };
-            var publishButton = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Publish.Action.Publish") };
+            var publishButton = new ArcButton { Variant = ArcButtonVariant.Primary, Content = T("Vox.Publish.Action.Publish") };
             publishButton.Click += (_, _) => _shell.ShowModal(new PublishDialog(_shell, article));
             ops.Children.Add(publishButton);
             grid.Children.Add(ops);
@@ -1300,7 +1302,7 @@ public sealed class PublishPage : UserControl
     private void BuildCheckTab()
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
-        var recheck = new Button { Classes = { "btn" } };
+        var recheck = new ArcButton { Variant = ArcButtonVariant.Secondary };
         recheck[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
         recheck.Click += (_, _) =>
         {
@@ -1344,7 +1346,7 @@ public sealed class PublishPage : UserControl
             Res(card, Border.BorderBrushProperty, "VoxLine");
             card.BorderThickness = new Thickness(1);
 
-            Button? action = null;
+            ArcButton? action = null;
             if (rule.Count > 0)
             {
                 var label = rule.Key switch
@@ -1355,7 +1357,7 @@ public sealed class PublishPage : UserControl
                     "Draft" => T("Vox.Publish.Check.View"),
                     _ => T("Vox.Publish.Check.View"),
                 };
-                action = new Button { Classes = { "btn", "sm", "primary" }, Content = label };
+                action = new ArcButton { Variant = ArcButtonVariant.Primary, Content = label };
                 var capturedKey = rule.Key;
                 action.Click += (_, _) =>
                 {
