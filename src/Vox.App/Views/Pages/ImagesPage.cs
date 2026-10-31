@@ -26,7 +26,7 @@ namespace Vox.App.Views.Pages;
 public sealed class ImagesPage : UserControl
 {
     private readonly MainWindow _shell;
-    private StackPanel _statsHost = new();
+    private WrapPanel _statsHost = new();
     private readonly Controls.MiniSelect _yearFilter = new();
     private readonly Controls.MiniSelect _refFilter = new();
     private readonly Controls.MiniSelect _formatFilter = new();
