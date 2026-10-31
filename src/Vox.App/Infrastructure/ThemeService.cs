@@ -17,6 +17,7 @@ public static class ThemeService
         ApplyMotion(settings.MotionLevel);
         // Vox 自绘界面令牌（原型 tokens.css 口径）：明暗 + Arc 八色 + 密度（字号/圆角）。
         VoxTheme.SetDensity(settings.Density);
+        VoxTheme.SetStyle(settings.UiStyle);
         VoxTheme.Apply(settings.IsDark == true, NormalizeAccentName(settings.Accent));
     }
 
@@ -50,6 +51,14 @@ public static class ThemeService
         AppState.Instance.SaveSettings();
         VoxTheme.Apply(isDark == true, NormalizeAccentName(settings.Accent));
         ApplyArcTheme(isDark, settings.Accent, settings.MotionLevel);
+    }
+
+    public static void ChangeStyle(string style)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.UiStyle = string.Equals(style, VoxTheme.StylePixel, StringComparison.OrdinalIgnoreCase) ? VoxTheme.StylePixel : VoxTheme.StyleArc;
+        AppState.Instance.SaveSettings();
+        VoxTheme.SetStyle(settings.UiStyle);
     }
 
     public static void ChangeDensity(string density)
