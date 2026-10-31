@@ -155,21 +155,8 @@ public sealed class WritePage : UserControl
         // 字体与字号沿用控件默认值（Cascadia Mono, Consolas, Microsoft YaHei UI；15px）；
         // Vex 同样只覆盖编辑区内边距，不额外强制行高，保留 AvaloniaEdit 的默认行距。
         _editorView.EditorPadding = new Thickness(24, 22, 24, 60);
-        _editorView.EditorBackgroundKey = "VoxSurface";
-        _editorView.EditorForegroundKey = "VoxFg";
-        _editorView.CurrentLineBackgroundKey = "VoxSurface2";
-        _editorView.CurrentLineBorderKey = "VoxLine";
-        _editorView.LineNumberBrushKey = "VoxFaint";
-        _editorView.CurrentLineNumberBrushKey = "VoxAccent";
-        _editorView.MarkerKey = "VoxFaint";
-        _editorView.AccentKey = "VoxAccent";
-        _editorView.LinkKey = "VoxAccent";
-        _editorView.ImageKey = "VoxImage";
-        _editorView.CodeKey = "VoxCode";
-        _editorView.QuoteKey = "VoxMuted";
-        _editorView.SeparatorKey = "VoxLine";
-        _editorView.DangerKey = "VoxDanger";
-        _editorView.WarningKey = "VoxWarn";
+        // 配色键保留控件内置 CodeWFMarkdownEditor* 默认值，由 VoxTheme 的 MarkdownEditorPalette
+        // 同名资源统一供给，避免在此重复定义一套可能与语义调色板脱节的键。
         _editorView.ShowLineNumbers = true;
         _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
