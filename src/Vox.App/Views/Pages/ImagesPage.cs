@@ -329,6 +329,17 @@ public sealed class ImagesPage : UserControl
         Res(card, Border.BorderBrushProperty, "VoxLine");
         card.BorderThickness = new Thickness(selected ? 2 : 1);
         if (selected) Res(card, Border.BorderBrushProperty, "VoxAccent");
+        card.PointerEntered += (_, _) =>
+        {
+            if (selected) return;
+            card.BorderBrush = TryBrush("VoxLineStrong");
+            card.RenderTransform = new TranslateTransform(0, -1);
+        };
+        card.PointerExited += (_, _) =>
+        {
+            card.RenderTransform = null;
+            Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
+        };
         card.PointerReleased += (_, _) =>
         {
             _selectedPath = image.RelativePath;
