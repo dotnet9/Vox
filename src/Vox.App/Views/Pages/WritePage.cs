@@ -150,6 +150,12 @@ public sealed class WritePage : UserControl
     public WritePage(MainWindow shell)
     {
         _shell = shell;
+        // 对齐原型源码区：Geist Mono 优先、11.5px 基准字号、1.95 行高、12px 上下留白。
+        _editorView.Editor.FontFamily = new FontFamily("Geist Mono, Cascadia Code, Cascadia Mono, Consolas, monospace");
+        _editorView.EditorFontSize = Fs(11.5);
+        _editorView.EditorLineHeight = Math.Round(Fs(11.5) * 1.95, 1);
+        _editorView.EditorPadding = new Thickness(6, 12, 34, 12);
+        _editorView.ShowLineNumbers = true;
         _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
         _debounce.Tick += (_, _) => { _debounce.Stop(); RefreshPreview(); };
