@@ -886,5 +886,6 @@
   "Vox.Settings.Appearance.StyleLabel": "界面风格",
   "Vox.Write.Map.Legend.Root": "标题节点",
   "Vox.Write.Map.Legend.Leaf": "内容节点",
-  "Vox.Write.Map.Hint": "拖动画布 · 双击节点定位源码 · 滚轮缩放"
+  "Vox.Write.Map.Hint": "拖动画布 · 双击节点定位源码 · 滚轮缩放",
+  "Vox.Shell.Tooltip.Mcp": "MCP 服务"
 }
