@@ -78,6 +78,7 @@ public sealed class WritePage : UserControl
 
     // 模式条（源码/分屏/预览/导图）
     private int _mode;
+    private bool _restoringMapZoom = true;
     private readonly TKCode.Arc.SegmentedControl _modeSeg = new();
 
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(450) };
@@ -171,8 +172,11 @@ public sealed class WritePage : UserControl
         AttachedToVisualTree += (_, _) =>
         {
             _attached = true;
-            // 控件资源（含 MinZoom/MaxZoom）和首次 Fit 已生效后，再恢复用户缩放。
+            // 控件资源（含 MinZoom/MaxZoom）和首次 Fit 已生效后，再恢复用户缩放；
+            // 屏蔽首次 Fit 的 ZoomChanged，避免默认适配值覆盖用户上次保存的缩放。
+            _restoringMapZoom = true;
             _mapView.SetZoom(Math.Clamp(AppState.Instance.Settings.MapZoomPercent / 100d, .01, 2));
+            _restoringMapZoom = false;
             ApplyAutoSaveMode();
             ApplyAiChrome();
             InspectExternalChange();
@@ -188,6 +192,7 @@ public sealed class WritePage : UserControl
         BuildLayout();
         _mapView.ZoomChanged += (_, _) =>
         {
+            if (_restoringMapZoom) return;
             AppState.Instance.Settings.MapZoomPercent = Math.Clamp(_mapView.Zoom * 100, 1, 200);
             AppState.Instance.SaveSettings();
         };
