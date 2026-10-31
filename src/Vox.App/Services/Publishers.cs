@@ -164,20 +164,31 @@ public sealed class ZhihuCopyPublisher : IPlatformPublisher
         throw new InvalidOperationException("知乎无公开 API：请用「复制助手」（标题/描述/富文本已备好）");
 }
 
-/// <summary>CSDN：OpenAPI（bizapi，token 头）；接口属企业侧能力，无权限时给出明确错误并降级复制。</summary>
+/// <summary>
+/// CSDN：使用编辑器内部 bizapi 接口发布。该接口并非稳定的公开 OpenAPI，
+/// 需要本机登录 Cookie，并使用编辑器当前的 X-Ca HMAC 请求签名。
+/// </summary>
 public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
 {
+    private const string ApiKey = "203803574";
+    // CSDN Web 编辑器客户端签名密钥（公开前端协议常量，不是用户账户密码）。
+    private const string ApiSecret = "9znpamsyl2c7cdrr9sas0le9vbc3r6ba";
+    private const string SavePath = "/blog-console-api/v3/mdeditor/saveArticle";
+    private const string ProbePath = "/blog-console-api/v3/user/isAuditStatus";
+    private static readonly Uri ApiBase = new("https://bizapi.csdn.net");
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
     public async Task<bool> ProbeAsync(CancellationToken ct = default)
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get,
-                "https://bizapi.csdn.net/blog-console-api/v3/user/isAuditStatus");
-            request.Headers.Add("X-Ca-Key", account.Token);
+            using var request = CreateSignedRequest(HttpMethod.Get, ProbePath);
             using var response = await Http.SendAsync(request, ct);
             return response.IsSuccessStatusCode;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {
@@ -187,6 +198,9 @@ public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
 
     public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(account.Token))
+            throw new InvalidOperationException("未配置 CSDN 登录 Cookie，请在「设置 → 平台账户」中填写。");
+
         var payload = $$"""
         {
           "title": {{System.Text.Json.JsonSerializer.Serialize(title)}},
@@ -200,19 +214,73 @@ public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
           "cover": {{System.Text.Json.JsonSerializer.Serialize(coverCdnUrl ?? "")}}
         }
         """;
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            "https://bizapi.csdn.net/blog-console-api/v3/mdeditor/saveArticle")
-        {
-            Content = new StringContent(payload, Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Add("X-Ca-Key", account.Token);
+        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+        using var request = CreateSignedRequest(HttpMethod.Post, SavePath, content);
         using var response = await Http.SendAsync(request, ct);
         var text = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode || text.Contains("\"code\":", StringComparison.Ordinal) is false)
+
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"CSDN 发布请求失败（HTTP {(int)response.StatusCode}）：{DescribeApiError(text)}");
+
+        JsonNode? json;
+        try
         {
-            throw new InvalidOperationException($"CSDN saveArticle 失败（{(int)response.StatusCode}）：token 失效或无 OpenAPI 权限，可降级复制助手");
+            json = JsonNode.Parse(text);
         }
-        return "已提交到 CSDN（可能进入审核）";
+        catch
+        {
+            throw new InvalidOperationException("CSDN 返回了无法识别的响应，未确认文章是否发布。");
+        }
+
+        var codeText = json?["code"]?.ToString();
+        if (!int.TryParse(codeText, out var code) || code is not (0 or 200))
+            throw new InvalidOperationException($"CSDN 未确认发布成功：{DescribeApiError(text)}");
+
+        var data = json?["data"];
+        var articleId = data?["articleId"]?.ToString()
+            ?? data?["article_id"]?.ToString()
+            ?? data?["id"]?.ToString();
+        return string.IsNullOrWhiteSpace(articleId)
+            ? "CSDN 已接受发布请求（未返回文章 ID，请在个人后台确认）"
+            : $"CSDN 已接受发布请求，文章 ID：{articleId}";
+    }
+
+    private HttpRequestMessage CreateSignedRequest(HttpMethod method, string path, HttpContent? content = null)
+    {
+        var nonce = Guid.NewGuid().ToString();
+        var contentType = content?.Headers.ContentType?.ToString() ?? string.Empty;
+        const string accept = "*/*";
+        var canonicalHeaders = $"x-ca-key:{ApiKey}\nx-ca-nonce:{nonce}\n";
+        var stringToSign = $"{method.Method}\n{accept}\n\n{contentType}\n\n{canonicalHeaders}{path}";
+        using var hmac = new System.Security.Cryptography.HMACSHA256(Encoding.UTF8.GetBytes(ApiSecret));
+        var signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(stringToSign)));
+
+        var request = new HttpRequestMessage(method, new Uri(ApiBase, path)) { Content = content };
+        request.Headers.TryAddWithoutValidation("Accept", accept);
+        request.Headers.TryAddWithoutValidation("X-Ca-Key", ApiKey);
+        request.Headers.TryAddWithoutValidation("X-Ca-Nonce", nonce);
+        request.Headers.TryAddWithoutValidation("X-Ca-Signature-Headers", "x-ca-key,x-ca-nonce");
+        request.Headers.TryAddWithoutValidation("X-Ca-Signature", signature);
+        request.Headers.TryAddWithoutValidation("Cookie", account.Token);
+        request.Headers.Referrer = new Uri("https://editor.csdn.net/md/");
+        return request;
+    }
+
+    private static string DescribeApiError(string response)
+    {
+        try
+        {
+            var json = JsonNode.Parse(response);
+            var message = json?["msg"]?.ToString()
+                ?? json?["message"]?.ToString()
+                ?? json?["error_msg"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(message)) return message;
+        }
+        catch
+        {
+            // 使用下面的安全兜底，不把整段响应（可能含个人信息）写入日志。
+        }
+        return "请检查登录 Cookie 是否过期、账号是否有发布权限；也可能是 CSDN 内部接口已变更。";
     }
 }
 
