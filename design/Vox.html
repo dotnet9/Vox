@@ -612,25 +612,24 @@ draft: true
 </div></div>
 
 <!-- ============ 弹层：发布文章（单篇 × 多平台） ============ -->
-<div class="mask" id="mPublish"><div class="modal" style="max-width:680px">
-  <div class="mh"><h3 id="pubDlgTitle">发布</h3><span class="x" onclick="closeModal('mPublish')">×</span></div>
+<div class="mask" id="mPublish"><div class="modal vox-publish-modal">
+  <div class="mh"><div><div class="vox-modal-kicker">PUBLISH WORKFLOW</div><h3 id="pubDlgTitle">发布文章</h3></div><span class="x" onclick="closeModal('mPublish')">×</span></div>
   <div class="mb">
-    <div class="pub-check" id="pubDlgCheck">
-      <div class="pub-check__head">检查 <button class="btn sm ghost" style="margin-left:8px">重新检查</button><span style="flex:1"></span><span class="badge ok" id="pubDlgChkOk"></span><span class="badge warn" id="pubDlgChkWarn"></span></div>
-      <div class="pub-check__items" id="pubDlgCheckItems"></div>
+    <div class="vox-pub-articlebar"><span class="vox-pub-filemark">MD</span><div class="vox-pub-articlemeta"><b id="pubDlgArticleTitle">—</b><small id="pubDlgArticlePath">—</small></div><span class="badge" id="pubDlgOverall">待检查</span></div>
+    <div class="vox-pub-sectionhead"><b>01 · 发布前检查</b><button class="btn sm ghost" id="pubDlgRecheck">重新检查</button><span class="spacer"></span><span class="badge ok" id="pubDlgChkOk"></span><span class="badge warn" id="pubDlgChkWarn"></span></div>
+    <div class="pub-check__items vox-pub-checkitems" id="pubDlgCheckItems"></div>
+    <div class="vox-pub-sectionhead"><b>02 · 选择发布渠道</b><span class="spacer"></span><span class="vox-pub-muted" id="pubDlgSelectedCount">0 个渠道</span></div>
+    <div class="pub-rows vox-pub-rows" id="pubDlgRows"></div>
+    <div class="vox-pub-sectionhead"><b>03 · 发布内容助手</b><span class="spacer"></span><span class="vox-pub-muted">复制后可粘贴到平台编辑器</span></div>
+    <div class="vox-copy-grid">
+      <button class="vox-copy-item" data-copy="title"><b>标题</b><small>文章标题</small></button>
+      <button class="vox-copy-item" data-copy="description"><b>摘要</b><small>文章描述</small></button>
+      <button class="vox-copy-item" data-copy="markdown"><b>Markdown</b><small>标题与文件路径信息</small></button>
+      <button class="vox-copy-item" data-copy="path"><b>文件路径</b><small>仓库相对路径</small></button>
     </div>
-    <div class="pub-rows" id="pubDlgRows"></div>
-    <div class="f-label" style="margin-top:14px">复制字段 <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">点即复制 · 配合平台创作页逐框粘贴</span></div>
-    <div class="chips">
-      <button class="chip" onclick="toast('已复制：标题')">标题</button>
-      <button class="chip" onclick="toast('已复制：描述')">描述</button>
-      <button class="chip" onclick="toast('已复制：封面 URL（CDN）')">封面 URL</button>
-      <button class="chip" onclick="toast('已复制：Markdown 源码')">正文 Markdown</button>
-      <button class="chip" onclick="toast('已复制：公众号内联样式 HTML（图片已转素材库域名）')">公众号 HTML</button>
-      <button class="chip" onclick="toast('已复制：CF_HTML 富文本（带样式粘贴）')">富文本</button>
-    </div>
+    <div class="vox-pub-result" id="pubDlgResult"><span class="vox-result-dot"></span><div><b>等待操作</b><small>选择渠道并完成检查后，可继续处理。当前原型不会调用真实平台接口。</small></div></div>
   </div>
-  <div class="mf"><button class="btn" onclick="closeModal('mPublish')">关闭</button></div>
+  <div class="mf vox-pub-footer"><span class="vox-pub-footer-note">发布状态仅在真实服务返回结果后更新</span><button class="btn" onclick="closeModal('mPublish')">取消</button><button class="btn primary" id="pubDlgContinue">确认操作</button></div>
 </div></div>
 
 <!-- ============ 弹层：平台账户 ============ -->
@@ -1340,32 +1339,62 @@ function renderPubOps(){
     return '<div class="vox-pub-task"><div class="vox-pub-task-main"><div class="vox-pub-task-title">'+esc(x.a.t)+'</div><div class="vox-pub-task-meta">'+esc(x.pl.name)+' · '+label+'</div></div><button class="btn sm '+(x.st==='err'?'danger':'primary')+'" onclick="openPublishDlg(\''+esc(x.a.p)+'\')">'+action+'</button></div>';
   }).join(''):'<div class="vox-pub-task"><div class="vox-pub-task-meta">所有文章均已同步，暂时没有待处理任务。</div></div>';
 }
-function openPublishDlg(path){
-  const a=PUB_ARTICLES.find(x=>x.p===path)||PUB_ARTICLES[0];
-  $('pubDlgTitle').textContent='发布：'+a.t;
+let activePublishArticle=null;
+function updatePublishSelection(){
+  const selected=[...document.querySelectorAll('#pubDlgRows [data-pub-select]:checked')];
+  $('pubDlgSelectedCount').textContent=selected.length+' 个渠道';
+  $('pubDlgContinue').disabled=selected.length===0;
+  $('pubDlgContinue').textContent=selected.length?'确认操作（'+selected.length+'）':'选择发布渠道';
+}
+function renderPublishDialogChecks(a){
   const okN=a.check.filter(c=>c[0]==='ok').length,wn=a.check.length-okN;
   $('pubDlgChkOk').textContent=okN+' 项通过';
-  $('pubDlgChkWarn').textContent=wn>0?wn+' 项提醒':'';
-  $('pubDlgChkWarn').style.display=wn>0?'':'none';
-  $('pubDlgCheckItems').innerHTML=a.check.map(c=>`<div class="it"><span style="color:${c[0]==='ok'?'var(--ok)':'var(--warn)'}">${c[0]==='ok'?'✓':'⚠'}</span><b>${esc(c[1])}</b></div>`).join('');
-  const opsByMode={
-    api:(st)=> st==='off'?'<button class="btn sm primary">API 发布</button><button class="btn sm">复制</button>'
-      : st==='stale'?'<button class="btn sm primary">重新发布</button><button class="btn sm">复制新版</button><button class="btn sm ghost">查看线上 ↗</button>'
-      : st==='err'?'<button class="btn sm primary">重试</button><button class="btn sm ghost">更新凭据…</button>'
-      : '<button class="btn sm ghost">查看线上 ↗</button><button class="btn sm">复制</button>',
-    copy:()=> '<button class="btn sm primary">复制助手…</button>',
-    git:(st)=> st==='ok'?'<button class="btn sm ghost">查看站点 ↗</button>'
-      : '<button class="btn sm primary">去提交推送 →</button>',
-  };
+  $('pubDlgChkWarn').textContent=wn?wn+' 项待确认':'无提醒';
+  $('pubDlgChkWarn').style.display=wn?'':'none';
+  $('pubDlgOverall').textContent=wn?'有项目需要确认':'检查通过';
+  $('pubDlgOverall').className='badge '+(wn?'warn':'ok');
+  $('pubDlgCheckItems').innerHTML=a.check.map((c,i)=>'<div class="it"><span class="vox-check-icon '+(c[0]==='ok'?'is-ok':'is-warn')+'">'+(c[0]==='ok'?'✓':'!')+'</span><b>'+esc(c[1])+'</b><span class="vox-check-state">'+(c[0]==='ok'?'通过':'需确认')+'</span></div>').join('');
+}
+function openPublishDlg(path){
+  const a=PUB_ARTICLES.find(x=>x.p===path)||PUB_ARTICLES[0];
+  activePublishArticle=a;
+  $('pubDlgTitle').textContent='发布文章';
+  $('pubDlgArticleTitle').textContent=a.t;
+  $('pubDlgArticlePath').textContent=a.p;
+  renderPublishDialogChecks(a);
   $('pubDlgRows').innerHTML=PLATFORMS.map(pl=>{
-    const n=a.st[pl.id];
-    const note=a[pl.id+'Note']||ST_TXT[n];
-    return `<div class="pub-row"><span class="nm">${pl.name}</span>
-      <span class="st"><span class="pm-st ${ST_CLS[n]}" style="width:auto">${ST_GLYPH[n]}</span> ${esc(note)}</span>
-      <span class="ops">${opsByMode[pl.mode](n)}</span></div>`;
+    const n=a.st[pl.id],note=a[pl.id+'Note']||ST_TXT[n];
+    const blocked=pl.id==='site'&&n==='stale';
+    const checked=n==='off'||n==='stale'||n==='err';
+    const action=pl.mode==='copy'?'复制助手':pl.mode==='git'?'Git 推送':'平台发布';
+    return '<label class="vox-pub-channel '+(checked?'is-selected':'')+'"><input type="checkbox" data-pub-select value="'+pl.id+'" '+(checked?'checked':'')+'><span class="vox-channel-check"></span><span class="vox-channel-name">'+esc(pl.name)+'</span><span class="vox-channel-meta">'+esc(note)+'</span><span class="badge '+(n==='ok'?'ok':n==='err'?'danger':n==='stale'?'warn':'')+'">'+ST_TXT[n]+'</span><small class="vox-channel-mode">'+action+(blocked?' · 先提交推送':'')+'</small></label>';
   }).join('');
+  $('pubDlgResult').innerHTML='<span class="vox-result-dot"></span><div><b>等待操作</b><small>选择渠道并完成检查后，可继续处理。当前原型不会调用真实平台接口。</small></div>';
+  document.querySelectorAll('#pubDlgRows [data-pub-select]').forEach(el=>el.addEventListener('change',()=>{el.closest('.vox-pub-channel').classList.toggle('is-selected',el.checked);updatePublishSelection();}));
+  updatePublishSelection();
   openModal('mPublish');
 }
+$('pubDlgRecheck').onclick=()=>{
+  if(!activePublishArticle)return;
+  renderPublishDialogChecks(activePublishArticle);
+  $('pubDlgResult').innerHTML='<span class="vox-result-dot is-done"></span><div><b>检查已刷新</b><small>已重新读取当前原型数据；接入真实检查服务后将在此显示实时结果。</small></div>';
+};
+document.querySelectorAll('.vox-copy-item').forEach(btn=>btn.onclick=()=>{
+  if(!activePublishArticle)return;
+  const a=activePublishArticle;
+  const value=btn.dataset.copy==='title'?a.t:btn.dataset.copy==='path'?a.p:btn.dataset.copy==='description'?'文章摘要尚未从内容仓库载入。': '# '+a.t+'\n\n<!-- source: '+a.p+' -->\n\n正文内容由文章仓库提供。';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(value).then(()=>toast('已复制'+btn.querySelector('b').textContent)).catch(()=>toast('浏览器未授予剪贴板权限'));
+  }else toast('当前环境不支持剪贴板，请手动复制');
+});
+$('pubDlgContinue').onclick=()=>{
+  if(!activePublishArticle)return;
+  const selected=[...document.querySelectorAll('#pubDlgRows [data-pub-select]:checked')].map(x=>PLATFORMS.find(p=>p.id===x.value)).filter(Boolean);
+  if(!selected.length){toast('请先选择发布渠道');return;}
+  const names=selected.map(x=>x.name).join('、');
+  $('pubDlgResult').innerHTML='<span class="vox-result-dot is-warn"></span><div><b>已生成操作清单</b><small>目标渠道：'+esc(names)+'。这是交互原型，未连接发布 API；没有更改线上内容或发布状态。</small></div>';
+  toast('已生成 '+selected.length+' 个渠道的操作清单（演示）');
+};
 /* 检查标签 */
 const CHECK_RULES=[
  {n:'待推送提交', c:2, desc:'git 提交未推送（推完网站即更新）', act:'去推送'},
