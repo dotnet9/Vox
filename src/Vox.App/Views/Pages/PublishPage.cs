@@ -94,7 +94,7 @@ public sealed class PublishPage : UserControl
     private void BuildLayout()
     {
         // 一次性构建的控件文案：动态绑定，语言切换实时刷新
-        _pullButton[!ArcArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
+        _pullButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
         _pushButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Push");
         _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
         _summaryInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
