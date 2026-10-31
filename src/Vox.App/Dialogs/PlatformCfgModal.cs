@@ -130,7 +130,7 @@ public sealed class PlatformCfgModal : Border
         body.Children.Add(autoHint);
 
         var save = new ArcButton { Variant = ArcButtonVariant.Primary };
-        save[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
+        save[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
         save.Click += (_, _) =>
         {
             _onSaved?.Invoke();
@@ -146,7 +146,7 @@ public sealed class PlatformCfgModal : Border
     {
         var row = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
         var saveButton = new ArcButton { Variant = ArcButtonVariant.Secondary };
-        saveButton[!Button.ContentProperty] = I18n.Bind(saveLabelKey);
+        saveButton[!ArcButton.ContentProperty] = I18n.Bind(saveLabelKey);
         saveButton.Click += (_, _) => save();
         row.Children.Add(saveButton.Dock(Dock.Right));
         badge.Margin = new Thickness(8, 0, 0, 0);
