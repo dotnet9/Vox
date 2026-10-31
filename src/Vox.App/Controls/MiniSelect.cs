@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Automation;
 using ArcSelect = TKCode.Arc.Select;
 
 namespace Vox.App.Controls;
@@ -79,6 +80,7 @@ public sealed class MiniSelect : ContentControl
             SetCurrentValue(SelectedProperty, value);
             SelectionChanged?.Invoke(value);
         };
+        AutomationProperties.SetName(_select, Title);
         Content = _select;
     }
 
@@ -97,6 +99,8 @@ public sealed class MiniSelect : ContentControl
         else if (change.Property == TitleProperty && _select != null)
         {
             _select.Placeholder = Title;
+            AutomationProperties.SetName(_select, Title);
+            AutomationProperties.SetName(_select, Title);
         }
     }
 }
