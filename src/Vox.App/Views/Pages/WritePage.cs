@@ -222,8 +222,8 @@ public sealed class WritePage : UserControl
         _preview.Heading5FontSize = 12.5;
         _preview.Heading6FontSize = 12;
         _preview.ParagraphMargin = new Thickness(0, 8, 0, 8);
-        _preview.CodeBlockFontSize = 12;
-        _preview.CodeBlockLineHeight = 19;
+        // 与 Vex 的 MarkdownViewer 默认代码字号一致；行高沿用共享控件默认值，不做宿主覆盖。
+        _preview.CodeBlockFontSize = 12.5;
         _preview.CodeLanguageFontSize = 10.5;
         UpdateTypoLabel();
         ApplyEditorTheme();
