@@ -183,22 +183,6 @@ public static class VoxTheme
         r["CodeWFMarkdownEditorMarkerBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorLineNumberBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
-        // Markdown 源码编辑器使用与 Vox 原型同源的语义调色板，不回退到 CodeWF 默认蓝色主题。
-        r[MarkdownEditorPalette.BackgroundKey] = Brush(p.Surface);
-        r[MarkdownEditorPalette.ForegroundKey] = Brush(p.Fg);
-        r[MarkdownEditorPalette.CurrentLineBackgroundKey] = Brush(p.Surface2);
-        r[MarkdownEditorPalette.CurrentLineBorderKey] = Brush(p.Line);
-        r[MarkdownEditorPalette.AccentKey] = Brush(accent);
-        r[MarkdownEditorPalette.CodeKey] = Brush(isDark ? "#FCA5A5" : "#B42318");
-        r[MarkdownEditorPalette.QuoteKey] = Brush(p.Muted);
-        r[MarkdownEditorPalette.LinkKey] = Brush(accent);
-        r[MarkdownEditorPalette.ImageKey] = Brush(isDark ? "#C4B5FD" : "#7C3AED");
-        r[MarkdownEditorPalette.WarningKey] = Brush(p.Warn);
-        r[MarkdownEditorPalette.DangerKey] = Brush(p.Danger);
-        r[MarkdownEditorPalette.SeparatorKey] = Brush(p.Line);
-        r["CodeWFMarkdownEditorMarkerBrush"] = Brush(p.Faint);
-        r["CodeWFMarkdownEditorLineNumberBrush"] = Brush(p.Faint);
-        r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
         r["VoxAccentDeep"] = Brush(isDark ? preset.DarkDeep : preset.LightDeep);
         r["VoxAccentSoft"] = Brush(HexSoft(accent));
         // DataGrid 的 Semi 主题默认蓝调，这里把悬停/选中/分隔线接到 Vox 画刷
