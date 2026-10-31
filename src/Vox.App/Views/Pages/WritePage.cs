@@ -150,10 +150,8 @@ public sealed class WritePage : UserControl
     public WritePage(MainWindow shell)
     {
         _shell = shell;
-        // 源码编辑器与 Vex 固定基线一致：Cascadia Code 字体栈、15px 标准字号、1.75 行高、
-        // 24/22/24/60 内边距；编辑行为与行号布局由同一 CodeWF MarkdownEditorView 控件提供。
-        // 字体与字号沿用控件默认值（Cascadia Mono, Consolas, Microsoft YaHei UI；15px）；
-        // Vex 同样只覆盖编辑区内边距，不额外强制行高，保留 AvaloniaEdit 的默认行距。
+        // 源码编辑器与 Vex 固定基线一致：同一 CodeWF MarkdownEditorView 控件，
+        // 沿用控件默认 Cascadia Mono 字体栈、15px 字号与默认行高，仅覆盖 24/22/24/60 编辑区内边距。
         _editorView.EditorPadding = new Thickness(24, 22, 24, 60);
         // 配色键保留控件内置 CodeWFMarkdownEditor* 默认值，由 VoxTheme 的 MarkdownEditorPalette
         // 同名资源统一供给，避免在此重复定义一套可能与语义调色板脱节的键。
