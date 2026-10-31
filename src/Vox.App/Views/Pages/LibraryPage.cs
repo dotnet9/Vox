@@ -57,6 +57,7 @@ public sealed class LibraryPage : UserControl
         _categoryFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Category");
         _statusFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Status");
         _platformFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Platform");
+        _search[!ArcInput.LabelProperty] = I18n.Bind("Vox.Library.Label.SearchPlaceholder");
         _search[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Library.Label.SearchPlaceholder");
 
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
