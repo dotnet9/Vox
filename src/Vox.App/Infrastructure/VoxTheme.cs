@@ -109,6 +109,7 @@ public static class VoxTheme
         app.Resources["VoxRadius"] = new Avalonia.CornerRadius(Radius);
         app.Resources["VoxRadiusControl"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 9);
         app.Resources["VoxRadiusSmall"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 7);
+        app.Resources["VoxRadiusTiny"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 5);
         app.Resources["VoxRadiusPill"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 99);
         // 字号令牌：样式与 chrome 文本用 DynamicResource 引用，密度切换整体响应（原型 rem 缩放口径）。
         app.Resources["VoxFontSizeTiny"] = Fs(8.5);
