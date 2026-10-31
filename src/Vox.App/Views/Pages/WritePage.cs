@@ -898,6 +898,13 @@ public sealed class WritePage : UserControl
     /// <summary>正文密度与标题 em 比例同步原型 #prevInner 的 CSS 规则。</summary>
     private void ApplyPreviewDensity(double fontSize)
     {
+        // 同步设置共享控件的排版尺寸档：13/15/17 分别映射 Compact/Normal/Relaxed，
+        // 让主题内的代码、块间距等尺寸资源也随密度切换，而不只改变正文与标题字号。
+        _preview.TypographySize = fontSize <= 13
+            ? CodeWF.Avalonia.Markdown.Themes.MarkdownTypographySizes.Compact
+            : fontSize >= 17
+                ? CodeWF.Avalonia.Markdown.Themes.MarkdownTypographySizes.Relaxed
+                : CodeWF.Avalonia.Markdown.Themes.MarkdownTypographySizes.Normal;
         _preview.ParagraphFontSize = fontSize;
         _preview.ParagraphLineHeight = PreviewLineHeight(fontSize);
         _preview.Heading1FontSize = Math.Round(fontSize * 1.7, 1);
