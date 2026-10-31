@@ -883,5 +883,8 @@
   "Vox.Images.Confirm.DeleteTitle": "删除图片",
   "Vox.Images.Confirm.DeleteBody": "要删除「{0}」吗？文件经 git 提交删除，历史中可回滚。",
   "Vox.Images.Msg.CoverSet": "已设为封面：{0}",
-  "Vox.Settings.Appearance.StyleLabel": "界面风格"
+  "Vox.Settings.Appearance.StyleLabel": "界面风格",
+  "Vox.Write.Map.Legend.Root": "标题节点",
+  "Vox.Write.Map.Legend.Leaf": "内容节点",
+  "Vox.Write.Map.Hint": "拖动画布 · 双击节点编辑 · 滚轮缩放"
 }
