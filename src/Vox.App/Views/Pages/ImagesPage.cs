@@ -82,6 +82,11 @@ public sealed class ImagesPage : UserControl
 
         // 统计条（4 卡）
         _statsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        _statsHost.SizeChanged += (_, _) =>
+        {
+            var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
+            foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
+        };
         host.Children.Add(_statsHost);
 
         // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）
