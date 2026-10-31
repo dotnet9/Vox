@@ -168,11 +168,12 @@ public sealed class LibraryPage : UserControl
         var available = _statsHost.Bounds.Width;
         if (available <= 0) return;
         var columns = available < 900 ? 2 : 4;
-        var cardWidth = Math.Max(112, (available - columns * 10) / columns);
+        const double gap = 12; // #view-library .stats 的原型 gap
+        var cardWidth = Math.Max(112, (available - columns * gap) / columns);
         foreach (var card in _statsHost.Children.OfType<Border>())
         {
             card.Width = cardWidth;
-            card.Margin = new Thickness(0, 0, 10, 10);
+            card.Margin = new Thickness(0, 0, gap, gap);
         }
     }
 
