@@ -21,7 +21,7 @@ namespace Vox.App.Views.Pages;
 public sealed class LibraryPage : UserControl
 {
     private readonly MainWindow _shell;
-    private StackPanel _statsHost = new();
+    private WrapPanel _statsHost = new();
     private readonly DataGrid _libGrid = new();
     private readonly TextBlock _libEmpty = new()
     {
@@ -64,12 +64,9 @@ public sealed class LibraryPage : UserControl
         var host = new StackPanel { Spacing = 14 };
 
         // 统计条（4 卡）
-        _statsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        _statsHost.SizeChanged += (_, _) =>
-        {
-            var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
-            foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
-        };
+        // 与原型 #view-library .stats 一致：桌面四列，900px 以下两列。
+        _statsHost = new WrapPanel { Orientation = Orientation.Horizontal };
+        _statsHost.SizeChanged += (_, _) => LayoutStatsCards();
         host.Children.Add(_statsHost);
 
         // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）
@@ -162,8 +159,21 @@ public sealed class LibraryPage : UserControl
         _statsHost.Children.Add(StatCard(FormatWords(words), T("Vox.Library.Stats.WordsEngine")));
         _statsHost.Children.Add(StatCard($"{images}", T("Vox.Library.Stats.Images")));
         _statsHost.Children.Add(StatCard($"{pending}", T("Vox.Library.Stats.PendingAll")));
-        var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
-        foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
+        LayoutStatsCards();
+    }
+
+    /// <summary>桌面四列、窄窗口两列；避免固定最小宽度造成横向溢出。</summary>
+    private void LayoutStatsCards()
+    {
+        var available = _statsHost.Bounds.Width;
+        if (available <= 0) return;
+        var columns = available < 900 ? 2 : 4;
+        var cardWidth = Math.Max(112, (available - columns * 10) / columns);
+        foreach (var card in _statsHost.Children.OfType<Border>())
+        {
+            card.Width = cardWidth;
+            card.Margin = new Thickness(0, 0, 10, 10);
+        }
     }
 
     private static string FormatWords(int words) => words >= 10000
@@ -176,7 +186,7 @@ public sealed class LibraryPage : UserControl
         {
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(16, 12),
-            MinWidth = 200,
+            MinWidth = 0,
         };
         Res(card, Border.BackgroundProperty, "VoxSurface");
         Res(card, Border.BorderBrushProperty, "VoxLine");
