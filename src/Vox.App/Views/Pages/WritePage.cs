@@ -569,10 +569,11 @@ public sealed class WritePage : UserControl
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
-        // 阅读列按原型限制 720px 正文宽度并居中；滚动留白为 30px 横向、26px 纵向。
+        // 原型 .article 正文最大宽度 720px，外层 .wprev 另有 30px 左右内边距；
+        // ScrollViewer.Padding 不计入子 Border 的 MaxWidth，因此这里应为 720 + 30 * 2。
         _previewScroll.Content = new Border
         {
-            MaxWidth = 720,
+            MaxWidth = 780,
             HorizontalAlignment = HorizontalAlignment.Center,
             Child = _preview,
         };
