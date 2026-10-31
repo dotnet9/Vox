@@ -48,7 +48,7 @@ public sealed class PublishDialog : Border
 
         // 发布前检查卡片
         var recheck = new ArcButton { Variant = ArcButtonVariant.Ghost, Margin = new Thickness(8, 0, 0, 0) };
-        recheck[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
+        recheck[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
         recheck.Click += (_, _) => RebuildChecks();
         var checkTitle = new TextBlock { FontSize = 12.5, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
         checkTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Dialog.Check");
@@ -109,7 +109,7 @@ public sealed class PublishDialog : Border
         body.Children.Add(chips);
 
         var closeButton = new ArcButton { Variant = ArcButtonVariant.Secondary };
-        closeButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Close");
+        closeButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Close");
         closeButton.Click += (_, _) => shell.CloseModal();
         footer.Children.Add(closeButton);
 
