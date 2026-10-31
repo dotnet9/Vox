@@ -81,11 +81,19 @@ public sealed class ImagesPage : UserControl
         host.Children.Add(head);
 
         // 统计条（4 卡）
-        _statsHost = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        // 统计卡片：桌面四列，窄窗口自动两列；避免固定 200px 最小宽度挤出视口。
+        _statsHost = new WrapPanel { Orientation = Orientation.Horizontal };
         _statsHost.SizeChanged += (_, _) =>
         {
-            var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
-            foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
+            var available = _statsHost.Bounds.Width;
+            if (available <= 0) return;
+            var columns = available < 900 ? 2 : 4;
+            var cardWidth = Math.Max(112, (available - columns * 10) / columns);
+            foreach (var card in _statsHost.Children.OfType<Border>())
+            {
+                card.Width = cardWidth;
+                card.Margin = new Thickness(0, 0, 10, 10);
+            }
         };
         host.Children.Add(_statsHost);
 
@@ -658,7 +666,7 @@ public sealed class ImagesPage : UserControl
 
     private Border StatCard(string number, string label, string? colorKey = null)
     {
-        var card = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 12), MinWidth = 200 };
+        var card = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 12), MinWidth = 0 };
         Res(card, Border.BackgroundProperty, "VoxSurface");
         Res(card, Border.BorderBrushProperty, "VoxLine");
         card.BorderThickness = new Thickness(1);
