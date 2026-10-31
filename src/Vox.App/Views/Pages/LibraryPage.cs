@@ -12,6 +12,7 @@ using Vox.App.Services;
 using Vox.App.Views;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
+using ArcInput = TKCode.Arc.Input;
 using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
@@ -32,7 +33,7 @@ public sealed class LibraryPage : UserControl
     private readonly Controls.MiniSelect _categoryFilter = new();
     private readonly Controls.MiniSelect _statusFilter = new();
     private readonly Controls.MiniSelect _platformFilter = new();
-    private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 220 };
+    private readonly ArcInput _search = new() { Width = 220, IsLabelVisible = false };
     private readonly TextBlock _footInfo = new();
     private readonly StackPanel _pagerHost = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
     private const int PageSize = 15;
@@ -56,7 +57,7 @@ public sealed class LibraryPage : UserControl
         _categoryFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Category");
         _statusFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Status");
         _platformFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Library.Column.Platform");
-        _search[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Library.Label.SearchPlaceholder");
+        _search[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Library.Label.SearchPlaceholder");
 
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
         var host = new StackPanel { Spacing = 14 };
