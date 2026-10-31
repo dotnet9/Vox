@@ -19,7 +19,7 @@ using Vox.Core;
 namespace Vox.App.Views;
 
 /// <summary>
-/// 主壳：自绘标题栏（拖动 + 文件菜单 + 窗口控制钮）、可折叠左侧导航（五视图）、页面宿主、
+/// 主壳：自绘标题栏（拖动 + 文件菜单 + 窗口控制钮）、默认展开且可折叠的左侧导航（七视图）、页面宿主、
 /// 应用内弹层宿主（.mask/.modal）与 toast。像素结构对齐 design/Vox软件原型.html。
 /// </summary>
 public partial class MainWindow : Window
@@ -29,7 +29,7 @@ public partial class MainWindow : Window
 
     private readonly Dictionary<string, Control> _pages = new();
     private readonly List<(Button Btn, string Key)> _navButtons = new();
-    private bool _navCollapsed = true; // 原型默认折叠为纯图标条
+    private bool _navCollapsed = false; // 与 design/Vox.html 一致：首次启动默认展开导航
     private DispatcherTimer? _toastTimer;
 
     public MainWindow()
