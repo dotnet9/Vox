@@ -1,7 +1,3 @@
-using AtomUI;
-using AtomUI.Theme;
-using AtomUI.Theme.Algorithms;
-using AtomUI.Theme.Configuration;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -11,15 +7,15 @@ using TKCode.Arc.Motion;
 namespace Vox.App.Infrastructure;
 
 /// <summary>
-/// 外观应用：明暗 + 强调色 + 动效级别，全部经 AtomUI ThemeManager 热切换（Arc 的 GalleryTheme 同款管线）。
+/// 外观应用：明暗 + 强调色 + 动效级别，统一通过 ArcTheme 热切换。
 /// </summary>
 public static class ThemeService
 {
     public static void Apply(Vox.Core.VoxSettings settings)
     {
-        ApplyDarkAsync(settings.IsDark);
-        ApplyAccent(settings.Accent);
+        ApplyArcTheme(settings.IsDark, settings.Accent, settings.MotionLevel);
         ApplyMotion(settings.MotionLevel);
+        ApplyArcTheme(settings.IsDark, settings.Accent, settings.MotionLevel);
         // Vox 自绘界面令牌（原型 tokens.css 口径）：明暗 + Arc 八色 + 密度（字号/圆角）。
         VoxTheme.SetDensity(settings.Density);
         VoxTheme.Apply(settings.IsDark == true, NormalizeAccentName(settings.Accent));
@@ -45,7 +41,7 @@ public static class ThemeService
         settings.Accent = ArcPresetOf(voxAccentName);
         AppState.Instance.SaveSettings();
         VoxTheme.Apply(settings.IsDark == true, voxAccentName);
-        ApplyAccent(settings.Accent);
+        ApplyArcTheme(settings.IsDark, settings.Accent, settings.MotionLevel);
     }
 
     public static void ChangeDark(bool? isDark)
@@ -54,7 +50,7 @@ public static class ThemeService
         settings.IsDark = isDark;
         AppState.Instance.SaveSettings();
         VoxTheme.Apply(isDark == true, NormalizeAccentName(settings.Accent));
-        ApplyDarkAsync(isDark);
+        ApplyArcTheme(isDark, settings.Accent, settings.MotionLevel);
     }
 
     public static void ChangeDensity(string density)
@@ -78,26 +74,26 @@ public static class ThemeService
     public static string NormalizeMotionLevel(string? level) =>
         Enum.TryParse<ArcMotionLevel>(level, ignoreCase: true, out var motion) ? motion.ToString() : ArcMotionLevel.Full.ToString();
 
-    public static void ApplyDarkAsync(bool? isDark)
+    /// <summary>Arc 0.3.2 主题 API：一次提交外观、强调色和动效，避免并发主题请求互相覆盖。</summary>
+    private static void ApplyArcTheme(bool? isDark, string accent, string motionLevel)
     {
-        _ = ApplyThemeAsync(builder => isDark == true
-            ? builder.WithAlgorithms(ThemeAlgorithm.Default, ThemeAlgorithm.Dark)
-            : builder.WithAlgorithms(ThemeAlgorithm.Default));
-    }
-
-    public static void ApplyAccent(string accent)
-    {
-        _ = ApplyThemeAsync(builder => builder.WithArc(arc =>
+        ArcTheme.Apply(theme =>
         {
+            theme.Appearance(isDark == true ? ArcAppearance.Dark : ArcAppearance.Light);
             if (Enum.TryParse<ArcAccentPreset>(accent, ignoreCase: true, out var preset))
             {
-                arc.Accent(preset);
+                theme.Accent(preset);
             }
             else if (Color.TryParse(accent, out var color))
             {
-                arc.Accent(color);
+                theme.Accent(color);
             }
-        }));
+
+            if (Enum.TryParse<ArcMotionLevel>(motionLevel, ignoreCase: true, out var motion))
+            {
+                theme.MotionLevel(motion);
+            }
+        });
     }
 
     public static void ApplyMotion(string level)
