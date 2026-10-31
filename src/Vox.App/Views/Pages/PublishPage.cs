@@ -21,6 +21,7 @@ using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 using ArcButton = TKCode.Arc.Button;
 using ArcButtonVariant = TKCode.Arc.ButtonVariant;
+using ArcInput = TKCode.Arc.Input;
 
 namespace Vox.App.Views.Pages;
 
@@ -48,7 +49,7 @@ public sealed class PublishPage : UserControl
     private readonly CheckBox _checkAll = new() { Classes = { "vcheck" }, IsChecked = true };
     private StackPanel _changeList = new();
     private StackPanel _diffHost = new();
-    private readonly TextBox _summaryInput = new() { Classes = { "vinput" }, MaxLength = 72 };
+    private readonly ArcInput _summaryInput = new() { MaxLength = 72, IsLabelVisible = false };
     private readonly TextBlock _summaryCount = new();
     private readonly TextBox _descInput = new();
     private StackPanel _historyHost = new();
@@ -56,7 +57,7 @@ public sealed class PublishPage : UserControl
     // 矩阵标签
     private readonly Controls.MiniSelect _matrixFilter = new();
     private readonly Controls.MiniSelect _platformFilter = new();
-    private readonly TextBox _matrixSearch = new() { Classes = { "vinput" }, Width = 200 };
+    private readonly ArcInput _matrixSearch = new() { Width = 200, IsLabelVisible = false };
     private StackPanel _matrixHost = new();
 
     // 检查标签
@@ -97,7 +98,7 @@ public sealed class PublishPage : UserControl
         _pullButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
         _pushButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Push");
         _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
-        _summaryInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
+        _summaryInput[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
         _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Description");
         _matrixSearch[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Publish.Hint.SearchTitle");
 
