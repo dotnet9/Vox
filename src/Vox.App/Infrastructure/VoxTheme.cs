@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Media;
 using CodeWF.Avalonia.Markdown.Editor.Controls;
+using CodeWF.Avalonia.Markdown.Editor.Controls;
 
 namespace Vox.App.Infrastructure;
 
@@ -167,6 +168,22 @@ public static class VoxTheme
         r["VoxDanger"] = Brush(p.Danger);
         r["VoxDangerSoft"] = Brush(p.DangerSoft);
         r["VoxAccent"] = Brush(accent);
+        // Markdown 源码编辑器使用与 Vox 原型同源的语义调色板，不回退到 CodeWF 默认蓝色主题。
+        r[MarkdownEditorPalette.BackgroundKey] = Brush(p.Surface);
+        r[MarkdownEditorPalette.ForegroundKey] = Brush(p.Fg);
+        r[MarkdownEditorPalette.CurrentLineBackgroundKey] = Brush(p.Surface2);
+        r[MarkdownEditorPalette.CurrentLineBorderKey] = Brush(p.Line);
+        r[MarkdownEditorPalette.AccentKey] = Brush(accent);
+        r[MarkdownEditorPalette.CodeKey] = Brush(isDark ? "#FCA5A5" : "#B42318");
+        r[MarkdownEditorPalette.QuoteKey] = Brush(p.Muted);
+        r[MarkdownEditorPalette.LinkKey] = Brush(accent);
+        r[MarkdownEditorPalette.ImageKey] = Brush(isDark ? "#C4B5FD" : "#7C3AED");
+        r[MarkdownEditorPalette.WarningKey] = Brush(p.Warn);
+        r[MarkdownEditorPalette.DangerKey] = Brush(p.Danger);
+        r[MarkdownEditorPalette.SeparatorKey] = Brush(p.Line);
+        r[MarkdownEditorPalette.MarkerKey] = Brush(p.Faint);
+        r["CodeWFMarkdownEditorLineNumberBrush"] = Brush(p.Faint);
+        r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
         // Markdown 源码编辑器使用与 Vox 原型同源的语义调色板，不回退到 CodeWF 默认蓝色主题。
         r[MarkdownEditorPalette.BackgroundKey] = Brush(p.Surface);
         r[MarkdownEditorPalette.ForegroundKey] = Brush(p.Fg);
