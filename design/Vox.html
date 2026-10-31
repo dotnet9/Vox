@@ -270,6 +270,31 @@
         <button class="btn" onclick="toast('已刷新各平台状态（内容快照对比）')">⟳ 刷新状态</button>
         <button class="btn primary" onclick="openModal('mPlatformCfg')">平台账户…</button>
       </div>
+      <style>
+        .vox-pub-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:4px 0 16px}
+        .vox-pub-stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 15px;min-width:0}
+        .vox-pub-stat .n{font-size:1.45rem;font-weight:650;line-height:1.3;font-variant-numeric:tabular-nums}
+        .vox-pub-stat .k{font-size:.8rem;color:var(--muted);margin-top:3px}
+        .vox-pub-queue{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:16px;overflow:hidden}
+        .vox-pub-queue-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+        .vox-pub-queue-h b{font-size:.92rem}.vox-pub-queue-h span{color:var(--muted);font-size:.8rem}
+        .vox-pub-task{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+        .vox-pub-task:last-child{border-bottom:0}.vox-pub-task-main{min-width:0;flex:1}
+        .vox-pub-task-title{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .vox-pub-task-meta{font-size:.76rem;color:var(--muted);margin-top:3px}
+        .vox-pub-task .btn{flex-shrink:0}
+        @media(max-width:760px){.vox-pub-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.vox-pub-task{flex-wrap:wrap}.vox-pub-task-main{flex-basis:65%}}
+      </style>
+      <div class="vox-pub-overview" id="voxPubOverview">
+        <div class="vox-pub-stat"><div class="n" id="voxPubOk">—</div><div class="k">已同步</div></div>
+        <div class="vox-pub-stat"><div class="n" id="voxPubStale">—</div><div class="k">内容有更新</div></div>
+        <div class="vox-pub-stat"><div class="n" id="voxPubOff">—</div><div class="k">待首次发布</div></div>
+        <div class="vox-pub-stat"><div class="n" id="voxPubErr">—</div><div class="k">发布失败</div></div>
+      </div>
+      <div class="vox-pub-queue" id="voxPubQueue">
+        <div class="vox-pub-queue-h"><b>待处理任务</b><span id="voxPubQueueCount">整理中…</span><span style="flex:1"></span><span>失败优先处理</span></div>
+        <div id="voxPubQueueRows"></div>
+      </div>
       <div class="pm-filters">
         <select class="select" style="width:auto" id="pmFStatus"><option>全部文章</option><option>仅待发布</option><option>仅需更新</option><option>仅失败</option></select>
         <select class="select" style="width:auto" id="pmFPlat"><option>全部平台</option><option>网站</option><option>公众号</option><option>博客园</option><option>CSDN</option><option>知乎（复制）</option></select>
@@ -1288,11 +1313,30 @@ function renderMatrix(){
     });
   });
   if(!rows.length){const tr=document.createElement('tr');tr.innerHTML='<td colspan="7" style="text-align:center;color:var(--faint);padding:22px">没有匹配的文章</td>';tb.appendChild(tr);}
+  renderPubOps();
   // 汇总条
   const sum=$('pubSummary');
   const counts={ok:0,stale:0,off:0,err:0};
   PUB_ARTICLES.forEach(a=>PLATFORMS.forEach(pl=>{const n=a.st[pl.id];if(counts[n]!==undefined)counts[n]++;}));
   sum.innerHTML=`<b style="color:var(--ok)">● ${counts.ok}</b> 已同步 · <b style="color:var(--warn)">◐ ${counts.stale}</b> 需更新 · ○ ${counts.off} 未发布 · <b style="color:var(--danger)">✕ ${counts.err}</b> 失败`;
+}
+function renderPubOps(){
+  const counts={ok:0,stale:0,off:0,err:0},tasks=[];
+  PUB_ARTICLES.forEach(a=>PLATFORMS.forEach(pl=>{
+    const st=a.st[pl.id];if(counts[st]!==undefined)counts[st]++;
+    if(st!=='ok')tasks.push({a,pl,st});
+  }));
+  $('voxPubOk').textContent=counts.ok;$('voxPubStale').textContent=counts.stale;
+  $('voxPubOff').textContent=counts.off;$('voxPubErr').textContent=counts.err;
+  const rank={err:0,stale:1,off:2};
+  tasks.sort((x,y)=>rank[x.st]-rank[y.st]);
+  const shown=tasks.slice(0,5);
+  $('voxPubQueueCount').textContent=tasks.length+' 项待处理';
+  $('voxPubQueueRows').innerHTML=shown.length?shown.map(x=>{
+    const label=x.st==='err'?'发布失败':x.st==='stale'?'内容需更新':'待首次发布';
+    const action=x.st==='err'?'处理失败':x.st==='stale'?'更新内容':'去发布';
+    return '<div class="vox-pub-task"><div class="vox-pub-task-main"><div class="vox-pub-task-title">'+esc(x.a.t)+'</div><div class="vox-pub-task-meta">'+esc(x.pl.name)+' · '+label+'</div></div><button class="btn sm '+(x.st==='err'?'danger':'primary')+'" onclick="openPublishDlg(\''+esc(x.a.p)+'\')">'+action+'</button></div>';
+  }).join(''):'<div class="vox-pub-task"><div class="vox-pub-task-meta">所有文章均已同步，暂时没有待处理任务。</div></div>';
 }
 function openPublishDlg(path){
   const a=PUB_ARTICLES.find(x=>x.p===path)||PUB_ARTICLES[0];
