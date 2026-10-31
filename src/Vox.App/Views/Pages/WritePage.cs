@@ -853,14 +853,20 @@ public sealed class WritePage : UserControl
             return marker;
         }
 
-        StackPanel Item(bool root, string key) => new()
+        StackPanel Item(bool root, string key)
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 5,
-            Children = { Marker(root), new TextBlock { FontSize = Fs(10.5), VerticalAlignment = VerticalAlignment.Center, [!TextBlock.TextProperty] = I18n.Bind(key) } },
-        };
+            var label = new TextBlock { FontSize = Fs(10.5), VerticalAlignment = VerticalAlignment.Center };
+            label[!TextBlock.TextProperty] = I18n.Bind(key);
+            Res(label, TextBlock.ForegroundProperty, "VoxMuted");
+            return new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 5,
+                Children = { Marker(root), label },
+            };
+        }
 
-        var legend = new StackPanel
+        return new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 14,
@@ -871,8 +877,6 @@ public sealed class WritePage : UserControl
             IsHitTestVisible = false,
             Children = { Item(true, "Vox.Write.Map.Legend.Root"), Item(false, "Vox.Write.Map.Legend.Leaf") },
         };
-        Res(legend, TextBlock.ForegroundProperty, "VoxMuted");
-        return legend;
     }
 
     /// <summary>原型左下角的画布手势提示。</summary>
