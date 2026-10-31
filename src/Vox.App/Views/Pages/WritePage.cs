@@ -224,7 +224,7 @@ public sealed class WritePage : UserControl
         var settings = AppState.Instance.Settings;
         _preview.TypographyTheme = settings.MarkdownTheme;
         _preview.ParagraphFontSize = Math.Clamp(settings.MarkdownSize, 12, 22);
-        _preview.ParagraphLineHeight = Math.Round(_preview.ParagraphFontSize * 1.8);
+        _preview.ParagraphLineHeight = PreviewLineHeight(_preview.ParagraphFontSize);
         // 标题层级、段落节奏和代码字号对齐原型 article 排版；字号档位仍由 MarkdownSize 控制。
         _preview.Heading1FontSize = 21;
         _preview.Heading2FontSize = 15.5;
@@ -795,7 +795,7 @@ public sealed class WritePage : UserControl
             settings.MarkdownSize = size;
             AppState.Instance.SaveSettings();
             _preview.ParagraphFontSize = size;
-            _preview.ParagraphLineHeight = Math.Round(size * 1.8);
+            _preview.ParagraphLineHeight = PreviewLineHeight(size);
             _shell.ShowToast(TF("Vox.Write.Typo.DensityToast", size));
         });
 
@@ -854,6 +854,14 @@ public sealed class WritePage : UserControl
             ShowMode = FlyoutShowMode.Standard,
             Content = PopWrap(pop),
         };
+    }
+
+    /// <summary>与原型 #prevInner 的 --md-leading 对齐：常规 1.85，书卷（InkBlack）2.0。</summary>
+    private static double PreviewLineHeight(double fontSize)
+    {
+        var theme = AppState.Instance.Settings.MarkdownTheme;
+        var leading = string.Equals(theme, "InkBlack", StringComparison.OrdinalIgnoreCase) ? 2.0 : 1.85;
+        return Math.Round(fontSize * leading);
     }
 
     private void UpdateTypoLabel()
