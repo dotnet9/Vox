@@ -599,7 +599,7 @@
   "Vox.Settings.Platform.AutoHint": "提交 git 时自动提示发布到已启用的平台",
   "Vox.Settings.Platform.WxSaved": "公众号凭据已保存（系统凭据管理器）",
   "Vox.Settings.Platform.CnbSaved": "博客园凭据已保存（系统凭据管理器）",
-  "Vox.Settings.Platform.CsdnSaved": "CSDN token 已保存（系统凭据管理器）",
+  "Vox.Settings.Platform.CsdnSaved": "CSDN 登录 Cookie 已保存（系统凭据管理器）",
   "Vox.Settings.Platform.Saved": "平台账户已保存（系统凭据管理器）",
   "Vox.Shell.Menu.Help": "帮助",
   "Vox.Help.Menu.CheckUpdate": "检查更新…",
