@@ -63,6 +63,7 @@ public sealed class PublishTaskRunner
         if (capabilities.RequiresDescription && string.IsNullOrWhiteSpace(content.Description))
             return Finish(task, PublishTaskStatus.Failed, "缺少平台要求的摘要。", null);
 
+        var attempted = task;
         try
         {
             if (_preflight is not null)
@@ -82,6 +83,7 @@ public sealed class PublishTaskRunner
                 Error = null,
             };
 
+            attempted = running;
             var result = await adapter.PublishAsync(
                 new PublishRequest(content, task.Action, task.RemoteArticleId), cancellationToken);
 
@@ -106,11 +108,11 @@ public sealed class PublishTaskRunner
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return Finish(task, PublishTaskStatus.Cancelled, "发布任务已取消。", null);
+            return Finish(attempted, PublishTaskStatus.Cancelled, "发布任务已取消。", null);
         }
         catch (Exception ex)
         {
-            return Finish(task, PublishTaskStatus.Failed, ex.Message, null);
+            return Finish(attempted, PublishTaskStatus.Failed, ex.Message, null, recordPlatformError: attempted.Attempt > task.Attempt);
         }
     }
 
