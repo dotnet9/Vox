@@ -46,6 +46,9 @@ public sealed class VoxSettings
     /// <summary>脑图节点样式（与 Vex 的 MindMapStyle 设置键兼容）。</summary>
     public string MindMapStyle { get; set; } = "quiet";
 
+    /// <summary>脑图缩放百分比（与 Vex 的 MapZoomPercent 设置口径一致，1–200）。</summary>
+    public double MapZoomPercent { get; set; } = 100;
+
     /// <summary>
     /// 自动保存（2026-10-27 需求）：开启时以磁盘为唯一真值——停止输入约 2 秒自动落盘，
     /// 外部程序修改当前文件静默自动载入（toast 告知），绝不弹「请先比较」；关闭时手动保存，
