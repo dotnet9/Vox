@@ -50,6 +50,7 @@ public sealed class WritePage : UserControl
     // 中列（源码卡 | 预览卡 | 导图卡）
     private readonly MarkdownEditorView _editorView = new();
     private readonly ThemeVariantScope _editorScope = new();
+    private bool _editorPaletteRefresh;
     private TextEditor Editor => _editorView.Editor;
     private readonly MarkdownViewer _preview = new();
     private readonly ScrollViewer _previewScroll = new();
@@ -1480,8 +1481,13 @@ public sealed class WritePage : UserControl
 
     /// <summary>编辑器的调色板按 ThemeVariant 解析，而 Vox 只换资源不切变体——这里给控件本身钉住明暗，
     /// 否则系统/应用变体缺省为 Light，暗色主题下编辑器仍是白底。</summary>
-    private void ApplyEditorTheme() =>
+    private void ApplyEditorTheme()
+    {
         _editorScope.RequestedThemeVariant = AppState.Instance.Settings.IsDark == true ? ThemeVariant.Dark : ThemeVariant.Light;
+        // MarkdownEditorView 通过行号画笔键变更触发全量调色板刷新；别名资源值由 VoxTheme 同步更新。
+        _editorPaletteRefresh = !_editorPaletteRefresh;
+        _editorView.LineNumberBrushKey = _editorPaletteRefresh ? "VoxMarkdownLineNumberBrushA" : "VoxMarkdownLineNumberBrushB";
+    }
 
     private Border BuildAiPopup()
     {
