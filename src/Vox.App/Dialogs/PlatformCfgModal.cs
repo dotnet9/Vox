@@ -23,7 +23,7 @@ public sealed class PlatformCfgModal : Border
     private readonly TextBox _cnbUrl = Modal.Input(watermark: "https://rpc.cnblogs.com/metaweblog/…", mono: true);
     private readonly TextBox _cnbToken = Field(secret: true);
     private readonly Border _cnbBadge = new();
-    private readonly TextBox _csdnToken = Field("API Token", secret: true);
+    private readonly TextBox _csdnToken = Field("CSDN 登录 Cookie（从浏览器复制）", secret: true);
     private readonly Border _csdnBadge = new();
     private readonly ToggleButton _draftOnlySwitch = new() { Classes = { "vswitch" }, IsChecked = true };
     private readonly ToggleButton _autoHintSwitch = new() { Classes = { "vswitch" } };
