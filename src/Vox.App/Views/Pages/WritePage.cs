@@ -171,6 +171,8 @@ public sealed class WritePage : UserControl
         AttachedToVisualTree += (_, _) =>
         {
             _attached = true;
+            // 控件资源（含 MinZoom/MaxZoom）和首次 Fit 已生效后，再恢复用户缩放。
+            _mapView.SetZoom(Math.Clamp(AppState.Instance.Settings.MapZoomPercent / 100d, .01, 2));
             ApplyAutoSaveMode();
             ApplyAiChrome();
             InspectExternalChange();
@@ -183,14 +185,12 @@ public sealed class WritePage : UserControl
             ? savedLayout : MindMapLayoutKind.Right;
         _mapView.StyleKind = Enum.TryParse<MindMapStyleKind>(mapSettings.MindMapStyle, true, out var savedStyle)
             ? savedStyle : MindMapStyleKind.Quiet;
-        _mapView.SetZoom(Math.Clamp(mapSettings.MapZoomPercent / 100d, .01, 2));
+        BuildLayout();
         _mapView.ZoomChanged += (_, _) =>
         {
             AppState.Instance.Settings.MapZoomPercent = Math.Clamp(_mapView.Zoom * 100, 1, 200);
             AppState.Instance.SaveSettings();
         };
-
-        BuildLayout();
 
         // 导图双击/Enter 节点时定位到对应 Markdown 源码行，避免提示与实际交互不一致。
         _mapView.SourceRequested += (_, node) =>
@@ -571,8 +571,6 @@ public sealed class WritePage : UserControl
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
-        // 原型 .article 正文最大宽度 720px，外层 .wprev 另有 30px 左右内边距；
-        // ScrollViewer.Padding 不计入子 Border 的 MaxWidth，因此这里应为 720 + 30 * 2。
         _previewScroll.Content = new Border
         {
             HorizontalAlignment = HorizontalAlignment.Center,
