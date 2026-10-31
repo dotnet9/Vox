@@ -94,8 +94,8 @@ public sealed class PublishPage : UserControl
     private void BuildLayout()
     {
         // 一次性构建的控件文案：动态绑定，语言切换实时刷新
-        _pullButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
-        _pushButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Push");
+        _pullButton[!ArcArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Pull");
+        _pushButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Push");
         _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
         _summaryInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
         _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Description");
@@ -275,16 +275,16 @@ public sealed class PublishPage : UserControl
             Margin = new Thickness(0, 6, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Left,
         };
-        detailButton[!Button.ContentProperty] = I18n.Bind("Vox.Sync.Label.AutoDetail");
+        detailButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Sync.Label.AutoDetail");
         detailButton.Click += (_, _) => InsertDetail();
         commit.Children.Add(detailButton);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
         var commitOnly = new ArcButton { Variant = ArcButtonVariant.Secondary };
-        commitOnly[!Button.ContentProperty] = I18n.Bind("Vox.Sync.Label.CommitOnly");
+        commitOnly[!ArcButton.ContentProperty] = I18n.Bind("Vox.Sync.Label.CommitOnly");
         commitOnly.Click += async (_, _) => await CommitAsync(push: false);
         var commitPush = new ArcButton { Variant = ArcButtonVariant.Primary };
-        commitPush[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.CommitPush");
+        commitPush[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.CommitPush");
         commitPush.Click += async (_, _) => await CommitAsync(push: true);
         actions.Children.Add(commitOnly);
         actions.Children.Add(commitPush);
@@ -1111,7 +1111,7 @@ public sealed class PublishPage : UserControl
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
         var refresh = new ArcButton { Variant = ArcButtonVariant.Secondary };
-        refresh[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.RefreshStatus");
+        refresh[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.RefreshStatus");
         refresh.Click += (_, _) =>
         {
             PublishHub.Invalidate();
@@ -1119,7 +1119,7 @@ public sealed class PublishPage : UserControl
             _shell.ShowToast(T("Vox.Publish.Msg.Refreshed"));
         };
         var accounts = new ArcButton { Variant = ArcButtonVariant.Primary };
-        accounts[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Accounts");
+        accounts[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Accounts");
         accounts.Click += (_, _) => _shell.ShowModal(new PlatformCfgModal(_shell, RefreshMatrix));
         pagehead.Children.Add(accounts.Dock(Dock.Right));
         pagehead.Children.Add(refresh.Dock(Dock.Right));
@@ -1303,7 +1303,7 @@ public sealed class PublishPage : UserControl
     {
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
         var recheck = new ArcButton { Variant = ArcButtonVariant.Secondary };
-        recheck[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
+        recheck[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
         recheck.Click += (_, _) =>
         {
             AppState.Instance.Rescan();
