@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Media;
 using CodeWF.Avalonia.Markdown.Editor.Controls;
-using CodeWF.Avalonia.Markdown.Editor.Controls;
 
 namespace Vox.App.Infrastructure;
 
@@ -181,7 +180,7 @@ public static class VoxTheme
         r[MarkdownEditorPalette.WarningKey] = Brush(p.Warn);
         r[MarkdownEditorPalette.DangerKey] = Brush(p.Danger);
         r[MarkdownEditorPalette.SeparatorKey] = Brush(p.Line);
-        r[MarkdownEditorPalette.MarkerKey] = Brush(p.Faint);
+        r["CodeWFMarkdownEditorMarkerBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorLineNumberBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
         // 两个等价别名供 MarkdownEditorView 的 LineNumberBrushKey 变更触发整套语法配色重算。
