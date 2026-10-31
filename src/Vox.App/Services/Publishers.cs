@@ -248,7 +248,7 @@ public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
     private HttpRequestMessage CreateSignedRequest(HttpMethod method, string path, HttpContent? content = null)
     {
         var nonce = Guid.NewGuid().ToString();
-        var contentType = content?.Headers.ContentType?.ToString() ?? string.Empty;
+        var contentType = content?.Headers.ContentType?.MediaType ?? string.Empty;
         const string accept = "*/*";
         var canonicalHeaders = $"x-ca-key:{ApiKey}\nx-ca-nonce:{nonce}\n";
         var stringToSign = $"{method.Method}\n{accept}\n\n{contentType}\n\n{canonicalHeaders}{path}";
