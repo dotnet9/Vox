@@ -11,6 +11,8 @@ using Vox.App.Views;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
+using ArcButton = TKCode.Arc.Button;
+using ArcButtonVariant = TKCode.Arc.ButtonVariant;
 
 namespace Vox.App.Views.Pages;
 
@@ -34,7 +36,7 @@ public sealed class SettingsPage : UserControl
         VerticalAlignment = VerticalAlignment.Center,
     };
     private readonly TextBlock _mcpState = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-    private Button _llmTest = null!;
+    private ArcButton _llmTest = null!;
 
     public SettingsPage(MainWindow shell)
     {
@@ -99,7 +101,7 @@ public sealed class SettingsPage : UserControl
         // ---------- 内容仓库 ----------
         var repoCard = Card("Vox.Settings.Repo.Title", "Vox.Settings.Repo.Desc");
         _repoInput.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
-        var changeRepo = new Button { Classes = { "btn", "sm" } };
+        var changeRepo = new ArcButton { Variant = ArcButtonVariant.Secondary };
         changeRepo[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Repo.Change");
         changeRepo.Click += async (_, _) => await PickRepoAsync();
         _repoInput.Width = 380;
@@ -109,7 +111,7 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal, Spacing = 8,
             Children = { _repoInput, changeRepo },
         }));
-        var rescan = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        var rescan = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         rescan[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Rescan");
         rescan.Click += (_, _) =>
         {
@@ -145,7 +147,7 @@ public sealed class SettingsPage : UserControl
         var normalizeInfo = new TextBlock();
         normalizeInfo[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Link.NormalizeHint");
         Res(normalizeInfo, TextBlock.ForegroundProperty, "VoxMuted");
-        var gotoCheck = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        var gotoCheck = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         gotoCheck[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Link.GotoCheck");
         gotoCheck.Click += (_, _) => _shell.ShowPage("publish");
         linkCard.Add(Row("Vox.Settings.Link.NormalizeRow", new StackPanel
@@ -158,7 +160,7 @@ public sealed class SettingsPage : UserControl
         // ---------- git 与凭据 ----------
         var gitCard = Card("Vox.Settings.Git.Title", "Vox.Settings.Git.CardDesc");
         _patInfo.FontSize = 12;
-        var patTest = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(8, 0, 0, 0) };
+        var patTest = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(8, 0, 0, 0) };
         patTest[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Test");
         patTest.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.Git.TestInPublish"));
         gitCard.Add(Row("Vox.Settings.Git.Pat", new StackPanel
@@ -214,11 +216,11 @@ public sealed class SettingsPage : UserControl
         storedInfo[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.StoredIn");
         Res(storedInfo, TextBlock.ForegroundProperty, "VoxFaint");
         keyRow.Children.Add(storedInfo);
-        _llmTest = new Button { Classes = { "btn", "sm" } };
+        _llmTest = new ArcButton { Variant = ArcButtonVariant.Secondary };
         _llmTest[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Llm.Test");
         _llmTest.Click += async (_, _) => await TestLlmAsync();
         keyRow.Children.Add(_llmTest);
-        var changeKey = new Button { Classes = { "btn", "sm", "ghost" } };
+        var changeKey = new ArcButton { Variant = ArcButtonVariant.Ghost };
         changeKey[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Llm.Change");
         changeKey.Click += (_, _) => _shell.ShowModal(new LlmKeyModal(_shell, AppState.Instance.Settings.LlmProvider, RefreshLlmKey));
         keyRow.Children.Add(changeKey);
@@ -243,7 +245,7 @@ public sealed class SettingsPage : UserControl
 
         // ---------- MCP 服务 ----------
         var mcpCard = Card("Vox.Settings.Mcp.Title", "Vox.Settings.Mcp.Desc");
-        var mcpOpen = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        var mcpOpen = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         mcpOpen[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Mcp.Configure");
         mcpOpen.Click += (_, _) => _shell.ShowPage("mcp");
         mcpCard.Add(Row("Vox.Settings.Mcp.Status", new StackPanel
@@ -264,7 +266,7 @@ public sealed class SettingsPage : UserControl
 
         // ---------- 关于 ----------
         var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
-        var checkUpdate = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        var checkUpdate = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         checkUpdate[!Button.ContentProperty] = I18n.Bind("Vox.Settings.About.CheckUpdate");
         checkUpdate.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.About.UpToDate"));
         aboutCard.Add(Row("Vox.Settings.About.UpdateRow", new StackPanel
@@ -272,7 +274,7 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal,
             Children = { Desc("Vox.Settings.About.Update"), checkUpdate },
         }));
-        var uninstall = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        var uninstall = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         uninstall[!Button.ContentProperty] = I18n.Bind("Vox.Settings.About.Uninstall");
         uninstall.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.About.UninstallHint"));
         aboutCard.Add(Row("Vox.Settings.About.UninstallRow", new StackPanel
@@ -348,7 +350,7 @@ public sealed class SettingsPage : UserControl
             Margin = new Thickness(8, 0, 0, 0),
             Child = stateText,
         };
-        var configure = new Button { Classes = { "btn", "sm" }, Margin = new Thickness(10, 0, 0, 0) };
+        var configure = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         configure[!Button.ContentProperty] = I18n.Bind("Vox.Settings.Platform.Configure");
         configure.Click += (_, _) => _shell.ShowModal(new PlatformCfgModal(_shell));
         var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { info, stateBadge, configure } };
