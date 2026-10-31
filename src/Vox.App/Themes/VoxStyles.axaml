@@ -1,6 +1,7 @@
 <!-- ============================================================
      Vox 控件样式：design/assets/app.css + tokens.css 的 Avalonia 翻译。
      全部类作用域（不覆盖全局默认主题，避免与 AtomUI/Arc 控件主题打架）。
+     Arc 已有组件必须直接使用 Arc 模板、Token 与交互；本文件只服务 Vox 自有语义类。
      颜色引用 VoxTheme.Apply 注入的 DynamicResource 画刷。
      ============================================================ -->
 <Styles xmlns="https://github.com/avaloniaui"
