@@ -13,6 +13,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Views;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
+using ArcInput = TKCode.Arc.Input;
 using static Vox.App.Views.Pages.WritePage;
 
 
@@ -29,7 +30,7 @@ public sealed class ImagesPage : UserControl
     private readonly Controls.MiniSelect _yearFilter = new();
     private readonly Controls.MiniSelect _refFilter = new();
     private readonly Controls.MiniSelect _formatFilter = new();
-    private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 200 };
+    private readonly ArcInput _search = new() { Width = 200, IsLabelVisible = false };
     private readonly WrapPanel _grid = new() { Orientation = Orientation.Horizontal };
     private readonly ScrollViewer _gridScroll = new();
     private readonly StackPanel _detailHost = new();
@@ -58,7 +59,7 @@ public sealed class ImagesPage : UserControl
         _yearFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Images.Pick.Year");
         _refFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Images.Pick.RefState");
         _formatFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Images.Pick.Format");
-        _search[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Images.Search");
+        _search[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Images.Search");
 
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
         var host = new StackPanel { Spacing = 14 };
