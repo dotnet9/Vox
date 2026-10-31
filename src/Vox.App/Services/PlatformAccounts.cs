@@ -14,6 +14,7 @@ public sealed record CnblogsAccount(string Url, string Token)
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(Token);
 }
 
+/// <summary>Token 字段兼容既有凭据存储格式；当前保存的是 CSDN 登录 Cookie。</summary>
 public sealed record CsdnAccount(string Token)
 {
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Token);
