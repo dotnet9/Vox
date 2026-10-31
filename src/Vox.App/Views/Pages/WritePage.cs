@@ -177,6 +177,13 @@ public sealed class WritePage : UserControl
         };
         DetachedFromVisualTree += (_, _) => { _attached = false; SuspendWatchers(); };
 
+        // 与 Vex 一致：脑图结构/样式从用户设置恢复，默认 Right + Quiet。
+        var mapSettings = AppState.Instance.Settings;
+        _mapView.LayoutKind = Enum.TryParse<MindMapLayoutKind>(mapSettings.MindMapLayout, true, out var savedLayout)
+            ? savedLayout : MindMapLayoutKind.Right;
+        _mapView.StyleKind = Enum.TryParse<MindMapStyleKind>(mapSettings.MindMapStyle, true, out var savedStyle)
+            ? savedStyle : MindMapStyleKind.Quiet;
+
         BuildLayout();
 
         // 导图双击/Enter 节点时定位到对应 Markdown 源码行，避免提示与实际交互不一致。
@@ -992,11 +999,17 @@ public sealed class WritePage : UserControl
     {
         var structGrid = ChoiceGrid(MapLayouts, _mapView.LayoutKind.ToString(), value =>
         {
-            if (Enum.TryParse<MindMapLayoutKind>(value, ignoreCase: true, out var layout)) _mapView.LayoutKind = layout;
+            if (!Enum.TryParse<MindMapLayoutKind>(value, ignoreCase: true, out var layout)) return;
+            _mapView.LayoutKind = layout;
+            AppState.Instance.Settings.MindMapLayout = value.ToLowerInvariant();
+            AppState.Instance.SaveSettings();
         });
         var styleGrid = ChoiceGrid(MapStyles, _mapView.StyleKind.ToString(), value =>
         {
-            if (Enum.TryParse<MindMapStyleKind>(value, ignoreCase: true, out var style)) _mapView.StyleKind = style;
+            if (!Enum.TryParse<MindMapStyleKind>(value, ignoreCase: true, out var style)) return;
+            _mapView.StyleKind = style;
+            AppState.Instance.Settings.MindMapStyle = value.ToLowerInvariant();
+            AppState.Instance.SaveSettings();
         });
         var pages = new Panel();
         pages.Children.Add(structGrid);
