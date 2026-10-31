@@ -131,6 +131,8 @@ public partial class MainWindow : Window
             return seg;
         }
 
+        var styleSeg = MakeSeg(new[] { ("Arc", VoxTheme.StyleArc), ("Pixel", VoxTheme.StylePixel) },
+            AppState.Instance.Settings.UiStyle, ThemeService.ChangeStyle);
         var densitySeg = MakeSeg(new[] { ("Vox.Settings.Appearance.DensityCompact", VoxTheme.DensityCompact), ("Vox.Settings.Appearance.DensityNormal", VoxTheme.DensityNormal), ("Vox.Settings.Appearance.DensityRoomy", VoxTheme.DensityRoomy) },
             AppState.Instance.Settings.Density, ThemeService.ChangeDensity);
         var themeSeg = MakeSeg(new[] { ("Vox.Settings.Appearance.ThemeLight", "light"), ("Vox.Settings.Appearance.ThemeDark", "dark"), ("Vox.Settings.Appearance.ThemeSystem", "auto") }, CurrentDarkKey(),
@@ -179,7 +181,9 @@ public partial class MainWindow : Window
         }
 
         var pop = new StackPanel { Width = 268 };
-        pop.Children.Add(PopTitle("Vox.Settings.Appearance.Density", 0));
+        pop.Children.Add(PopTitle("界面风格", 0));
+        pop.Children.Add(styleSeg);
+        pop.Children.Add(PopTitle("Vox.Settings.Appearance.Density", 12));
         pop.Children.Add(densitySeg);
         pop.Children.Add(PopTitle("Vox.Settings.Appearance.ThemeMode", 12));
         pop.Children.Add(themeSeg);
