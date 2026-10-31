@@ -232,6 +232,7 @@ public partial class MainWindow : Window
         MiNew[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
         MiMeta[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
         MiImg[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
+        BtnTbMcp[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Mcp");
         BtnTbSearch[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Search");
         BtnTbLook[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Appearance");
         BtnTbLang[!ToolTip.TipProperty] = I18n.Bind("Vox.Settings.Appearance.Language");
@@ -655,6 +656,7 @@ public partial class MainWindow : Window
             }
         };
 
+        BtnTbMcp.Click += (_, _) => ShowPage("mcp");
         BtnTbSearch.Click += (_, _) => OpenSearch();
         SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
         SearchInput.KeyDown += OnSearchKeyDown;
@@ -841,6 +843,7 @@ public partial class MainWindow : Window
     {
         var clients = Services.McpService.Clients.Count;
         SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
+        McpTopbarDot.Fill = TryBrush(Services.McpService.IsRunning ? "VoxOk" : "VoxFaint");
     });
 
     private async void UpdateNavCounts()
