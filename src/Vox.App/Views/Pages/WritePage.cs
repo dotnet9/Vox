@@ -183,6 +183,12 @@ public sealed class WritePage : UserControl
             ? savedLayout : MindMapLayoutKind.Right;
         _mapView.StyleKind = Enum.TryParse<MindMapStyleKind>(mapSettings.MindMapStyle, true, out var savedStyle)
             ? savedStyle : MindMapStyleKind.Quiet;
+        _mapView.SetZoom(Math.Clamp(mapSettings.MapZoomPercent / 100d, .01, 2));
+        _mapView.ZoomChanged += (_, _) =>
+        {
+            AppState.Instance.Settings.MapZoomPercent = Math.Clamp(_mapView.Zoom * 100, 1, 200);
+            AppState.Instance.SaveSettings();
+        };
 
         BuildLayout();
 
