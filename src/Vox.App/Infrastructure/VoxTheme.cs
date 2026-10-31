@@ -183,9 +183,6 @@ public static class VoxTheme
         r["CodeWFMarkdownEditorMarkerBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorLineNumberBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
-        // 两个等价别名供 MarkdownEditorView 的 LineNumberBrushKey 变更触发整套语法配色重算。
-        r["VoxMarkdownLineNumberBrushA"] = Brush(p.Faint);
-        r["VoxMarkdownLineNumberBrushB"] = Brush(p.Faint);
         // Markdown 源码编辑器使用与 Vox 原型同源的语义调色板，不回退到 CodeWF 默认蓝色主题。
         r[MarkdownEditorPalette.BackgroundKey] = Brush(p.Surface);
         r[MarkdownEditorPalette.ForegroundKey] = Brush(p.Fg);
@@ -199,7 +196,7 @@ public static class VoxTheme
         r[MarkdownEditorPalette.WarningKey] = Brush(p.Warn);
         r[MarkdownEditorPalette.DangerKey] = Brush(p.Danger);
         r[MarkdownEditorPalette.SeparatorKey] = Brush(p.Line);
-        r[MarkdownEditorPalette.MarkerKey] = Brush(p.Faint);
+        r["CodeWFMarkdownEditorMarkerBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorLineNumberBrush"] = Brush(p.Faint);
         r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
         r["VoxAccentDeep"] = Brush(isDark ? preset.DarkDeep : preset.LightDeep);
