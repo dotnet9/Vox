@@ -83,18 +83,7 @@ public sealed class ImagesPage : UserControl
         // 统计条（4 卡）
         // 统计卡片：桌面四列，窄窗口自动两列；避免固定 200px 最小宽度挤出视口。
         _statsHost = new WrapPanel { Orientation = Orientation.Horizontal };
-        _statsHost.SizeChanged += (_, _) =>
-        {
-            var available = _statsHost.Bounds.Width;
-            if (available <= 0) return;
-            var columns = available < 900 ? 2 : 4;
-            var cardWidth = Math.Max(112, (available - columns * 10) / columns);
-            foreach (var card in _statsHost.Children.OfType<Border>())
-            {
-                card.Width = cardWidth;
-                card.Margin = new Thickness(0, 0, 10, 10);
-            }
-        };
+        _statsHost.SizeChanged += (_, _) => LayoutStatsCards();
         host.Children.Add(_statsHost);
 
         // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）
@@ -184,9 +173,22 @@ public sealed class ImagesPage : UserControl
         _statsHost.Children.Add(StatCard(FormatBytes(all.Sum(i => Math.Max(i.Bytes, 0))), T("Vox.Images.Stats.Bytes")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => !i.IsMissing && i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => i.IsOrphan)}", T("Vox.Images.Stats.Orphan"), "VoxWarn"));
-        var cardWidth = Math.Max(200, (_statsHost.Bounds.Width - 30) / 4);
-        foreach (var card in _statsHost.Children.OfType<Border>()) card.Width = cardWidth;
+        LayoutStatsCards();
         _cleanOrphans.Content = $"{T("Vox.Images.Action.CleanOrphans")} {all.Count(i => i.IsOrphan)}";
+    }
+
+    /// <summary>桌面四列、窄窗口两列；卡片宽度随可用空间变化，不制造横向溢出。</summary>
+    private void LayoutStatsCards()
+    {
+        var available = _statsHost.Bounds.Width;
+        if (available <= 0) return;
+        var columns = available < 900 ? 2 : 4;
+        var cardWidth = Math.Max(112, (available - columns * 10) / columns);
+        foreach (var card in _statsHost.Children.OfType<Border>())
+        {
+            card.Width = cardWidth;
+            card.Margin = new Thickness(0, 0, 10, 10);
+        }
     }
 
     private void RebuildFilters()
