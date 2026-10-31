@@ -59,6 +59,14 @@
           <StackPanel x:Name="FileBadges" Orientation="Horizontal" Spacing="4" IsVisible="False"/>
         </StackPanel>
         <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0,0,6,0">
+          <Button x:Name="BtnTbMcp" Classes="tb-ico mcp-tb" ToolTip.Tip="MCP 服务">
+            <Grid Width="16" Height="16">
+              <Path Data="M 12 22 L 12 17 M 9 8 L 9 2 M 15 8 L 15 2 M 18 8 L 18 13 A 4 4 0 0 1 14 17 L 10 17 A 4 4 0 0 1 6 13 L 6 8 Z"
+                    Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="2" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+              <Ellipse x:Name="McpTopbarDot" Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                       Fill="{DynamicResource VoxFaint}" Stroke="{DynamicResource VoxSurface}" StrokeThickness="1"/>
+            </Grid>
+          </Button>
           <Button x:Name="BtnTbSearch" Classes="tb-ico" ToolTip.Tip="搜索（Ctrl K）">
             <Panel Width="15" Height="15" VerticalAlignment="Center">
               <Ellipse Width="13" Height="13" Margin="0,0,2,2" StrokeThickness="1.6"
