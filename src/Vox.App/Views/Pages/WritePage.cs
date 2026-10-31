@@ -222,6 +222,17 @@ public sealed class WritePage : UserControl
         _preview.TypographyTheme = settings.MarkdownTheme;
         _preview.ParagraphFontSize = Math.Clamp(settings.MarkdownSize, 12, 22);
         _preview.ParagraphLineHeight = Math.Round(_preview.ParagraphFontSize * 1.8);
+        // 标题层级、段落节奏和代码字号对齐原型 article 排版；字号档位仍由 MarkdownSize 控制。
+        _preview.Heading1FontSize = 21;
+        _preview.Heading2FontSize = 15.5;
+        _preview.Heading3FontSize = 13.5;
+        _preview.Heading4FontSize = 13;
+        _preview.Heading5FontSize = 12.5;
+        _preview.Heading6FontSize = 12;
+        _preview.ParagraphMargin = new Thickness(0, 8, 0, 8);
+        _preview.CodeBlockFontSize = 12;
+        _preview.CodeBlockLineHeight = 19;
+        _preview.CodeLanguageFontSize = 10.5;
         UpdateTypoLabel();
         ApplyEditorTheme();
 
@@ -555,7 +566,13 @@ public sealed class WritePage : UserControl
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
-        _previewScroll.Content = _preview;
+        // 阅读列按原型限制 720px 正文宽度并居中；滚动留白为 30px 横向、26px 纵向。
+        _previewScroll.Content = new Border
+        {
+            MaxWidth = 720,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = _preview,
+        };
         _previewScroll.Padding = new Thickness(30, 26, 30, 26);
         _previewScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
         _preview.ScrollHost = _previewScroll;
