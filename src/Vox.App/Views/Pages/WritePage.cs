@@ -569,13 +569,15 @@ public sealed class WritePage : UserControl
         // ScrollViewer.Padding 不计入子 Border 的 MaxWidth，因此这里应为 720 + 30 * 2。
         _previewScroll.Content = new Border
         {
-            MaxWidth = 780,
             HorizontalAlignment = HorizontalAlignment.Center,
             Child = _preview,
         };
-        _previewScroll.Padding = new Thickness(30, 26, 30, 26);
+        // 阅读留白与正文宽度按 Vex 最新组合预览规则动态计算，不能固定 780px。
+        _previewScroll.Padding = new Thickness(0);
         _previewScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        _previewScroll.SizeChanged += (_, _) => UpdatePreviewGeometry();
         _preview.ScrollHost = _previewScroll;
+        UpdatePreviewGeometry();
         BindPreviewBrushes();
         _prevCard = Card(new Panel { Children = { _previewScroll, BuildTypoButton() } }, new Thickness(2, 10, 2, 10));
 
@@ -1205,9 +1207,30 @@ public sealed class WritePage : UserControl
         MovePanelHandle(visible);
     }
 
+    /// <summary>按 Vex 阅读/分屏原型更新正文边距与最大宽度；宽度上限按窗口尺寸动态计算。</summary>
+    private void UpdatePreviewGeometry()
+    {
+        if (_previewScroll.Content is not Border document) return;
+
+        var windowWidth = TopLevel.GetTopLevel(this)?.ClientSize.Width ?? Bounds.Width;
+        if (windowWidth <= 0) windowWidth = 1280;
+
+        // Vex：单栏阅读 max(820px, 50vw)，padding 52/30/52/88；
+        // 分屏阅读 max(800px, 42vw)，padding 32/24/32/56。
+        var reading = _mode == 2;
+        var margin = reading
+            ? new Thickness(52, 30, 52, 88)
+            : new Thickness(32, 24, 32, 56);
+        var outerMaxWidth = Math.Max(reading ? 820 : 800, windowWidth * (reading ? .50 : .42));
+
+        document.Margin = margin;
+        document.MaxWidth = Math.Max(100, outerMaxWidth - margin.Left - margin.Right);
+    }
+
     private void SetMode(int mode)
     {
         _mode = mode;
+        UpdatePreviewGeometry();
         var map = mode == 3;
         _mapCard.IsVisible = map;
         _srcCard.IsVisible = !map && mode != 2;
