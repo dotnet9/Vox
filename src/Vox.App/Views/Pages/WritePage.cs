@@ -833,6 +833,7 @@ public sealed class WritePage : UserControl
                 settings.MarkdownTheme = captured;
                 AppState.Instance.SaveSettings();
                 _preview.TypographyTheme = captured;
+                _preview.ParagraphLineHeight = PreviewLineHeight(_preview.ParagraphFontSize);
                 UpdateTypoLabel();
                 _shell.ShowToast(TF("Vox.Write.Typo.SetToast", T(Array.Find(TypoThemes, t => t.Key == captured).NameKey)));
             };
