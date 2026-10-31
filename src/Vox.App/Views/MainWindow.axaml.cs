@@ -8,7 +8,6 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Infrastructure;
-using Vox.App.Services;
 using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Infrastructure.VoxTheme;
 using Vox.App.Views.Pages;
