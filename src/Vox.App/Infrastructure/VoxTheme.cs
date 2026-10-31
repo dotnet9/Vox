@@ -167,6 +167,12 @@ public static class VoxTheme
         r["VoxDanger"] = Brush(p.Danger);
         r["VoxDangerSoft"] = Brush(p.DangerSoft);
         r["VoxAccent"] = Brush(accent);
+        // MindView 控件使用 Color 类型参数；与 Brush 令牌同步，确保导图强调/分支色随主题切换。
+        r["VoxAccentColor"] = Color.Parse(accent);
+        r["VoxMapMinZoom"] = 0.01d;
+        r["VoxMapMaxZoom"] = 2d;
+        r["VoxOkColor"] = Color.Parse(p.Ok);
+        r["VoxWarnColor"] = Color.Parse(p.Warn);
         // Markdown 源码编辑器使用与 Vox 原型同源的语义调色板，不回退到 CodeWF 默认蓝色主题。
         r[MarkdownEditorPalette.BackgroundKey] = Brush(p.Surface);
         r[MarkdownEditorPalette.ForegroundKey] = Brush(p.Fg);
