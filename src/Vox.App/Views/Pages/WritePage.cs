@@ -554,7 +554,7 @@ public sealed class WritePage : UserControl
 
         // 导图卡：MarkdownMindMapView 全宽画布（第四态），右上角导图样式钮。
         BindMapBrushes();
-        _mapCard = Card(new Panel { Children = { _mapView, BuildMapStyleButton() } }, new Thickness(10, 10, 10, 10));
+        _mapCard = Card(new Panel { Children = { _mapView, BuildMapLegend(), BuildMapStyleButton(), BuildMapHint() } }, new Thickness(10, 10, 10, 10));
         Grid.SetColumnSpan(_mapCard, 3);
 
         // 源码 | 分隔条 | 预览（分屏态专用分隔条）
@@ -834,6 +834,63 @@ public sealed class WritePage : UserControl
     }
 
     // ---------- 导图（第四态） ----------
+
+    /// <summary>原型左上角图例：标题节点与内容节点。</summary>
+    private Control BuildMapLegend()
+    {
+        Border Marker(bool root)
+        {
+            var marker = new Border
+            {
+                Width = 7,
+                Height = 7,
+                CornerRadius = new CornerRadius(2),
+                BorderThickness = new Thickness(1),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(marker, Border.BackgroundProperty, root ? "VoxAccent" : "VoxSurface2");
+            Res(marker, Border.BorderBrushProperty, root ? "VoxAccent" : "VoxLineStrong");
+            return marker;
+        }
+
+        StackPanel Item(bool root, string key) => new()
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+            Children = { Marker(root), new TextBlock { FontSize = Fs(10.5), VerticalAlignment = VerticalAlignment.Center, [!TextBlock.TextProperty] = I18n.Bind(key) } },
+        };
+
+        var legend = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 14,
+            Margin = new Thickness(16, 14, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            ZIndex = 4,
+            IsHitTestVisible = false,
+            Children = { Item(true, "Vox.Write.Map.Legend.Root"), Item(false, "Vox.Write.Map.Legend.Leaf") },
+        };
+        Res(legend, TextBlock.ForegroundProperty, "VoxMuted");
+        return legend;
+    }
+
+    /// <summary>原型左下角的画布手势提示。</summary>
+    private Control BuildMapHint()
+    {
+        var hint = new TextBlock
+        {
+            FontSize = Fs(10),
+            Margin = new Thickness(16, 0, 0, 12),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            ZIndex = 4,
+            IsHitTestVisible = false,
+        };
+        hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Map.Hint");
+        Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        return hint;
+    }
 
     private Button BuildMapStyleButton()
     {
