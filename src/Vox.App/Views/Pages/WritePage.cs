@@ -185,6 +185,18 @@ public sealed class WritePage : UserControl
 
         BuildLayout();
 
+        // 导图双击/Enter 节点时定位到对应 Markdown 源码行，避免提示与实际交互不一致。
+        _mapView.SourceRequested += (_, node) =>
+        {
+            if (node.SourceLine <= 0 || Editor.Document.LineCount <= 0) return;
+            SetMode(0);
+            var line = Math.Clamp(node.SourceLine, 1, Editor.Document.LineCount);
+            var offset = Editor.Document.GetOffset(line, 1);
+            Editor.Select(offset, 0);
+            Editor.ScrollTo(line, 1);
+            Editor.Focus();
+        };
+
         _editorView.MarkdownChanged += (_, _) =>
         {
             if (_loading) return;
