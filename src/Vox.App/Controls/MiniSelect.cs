@@ -1,13 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Vox.App.Views.Pages;
+using ArcSelect = TKCode.Arc.Select;
 
 namespace Vox.App.Controls;
 
-/// <summary>原型 .filters .select 的轻量下拉：按钮 + 弹出列表（避开 Arc Combobox 的默认皮肤，保证像素口径）。</summary>
+/// <summary>
+/// 文章库、图片库与发布中心共用的筛选选择器。
+/// 外层保留 Vox 的 Selected/Title 兼容接口，菜单、键盘导航、焦点和无障碍交互交给 Arc Select。
+/// </summary>
 public sealed class MiniSelect : ContentControl
 {
     public static readonly StyledProperty<string> SelectedProperty =
@@ -16,8 +17,37 @@ public sealed class MiniSelect : ContentControl
     public static readonly StyledProperty<string> TitleProperty =
         AvaloniaProperty.Register<MiniSelect, string>(nameof(Title), string.Empty);
 
+    private readonly ArcSelect _select;
+    private IReadOnlyList<string> _items = [];
+    private bool _syncing;
+
     /// <summary>选项标签；选定回调参数为标签文本。</summary>
-    public IReadOnlyList<string> Items { get; set; } = [];
+    public IReadOnlyList<string> Items
+    {
+        get => _items;
+        set
+        {
+            _items = value ?? [];
+            _syncing = true;
+            try
+            {
+                _select.ItemsSource = _items;
+                if (_items.Contains(Selected, StringComparer.Ordinal))
+                {
+                    _select.SelectedItem = Selected;
+                }
+                else
+                {
+                    _select.SelectedItem = _items.FirstOrDefault();
+                    SetCurrentValue(SelectedProperty, _select.SelectedItem?.ToString() ?? string.Empty);
+                }
+            }
+            finally
+            {
+                _syncing = false;
+            }
+        }
+    }
 
     public string Selected
     {
@@ -33,98 +63,40 @@ public sealed class MiniSelect : ContentControl
 
     public event Action<string>? SelectionChanged;
 
-    private readonly TextBlock _label;
-    private readonly StackPanel _itemsHost;
-    private readonly Popup _popup;
-
     public MiniSelect()
     {
-        var button = new Button
+        _select = new ArcSelect
         {
-            MinHeight = 26,
-            Padding = new Thickness(10, 5),
-            CornerRadius = new CornerRadius(9),
-            FontSize = 11.5,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            Placeholder = Title,
+            MaxDropDownHeight = 320,
         };
-        WritePage.Res(button, Button.BackgroundProperty, "VoxSurface");
-        WritePage.Res(button, Button.ForegroundProperty, "VoxFg");
-        WritePage.Res(button, Button.BorderBrushProperty, "VoxLineStrong");
-
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        _label = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-        var caret = new TextBlock { Text = "▾", FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.6 };
-        content.Children.Add(_label);
-        content.Children.Add(caret);
-        button.Content = content;
-
-        // Arc 主题没有 ListBox 模板，直接铺按钮列表；同时保留键盘可达与 UIA 名称。
-        _itemsHost = new StackPanel { MinWidth = 120 };
-        _popup = new Popup
+        _select.SelectionChanged += (_, _) =>
         {
-            PlacementTarget = button,
-            IsLightDismissEnabled = true,
-            Child = new Border
-            {
-                Padding = new Thickness(4),
-                CornerRadius = new CornerRadius(9),
-                BoxShadow = new BoxShadows(new BoxShadow { OffsetX = 0, OffsetY = 8, Blur = 24, Color = Color.Parse("#33000000") }),
-                Child = _itemsHost,
-            },
+            if (_syncing) return;
+            var value = _select.SelectedItem?.ToString() ?? string.Empty;
+            if (value == Selected) return;
+            SetCurrentValue(SelectedProperty, value);
+            SelectionChanged?.Invoke(value);
         };
-        WritePage.Res((Border)_popup.Child!, Border.BackgroundProperty, "VoxSurface");
-        WritePage.Res((Border)_popup.Child!, Border.BorderBrushProperty, "VoxLine");
-        ((Border)_popup.Child!).BorderThickness = new Thickness(1);
-
-        button.Click += (_, _) =>
-        {
-            FillMenu();
-            _popup.IsOpen = true;
-        };
-
-        Content = new Panel { Children = { button, _popup } };
-        _label.Text = Selected;
-    }
-
-    private void FillMenu()
-    {
-        _itemsHost.Children.Clear();
-        foreach (var item in Items)
-        {
-            var isSelected = item == Selected;
-            var text = new TextBlock
-            {
-                Text = item,
-                FontSize = 12,
-                FontWeight = isSelected ? FontWeight.SemiBold : FontWeight.Normal,
-            };
-            WritePage.Res(text, TextBlock.ForegroundProperty, isSelected ? "VoxFg" : "VoxMuted");
-            var row = new Button
-            {
-                Content = text,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(8, 4),
-                MinHeight = 26,
-            };
-            row.Click += (_, _) =>
-            {
-                Selected = item;
-                _popup.IsOpen = false;
-                SelectionChanged?.Invoke(item);
-            };
-            _itemsHost.Children.Add(row);
-        }
+        Content = _select;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == SelectedProperty && _label != null)
+        if (change.Property == SelectedProperty && !_syncing && _select != null)
         {
-            _label.Text = Selected;
+            if (!Equals(_select.SelectedItem, Selected))
+            {
+                _syncing = true;
+                try { _select.SelectedItem = Selected; }
+                finally { _syncing = false; }
+            }
+        }
+        else if (change.Property == TitleProperty && _select != null)
+        {
+            _select.Placeholder = Title;
         }
     }
 }
