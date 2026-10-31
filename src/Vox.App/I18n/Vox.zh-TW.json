@@ -883,5 +883,8 @@
   "Vox.Images.Confirm.DeleteTitle": "刪除圖片",
   "Vox.Images.Confirm.DeleteBody": "要刪除「{0}」嗎？檔案經 git 提交刪除，歷史中可回滾。",
   "Vox.Images.Msg.CoverSet": "已設為封面：{0}",
-  "Vox.Settings.Appearance.StyleLabel": "介面風格"
+  "Vox.Settings.Appearance.StyleLabel": "介面風格",
+  "Vox.Write.Map.Legend.Root": "標題節點",
+  "Vox.Write.Map.Legend.Leaf": "內容節點",
+  "Vox.Write.Map.Hint": "拖動畫布 · 雙擊節點編輯 · 滾輪縮放"
 }
