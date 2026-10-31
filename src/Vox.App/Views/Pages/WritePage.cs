@@ -157,11 +157,9 @@ public sealed class WritePage : UserControl
         _editorView.EditorLineHeight = Math.Round(Fs(11.5) * 1.95, 1);
         _editorView.EditorPadding = new Thickness(6, 12, 34, 12);
         _editorView.ShowLineNumbers = true;
-        if (_editorView.Editor.TextArea.LeftMargins.OfType<MarkdownLineNumberMargin>().FirstOrDefault() is { } lineNumbers)
+        if (_editorView.Editor.TextArea.LeftMargins.FirstOrDefault() is Control lineNumberMargin)
         {
-            lineNumbers.FontSize = Fs(11);
-            lineNumbers.RightPadding = 12;
-            lineNumbers.MinWidth = 44;
+            lineNumberMargin.MinWidth = 44;
         }
         _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
 
