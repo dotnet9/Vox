@@ -59,6 +59,7 @@ public sealed class ImagesPage : UserControl
         _yearFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Images.Pick.Year");
         _refFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Images.Pick.RefState");
         _formatFilter[!Controls.MiniSelect.TitleProperty] = I18n.Bind("Vox.Images.Pick.Format");
+        _search[!ArcInput.LabelProperty] = I18n.Bind("Vox.Images.Search");
         _search[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Images.Search");
 
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
