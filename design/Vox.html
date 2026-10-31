@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="light" data-accent="violet">
+<html lang="zh-CN" data-theme="light" data-accent="green">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=51"><link rel="stylesheet" href="assets/app.css?v=55">
+<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=56">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -30,7 +30,7 @@
               <div class="tp-title">动效 <span class="tp-sub">ArcMotionLevel</span></div>
               <div class="seg" id="motionSeg"><button class="active" data-m="full">完整</button><button data-m="reduced">减弱</button><button data-m="off">关闭</button></div>
               <div class="tp-title">界面配色 <span class="tp-sub">Arc 预设</span></div>
-              <div class="swatches" id="arcSwatches"><i class="sw" data-c="neutral" style="--sw:#353535" title="Neutral"></i><i class="sw active" data-c="violet" style="--sw:#7747FF" title="Violet"></i><i class="sw" data-c="blue" style="--sw:#0562EF" title="Blue"></i><i class="sw" data-c="green" style="--sw:#0DB879" title="Green"></i><i class="sw" data-c="amber" style="--sw:#F3AD20" title="Amber"></i><i class="sw" data-c="orange" style="--sw:#F48120" title="Orange"></i><i class="sw" data-c="coral" style="--sw:#F15F55" title="Coral"></i><i class="sw" data-c="rose" style="--sw:#ED4E9D" title="Rose"></i></div>
+              <div class="swatches" id="arcSwatches"><i class="sw" data-c="neutral" style="--sw:#353535" title="Neutral"></i><i class="sw" data-c="violet" style="--sw:#7747FF" title="Violet"></i><i class="sw" data-c="blue" style="--sw:#0562EF" title="Blue"></i><i class="sw active" data-c="green" style="--sw:#0DB879" title="Green"></i><i class="sw" data-c="amber" style="--sw:#F3AD20" title="Amber"></i><i class="sw" data-c="orange" style="--sw:#F48120" title="Orange"></i><i class="sw" data-c="coral" style="--sw:#F15F55" title="Coral"></i><i class="sw" data-c="rose" style="--sw:#ED4E9D" title="Rose"></i></div>
             </div>
             <div class="tb-pop" id="popLang">
               <a class="lang-it active">简体中文</a>
@@ -48,7 +48,7 @@
 <div class="app-body">
 
 <!-- ============ 左侧导航 ============ -->
-<aside class="nav collapsed" id="nav">
+<aside class="nav" id="nav">
   <div class="items">
     <div class="it active" data-view="write" title="写作"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><span class="lb">写作</span></div>
     <div class="it" data-view="library" title="文章库"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span><span class="lb">文章库</span><span class="cnt">37</span></div>
