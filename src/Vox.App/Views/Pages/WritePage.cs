@@ -223,12 +223,8 @@ public sealed class WritePage : UserControl
         // 预览排版：设置持久化（MarkdownSize/MarkdownTheme），构造即应用。
         var settings = AppState.Instance.Settings;
         _preview.TypographyTheme = settings.MarkdownTheme;
-        _preview.ParagraphFontSize = Math.Clamp(settings.MarkdownSize, 12, 22);
-        _preview.ParagraphLineHeight = PreviewLineHeight(_preview.ParagraphFontSize);
-        // 标题层级、段落节奏和代码字号对齐原型 article 排版；字号档位仍由 MarkdownSize 控制。
-        _preview.Heading1FontSize = 21;
-        _preview.Heading2FontSize = 15.5;
-        _preview.Heading3FontSize = 13.5;
+        ApplyPreviewDensity(Math.Clamp(settings.MarkdownSize, 12, 22));
+        // 标题层级按原型 article 的 em 比例随正文密度缩放；代码字号保持独立。
         _preview.Heading4FontSize = 13;
         _preview.Heading5FontSize = 12.5;
         _preview.Heading6FontSize = 12;
@@ -794,8 +790,7 @@ public sealed class WritePage : UserControl
             var settings = AppState.Instance.Settings;
             settings.MarkdownSize = size;
             AppState.Instance.SaveSettings();
-            _preview.ParagraphFontSize = size;
-            _preview.ParagraphLineHeight = PreviewLineHeight(size);
+            ApplyPreviewDensity(size);
             _shell.ShowToast(TF("Vox.Write.Typo.DensityToast", size));
         });
 
@@ -855,6 +850,16 @@ public sealed class WritePage : UserControl
             ShowMode = FlyoutShowMode.Standard,
             Content = PopWrap(pop),
         };
+    }
+
+    /// <summary>正文密度与标题 em 比例同步原型 #prevInner 的 CSS 规则。</summary>
+    private void ApplyPreviewDensity(double fontSize)
+    {
+        _preview.ParagraphFontSize = fontSize;
+        _preview.ParagraphLineHeight = PreviewLineHeight(fontSize);
+        _preview.Heading1FontSize = Math.Round(fontSize * 1.7, 1);
+        _preview.Heading2FontSize = Math.Round(fontSize * 1.25, 1);
+        _preview.Heading3FontSize = Math.Round(fontSize * 1.1, 1);
     }
 
     /// <summary>与原型 #prevInner 的 --md-leading 对齐：常规 1.85，书卷（InkBlack）2.0。</summary>
