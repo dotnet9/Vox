@@ -266,7 +266,7 @@ public sealed class ImagesPage : UserControl
         var thumb = new Border
         {
             Height = 88,
-            CornerRadius = new CornerRadius(8, 8, 0, 0),
+            CornerRadius = new CornerRadius(0),
             Child = BuildThumbVisual(image),
             ClipToBounds = true,
         };
@@ -320,7 +320,7 @@ public sealed class ImagesPage : UserControl
             Classes = { "image-card" },
             Width = 150,
             Margin = new Thickness(0, 0, 10, 10),
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(11),
             ClipToBounds = true,
             Child = new StackPanel { Children = { thumb, info } },
             Cursor = new Cursor(StandardCursorType.Hand),
