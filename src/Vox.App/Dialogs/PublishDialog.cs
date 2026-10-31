@@ -8,6 +8,8 @@ using Vox.App.Views;
 using Vox.App.Views.Pages;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
+using ArcButton = TKCode.Arc.Button;
+using ArcButtonVariant = TKCode.Arc.ButtonVariant;
 
 namespace Vox.App.Dialogs;
 
@@ -45,7 +47,7 @@ public sealed class PublishDialog : Border
         close.Click += (_, _) => shell.CloseModal();
 
         // 发布前检查卡片
-        var recheck = new Button { Classes = { "btn", "sm", "ghost" }, Margin = new Thickness(8, 0, 0, 0) };
+        var recheck = new ArcButton { Variant = ArcButtonVariant.Ghost, Margin = new Thickness(8, 0, 0, 0) };
         recheck[!Button.ContentProperty] = I18n.Bind("Vox.Publish.Action.Recheck");
         recheck.Click += (_, _) => RebuildChecks();
         var checkTitle = new TextBlock { FontSize = 12.5, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
@@ -106,7 +108,7 @@ public sealed class PublishDialog : Border
         }
         body.Children.Add(chips);
 
-        var closeButton = new Button { Classes = { "btn" } };
+        var closeButton = new ArcButton { Variant = ArcButtonVariant.Secondary };
         closeButton[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Close");
         closeButton.Click += (_, _) => shell.CloseModal();
         footer.Children.Add(closeButton);
@@ -223,7 +225,7 @@ public sealed class PublishDialog : Border
         _ => "off",
     };
 
-    private IEnumerable<Button> BuildOps(PublishChannel channel, PublishStatus status)
+    private IEnumerable<ArcButton> BuildOps(PublishChannel channel, PublishStatus status)
     {
         if (channel == PublishChannel.Site)
         {
@@ -279,14 +281,12 @@ public sealed class PublishDialog : Border
         }
     }
 
-    private Button Op(string label, Action action, bool primary = false)
+    private ArcButton Op(string label, Action action, bool primary = false)
     {
-        var button = new Button
+        var button = new ArcButton
         {
-            Classes = { "btn", "sm", primary ? "primary" : string.Empty },
+            Variant = primary ? ArcButtonVariant.Primary : ArcButtonVariant.Secondary,
             Content = label,
-            Padding = new Thickness(10, 3),
-            FontSize = 11,
         };
         button.Click += (_, _) => action();
         return button;
