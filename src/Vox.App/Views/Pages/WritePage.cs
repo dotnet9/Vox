@@ -50,7 +50,6 @@ public sealed class WritePage : UserControl
     // 中列（源码卡 | 预览卡 | 导图卡）
     private readonly MarkdownEditorView _editorView = new();
     private readonly ThemeVariantScope _editorScope = new();
-    private bool _editorPaletteRefresh;
     private TextEditor Editor => _editorView.Editor;
     private readonly MarkdownViewer _preview = new();
     private readonly ScrollViewer _previewScroll = new();
@@ -1481,10 +1480,16 @@ public sealed class WritePage : UserControl
     /// 否则系统/应用变体缺省为 Light，暗色主题下编辑器仍是白底。</summary>
     private void ApplyEditorTheme()
     {
-        _editorScope.RequestedThemeVariant = AppState.Instance.Settings.IsDark == true ? ThemeVariant.Dark : ThemeVariant.Light;
-        // MarkdownEditorView 通过行号画笔键变更触发全量调色板刷新；别名资源值由 VoxTheme 同步更新。
-        _editorPaletteRefresh = !_editorPaletteRefresh;
-        _editorView.LineNumberBrushKey = _editorPaletteRefresh ? "VoxMarkdownLineNumberBrushA" : "VoxMarkdownLineNumberBrushB";
+        var target = AppState.Instance.Settings.IsDark switch
+        {
+            true => ThemeVariant.Dark,
+            false => ThemeVariant.Light,
+            null => (ThemeVariant?)null,
+        };
+        // MarkdownEditorView 在 ActualThemeVariantChanged 时重算语法配色。
+        // 先切到相反变体再回目标值，可同步刷新同一明暗模式下的强调色变更。
+        _editorScope.RequestedThemeVariant = target == ThemeVariant.Dark ? ThemeVariant.Light : ThemeVariant.Dark;
+        _editorScope.RequestedThemeVariant = target;
     }
 
     private Border BuildAiPopup()
