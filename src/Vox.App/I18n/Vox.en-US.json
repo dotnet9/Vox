@@ -883,5 +883,8 @@
   "Vox.Images.Confirm.DeleteTitle": "Delete image",
   "Vox.Images.Confirm.DeleteBody": "Delete \"{0}\"? The file is removed through git and can be restored from history.",
   "Vox.Images.Msg.CoverSet": "Cover set: {0}",
-  "Vox.Settings.Appearance.StyleLabel": "Interface style"
+  "Vox.Settings.Appearance.StyleLabel": "Interface style",
+  "Vox.Write.Map.Legend.Root": "Title node",
+  "Vox.Write.Map.Legend.Leaf": "Content node",
+  "Vox.Write.Map.Hint": "Drag canvas · double-click to edit · scroll to zoom"
 }
