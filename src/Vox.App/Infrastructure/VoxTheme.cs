@@ -69,6 +69,10 @@ public static class VoxTheme
     };
 
     private static string _density = DensityNormal;
+    public const string StyleArc = "Arc";
+    public const string StylePixel = "Pixel";
+    private static string _style = StyleArc;
+    public static string Style => _style;
 
     /// <summary>当前密度档（compact/normal/roomy）。</summary>
     public static string Density => _density;
@@ -81,7 +85,7 @@ public static class VoxTheme
         Math.Round(baseSize * DensityFontScale.GetValueOrDefault(_density, 1.0) * 2) / 2.0;
 
     /// <summary>当前密度下的区块卡片圆角。</summary>
-    public static double Radius => DensityRadius.GetValueOrDefault(_density, 14);
+    public static double Radius => _style == StylePixel ? 0 : DensityRadius.GetValueOrDefault(_density, 14);
 
     public static void SetDensity(string density)
     {
@@ -91,10 +95,21 @@ public static class VoxTheme
         DensityChanged?.Invoke();
     }
 
+    public static void SetStyle(string? style)
+    {
+        var next = string.Equals(style, StylePixel, StringComparison.OrdinalIgnoreCase) ? StylePixel : StyleArc;
+        if (_style == next) return;
+        _style = next;
+        ApplyDensity();
+    }
+
     private static void ApplyDensity()
     {
         if (Application.Current is not { } app) return;
         app.Resources["VoxRadius"] = new Avalonia.CornerRadius(Radius);
+        app.Resources["VoxRadiusControl"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 9);
+        app.Resources["VoxRadiusSmall"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 7);
+        app.Resources["VoxRadiusPill"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 99);
         // 字号令牌：样式与 chrome 文本用 DynamicResource 引用，密度切换整体响应（原型 rem 缩放口径）。
         app.Resources["VoxFontSizeTiny"] = Fs(8.5);
         app.Resources["VoxFontSizeMicro"] = Fs(9.5);
