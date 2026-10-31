@@ -332,7 +332,7 @@ public sealed class ImagesPage : UserControl
         card.PointerEntered += (_, _) =>
         {
             if (selected) return;
-            card.BorderBrush = TryBrush("VoxLineStrong");
+            Res(card, Border.BorderBrushProperty, "VoxLineStrong");
             card.RenderTransform = new TranslateTransform(0, -1);
         };
         card.PointerExited += (_, _) =>
