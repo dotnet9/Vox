@@ -199,7 +199,7 @@ public sealed class LibraryPage : UserControl
         {
             Children =
             {
-                new TextBlock { Text = number, FontSize = 20, FontWeight = FontWeight.Bold, CharacterSpacing = -0.8 },
+                new TextBlock { Text = number, FontSize = 20, FontWeight = FontWeight.Bold, LetterSpacing = -0.8 },
                 labelBlock,
             },
         };
