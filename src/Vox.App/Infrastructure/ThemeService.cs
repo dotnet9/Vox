@@ -15,7 +15,6 @@ public static class ThemeService
     {
         ApplyArcTheme(settings.IsDark, settings.Accent, settings.MotionLevel);
         ApplyMotion(settings.MotionLevel);
-        ApplyArcTheme(settings.IsDark, settings.Accent, settings.MotionLevel);
         // Vox 自绘界面令牌（原型 tokens.css 口径）：明暗 + Arc 八色 + 密度（字号/圆角）。
         VoxTheme.SetDensity(settings.Density);
         VoxTheme.Apply(settings.IsDark == true, NormalizeAccentName(settings.Accent));
@@ -68,6 +67,7 @@ public static class ThemeService
         settings.MotionLevel = NormalizeMotionLevel(level);
         AppState.Instance.SaveSettings();
         ApplyMotion(settings.MotionLevel);
+        ApplyArcTheme(settings.IsDark, settings.Accent, settings.MotionLevel);
     }
 
     /// <summary>设置里的动效档名归一（大小写无关，未知值回落 Full），与原型 data-motion 三档同口径。</summary>
@@ -79,7 +79,7 @@ public static class ThemeService
     {
         ArcTheme.Apply(theme =>
         {
-            theme.Appearance(isDark == true ? ArcAppearance.Dark : ArcAppearance.Light);
+            theme.Appearance(isDark switch { true => ArcAppearance.Dark, false => ArcAppearance.Light, null => ArcAppearance.System });
             if (Enum.TryParse<ArcAccentPreset>(accent, ignoreCase: true, out var preset))
             {
                 theme.Accent(preset);
@@ -108,14 +108,4 @@ public static class ThemeService
         }
     }
 
-    private static async Task ApplyThemeAsync(Func<ThemeConfigBuilder, ThemeConfigBuilder> configure)
-    {
-        var manager = Application.Current?.GetThemeManager();
-        if (manager is null)
-        {
-            return;
-        }
-        var builder = configure(new ThemeConfigBuilder());
-        await manager.ApplyThemeAsync(new ThemeRequest(IThemeManager.DEFAULT_THEME_ID, builder.Build(), ThemeTransitionReason.UserRequest));
-    }
 }
