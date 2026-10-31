@@ -886,5 +886,6 @@
   "Vox.Settings.Appearance.StyleLabel": "Interface style",
   "Vox.Write.Map.Legend.Root": "Title node",
   "Vox.Write.Map.Legend.Leaf": "Content node",
-  "Vox.Write.Map.Hint": "Drag canvas · double-click to locate source · scroll to zoom"
+  "Vox.Write.Map.Hint": "Drag canvas · double-click to locate source · scroll to zoom",
+  "Vox.Shell.Tooltip.Mcp": "MCP service"
 }
