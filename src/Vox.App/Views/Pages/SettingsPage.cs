@@ -186,6 +186,7 @@ public sealed class SettingsPage : UserControl
         var llmCard = Card("Vox.Settings.Llm.Title", "Vox.Settings.Llm.Desc");
         var llmSettings = AppState.Instance.Settings;
         var llmPreset = LlmPresets.Get(llmSettings.LlmProvider);
+        _llmModel[!ArcInput.LabelProperty] = I18n.Bind("Vox.Settings.Llm.Title");
         _llmModel.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         _llmModel.Text = llmSettings.LlmModel;
         _llmModel.LostFocus += (_, _) => SaveSetting(s => s.LlmModel = _llmModel.Text?.Trim() ?? string.Empty);
