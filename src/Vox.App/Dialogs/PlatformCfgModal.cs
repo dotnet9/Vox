@@ -98,6 +98,15 @@ public sealed class PlatformCfgModal : Border
         var csdnLabel = Modal.Label(string.Empty);
         csdnLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.Csdn");
         body.Children.Add(csdnLabel);
+        var csdnHint = new TextBlock
+        {
+            Text = "获取方式：登录 editor.csdn.net/md/ → 按 F12 打开开发者工具 → Network → 保存一篇草稿 → 找到 saveArticle 请求 → 复制请求中的 Cookie。请勿把 Cookie 分享给他人。",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 11,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        WritePage.Res(csdnHint, TextBlock.ForegroundProperty, "VoxMuted");
+        body.Children.Add(csdnHint);
         body.Children.Add(PlatformRow(
             new Control[] { _csdnToken }, _csdnBadge,
             "Vox.Common.Action.Save", () =>
