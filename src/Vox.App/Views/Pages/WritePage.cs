@@ -738,6 +738,11 @@ public sealed class WritePage : UserControl
     /// <summary>主题强调色与 design/assets/app.css 的 #prevInner[data-typo] 规则一致。</summary>
     private void ApplyPreviewAccent(string? theme)
     {
+        // 书卷主题按原型切换宋体阅读字体；其他主题回到 Viewer 的默认无衬线字体栈。
+        _preview.ContentFontFamily = string.Equals(theme, "InkBlack", StringComparison.OrdinalIgnoreCase)
+            ? new FontFamily("Noto Serif SC, Songti SC, SimSun, serif")
+            : new FontFamily("Inter, Microsoft YaHei UI, Microsoft YaHei, Segoe UI, PingFang SC, Hiragino Sans GB, Noto Sans CJK SC, Noto Sans SC, sans-serif");
+
         switch (theme)
         {
             case "Basic":
