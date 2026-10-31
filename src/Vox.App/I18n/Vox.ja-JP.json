@@ -883,5 +883,8 @@
   "Vox.Images.Confirm.DeleteTitle": "画像を削除",
   "Vox.Images.Confirm.DeleteBody": "「{0}」を削除しますか？git に記録され、履歴から復元できます。",
   "Vox.Images.Msg.CoverSet": "カバーに設定しました：{0}",
-  "Vox.Settings.Appearance.StyleLabel": "インターフェーススタイル"
+  "Vox.Settings.Appearance.StyleLabel": "インターフェーススタイル",
+  "Vox.Write.Map.Legend.Root": "タイトルノード",
+  "Vox.Write.Map.Legend.Leaf": "コンテンツノード",
+  "Vox.Write.Map.Hint": "キャンバスをドラッグ · ダブルクリックで編集 · ホイールでズーム"
 }
