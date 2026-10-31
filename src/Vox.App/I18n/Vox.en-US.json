@@ -599,7 +599,7 @@
   "Vox.Settings.Platform.AutoHint": "Prompt to publish to enabled platforms on git commit",
   "Vox.Settings.Platform.WxSaved": "WeChat credentials saved (system credential manager)",
   "Vox.Settings.Platform.CnbSaved": "Cnblogs credentials saved (system credential manager)",
-  "Vox.Settings.Platform.CsdnSaved": "CSDN token saved (system credential manager)",
+  "Vox.Settings.Platform.CsdnSaved": "CSDN login cookie saved (system credential manager)",
   "Vox.Settings.Platform.Saved": "Platform accounts saved (system credential manager)",
   "Vox.Shell.Menu.Help": "Help",
   "Vox.Help.Menu.CheckUpdate": "Check for updates…",
