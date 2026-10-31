@@ -13,6 +13,7 @@ using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 using ArcButton = TKCode.Arc.Button;
 using ArcButtonVariant = TKCode.Arc.ButtonVariant;
+using ArcInput = TKCode.Arc.Input;
 
 namespace Vox.App.Views.Pages;
 
@@ -20,12 +21,12 @@ namespace Vox.App.Views.Pages;
 public sealed class SettingsPage : UserControl
 {
     private readonly MainWindow _shell;
-    private readonly TextBox _repoInput = new() { Classes = { "vinput" }, IsReadOnly = true, FontSize = 11 };
+    private readonly ArcInput _repoInput = new() { IsReadOnly = true, FontSize = 11, IsLabelVisible = false };
     private readonly TextBlock _indexInfo = new();
-    private readonly TextBox _cdnInput = new() { Classes = { "vinput" }, Width = 280, FontSize = 11 };
+    private readonly ArcInput _cdnInput = new() { Width = 280, FontSize = 11, IsLabelVisible = false };
     private readonly TextBlock _patInfo = new();
     private readonly MiniSelect _llmProvider = new() { Width = 130 };
-    private readonly TextBox _llmModel = new() { Classes = { "vinput" }, Width = 200, FontSize = 11 };
+    private readonly ArcInput _llmModel = new() { Width = 200, FontSize = 11, IsLabelVisible = false };
     private readonly Border _llmKeyBadge = new();
     private readonly TextBlock _llmKeyMask = new() { FontSize = 11 };
     private readonly Border _mcpDot = new()
@@ -100,6 +101,7 @@ public sealed class SettingsPage : UserControl
 
         // ---------- 内容仓库 ----------
         var repoCard = Card("Vox.Settings.Repo.Title", "Vox.Settings.Repo.Desc");
+        _repoInput[!ArcInput.LabelProperty] = I18n.Bind("Vox.Settings.Repo.Path");
         _repoInput.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         var changeRepo = new ArcButton { Variant = ArcButtonVariant.Secondary };
         changeRepo[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Repo.Change");
@@ -140,6 +142,7 @@ public sealed class SettingsPage : UserControl
                 Desc("Vox.Settings.Link.CiteDesc"),
             },
         }));
+        _cdnInput[!ArcInput.LabelProperty] = I18n.Bind("Vox.Settings.Link.DomainMap");
         _cdnInput.Text = AppState.Instance.Settings.CdnBase;
         _cdnInput.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         _cdnInput.LostFocus += (_, _) => SaveSetting(s => s.CdnBase = _cdnInput.Text.Trim());
