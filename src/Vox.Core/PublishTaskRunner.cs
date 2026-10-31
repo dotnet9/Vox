@@ -63,25 +63,25 @@ public sealed class PublishTaskRunner
         if (capabilities.RequiresDescription && string.IsNullOrWhiteSpace(content.Description))
             return Finish(task, PublishTaskStatus.Failed, "缺少平台要求的摘要。", null);
 
-        if (_preflight is not null)
-        {
-            var issues = await _preflight.ValidateAsync(content, capabilities, cancellationToken);
-            if (issues.Count > 0)
-                return Finish(task, PublishTaskStatus.Failed, string.Join("；", issues), null);
-        }
-
-        var running = task with
-        {
-            Status = PublishTaskStatus.Running,
-            StartedAt = DateTime.UtcNow,
-            FinishedAt = null,
-            Attempt = task.Attempt + 1,
-            Error = null,
-        };
-
         try
         {
+            if (_preflight is not null)
+            {
+                var issues = await _preflight.ValidateAsync(content, capabilities, cancellationToken);
+                if (issues.Count > 0)
+                    return Finish(task, PublishTaskStatus.Failed, string.Join("；", issues), null);
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
+            var running = task with
+            {
+                Status = PublishTaskStatus.Running,
+                StartedAt = DateTime.UtcNow,
+                FinishedAt = null,
+                Attempt = task.Attempt + 1,
+                Error = null,
+            };
+
             var result = await adapter.PublishAsync(
                 new PublishRequest(content, task.Action, task.RemoteArticleId), cancellationToken);
 
@@ -102,15 +102,15 @@ public sealed class PublishTaskRunner
                 return completed;
             }
 
-            return Finish(running, PublishTaskStatus.Failed, result.Message ?? "平台返回未知错误。", result.Url, alreadyAttempted: true);
+            return Finish(running, PublishTaskStatus.Failed, result.Message ?? "平台返回未知错误。", result.Url, recordPlatformError: true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return Finish(running, PublishTaskStatus.Cancelled, "发布任务已取消。", null, alreadyAttempted: true);
+            return Finish(task, PublishTaskStatus.Cancelled, "发布任务已取消。", null);
         }
         catch (Exception ex)
         {
-            return Finish(running, PublishTaskStatus.Failed, ex.Message, null, alreadyAttempted: true);
+            return Finish(task, PublishTaskStatus.Failed, ex.Message, null);
         }
     }
 
@@ -119,19 +119,17 @@ public sealed class PublishTaskRunner
         PublishTaskStatus status,
         string error,
         string? url,
-        bool alreadyAttempted = false)
+        bool recordPlatformError = false)
     {
         var finished = task with
         {
             Status = status,
-            StartedAt = task.StartedAt ?? (alreadyAttempted ? DateTime.UtcNow : null),
             FinishedAt = DateTime.UtcNow,
-            Attempt = alreadyAttempted ? task.Attempt : task.Attempt,
             PublishedUrl = url ?? task.PublishedUrl,
             Error = error,
         };
 
-        if (status == PublishTaskStatus.Failed)
+        if (recordPlatformError)
         {
             var states = PublishStateStore.Load(_statePath);
             PublishStateStore.MarkError(states, task.ArticlePath, task.Channel, error);
