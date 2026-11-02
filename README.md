@@ -59,11 +59,15 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 
 ## 技术栈
 
-.NET 10 · Avalonia 12.1.4 · [TKCode.Arc](https://github.com/AtomUICommunity/TKCode.Arc)（Avalonia 原生组件、独立主题、强调色与弹簧动效）· [CodeWF.Avalonia.Markdown](https://github.com/dotnet9/CodeWF.Avalonia)（Markdown 实时预览与排版内核）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（Vex 同款，已在 Avalonia 12.1.4 + NativeAOT 生产验证）。
+.NET 11 RC · Avalonia 12.1.5 · [TKCode.Arc](https://www.nuget.org/packages/TKCode.Arc)（官方 NuGet 组件、独立主题、强调色与弹簧动效）· [CodeWF.Avalonia.Markdown](https://github.com/dotnet9/CodeWF.Avalonia)（Markdown 实时预览与排版内核）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（与 Vex 使用同一编辑器）。
+
+SDK 固定在 `global.json`，目标框架与编译默认值在 `build/ProjectDefaults.props`，NuGet 版本变量在 `build/Versions.props`，`Directory.Packages.props` 只维护中央包声明。主分支跟随最新稳定／预览依赖，不以 Win7 为兼容目标；升级前代码冻结在 `win7-archive`，不继续维护。Arc 只从官方 NuGet 安装；当前 `0.3.2-preview.2` 精确依赖 Avalonia 12.1.4，采用 12.1.5 时保留 `NU1608` 警告，等待上游放宽约束。
+
+候选自研库在全新环境先执行 `pwsh scripts/restore_library_candidate.ps1 -OutputRoot ../vox-library-candidate`，再执行 `pwsh scripts/build.ps1 -Test`。该脚本只重建固定提交的 CodeWF.Avalonia 包，Arc 始终从 nuget.org 还原。
 
 跨平台：支持 Windows / macOS / Linux，目标 **win-x64、linux-x64、linux-arm64、osx-x64、osx-arm64** 五个 RID；发布沿用 Vex 的 GitHub Actions 五平台原生 runner 矩阵。**分发只走 GitHub Releases**（原型见 [design/](design/Vox软件原型.html)）：Windows 安装器为 Arc 品牌向导，macOS 为标准 DMG 拖拽安装（签名 + 公证），Linux 由系统软件中心 / 包管理器接管——均遵循各平台惯例；应用内检查更新直接从 Releases 下载替换，不走应用商店。品牌资产（logo.svg / png / ico）在仓库根目录统一维护。
 
-不依赖 Semi.Avalonia / Ursa.Avalonia / CodeWF.Avalonia 系组件（编辑器与 Vex 同用 AvaloniaEdit，但包依赖各自独立）。
+应用外观由 Arc 管理；Markdown、思维导图、表格和国际化复用 CodeWF.Avalonia，产品不覆盖这些库的控件模板。
 
 ## 文档
 

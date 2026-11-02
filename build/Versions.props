@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <AvaloniaVersion>12.1.5</AvaloniaVersion>
+    <AvaloniaEditVersion>12.0.0</AvaloniaEditVersion>
+    <AvaloniaEditTextMateVersion>12.0.0</AvaloniaEditTextMateVersion>
+    <TextMateSharpGrammarsVersion>2.0.4</TextMateSharpGrammarsVersion>
+    <!-- 官方 NuGet 目前精确依赖 Avalonia 12.1.4；升级 12.1.5 保留 NU1608 提醒并验证兼容性。 -->
+    <ArcVersion>0.3.2-preview.2</ArcVersion>
+    <CodeWFToolkitVersion>1.1.2</CodeWFToolkitVersion>
+    <CodeWFAvaloniaVersion>12.2.49-net11.20261102.1</CodeWFAvaloniaVersion>
+    <YamlDotNetVersion>18.1.0</YamlDotNetVersion>
+    <LibGit2SharpVersion>0.32.0</LibGit2SharpVersion>
+    <CommunityToolkitMvvmVersion>8.4.2</CommunityToolkitMvvmVersion>
+    <DotNetLibrariesVersion>11.0.0-rc.3.26522.148</DotNetLibrariesVersion>
+    <MicrosoftNetTestSdkVersion>18.11.0</MicrosoftNetTestSdkVersion>
+    <XunitVersion>2.9.3</XunitVersion>
+    <XunitRunnerVisualStudioVersion>4.0.1</XunitRunnerVisualStudioVersion>
+    <CodeWFAvaloniaSourceRevision>711c77009ea1a9d367f8edbe0b3b0c90933dac02</CodeWFAvaloniaSourceRevision>
+  </PropertyGroup>
+</Project>
