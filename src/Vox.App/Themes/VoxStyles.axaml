@@ -229,6 +229,22 @@
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Cursor" Value="Hand"/>
   </Style>
+  <!-- .chip.sug（app.css 同名）：候选片，悬停强调色由代码挂 PointerEntered/Exited 处理 -->
+  <Style Selector="Border.chip.sug">
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <!-- ══════════ .note.warn（YAML 解析失败黄条等警示条） ══════════ -->
+  <Style Selector="Border.vwarn">
+    <Setter Property="Background" Value="{DynamicResource VoxWarnSoft}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
+    <Setter Property="Padding" Value="10,8"/>
+  </Style>
+  <Style Selector="Border.vwarn TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource VoxWarn}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
+  </Style>
 
   <!-- ══════════ .seg 分段控件容器与按钮（active 类由代码维护，同原型 JS） ══════════ -->
   <Style Selector="Border.seg">

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -10,7 +11,8 @@ using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
-/// <summary>文章元数据弹层（原右面板元数据页签迁移；文件菜单「文章元数据…」打开）。</summary>
+/// <summary>文章元数据弹层（右面板「元数据」页签之外的「在弹层中编辑全部…」/文件菜单「文章元数据…」入口；
+/// 打开时读取当前文章同一份 Meta，保存合并写回 front matter）。</summary>
 public sealed class MetaModal : Border
 {
     private readonly MainWindow _shell;
@@ -44,7 +46,29 @@ public sealed class MetaModal : Border
         }, mono: true));
         body.Children.Add(Chips("Vox.Meta.Label.CategoriesField", meta.Categories));
         body.Children.Add(Chips("Vox.Meta.Label.TagsField", meta.Tags));
-        body.Children.Add(Field("Vox.Meta.Label.AuthorField", meta.Author ?? string.Empty, v => meta.Author = v));
+
+        // 作者 / 状态（原型 mmAuthor + mmDraft：switch on = 已发布）
+        var authorRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var authorInput = new TextBox
+        {
+            Classes = { "vinput" },
+            Text = meta.Author ?? string.Empty,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        authorInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Meta.Label.AuthorField");
+        authorInput.LostFocus += (_, _) => meta.Author = authorInput.Text?.Trim() ?? string.Empty;
+        var draftSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = !meta.Draft, VerticalAlignment = VerticalAlignment.Center };
+        var draftLabel = new TextBlock { Text = meta.Draft ? T("Vox.Write.Meta.DraftState") : T("Vox.Write.Meta.PublishedState"), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
+        draftSwitch.Click += (_, _) =>
+        {
+            meta.Draft = draftSwitch.IsChecked != true;
+            draftLabel.Text = meta.Draft ? T("Vox.Write.Meta.DraftState") : T("Vox.Write.Meta.PublishedState");
+        };
+        body.Children.Add(Label("Vox.Meta.Label.AuthorStatusField"));
+        authorRow.Children.Add(authorInput);
+        authorRow.Children.Add(draftSwitch);
+        authorRow.Children.Add(draftLabel);
+        body.Children.Add(authorRow);
 
         var save = new Button { Classes = { "btn", "primary" } };
         save[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
@@ -52,11 +76,14 @@ public sealed class MetaModal : Border
         {
             try
             {
+                // 与面板元数据页签同一份 _current.Meta（就地写回），保存合并写回 front matter 并刷新 lastmod；
+                // banner/copyright/自定义键虽不在弹层编辑，仍随整份元数据写回（往返不丢）。
                 YamlSidecar.RewriteMarkdown(LinkStrategy.ToLocalFile(_repoRoot, _article.MarkdownPath), m =>
                 {
                     m.Title = meta.Title; m.Slug = meta.Slug; m.Description = meta.Description;
                     m.Date = meta.Date; m.LastMod = DateTime.Now; m.Cover = meta.Cover;
                     m.Categories = meta.Categories; m.Tags = meta.Tags; m.Author = meta.Author; m.Draft = meta.Draft;
+                    m.Banner = meta.Banner; m.Copyright = meta.Copyright; m.Extra = meta.Extra;
                     return m;
                 });
                 Services.PublishHub.Invalidate();

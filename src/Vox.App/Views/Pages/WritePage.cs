@@ -68,11 +68,25 @@ public sealed class WritePage : UserControl
     /// <summary>当前打开的页内弹层（排版/导图样式），点外部任意处关闭（原型 document click 口径）。</summary>
     private FlyoutBase? _openFlyout;
 
-    // 右列（大纲面板卡）
+    // 右列（大纲|元数据双页签面板卡；页签切换与元数据编辑对齐原型 #panelSeg/#metaTab）
     private readonly Border _panel = new();
     private GridSplitter _panelSplitter = null!;
+    private int _panelTab; // 0=大纲 1=元数据
+    private readonly TKCode.Arc.SegmentedControl _panelSeg = new();
+    private Panel _outlineTab = null!;
     private StackPanel _outlineHost = null!;
     private TextBlock _outlineEmpty = null!;
+    private TKCode.Arc.SegmentedControl _metaModeSeg = null!;
+    private ScrollViewer _metaScroll = null!;
+    private StackPanel _metaHost = null!;   // 表单容器（renderMetaTab 口径：切文章/切页签整体重建）
+    private StackPanel _yamlBody = null!;   // YAML 源码态容器
+    private TextBox _yamlBox = null!;
+    private Border _yamlWarn = null!;       // YAML 解析失败黄条（原型 #yamlWarn）
+    private TextBlock _metaEmpty = null!;
+    private bool _metaYamlMode;             // false=表单 true=YAML
+    private bool _metaDirty;                // 元数据被就地编辑过（保存时合并写回 front matter 并刷 lastmod）
+    private bool _metaBuilding;             // 表单重建中：控件赋值触发的 TextChanged 不算用户编辑
+    private IReadOnlyList<string> _siteCats = []; // site/categories.json 展示名（受控候选）
     private Button _panelHandle = null!;
     private double _lastPanelWidth = 300;
 
@@ -251,6 +265,7 @@ public sealed class WritePage : UserControl
         {
             OnRepoReady();
             ReloadArticles();
+            RefreshMetaTab(); // 保存/弹层保存后索引重建：元数据页签（含发布状态点）随新索引刷新
         });
 
         SetPanelVisible(false); // 构造器末尾统一收起：面板隐藏 + 列宽/MinWidth 归零 + 把手骑视图区右缘
@@ -507,7 +522,8 @@ public sealed class WritePage : UserControl
             Content = content,
             Tag = article,
         };
-        MarkItemSelected(button, Equals(article, _current));
+        // 选中标识按 MarkdownPath 比对：保存触发索引重建后新实例也能保持高亮（引用比较会丢）。
+        MarkItemSelected(button, string.Equals(article.MarkdownPath, _current?.MarkdownPath, StringComparison.OrdinalIgnoreCase));
         button.Click += (_, _) => Dispatcher.UIThread.Post(async () => await OpenArticleAsync(article));
         return button;
     }
@@ -1121,7 +1137,7 @@ public sealed class WritePage : UserControl
         _mapView.Root = MarkdownMindMapDocument.Parse(text, title, new MarkdownMindMapOptions());
     }
 
-    // ---------- 大纲面板卡（仅大纲内容，无页签头） ----------
+    // ---------- 右面板卡：大纲 | 元数据 双页签（原型 .wp-segbar + #panelSeg + #metaTab） ----------
 
     private void BuildPanel()
     {
@@ -1132,7 +1148,9 @@ public sealed class WritePage : UserControl
         _panel.BorderThickness = new Thickness(1);
         _panel.Margin = new Thickness(2, 10, 10, 10);
         _panel.ClipToBounds = true;
+        _panel.KeyDown += OnPanelKey; // 面板内编辑元数据时 Ctrl+S 也能落盘（编辑器热键只覆盖源码卡）
 
+        // 大纲页签：原面板内容原样（大纲链接 + 正文任务徽标）。
         _outlineHost = new StackPanel();
         var outlineScroll = new ScrollViewer { Padding = new Thickness(14), Content = _outlineHost };
         // 无文章 / 无标题时的占位提示（居中，主题跟随，文案接 I18n 绑定）。
@@ -1148,8 +1166,918 @@ public sealed class WritePage : UserControl
         };
         _outlineEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Panel.OutlineEmpty");
         Res(_outlineEmpty, TextBlock.ForegroundProperty, "VoxMuted");
-        _panel.Child = new Panel { Children = { outlineScroll, _outlineEmpty } };
+        _outlineTab = new Panel { Children = { outlineScroll, _outlineEmpty } };
+
+        // 元数据页签：表单 | YAML 双模式（原型 #metaTab：wp-metabar + yamlWarn + metaBody + yamlBody + 弹层入口）。
+        // SelectedValue 在 BuildPanel 末尾赋初值：此时全部子控件已就位，SelectionChanged 触发 SetMetaMode 才安全。
+        _metaModeSeg = new TKCode.Arc.SegmentedControl { HorizontalAlignment = HorizontalAlignment.Stretch };
+        _metaModeSeg.Items.Add(new TKCode.Arc.SegmentedOption(0, T("Vox.Write.Meta.ModeForm")));
+        _metaModeSeg.Items.Add(new TKCode.Arc.SegmentedOption(1, T("Vox.Write.Meta.ModeYaml")));
+        _metaModeSeg.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is int m)
+            {
+                SetMetaMode(m);
+            }
+        };
+        var modeBar = new Border { Padding = new Thickness(10, 10, 10, 2), Child = _metaModeSeg };
+
+        _yamlWarn = new Border
+        {
+            Classes = { "vwarn" },
+            Margin = new Thickness(10, 8, 10, 0),
+            IsVisible = false,
+        };
+        Res(_yamlWarn, Border.BackgroundProperty, "VoxWarnSoft");
+        Res(_yamlWarn, Border.CornerRadiusProperty, "VoxRadiusControl");
+        var warnText = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        Res(warnText, TextBlock.ForegroundProperty, "VoxWarn");
+        Res(warnText, TextBlock.FontSizeProperty, "VoxFontSizeSm");
+        _yamlWarn.Child = warnText;
+
+        _metaHost = new StackPanel { Margin = new Thickness(14, 8, 14, 14) };
+        _metaEmpty = new TextBlock
+        {
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = false,
+            Margin = new Thickness(14),
+        };
+        _metaEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Meta.Empty");
+        Res(_metaEmpty, TextBlock.ForegroundProperty, "VoxMuted");
+
+        _yamlBody = new StackPanel { Margin = new Thickness(14, 8, 14, 14), IsVisible = false };
+        var yamlHint = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) };
+        yamlHint[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Meta.YamlHint");
+        Res(yamlHint, TextBlock.ForegroundProperty, "VoxFaint");
+        Res(yamlHint, TextBlock.FontSizeProperty, "VoxFontSizeSm");
+        _yamlBox = new TextBox
+        {
+            Classes = { "vinput" },
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.NoWrap,
+            FontFamily = MonoFont,
+            FontSize = 11,
+            MinHeight = 340,
+            VerticalContentAlignment = VerticalAlignment.Top,
+        };
+        _yamlBody.Children.Add(yamlHint);
+        _yamlBody.Children.Add(_yamlBox);
+
+        var editAll = new Button { Classes = { "btn", "sm" }, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(14, 0, 14, 14) };
+        editAll[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.EditAll");
+        editAll.Click += (_, _) => OpenMeta();
+
+        var metaContent = new StackPanel();
+        metaContent.Children.Add(modeBar);
+        metaContent.Children.Add(_yamlWarn);
+        metaContent.Children.Add(new Panel { Children = { _metaHost, _metaEmpty } });
+        metaContent.Children.Add(_yamlBody);
+        metaContent.Children.Add(editAll);
+        _metaScroll = new ScrollViewer { Content = metaContent };
+
+        // 页签条（原型 .wp-segbar：surface-2 底 + 底部细线，seg 撑满整行；Arc SegmentedControl 自带滑块动效）。
+        _panelSeg.HorizontalAlignment = HorizontalAlignment.Stretch;
+        _panelSeg.Items.Add(new TKCode.Arc.SegmentedOption(0, T("Vox.Write.Panel.Outline")));
+        _panelSeg.Items.Add(new TKCode.Arc.SegmentedOption(1, T("Vox.Write.Panel.Meta")));
+        _panelSeg.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count > 0 && e.AddedItems[0] is TKCode.Arc.SegmentedOption option && option.Value is int tab)
+            {
+                SetPanelTab(tab);
+            }
+        };
+        _panelSeg.SelectedValue = 0;
+        var segbar = new Border { Padding = new Thickness(10, 10, 10, 9), Child = _panelSeg };
+        Res(segbar, Border.BackgroundProperty, "VoxSurface2");
+        segbar.BorderThickness = new Thickness(0, 0, 0, 1);
+        Res(segbar, Border.BorderBrushProperty, "VoxLine");
+
+        var tabHost = new Grid();
+        tabHost.Children.Add(_outlineTab);
+        tabHost.Children.Add(_metaScroll);
+
+        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
+        root.Children.Add(segbar);
+        Grid.SetRow(segbar, 0);
+        root.Children.Add(tabHost);
+        Grid.SetRow(tabHost, 1);
+        _panel.Child = root;
+        SetPanelTab(0, force: true);
+        _metaModeSeg.SelectedValue = 0; // 初值放最后：全部子控件就位后 SelectionChanged 才触发 SetMetaMode
     }
+
+    /// <summary>页签切换：大纲页签内容不动，进元数据按当前文章重渲染（原型 panelSeg 口径）。</summary>
+    private void SetPanelTab(int tab, bool force = false)
+    {
+        if (!force && _panelTab == tab) return;
+        _panelTab = tab;
+        _outlineTab.IsVisible = tab == 0;
+        _metaScroll.IsVisible = tab == 1;
+        if (tab == 1) RefreshMetaTab();
+    }
+
+    /// <summary>表单 | YAML 双向（原型 metaModeSeg 口径）：表单→YAML 重新生成；YAML→表单解析回填，
+    /// 失败黄条警示且不覆盖表单数据（保持 YAML 态供修正）。</summary>
+    private void SetMetaMode(int mode)
+    {
+        if (_current == null)
+        {
+            _metaYamlMode = mode == 1;
+            if (_metaHost.Parent is Panel nullFormHost) nullFormHost.IsVisible = !_metaYamlMode;
+            _yamlBody.IsVisible = _metaYamlMode;
+            return;
+        }
+        var yaml = mode == 1;
+        _yamlWarn.IsVisible = false;
+        if (yaml)
+        {
+            _yamlBox.Text = WrapYaml(YamlSidecar.Serialize(_current.Meta));
+        }
+        else if (_metaYamlMode)
+        {
+            if (TryParseYamlEditor(_yamlBox.Text, out var parsed, out var error))
+            {
+                ApplyMeta(parsed);
+                RebuildMetaTab();
+                MarkMetaDirty();
+            }
+            else
+            {
+                ShowYamlWarn(error);
+                yaml = true; // 解析失败：留在 YAML 态修正，表单数据未被触碰
+            }
+        }
+        _metaYamlMode = yaml;
+        if (_metaHost.Parent is Panel formHost) formHost.IsVisible = !yaml;
+        _yamlBody.IsVisible = yaml;
+    }
+
+    private void ShowYamlWarn(string? error)
+    {
+        var message = error is { Length: > 0 }
+            ? TF("Vox.Write.Meta.YamlParseFailedReason", error)
+            : T("Vox.Write.Meta.YamlParseFailed");
+        if (_yamlWarn.Child is TextBlock text) text.Text = message;
+        _yamlWarn.IsVisible = true;
+    }
+
+    private static string WrapYaml(string yaml) => $"---\n{yaml.TrimEnd()}\n---";
+
+    /// <summary>YAML 编辑框内容 → 元数据：剥离 --- 包裹后走 YamlSidecar 行级解析（未知键收进 Extra）。</summary>
+    private static bool TryParseYamlEditor(string? text, out ArticleMeta meta, out string? error)
+    {
+        var lines = (text ?? string.Empty).Replace("\r\n", "\n").Trim().Split('\n').ToList();
+        if (lines.Count > 0 && lines[0].Trim() == "---") lines.RemoveAt(0);
+        while (lines.Count > 0 && lines[^1].Trim().Length == 0) lines.RemoveAt(lines.Count - 1);
+        if (lines.Count > 0 && lines[^1].Trim() == "---") lines.RemoveAt(lines.Count - 1);
+        return YamlSidecar.TryParseFrontMatter(string.Join("\n", lines), out meta, out error);
+    }
+
+    /// <summary>把解析结果整体落到当前文章元数据（含未知键列表，YAML ⇄ 表单不丢键）。</summary>
+    private void ApplyMeta(ArticleMeta parsed)
+    {
+        if (_current == null) return;
+        var meta = _current.Meta;
+        meta.Title = parsed.Title;
+        meta.Slug = parsed.Slug;
+        meta.Description = parsed.Description;
+        meta.Date = parsed.Date;
+        meta.LastMod = parsed.LastMod;
+        meta.Cover = parsed.Cover;
+        meta.Categories = parsed.Categories;
+        meta.Albums = parsed.Albums;
+        meta.Tags = parsed.Tags;
+        meta.Author = parsed.Author;
+        meta.Draft = parsed.Draft;
+        meta.Banner = parsed.Banner;
+        meta.Copyright = parsed.Copyright;
+        meta.Extra = parsed.Extra;
+        meta.Normalize();
+    }
+
+    /// <summary>元数据页签刷新入口：无文章出占位；YAML 态重生成源码；表单态整体重建（原型 renderMetaTab/loadArt 口径）。</summary>
+    private void RefreshMetaTab()
+    {
+        if (_current == null)
+        {
+            _metaHost.Children.Clear();
+            _metaEmpty.IsVisible = true;
+            _yamlBody.IsVisible = false;
+            _yamlWarn.IsVisible = false;
+            return;
+        }
+        _metaEmpty.IsVisible = false;
+        if (_metaYamlMode)
+        {
+            _yamlBox.Text = WrapYaml(YamlSidecar.Serialize(_current.Meta)); // YAML 态随文章重生成
+        }
+        else
+        {
+            RebuildMetaTab();
+        }
+    }
+
+    /// <summary>元数据面板 Ctrl+S：与编辑器同口径落盘。</summary>
+    private void OnPanelKey(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control) && _dirty && _current != null)
+        {
+            SaveCurrent();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>就地编辑即时写回当前文章 ViewModel 状态（原型 oninput 写回 ARTS 口径）+ 标记待保存。</summary>
+    private void MarkMetaDirty()
+    {
+        if (_loading || _metaBuilding || _current == null) return;
+        _metaDirty = true;
+        _dirty = true;
+        if (AppState.Instance.Settings.AutoSave)
+        {
+            _autoSaveTimer.Stop();
+            _autoSaveTimer.Start();
+        }
+        UpdateSaveState();
+    }
+
+    // ---------- 元数据页签表单（原型 renderMetaTab：就地编辑即时写回，不重渲染打断输入） ----------
+
+    private StackPanel RequiredLabel(string text)
+    {
+        var label = new TextBlock { Text = text, Classes = { "flabel" }, Margin = new Thickness(0, 13, 3, 5) };
+        var star = new TextBlock { Text = "*", Classes = { "flabel" }, Margin = new Thickness(0, 13, 0, 5) };
+        Res(star, TextBlock.ForegroundProperty, "VoxDanger");
+        return new StackPanel { Orientation = Orientation.Horizontal, Children = { label, star } };
+    }
+
+    private TextBlock FaintHint(string textKey, double top = 4)
+    {
+        var hint = new TextBlock { Margin = new Thickness(0, top, 0, 0), TextWrapping = TextWrapping.Wrap };
+        hint[!TextBlock.TextProperty] = I18n.Bind(textKey);
+        Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        Res(hint, TextBlock.FontSizeProperty, "VoxFontSizeXs");
+        return hint;
+    }
+
+    /// <summary>值 chip（已选分类/标签）：× 移除；悬停描边强调色。</summary>
+    private Border ValueChip(string text, Action remove)
+    {
+        var label = new TextBlock { Text = text };
+        var close = new TextBlock { Text = " ×", Opacity = 0.6, Margin = new Thickness(2, 0, 0, 0) };
+        var chip = new Border
+        {
+            Classes = { "chip" },
+            Margin = new Thickness(0, 0, 6, 6),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { label, close } },
+        };
+        chip.PointerReleased += (_, e) =>
+        {
+            e.Handled = true;
+            remove();
+        };
+        AttachChipHover(chip, label);
+        return chip;
+    }
+
+    /// <summary>候选 chip（原型 .chip.sug）：无 ×，悬停描边+文字强调色，点击选用。</summary>
+    private Border SugChip(string text, Action pick)
+    {
+        var label = new TextBlock { Text = text };
+        var chip = new Border
+        {
+            Classes = { "chip", "sug" },
+            Margin = new Thickness(0, 0, 6, 6),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Child = label,
+        };
+        chip.PointerReleased += (_, e) =>
+        {
+            e.Handled = true;
+            pick();
+        };
+        AttachChipHover(chip, label);
+        return chip;
+    }
+
+    private static void AttachChipHover(Border chip, TextBlock label)
+    {
+        chip.PointerEntered += (_, _) =>
+        {
+            Res(chip, Border.BorderBrushProperty, "VoxAccent");
+            Res(label, TextBlock.ForegroundProperty, "VoxAccent");
+        };
+        chip.PointerExited += (_, _) =>
+        {
+            Res(chip, Border.BorderBrushProperty, "VoxLine");
+            Res(label, TextBlock.ForegroundProperty, "VoxMuted");
+        };
+    }
+
+    /// <summary>封面缩略图（原型 .mt-ph：64×40 圆角 6，无封面显示「无」占位）。</summary>
+    private Control CoverThumb(string? cover)
+    {
+        if (!string.IsNullOrWhiteSpace(cover) && _repoRoot != null)
+        {
+            var coverRelative = cover.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? LinkStrategy.ToRepoRelative(cover, AppState.Instance.Settings.Link.CdnBase, _repoRoot)
+                : LinkStrategy.TrimRepoPrefix(cover, _repoRoot);
+            if (coverRelative is { Length: > 0 })
+            {
+                var local = LinkStrategy.ToLocalFile(_repoRoot, coverRelative);
+                if (File.Exists(local))
+                {
+                    try
+                    {
+                        using var stream = File.OpenRead(local);
+                        return new Border
+                        {
+                            Width = 64, Height = 40, CornerRadius = new CornerRadius(6), ClipToBounds = true,
+                            Child = new global::Avalonia.Controls.Image { Source = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, 128), Stretch = Stretch.UniformToFill },
+                        };
+                    }
+                    catch
+                    {
+                        // 解码失败走占位。
+                    }
+                }
+            }
+        }
+        var none = new TextBlock { Text = T("Vox.Write.Meta.CoverNone"), FontSize = 9 };
+        Res(none, TextBlock.ForegroundProperty, "VoxFaint");
+        var placeholder = new Border
+        {
+            Width = 64, Height = 40, CornerRadius = new CornerRadius(6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = none,
+        };
+        none.HorizontalAlignment = HorizontalAlignment.Center;
+        none.VerticalAlignment = VerticalAlignment.Center;
+        Res(placeholder, Border.BackgroundProperty, "VoxSurface2");
+        ToolTip.SetTip(placeholder, cover ?? T("Vox.Write.Meta.CoverUnset"));
+        return placeholder;
+    }
+
+    private void RebuildMetaTab()
+    {
+        _metaBuilding = true;
+        try
+        {
+            _metaHost.Children.Clear();
+            if (_current == null)
+            {
+                return;
+            }
+            var meta = _current.Meta;
+
+            // ── 状态行：draft 开关（on = 已发布）+ 平台发布状态点（网站/公众号/博客园/CSDN，数据源 PublishHub）
+            var draftSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = !meta.Draft, VerticalAlignment = VerticalAlignment.Center };
+            var draftLabel = new TextBlock { Text = meta.Draft ? T("Vox.Write.Meta.DraftState") : T("Vox.Write.Meta.PublishedState"), FontSize = Fs(11.5), VerticalAlignment = VerticalAlignment.Center };
+            draftSwitch.Click += (_, _) =>
+            {
+                meta.Draft = draftSwitch.IsChecked != true;
+                draftLabel.Text = meta.Draft ? T("Vox.Write.Meta.DraftState") : T("Vox.Write.Meta.PublishedState");
+                MarkMetaDirty();
+            };
+            var pubRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            var tips = new List<string>();
+            foreach (var channel in new[] { PublishChannel.Site, PublishChannel.WeChat, PublishChannel.Cnblogs, PublishChannel.Csdn })
+            {
+                var (status, note) = Services.PublishHub.EvaluateArticle(_current.MarkdownPath, channel);
+                var glyph = new TextBlock { Text = StatusGlyph(status), Classes = { "pm-st", StatusTone(status) }, FontSize = 12 };
+                ToolTip.SetTip(glyph, $"{ChannelName(channel)}：{note}");
+                pubRow.Children.Add(glyph);
+                tips.Add($"{ChannelName(channel)}：{note}");
+            }
+            ToolTip.SetTip(pubRow, $"{T("Vox.Write.Meta.PublishStatus")}：{string.Join(" · ", tips)}");
+            // 中间 spacer 撑开：发布状态点靠右（原型 pub-badges margin-left:auto 口径）
+            var statusRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { draftSwitch, draftLabel, new Border { HorizontalAlignment = HorizontalAlignment.Stretch }, pubRow },
+            };
+            _metaHost.Children.Add(FieldLabel(T("Vox.Write.Meta.StatusField")));
+            _metaHost.Children.Add(statusRow);
+
+            // ── 标题 *
+            _metaHost.Children.Add(RequiredLabel(T("Vox.Write.Meta.TitleField")));
+            var titleBox = new TextBox { Classes = { "vinput" }, Text = meta.Title };
+            titleBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == TextBox.TextProperty && titleBox.Text != meta.Title)
+                {
+                    meta.Title = titleBox.Text ?? string.Empty;
+                    MarkMetaDirty();
+                }
+            };
+            _metaHost.Children.Add(titleBox);
+
+            // ── slug *
+            _metaHost.Children.Add(RequiredLabel(T("Vox.Write.Meta.SlugField")));
+            var slugBox = new TextBox { Classes = { "vinput" }, Text = meta.Slug, FontFamily = MonoFont, FontSize = 11 };
+            slugBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == TextBox.TextProperty && slugBox.Text != meta.Slug)
+                {
+                    meta.Slug = slugBox.Text ?? string.Empty;
+                    MarkMetaDirty();
+                }
+            };
+            _metaHost.Children.Add(slugBox);
+
+            // ── 简述 description *
+            _metaHost.Children.Add(RequiredLabel(T("Vox.Write.Meta.DescriptionField")));
+            var descBox = new TextBox
+            {
+                Classes = { "vinput" },
+                Text = meta.Description ?? string.Empty,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                MinHeight = 26 + 3 * 17,
+                VerticalContentAlignment = VerticalAlignment.Top,
+            };
+            descBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == TextBox.TextProperty && descBox.Text != (meta.Description ?? string.Empty))
+                {
+                    meta.Description = descBox.Text;
+                    MarkMetaDirty();
+                }
+            };
+            _metaHost.Children.Add(descBox);
+
+            // ── date / lastmod *（lastmod 只读展示：保存时自动刷新，用户不可直接改——业务口径，原型为可输入仅作提示）
+            _metaHost.Children.Add(RequiredLabel(T("Vox.Write.Meta.DateField")));
+            var dateBox = new TextBox
+            {
+                Classes = { "vinput" },
+                Text = meta.Date == default ? string.Empty : meta.Date.ToString(YamlSidecar.Date_format),
+                FontFamily = MonoFont, FontSize = 11,
+                Watermark = YamlSidecar.Date_format,
+            };
+            ToolTip.SetTip(dateBox, T("Vox.Write.Meta.DateTip"));
+            dateBox.LostFocus += (_, _) =>
+            {
+                var raw = dateBox.Text?.Trim();
+                if (string.IsNullOrEmpty(raw))
+                {
+                    dateBox.Text = meta.Date == default ? string.Empty : meta.Date.ToString(YamlSidecar.Date_format);
+                    return;
+                }
+                if (TryParseDate(raw, out var parsed) && parsed != meta.Date)
+                {
+                    meta.Date = parsed;
+                    dateBox.Text = parsed.ToString(YamlSidecar.Date_format);
+                    MarkMetaDirty();
+                }
+                else
+                {
+                    dateBox.Text = meta.Date == default ? string.Empty : meta.Date.ToString(YamlSidecar.Date_format);
+                }
+            };
+            var lastmodBox = new TextBox
+            {
+                Classes = { "vinput" },
+                Text = meta.LastMod?.ToString(YamlSidecar.Date_format) ?? string.Empty,
+                FontFamily = MonoFont, FontSize = 11,
+                IsReadOnly = true,
+            };
+            ToolTip.SetTip(lastmodBox, T("Vox.Write.Meta.LastmodTip"));
+            var dateRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,6,*") };
+            dateRow.Children.Add(dateBox);
+            Grid.SetColumn(lastmodBox, 2);
+            dateRow.Children.Add(lastmodBox);
+            _metaHost.Children.Add(dateRow);
+            _metaHost.Children.Add(FaintHint("Vox.Write.Meta.LastmodHint"));
+
+            // ── 分类 categories（受控于 site/categories.json 展示名）
+            var catHead = new StackPanel { Orientation = Orientation.Horizontal };
+            var catLabel = new TextBlock { Text = T("Vox.Write.Meta.CategoriesField"), Classes = { "flabel" }, Margin = new Thickness(0, 13, 5, 5) };
+            var catScope = new TextBlock { Text = T("Vox.Write.Meta.CategoriesControlled"), FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 6) };
+            Res(catScope, TextBlock.ForegroundProperty, "VoxFaint");
+            catHead.Children.Add(catLabel);
+            catHead.Children.Add(catScope);
+            _metaHost.Children.Add(catHead);
+            var catChips = new WrapPanel();
+            var catCands = new WrapPanel { IsVisible = false };
+            void RebuildCats()
+            {
+                catChips.Children.Clear();
+                for (var i = 0; i < meta.Categories.Count; i++)
+                {
+                    var index = i;
+                    catChips.Children.Add(ValueChip(meta.Categories[i], () =>
+                    {
+                        meta.Categories.RemoveAt(index);
+                        MarkMetaDirty();
+                        RebuildMetaTab();
+                    }));
+                }
+                var add = new Border
+                {
+                    Classes = { "chip", "add" },
+                    Margin = new Thickness(0, 0, 6, 6),
+                    Child = new TextBlock { Text = "＋" },
+                };
+                add.PointerReleased += (_, e) =>
+                {
+                    e.Handled = true;
+                    if (catCands.IsVisible)
+                    {
+                        catCands.IsVisible = false;
+                        return;
+                    }
+                    catCands.Children.Clear();
+                    var rest = _siteCats.Where(c => !meta.Categories.Contains(c)).ToList();
+                    if (rest.Count == 0)
+                    {
+                        var usedUp = new TextBlock { Text = T("Vox.Write.Meta.CategoryAllUsed"), FontSize = Fs(10.5) };
+                        Res(usedUp, TextBlock.ForegroundProperty, "VoxFaint");
+                        catCands.Children.Add(usedUp);
+                    }
+                    else
+                    {
+                        foreach (var candidate in rest)
+                        {
+                            catCands.Children.Add(SugChip(candidate, () =>
+                            {
+                                meta.Categories.Add(candidate);
+                                MarkMetaDirty();
+                                RebuildMetaTab();
+                            }));
+                        }
+                    }
+                    catCands.IsVisible = true;
+                };
+                AttachChipHover(add, (TextBlock)add.Child!);
+                catChips.Children.Add(add);
+            }
+            RebuildCats();
+            _metaHost.Children.Add(catChips);
+            _metaHost.Children.Add(catCands);
+
+            // ── 标签 tags（计数徽标 ≤5；回车自由添加；联想全库已有标签）
+            var tagCount = meta.Tags.Count;
+            var tagBadge = tagCount > 5
+                ? Badge(TF("Vox.Write.Meta.TagOverLimitFmt", tagCount), "warn")
+                : tagCount == 5
+                    ? Badge(T("Vox.Write.Meta.TagLimitReached"), "warn")
+                    : Badge(TF("Vox.Write.Meta.TagCountFmt", tagCount));
+            var tagHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            tagHead.Children.Add(new TextBlock { Text = T("Vox.Write.Meta.TagsField"), Classes = { "flabel" }, Margin = new Thickness(0, 13, 0, 5) });
+            var tagBadgeHost = new Border { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 8), Child = tagBadge };
+            tagHead.Children.Add(tagBadgeHost);
+            _metaHost.Children.Add(tagHead);
+
+            var tagChips = new WrapPanel();
+            foreach (var tag in meta.Tags.ToList())
+            {
+                var captured = tag;
+                tagChips.Children.Add(ValueChip(captured, () =>
+                {
+                    meta.Tags.Remove(captured);
+                    MarkMetaDirty();
+                    RebuildMetaTab();
+                }));
+            }
+            _metaHost.Children.Add(tagChips);
+
+            var tagInput = new TextBox
+            {
+                Classes = { "vinput" },
+                FontSize = 11,
+                MinHeight = 28,
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            tagInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Write.Meta.TagInputPlaceholder");
+            tagInput.KeyDown += (_, e) =>
+            {
+                if (e.Key != Key.Enter) return;
+                e.Handled = true;
+                var value = tagInput.Text?.Trim() ?? string.Empty;
+                if (value.Length == 0) return;
+                if (meta.Tags.Contains(value))
+                {
+                    _shell.ShowToast(TF("Vox.Write.Meta.TagExists", value));
+                    return;
+                }
+                meta.Tags.Add(value);
+                MarkMetaDirty();
+                RebuildMetaTab();
+            };
+            _metaHost.Children.Add(tagInput);
+            if (meta.Tags.Count >= 5)
+            {
+                _metaHost.Children.Add(FaintHint("Vox.Write.Meta.TagOverHint"));
+            }
+
+            var tagSugs = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            var sugChips = new List<(Border Chip, string Tag)>();
+            var pool = AppState.Instance.Scan?.Articles
+                .SelectMany(a => a.Meta.Tags)
+                .Where(t => !string.IsNullOrWhiteSpace(t) && !meta.Tags.Contains(t))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(t => t, StringComparer.Ordinal)
+                .Take(8)
+                .ToList() ?? [];
+            foreach (var tag in pool)
+            {
+                var chip = SugChip(tag, () =>
+                {
+                    // 达到上限仍可点选（原型不拦截），计数徽标已黄条警示，发布前请精简
+                    meta.Tags.Add(tag);
+                    MarkMetaDirty();
+                    RebuildMetaTab();
+                });
+                sugChips.Add((chip, tag));
+                tagSugs.Children.Add(chip);
+            }
+            tagInput.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != TextBox.TextProperty) return;
+                var query = (tagInput.Text ?? string.Empty).Trim();
+                foreach (var (chip, tag) in sugChips)
+                {
+                    chip.IsVisible = query.Length == 0 || tag.Contains(query, StringComparison.OrdinalIgnoreCase);
+                }
+            };
+            _metaHost.Children.Add(tagSugs);
+
+            // ── 封面 cover（缩略图 + 路径 + 更换/从正文选/从图片库选）
+            _metaHost.Children.Add(FieldLabel(T("Vox.Write.Meta.CoverField")));
+            var coverPath = new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(meta.Cover) ? T("Vox.Write.Meta.CoverUnset") : meta.Cover,
+                FontFamily = MonoFont,
+                FontSize = Fs(9.5),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(coverPath, TextBlock.ForegroundProperty, "VoxFaint");
+            _metaHost.Children.Add(new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { CoverThumb(meta.Cover), coverPath },
+            });
+            var coverBtns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 6, 0, 0) };
+            var pickFromLibrary = new Button { Classes = { "btn", "sm" } };
+            pickFromLibrary[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.CoverPick");
+            pickFromLibrary.Click += (_, _) => _shell.ShowPage("images"); // 图片库详情面板「设为封面」写回 cover
+            var pickFromBody = new Button { Classes = { "btn", "sm", "ghost" } };
+            pickFromBody[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.CoverFromBody");
+            pickFromBody.Click += (_, _) => BuildBodyCoverFlyout(pickFromBody).ShowAt(pickFromBody);
+            var pickFromImages = new Button { Classes = { "btn", "sm", "ghost" } };
+            pickFromImages[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.CoverFromLibrary");
+            pickFromImages.Click += (_, _) => _shell.ShowPage("images");
+            coverBtns.Children.Add(pickFromLibrary);
+            coverBtns.Children.Add(pickFromBody);
+            coverBtns.Children.Add(pickFromImages);
+            _metaHost.Children.Add(coverBtns);
+
+            // ── ▸ 高级（banner · copyright · 自定义键值对；往返保真）
+            var advBody = new StackPanel { IsVisible = false };
+            var advCaret = new TextBlock { Text = "▸", FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Center };
+            var advTitle = new TextBlock { Text = T("Vox.Write.Meta.Advanced"), FontSize = Fs(10.5), FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+            Res(advTitle, TextBlock.ForegroundProperty, "VoxMuted");
+            var advHint = new TextBlock { Text = T("Vox.Write.Meta.AdvancedHint"), FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+            Res(advHint, TextBlock.ForegroundProperty, "VoxFaint");
+            var advToggle = new Button
+            {
+                Classes = { "btn", "ghost", "sm" },
+                Padding = new Thickness(0, 4),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 12, 0, 0),
+                Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { advCaret, advTitle, advHint } },
+            };
+            advToggle.Click += (_, _) =>
+            {
+                advBody.IsVisible = !advBody.IsVisible;
+                advCaret.Text = advBody.IsVisible ? "▾" : "▸";
+            };
+            _metaHost.Children.Add(advToggle);
+            _metaHost.Children.Add(advBody);
+
+            // 高级 · banner
+            var bannerSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = meta.Banner == true, VerticalAlignment = VerticalAlignment.Center };
+            bannerSwitch.Click += (_, _) =>
+            {
+                meta.Banner = bannerSwitch.IsChecked == true;
+                MarkMetaDirty();
+            };
+            var bannerLabel = new TextBlock { Text = T("Vox.Write.Meta.BannerField"), FontSize = Fs(11.5), VerticalAlignment = VerticalAlignment.Center };
+            var bannerHint = new TextBlock { Text = T("Vox.Write.Meta.BannerDesc"), FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+            Res(bannerHint, TextBlock.ForegroundProperty, "VoxFaint");
+            advBody.Children.Add(new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { bannerSwitch, bannerLabel, bannerHint },
+            });
+
+            // 高级 · copyright（留空 = 原创；历史文章可能带 copyright: Original）
+            var crLabel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 13, 0, 0) };
+            var crText = new TextBlock { Text = T("Vox.Write.Meta.CopyrightField"), Classes = { "flabel" }, Margin = new Thickness(0, 0, 5, 0) };
+            var crHint = new TextBlock { Text = T("Vox.Write.Meta.CopyrightHint"), FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 5) };
+            Res(crHint, TextBlock.ForegroundProperty, "VoxFaint");
+            crLabel.Children.Add(crText);
+            crLabel.Children.Add(crHint);
+            advBody.Children.Add(crLabel);
+            var crBox = new TextBox
+            {
+                Classes = { "vinput" },
+                Text = meta.Copyright ?? string.Empty,
+            };
+            crBox[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Write.Meta.CopyrightPlaceholder");
+            crBox.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != TextBox.TextProperty) return;
+                var value = crBox.Text?.Trim();
+                var next = string.IsNullOrEmpty(value) ? null : value;
+                if (next != meta.Copyright)
+                {
+                    meta.Copyright = next;
+                    MarkMetaDirty();
+                }
+            };
+            advBody.Children.Add(crBox);
+
+            // 高级 · 自定义键值对（未知字段往返保真；标量可编辑，复杂结构提示走 YAML）
+            var kvLabel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 13, 0, 0) };
+            var kvText = new TextBlock { Text = T("Vox.Write.Meta.CustomKeys"), Classes = { "flabel" }, Margin = new Thickness(0, 0, 5, 0) };
+            var kvHint = new TextBlock { Text = T("Vox.Write.Meta.CustomKeysHint"), FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 5) };
+            Res(kvHint, TextBlock.ForegroundProperty, "VoxFaint");
+            kvLabel.Children.Add(kvText);
+            kvLabel.Children.Add(kvHint);
+            advBody.Children.Add(kvLabel);
+            if (meta.Extra.Count == 0)
+            {
+                var emptyKv = new TextBlock { Text = T("Vox.Write.Meta.CustomKeyEmpty"), FontSize = Fs(10.5), Margin = new Thickness(0, 4, 0, 0) };
+                Res(emptyKv, TextBlock.ForegroundProperty, "VoxFaint");
+                advBody.Children.Add(emptyKv);
+            }
+            for (var i = 0; i < meta.Extra.Count; i++)
+            {
+                advBody.Children.Add(BuildExtraRow(meta, i));
+            }
+            var kvAdd = new Button { Classes = { "btn", "sm", "ghost" }, Margin = new Thickness(0, 6, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Left };
+            kvAdd[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.CustomKeyAdd");
+            kvAdd.Click += (_, _) =>
+            {
+                var n = 1;
+                while (meta.Extra.Any(f => string.Equals(f.Key, $"custom{n}", StringComparison.Ordinal))) n++;
+                meta.Extra.Add(MetaExtraField.Scalar($"custom{n}", string.Empty));
+                MarkMetaDirty();
+                RebuildMetaTab();
+            };
+            advBody.Children.Add(kvAdd);
+        }
+        finally
+        {
+            _metaBuilding = false;
+        }
+    }
+
+    /// <summary>自定义键值对行：改键（防重名）/改值/删除，全部即时写回 Extra（原型 data-kv 行口径）。</summary>
+    private Control BuildExtraRow(ArticleMeta meta, int index)
+    {
+        var field = meta.Extra[index];
+        var keyBox = new TextBox
+        {
+            Classes = { "vinput" }, Text = field.Key,
+            FontFamily = MonoFont, FontSize = 10.5, MinHeight = 26,
+        };
+        var valBox = new TextBox
+        {
+            Classes = { "vinput" }, FontSize = 10.5, MinHeight = 26,
+            IsEnabled = field.IsScalar,
+            Text = field.IsScalar ? field.ScalarText ?? string.Empty : field.SequenceSummary ?? "…",
+        };
+        if (!field.IsScalar)
+        {
+            ToolTip.SetTip(valBox, T("Vox.Write.Meta.CustomKeyComplex"));
+        }
+        var del = new Button
+        {
+            Classes = { "btn", "ghost", "sm" },
+            Content = "×",
+            Padding = new Thickness(7, 0, 7, 2),
+            FontSize = 12,
+        };
+        ToolTip.SetTip(del, T("Vox.Write.Meta.CustomKeyRemove"));
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 0, 0, 6) };
+        row.Children.Add(keyBox);
+        row.Children.Add(valBox);
+        row.Children.Add(del);
+
+        keyBox.Width = 96;
+        keyBox.HorizontalAlignment = HorizontalAlignment.Left;
+        keyBox.LostFocus += (_, _) =>
+        {
+            var next = keyBox.Text?.Trim() ?? string.Empty;
+            var oldKey = meta.Extra[index].Key;
+            if (next.Length == 0 || next == oldKey)
+            {
+                keyBox.Text = oldKey;
+                return;
+            }
+            if (meta.Extra.Any(f => string.Equals(f.Key, next, StringComparison.Ordinal)))
+            {
+                _shell.ShowToast(TF("Vox.Write.Meta.CustomKeyExists", next));
+                keyBox.Text = oldKey;
+                return;
+            }
+            meta.Extra[index] = meta.Extra[index] with { Key = next };
+            MarkMetaDirty();
+        };
+        valBox.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            if (!meta.Extra[index].IsScalar) return;
+            if (valBox.Text != (meta.Extra[index].ScalarText ?? string.Empty))
+            {
+                meta.Extra[index] = MetaExtraField.Scalar(meta.Extra[index].Key, valBox.Text ?? string.Empty);
+                MarkMetaDirty();
+            }
+        };
+        del.Click += (_, _) =>
+        {
+            meta.Extra.RemoveAt(index);
+            MarkMetaDirty();
+            RebuildMetaTab();
+        };
+        return row;
+    }
+
+    /// <summary>「从正文选」封面弹层：正文插图（前 12 张）缩略格，点选即写回 cover（复用 SetCoverImage 落盘链路）。</summary>
+    private Flyout BuildBodyCoverFlyout(Button host)
+    {
+        var wrap = new WrapPanel { Width = 336 };
+        var refs = _current?.ImageReferences.Where(p => !p.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)).Take(12).ToList() ?? [];
+        if (refs.Count == 0)
+        {
+            var empty = new TextBlock { Text = T("Vox.Write.Meta.CoverNoBodyImages"), FontSize = Fs(11), Margin = new Thickness(4, 2, 4, 2) };
+            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
+            wrap.Children.Add(empty);
+        }
+        foreach (var reference in refs)
+        {
+            var cell = new Border
+            {
+                Width = 76, Height = 52, CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 6, 6),
+                ClipToBounds = true,
+                Cursor = new Cursor(StandardCursorType.Hand),
+            };
+            try
+            {
+                var local = LinkStrategy.ToLocalFile(_repoRoot!, reference);
+                if (File.Exists(local))
+                {
+                    using var stream = File.OpenRead(local);
+                    cell.Child = new global::Avalonia.Controls.Image { Source = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, 152), Stretch = Stretch.UniformToFill };
+                }
+            }
+            catch
+            {
+                // 解码失败显示占位底色。
+            }
+            Res(cell, Border.BackgroundProperty, "VoxSurface2");
+            ToolTip.SetTip(cell, reference);
+            var captured = reference;
+            cell.PointerReleased += (_, e) =>
+            {
+                e.Handled = true;
+                if (SetCoverImage(captured)) RefreshMetaTab();
+                if (host.Flyout is { } flyout) flyout.Hide();
+            };
+            wrap.Children.Add(cell);
+        }
+        return new Flyout
+        {
+            Placement = PlacementMode.Top,
+            ShowMode = FlyoutShowMode.Standard,
+            Content = PopWrap(new ScrollViewer { MaxHeight = 240, Content = wrap }),
+        };
+    }
+
+    private static bool TryParseDate(string text, out DateTime date)
+    {
+        if (DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date)) return true;
+        return DateTime.TryParse(text, System.Globalization.CultureInfo.CurrentCulture, System.Globalization.DateTimeStyles.None, out date);
+    }
+
+    /// <summary>发布状态点样式类（ok/stale/off/err，与 .pm-st 类名一致）。</summary>
+    private static string StatusTone(PublishStatus status) => status switch
+    {
+        PublishStatus.Ok => "ok",
+        PublishStatus.Stale => "stale",
+        PublishStatus.Error => "err",
+        _ => "off",
+    };
 
     /// <summary>面板折叠把手：展开时面板卡内左下角，收起时骑视图区右缘垂直居中。
     /// 图标用 Viewbox + LucideIcon（24 画布整体等比缩放居中），替代手绘 Path 保证圆内几何居中。</summary>
@@ -1211,6 +2139,7 @@ public sealed class WritePage : UserControl
                 col.MaxWidth = 460;
                 col.Width = new GridLength(Math.Max(240, _lastPanelWidth));
                 RebuildOutline(); // 展开即刷新，保证有文章时大纲有内容、无文章时显示占位。
+                if (_panelTab == 1) RefreshMetaTab(); // 元数据页签同口径：展开即刷新（发布状态点/表单随当前文章）
             }
             else
             {
@@ -1272,6 +2201,8 @@ public sealed class WritePage : UserControl
         var root = AppState.Instance.CurrentRepoRoot;
         if (root == _repoRoot) return;
         _repoRoot = root;
+        // 分类受控候选：site/categories.json 展示名随仓库切换重载（不硬编码）。
+        _siteCats = root == null ? [] : SiteCategories.LoadDisplayNames(root);
 
         if (_repoRoot == null)
         {
@@ -1281,6 +2212,7 @@ public sealed class WritePage : UserControl
             _outlineHost.Children.Clear();
             _outlineEmpty.IsVisible = true;
             _mapView.Root = null;
+            RefreshMetaTab();
             UpdateBadges();
             return;
         }
@@ -1310,6 +2242,7 @@ public sealed class WritePage : UserControl
             _preview.ImageBasePath = Path.GetDirectoryName(file);
             _preview.Markdown = body;
             _dirty = false;
+            _metaDirty = false; // 切文章：上一篇的未保存元数据编辑已随 SaveCurrent 落盘（或放弃）
             _autoSaveTimer.Stop();
             StopWatcher();
             ApplyAutoSaveMode();
@@ -1318,6 +2251,7 @@ public sealed class WritePage : UserControl
             UpdateBadges();
             RebuildOutline();
             RebuildMap();
+            RefreshMetaTab(); // 元数据页签随文章切换重渲染（YAML 态同样重新生成）
             ReloadArticles();
         }
         finally
@@ -1355,16 +2289,35 @@ public sealed class WritePage : UserControl
                     : "Vox.Write.Status.ExternalBlocked"));
                 return false;
             }
-            // 保存前重读磁盘剥离最新 front matter（元数据弹层可能改过），
-            // 与编辑器正文按库存格式拼接回写：---\n{yaml}\n---\n\n{body}（见 YamlSidecar.SerializeInline）；
-            // 正文仅去掉头部空行（避免与分隔符拼出双空行且逐次漂移），其余原样保留。
-            var frontMatter = string.Empty;
+            // 保存前重读磁盘剥离最新 front matter，与编辑器正文按库存格式拼接回写：
+            // ---\n{yaml}\n---\n\n{body}；正文仅去掉头部空行（避免与分隔符拼出双空行且逐次漂移）。
+            // 元数据口径：面板/弹层就地编辑写回 _current.Meta，_metaDirty 时合并写回 md 头部
+            //（lastmod 自动刷新，用户不可直接改）；未编辑则 front matter 原样保留（不重排键序、不刷 lastmod）。
+            var diskYaml = string.Empty;
             if (File.Exists(file))
             {
-                YamlSidecar.TrySplitFrontMatter(File.ReadAllText(file), out frontMatter, out _);
+                YamlSidecar.TrySplitFrontMatter(File.ReadAllText(file), out diskYaml, out _);
             }
             var body = _editorView.Text.TrimStart('\r', '\n');
-            var content = frontMatter.Length > 0 ? $"---\n{frontMatter}\n---\n\n{body}" : body;
+            string content;
+            if (_metaDirty)
+            {
+                if (diskYaml.Length > 0 && YamlSidecar.TryParseFrontMatter(diskYaml, out var diskMeta, out _)
+                    && YamlSidecar.MetadataEquals(diskMeta, _current.Meta))
+                {
+                    // 磁盘已是当前元数据（如弹层刚保存过）：不再刷 lastmod，仅按当前元数据重写头块
+                }
+                else
+                {
+                    _current.Meta.LastMod = DateTime.Now; // lastmod 保存时自动更新
+                }
+                content = YamlSidecar.ComposeMarkdown(_current.Meta, body);
+            }
+            else
+            {
+                content = diskYaml.Length > 0 ? $"---\n{diskYaml}\n---\n\n{body}" : body;
+            }
+            _metaDirty = false;
             File.WriteAllText(file, content);
             _diskBaseline = content;
             _dirty = false;
@@ -1459,9 +2412,17 @@ public sealed class WritePage : UserControl
         _preview.Markdown = body;
         _diskBaseline = disk;
         _dirty = false;
+        // 磁盘为唯一真值：外部改写后元数据一并以磁盘为准（front matter 解析失败则保持内存值不动）。
+        if (YamlSidecar.TrySplitFrontMatter(disk, out var externalYaml, out _) && externalYaml.Length > 0
+            && YamlSidecar.TryParseFrontMatter(externalYaml, out var externalMeta, out _))
+        {
+            ApplyMeta(externalMeta);
+        }
+        _metaDirty = false;
         UpdateBadges();
         RebuildOutline();
         RebuildMap();
+        RefreshMetaTab(); // 元数据页签同步磁盘最新（YAML 态同样重生成）
         UpdateSaveState();
         _shell.ShowToast(T(hadUnsavedEdits
             ? "Vox.Write.Status.ExternalReloadedWithUnsavedEdits"
@@ -2169,7 +3130,7 @@ public sealed class WritePage : UserControl
         }));
     }
 
-    /// <summary>文章元数据弹层（原面板元数据页签迁移为 MetaModal）。</summary>
+    /// <summary>文章元数据弹层（「在弹层中编辑全部…」/文件菜单入口；面板元数据页签的就地编辑之外承载全量编辑）。</summary>
     public void OpenMeta()
     {
         if (_current == null || _repoRoot == null)
@@ -2241,6 +3202,7 @@ public sealed class WritePage : UserControl
             Services.PublishHub.Invalidate();
             AppState.Instance.NotifyRepoChanged();
             UpdateBadges();
+            RefreshMetaTab(); // 封面行缩略图/路径即时跟随
             return true;
         }
         catch (Exception ex)
