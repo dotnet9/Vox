@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" data-accent="green">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=58">
+<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=59">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -166,13 +166,26 @@
         </div>
       </div>
       <div class="wpanel off" id="wpanel">
+        <!-- 面板双页签：大纲 | 元数据（seg 分段切换；元数据随 loadArt 刷新，就地编辑即时写回 ARTS） -->
+        <div class="wp-segbar"><div class="seg" id="panelSeg"><button data-t="outline" class="active">大纲</button><button data-t="meta">元数据</button></div></div>
         <div class="wtab active" data-tab="outline" id="outlineTab">
-          <div class="outl">
+          <div class="outl" id="outlLinks">
             <a>· 现象</a><a>· 排查过程</a><a class="l3">Dependencies 重扫</a><a class="l3">Skia 原生层</a><a>· 依赖链图解</a><a>· 结论</a>
           </div>
-          <div class="f-label">正文任务</div><div class="chips"><span class="badge ok">2 / 3 已完成</span></div>
+          <div class="f-label">正文任务</div><div class="chips" id="outlTask"><span class="badge ok">2 / 3 已完成</span></div>
         </div>
+        <!-- 元数据页签：表单 | YAML 双模式；metaBody 由 renderMetaTab 渲染 -->
+        <div class="wtab" data-tab="meta" id="metaTab">
+          <div class="wp-metabar"><div class="seg" id="metaModeSeg"><button data-m="form" class="active">表单</button><button data-m="yaml">YAML</button></div></div>
+          <div class="note warn" id="yamlWarn" style="display:none;margin:0 0 10px"></div>
+          <div id="metaBody"></div>
+          <div id="yamlBody" style="display:none">
+            <div class="desc" style="color:var(--faint);font-size:0.8077rem;margin:0 0 6px">front matter 由当前元数据生成（内嵌 .md 文件头部）· 未知字段原样保留，可直接编辑</div>
+            <textarea class="input mono" id="metaYaml" rows="20" spellcheck="false" style="line-height:1.8;resize:vertical;font-size:0.8077rem"></textarea>
+          </div>
+          <button class="btn sm" style="width:100%;margin-top:12px" onclick="openMetaModal()">在弹层中编辑全部…</button>
         </div>
+      </div>
       </div>
     </div>
     </div><!-- /write-body -->
@@ -660,24 +673,24 @@ draft: true
   <div class="mf"><button class="btn primary" onclick="closeModal('mPlatformCfg');toast('平台账户已保存（系统凭据管理器）')">保存</button></div>
 </div></div>
 
-<!-- ============ 弹层：文章元数据（面板页签下线后由此承载） ============ -->
+<!-- ============ 弹层：文章元数据（右侧面板「元数据」页签的就地编辑之外，弹层保留承载全量编辑；打开时读取当前文章） ============ -->
 <div class="mask" id="mMeta"><div class="modal">
   <div class="mh"><h3>文章元数据</h3><span class="x" onclick="closeModal('mMeta')">×</span></div>
   <div class="mb">
           <div class="sdesc" style="margin:-4px 0 10px">元数据内嵌于文章文件头部（front matter）：展示时拆分为内容与元数据两区，保存时合并写回同一 .md 文件</div>
           <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>
-          <div class="f-label">标题</div><input class="input" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
-          <div class="f-label">slug</div><input class="input mono" value="dotnet-native-aot-win7-skia-dependency" style="font-size:0.8462rem">
-          <div class="f-label">简述 description</div><textarea class="input" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
-          <div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" value="2026-09-28 20:00:00" style="font-size:0.8462rem">
-          <div class="f-label">分类</div><div class="chips"><span class="chip">.NET <i>×</i></span><span class="chip add">＋</span></div>
-          <div class="f-label">标签</div><div class="chips"><span class="chip">Native AOT <i>×</i></span><span class="chip">SkiaSharp <i>×</i></span><span class="chip">Win7 <i>×</i></span><span class="chip add">＋</span></div>
+          <div class="f-label">标题</div><input class="input" id="mmTitle" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
+          <div class="f-label">slug</div><input class="input mono" id="mmSlug" value="dotnet-native-aot-win7-skia-dependency" style="font-size:0.8462rem">
+          <div class="f-label">简述 description</div><textarea class="input" id="mmDesc" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
+          <div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" id="mmDate" value="2026-09-28 20:00:00" style="font-size:0.8462rem">
+          <div class="f-label">分类</div><div class="chips" id="mmCats"><span class="chip">.NET <i>×</i></span><span class="chip add">＋</span></div>
+          <div class="f-label">标签</div><div class="chips" id="mmTags"><span class="chip">Native AOT <i>×</i></span><span class="chip">SkiaSharp <i>×</i></span><span class="chip">Win7 <i>×</i></span><span class="chip add">＋</span></div>
           <div class="f-label">作者 / 状态</div>
-          <div class="row"><input class="input" value="Dotnet9"><span class="switch on" data-switch></span><span style="font-size:0.8846rem">已发布</span></div>
+          <div class="row"><input class="input" id="mmAuthor" value="Dotnet9"><span class="switch on" data-switch id="mmDraft"></span><span style="font-size:0.8846rem">已发布</span></div>
         </div>
   <div class="mf">
     <button class="btn" onclick="closeModal('mMeta')">取消</button>
-    <button class="btn primary" onclick="closeModal('mMeta');toast('元数据已保存（front matter 写回）')">保存</button>
+    <button class="btn primary" onclick="closeModal('mMeta');saveMetaModal()">保存</button>
   </div>
 </div></div>
 
@@ -843,27 +856,35 @@ document.addEventListener('keydown',e=>{
 /* ---------- 文章数据与列表 ---------- */
 const ARTS={
 aot:{year:'2026',path:'2026/09',title:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',slug:'dotnet-native-aot-win7-skia-dependency',date:'2026-09-28 20:00',min:8,cats:['.NET'],tags:['Native AOT','SkiaSharp','Win7'],draft:false,g:'g1',cur:15,desc:'记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。',
+ lastmod:'2026-10-02 20:00',cover:'2026/09/dotnet-native-aot-win7-skia-dependency-chain.svg',banner:true,x:{series:'AOT 排查系列'},pub:['ok','stale','off','off'],
  lines:[['h','# .NET Native AOT 依赖 Win7：Skia 依赖链排查记'],['',''],['','最近把一个 SkiaSharp 桌面程序用 Native AOT 编译，'],['','结果在 Win7 上启动即崩。本文记录整条排查链。'],['',''],['h2','## 现象'],['',''],['','启动即崩，事件查看器只有一句 0xc0000135……'],['',''],['h2','## 排查过程'],['',''],['tk','- [x] 用 Dependencies 重扫依赖树'],['tk','- [x] 确认 SkiaSharp 原生层引入了 libSkiaSharp.dll'],['tk','- [ ] 验证 VC 运行库在 Win7 上的可用性'],['',''],['img','![依赖链](2026/09/dotnet-native-aot-win7-skia-dependency-chain.svg)'],['',''],['h2','## 结论'],['',''],['bq','> AOT 之后没有 JIT 兜底，任何一个隐式依赖都会在启动时现形。']],
  prev:'<p>最近把一个 SkiaSharp 桌面程序用 Native AOT 编译，结果在 Win7 上启动即崩。本文记录整条排查链。</p><h2>现象</h2><p>启动即崩，事件查看器只有一句 <code>0xc0000135</code>……</p><h2>排查过程</h2><div class="task done"><i></i>用 Dependencies 重扫依赖树</div><div class="task done"><i></i>确认 SkiaSharp 原生层引入了 libSkiaSharp.dll</div><div class="task"><i></i>验证 VC 运行库在 Win7 上的可用性</div><div class="codeblock"><div class="cb-h">诊断流程 · …-chain.svg<span class="spacer"></span>查看原图</div><div class="ph g1" style="height:92px;border-radius:0"></div></div><h2>结论</h2><blockquote>AOT 之后没有 JIT 兜底，任何一个隐式依赖都会在启动时现形。</blockquote>'},
 qtzu:{year:'2026',path:'2026/09',title:'qtzu：一个 3D 英语学习游戏的开源实现',slug:'qtzu-3d-english-learning-game',date:'2026-09-21 20:00',min:11,cats:['C#开源项目'],tags:['OpenGL','游戏'],draft:false,g:'g2',cur:8,desc:'城市探索 + 宠物牧场 + 单词关卡，C# + OpenGL 的开源 3D 英语学习游戏。',
+ cover:'2026/09/qtzu-city-panorama.jpg',pub:['ok','ok','ok','err'],
  lines:[['h','# qtzu：一个 3D 英语学习游戏的开源实现'],['',''],['','用 C# + OpenGL 做了一个 3D 英语学习游戏 qtzu，'],['','城市探索 + 宠物牧场 + 单词关卡，代码全部开源。'],['',''],['h2','## 玩法概览'],['',''],['img','![城市全景](2026/09/qtzu-city-panorama.jpg)'],['',''],['h2','## 技术栈'],['',''],['','- OpenGL 4.5 + OpenAL 音效'],['','- Tiled 地图 / 自研轻量 ECS'],['','- 目标 .NET 10，支持 Windows 与 Linux']],
  prev:'<p>用 C# + OpenGL 做了一个 3D 英语学习游戏 qtzu，城市探索 + 宠物牧场 + 单词关卡，代码全部开源。</p><h2>玩法概览</h2><div class="codeblock"><div class="cb-h">qtzu-city-panorama.jpg<span class="spacer"></span>查看原图</div><div class="ph g2" style="height:110px;border-radius:0"></div></div><h2>技术栈</h2><div class="task"><i></i>OpenGL 4.5 + OpenAL 音效</div><div class="task"><i></i>Tiled 地图 / 自研轻量 ECS</div><div class="task"><i></i>目标 .NET 10，支持 Windows 与 Linux</div>'},
 exp:{year:'2026',path:'2026/05',title:'Markdown 一键导出社媒配图实战',slug:'codewf-markdown-export-images-social-copy',date:'2026-05-12 20:00',min:6,cats:['工具'],tags:['Markdown'],draft:false,g:'g3',cur:11,desc:'把博客关键图快速导出为社媒尺寸配图的一条自动化管线。',
+ pub:['ok','off','ok','off'],
  lines:[['h','# Markdown 一键导出社媒配图实战'],['',''],['','把博客文章里的关键图快速导出为社媒尺寸配图，'],['','本文给出一条可复用的自动化管线。'],['',''],['h2','## 思路'],['',''],['','- 解析 md 抽出图片与标题'],['','- 按平台裁切：公众号 900×383 / 小红书 1080×1440'],['',''],['bq','> 本文是仓库里唯一使用相对路径引用图片的文章'],['',''],['h2','## 小结'],['',''],['','- 模板化 + 批处理，5 分钟出全套配图']],
  prev:'<p>把博客文章里的关键图快速导出为社媒尺寸配图，本文给出一条可复用的自动化管线。</p><h2>思路</h2><div class="task"><i></i>解析 md 抽出图片与标题</div><div class="task"><i></i>按平台裁切：公众号 900×383 / 小红书 1080×1440</div><blockquote>本文是仓库里唯一使用相对路径引用图片的文章</blockquote><h2>小结</h2><p>模板化 + 批处理，5 分钟出全套配图。</p>'},
 di:{year:'2025',path:'2025/03',title:'自己动手写依赖注入框架',slug:'write-your-own-di-container',date:'2025-03-08 20:00',min:2,cats:['.NET'],tags:['DI','源码'],draft:true,g:'g5',cur:11,desc:'（草稿）从零实现一个最小 IoC 容器，讲清注册、解析与生命周期。',
+ copyright:'Original',pub:['off','off','off','off'],
  lines:[['h','# 自己动手写依赖注入框架'],['',''],['bq','> 草稿：大纲阶段，勿外传'],['',''],['h2','## 背景'],['',''],['','- 想讲清 IoC 容器的三要素：注册、解析、生命周期'],['',''],['h2','## 大纲'],['',''],['tk','- [ ] 最小可用版：100 行实现'],['tk','- [ ] 单例 / 瞬态 / 作用域'],['tk','- [ ] 循环依赖检测'],['tk','- [ ] 与 MS.DI 的基准对比']],
  prev:'<blockquote>草稿：大纲阶段，勿外传</blockquote><h2>背景</h2><p>想讲清 IoC 容器的三要素：注册、解析、生命周期。</p><h2>大纲</h2><div class="task"><i></i>最小可用版：100 行实现</div><div class="task"><i></i>单例 / 瞬态 / 作用域</div><div class="task"><i></i>循环依赖检测</div>'},
 sq:{year:'2024',path:'2024/12',title:'SQLite 在桌面应用中的 12 个最佳实践',slug:'sqlite-desktop-12-best-practices',date:'2024-12-02 20:00',min:9,cats:['数据库'],tags:['SQLite'],draft:false,g:'g6',cur:7,desc:'WAL、busy_timeout、连接池……桌面应用里把 SQLite 用稳的 12 条军规。',
+ copyright:'Original',pub:['ok','ok','off','off'],
  lines:[['h','# SQLite 在桌面应用中的 12 个最佳实践'],['',''],['','桌面场景没有 DBA，SQLite 的坑要提前绕开。'],['',''],['h2','## 清单速览'],['',''],['','- WAL 模式 + busy_timeout 是标配'],['','- 单写多读：一个写连接 + 只读连接池'],['','- 索引要在数据量小的时候就建好'],['',''],['h2','## 展开'],['',''],['','逐条展开前 6 条，后 6 条下篇再谈。']],
  prev:'<p>桌面场景没有 DBA，SQLite 的坑要提前绕开。</p><h2>清单速览</h2><div class="task"><i></i>WAL 模式 + busy_timeout 是标配</div><div class="task"><i></i>单写多读：一个写连接 + 只读连接池</div><div class="task"><i></i>索引要在数据量小的时候就建好</div><h2>展开</h2><p>逐条展开前 6 条，后 6 条下篇再谈。</p>'},
 av:{year:'2024',path:'2024/06',title:'Avalonia 自绘控件的渲染管线剖析',slug:'avalonia-custom-control-render-pipeline',date:'2024-06-18 20:00',min:14,cats:['Avalonia'],tags:['Avalonia','渲染'],draft:false,g:'g4',cur:8,desc:'从 Measure 到 Render，把 Avalonia 自绘控件的每一步拆开看。',
+ cover:'2024/06/avalonia-render-pipeline.svg',copyright:'Original',pub:['ok','ok','off','off'],
  lines:[['h','# Avalonia 自绘控件的渲染管线剖析'],['',''],['','从 Measure / Arrange 到 Render，'],['','把自绘控件的每一步拆开看。'],['',''],['h2','## 管线全景'],['',''],['img','![管线](2024/06/avalonia-render-pipeline.svg)'],['',''],['h2','## 关键结论'],['',''],['','- InvalidatedMeasure 别滥用'],['','- Render 帧内禁止分配大对象']],
  prev:'<p>从 Measure / Arrange 到 Render，把自绘控件的每一步拆开看。</p><h2>管线全景</h2><div class="codeblock"><div class="cb-h">avalonia-render-pipeline.svg<span class="spacer"></span>查看原图</div><div class="ph g4" style="height:96px;border-radius:0"></div></div><h2>关键结论</h2><div class="task"><i></i>InvalidatedMeasure 别滥用</div><div class="task"><i></i>Render 帧内禁止分配大对象</div>'},
 vex:{year:'2026',path:'2026/10',title:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',slug:'vex-mcp-ai-upgrade',date:'2026-10-12 20:00',min:9,cats:['.NET'],tags:['Vex','MCP'],draft:false,g:'g4',cur:9,desc:'给 Vex 内置本机 MCP 服务，让 Claude Desktop / Cursor 直接读写当前文档。',
+ cover:'2026/10/vex-mcp-architecture.svg',banner:true,pub:['ok','off','off','off'],
  lines:[['h','# Vex 升级：编辑器长出 AI 的手——MCP 支持全记录'],['',''],['','给 Vex 接上 MCP：外部 AI 客户端经本机接口直接读写文档。'],['',''],['h2','## 接入方式'],['',''],['','stdio 桥接 Claude Desktop / Cursor，HTTP 直连亦可'],['',''],['h2','## 工具与审计'],['',''],['tk','- [x] 29 个工具 · 操作审计'],['tk','- [ ] 写操作应用内确认'],['',''],['h2','## 小结'],['',''],['bq','> 编辑器长出 AI 的手，关键是不失控。']],
  prev:'<p>给 Vex 接上 MCP：外部 AI 客户端经本机接口直接读写文档。</p><h2>接入方式</h2><p>stdio 桥接 Claude Desktop / Cursor，HTTP 直连亦可。</p><h2>工具与审计</h2><div class="task done"><i></i>29 个工具 · 操作审计</div><div class="task"><i></i>写操作应用内确认</div><h2>小结</h2><blockquote>编辑器长出 AI 的手，关键是不失控。</blockquote>'},
 ser:{year:'2023',path:'2023/12',title:'C#百万对象序列化深度剖析',slug:'deep-analysis-million-object-serialization',date:'2023-12-09 20:00',min:12,cats:['.NET'],tags:['序列化','性能'],draft:false,g:'g5',cur:7,desc:'MessagePack / MemoryPack / System.Text.Json 在百万对象下的吞吐与内存对比。',
+ copyright:'Original',pub:['stale','ok','ok','ok'],
  lines:[['h','# C#百万对象序列化深度剖析'],['',''],['','三个序列化器，一百万个对象，跑在同一台机器上。'],['',''],['h2','## 基准设置'],['',''],['','- MessagePack · MemoryPack · System.Text.Json'],['','- 对象图：100 万个扁平 POCO'],['',''],['h2','## 结论'],['',''],['','MemoryPack 吞吐最高，MessagePack 兼容性最稳。']],
  prev:'<p>三个序列化器，一百万个对象，跑在同一台机器上。</p><h2>基准设置</h2><div class="task"><i></i>MessagePack · MemoryPack · System.Text.Json</div><div class="task"><i></i>对象图：100 万个扁平 POCO</div><h2>结论</h2><p>MemoryPack 吞吐最高，MessagePack 兼容性最稳。</p>'}};
 let curArt='aot',listMode='list';
@@ -900,7 +921,10 @@ function renderList(){
 }
 function renderOutline(a){
   const items=[];a.lines.forEach((l,i)=>{if(l[1].startsWith('## '))items.push([i,esc(l[1].slice(3)),1]);else if(l[1].startsWith('# '))items.push([i,esc(l[1].slice(2)),0]);});
-  const tb=$('outlineTab');tb.innerHTML='<div class="outl">'+items.map(it=>'<a data-ln="'+it[0]+'" class="'+(it[2]?'l3':'')+'">'+it[1]+'</a>').join('')+'</div>';
+  const tb=$('outlLinks');tb.innerHTML=items.map(it=>'<a data-ln="'+it[0]+'" class="'+(it[2]?'l3':'')+'">'+it[1]+'</a>').join('');
+  // 正文任务徽标：按行内任务清单动态统计（tk 行 [x]/[ ]）
+  const tk=a.lines.filter(l=>l[0]==='tk'),done=tk.filter(l=>l[1].indexOf('[x]')>=0).length;
+  $('outlTask').innerHTML=tk.length?'<span class="badge ok">'+done+' / '+tk.length+' 已完成</span>':'<span class="badge">无任务清单</span>';
   tb.querySelectorAll('a').forEach(x=>x.onclick=()=>{const a2=ARTS[curArt];a2.cur=+x.dataset.ln;renderLines(a2);
     const seg=document.querySelector('#modeSeg button.active').dataset.m;
     if(seg==='prev')document.querySelectorAll('#modeSeg button')[0].click();
@@ -909,11 +933,200 @@ function renderOutline(a){
 }
 function loadArt(k){curArt=k;const a=ARTS[k];
   renderLines(a);$('prevInner').innerHTML='<div class="article"><h1>'+a.title+'</h1><div class="meta">'+a.date+' · Dotnet9 · 分类 '+a.cats.join(' / ')+' · 阅读 '+a.min+' min</div>'+a.prev+'</div>';
-  renderOutline(a);renderList();}
+  renderOutline(a);renderList();renderMetaTab();
+  $('yamlWarn').style.display='none'; // 切文章后隐藏上一 YAML 解析警示
+  if($('yamlBody').style.display!=='none')$('metaYaml').value=yamlOf(metaOf(k)); // YAML 态随文章重生成
+}
 document.querySelectorAll('#listSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#listSeg button').forEach(x=>x.classList.toggle('active',x===b));
   listMode=b.dataset.l;renderList();});
 $('artListSearch').oninput=function(){renderList();};
+/* ---------- 右面板「元数据」页签：就地编辑（即时写回 ARTS）+ 表单|YAML 双向 ----------
+   口径：元数据内嵌于 md 文件头部 front matter，保存时合并写回同一 .md；
+   copyright 缺省即原创（老文章才有 copyright: Original）；albums 字段已废弃不出现；
+   分类受控于 site/categories.json 展示名；标签每篇 ≤5（达到/超出黄色警示）。 */
+const SITE_CATS=['.NET','C#开源项目','Avalonia','AI','工具','数据库','WPF']; // site/categories.json 展示名（受控）
+function metaOf(k){const a=ARTS[k];
+  if(a.author==null)a.author='Dotnet9';
+  if(!a.x)a.x={};               // 自定义键对象：front matter 未知字段，往返保真
+  if(!a.lastmod)a.lastmod=a.date;
+  return a;}
+function tagPool(){const s={};Object.keys(ARTS).forEach(k=>ARTS[k].tags.forEach(t=>s[t]=1));return Object.keys(s);}
+function yamlOf(a){ // 由 meta 生成 front matter（--- 包裹；自定义键按原键名输出，往返不丢）
+  const L=['---','title: '+a.title,'slug: '+a.slug,'description: '+a.desc,'date: '+a.date,'lastmod: '+(a.lastmod||a.date),'cover: '+(a.cover||'')];
+  L.push(a.cats.length?'categories:\n'+a.cats.map(c=>'  - '+c).join('\n'):'categories: []');
+  L.push(a.tags.length?'tags:\n'+a.tags.map(t=>'  - '+t).join('\n'):'tags: []');
+  L.push('author: '+(a.author||'Dotnet9'),'draft: '+(a.draft?'true':'false'));
+  if(a.banner!=null)L.push('banner: '+(a.banner?'true':'false'));
+  if(a.copyright)L.push('copyright: '+a.copyright);
+  Object.keys(a.x||{}).forEach(k=>L.push(k+': '+(Array.isArray(a.x[k])?'\n'+a.x[k].map(v=>'  - '+v).join('\n'):a.x[k])));
+  L.push('---');
+  return L.join('\n');}
+const yamlStr=s=>String(s).trim().replace(/^["']|["']$/g,''); // 去引号（行级解析够用）
+function parseYaml(txt){ // 简单行级解析：已知键映射回字段，未知键收进自定义键对象；结构损坏返回 null
+  const out={title:'',slug:'',description:'',date:'',lastmod:'',cover:'',cats:[],tags:[],author:'',draft:false,banner:null,copyright:'',x:{}};
+  const lines=String(txt).split('\n');let i=0;
+  while(i<lines.length&&!lines[i].trim())i++;
+  if(!lines[i]||lines[i].trim()!=='---')return null; // 必须以 --- 开头
+  i++;let lastKey=null;
+  for(;i<lines.length;i++){
+    const raw=lines[i];
+    if(!raw.trim())continue;
+    if(raw.trim()==='---')break;
+    if(raw.trim().charAt(0)==='#')continue; // 注释行
+    const m=raw.match(/^([A-Za-z_][\w\-.]*)\s*:(.*)$/);
+    if(m){const k=m[1],v=m[2].trim();lastKey=k;
+      if(k==='categories'||k==='tags'){
+        if(v==='[]'||v==='')out[k]=[];
+        else if(v.charAt(0)==='[')out[k]=v.replace(/^\[|\]$/g,'').split(',').map(yamlStr).filter(Boolean); // 行内数组
+        else out[k]=[]; // 块列表，由后续 - 行填充
+      }else if(k==='draft')out.draft=(v==='true');
+      else if(k==='banner')out.banner=v===''?null:(v==='true');
+      else if(k in out)out[k]=yamlStr(v);
+      else out.x[k]=v===''?'':(v==='true'?true:v==='false'?false:yamlStr(v));
+    }else{const it=raw.match(/^\s*-\s+(.+)$/);
+      if(!it||!lastKey)return null; // 既不是键也不是列表项 → 解析失败
+      const v=yamlStr(it[1]);
+      if(lastKey==='categories')out.cats.push(v);
+      else if(lastKey==='tags')out.tags.push(v);
+      else{if(!Array.isArray(out.x[lastKey]))out.x[lastKey]=out.x[lastKey]?[out.x[lastKey]]:[];out.x[lastKey].push(v);}
+    }
+  }
+  return out;}
+function applyYamlToArt(a,p){a.title=p.title;a.slug=p.slug;a.desc=p.description;a.date=p.date;
+  a.lastmod=p.lastmod;a.cover=p.cover;a.cats=p.cats;a.tags=p.tags;
+  a.author=p.author||'Dotnet9';a.draft=p.draft;a.banner=p.banner;a.copyright=p.copyright;a.x=p.x;}
+function renderMetaTab(){
+  const a=metaOf(curArt),body=$('metaBody');
+  const pubName=['网站','公众号','博客园','CSDN'],pubTxt={ok:'已同步',stale:'需更新',off:'未发布',err:'失败'};
+  const pubs=(a.pub||['off','off','off','off']).map(s=>'<i class="'+s+'" title=""></i>').join('');
+  const tip=pubName.map((n,i)=>n+'：'+pubTxt[(a.pub||[])[i]||'off']).join(' · ');
+  const tagN=a.tags.length;
+  const tagBadge=tagN>5?'<span class="badge warn">'+tagN+' 个 · 超出上限 5</span>':tagN===5?'<span class="badge warn">5 / 5 · 已达上限</span>':'<span class="badge">'+tagN+' / 5</span>';
+  const kv=Object.keys(a.x).map(k=>
+    '<div class="row" style="gap:6px;margin-bottom:6px" data-kv="'+esc(k)+'">'
+    +'<input class="input mono kv-k" value="'+esc(k)+'" style="width:92px;flex:none;font-size:0.8077rem">'
+    +'<input class="input kv-v" value="'+esc(a.x[k])+'" style="flex:1;font-size:0.8077rem">'
+    +'<button class="btn sm ghost kv-x" title="移除该键" style="flex:none">×</button></div>').join('');
+  const sug=tagPool().filter(t=>a.tags.indexOf(t)<0).slice(0,8)
+    .map(t=>'<span class="chip sug" data-tag="'+esc(t)+'">'+esc(t)+'</span>').join('');
+  body.innerHTML=
+    '<div class="f-label" style="margin-top:0">状态</div>'
+   +'<div class="row" style="gap:8px;flex-wrap:wrap">'
+   +  '<span class="switch'+(a.draft?'':' on')+'" data-switch id="mtDraft"></span>'
+   +  '<span id="mtDraftLb" style="font-size:0.8846rem">'+(a.draft?'草稿':'已发布')+'</span>'
+   +  '<span class="pub-badges" style="margin-left:auto;cursor:default" title="发布状态：'+esc(tip)+'">'+pubs+'</span></div>'
+   +'<div class="f-label">标题 <span style="color:var(--danger)">*</span></div><input class="input" id="mtTitle" value="'+esc(a.title)+'">'
+   +'<div class="f-label">slug <span style="color:var(--danger)">*</span></div><input class="input mono" id="mtSlug" value="'+esc(a.slug)+'" style="font-size:0.8077rem">'
+   +'<div class="f-label">简述 description <span style="color:var(--danger)">*</span></div><textarea class="input" id="mtDesc" rows="3" style="resize:vertical">'+esc(a.desc)+'</textarea>'
+   +'<div class="f-label">date / lastmod <span style="color:var(--danger)">*</span></div>'
+   +'<div class="row" style="gap:6px"><input class="input mono" id="mtDate" value="'+esc(a.date)+'" style="flex:1;font-size:0.8077rem" title="date · 发布日期">'
+   +  '<input class="input mono" id="mtLastmod" value="'+esc(a.lastmod)+'" style="flex:1;font-size:0.8077rem" title="lastmod"></div>'
+   +'<div class="desc" style="color:var(--faint);font-size:0.7692rem;margin-top:4px">lastmod 保存时自动更新，无需手改</div>'
+   +'<div class="f-label">分类 categories <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">受控于 site/categories.json</span></div>'
+   +'<div class="chips" id="mtCats">'+a.cats.map((c,i)=>'<span class="chip">'+esc(c)+' <i data-ci="'+i+'">×</i></span>').join('')+'<span class="chip add" id="mtCatAdd">＋</span></div>'
+   +'<div class="chips" id="mtCatCands" style="display:none;margin-top:6px"></div>'
+   +'<div class="f-label">标签 tags '+tagBadge+'</div>'
+   +'<div class="chips" id="mtTags">'+a.tags.map((t,i)=>'<span class="chip">'+esc(t)+' <i data-ti="'+i+'">×</i></span>').join('')+'</div>'
+   +'<input class="input" id="mtTagIn" placeholder="回车添加 · 输入可联想全库已有标签" style="margin-top:6px;font-size:0.8462rem">'
+   +(tagN>=5?'<div class="desc" style="color:var(--warn);font-size:0.8077rem;margin-top:4px">标签建议每篇 ≤5，超出部分发布前请精简</div>':'')
+   +'<div class="chips" id="mtTagSug" style="margin-top:6px">'+sug+'</div>'
+   +'<div class="f-label">封面 cover</div>'
+   +'<div class="row" style="gap:8px;align-items:center">'
+   +  (a.cover?'<div class="ph mt-ph '+a.g+'" title="'+esc(a.cover)+'"></div>':'<div class="img-none mt-ph" style="width:64px;height:40px;font-size:0.6923rem">无</div>')
+   +  '<span class="mono" style="flex:1;font-size:0.7308rem;color:var(--faint);word-break:break-all">'+esc(a.cover||'未设置')+'</span></div>'
+   +'<div class="row" style="gap:6px;margin-top:6px">'
+   +  '<button class="btn sm" onclick="toast(\'演示：打开图片库更换封面（写回 cover）\')">更换</button>'
+   +  '<button class="btn sm ghost" onclick="toast(\'演示：从当前正文插图任选其一设为封面\')">从正文选</button>'
+   +  '<button class="btn sm ghost" onclick="toast(\'演示：打开图片库按「可作封面」筛选\')">从图片库选</button></div>'
+   +'<div class="f-label" id="mtAdvTgl" style="cursor:pointer;user-select:none">▸ 高级 <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">banner · copyright · 自定义键</span></div>'
+   +'<div id="mtAdv" style="display:none">'
+   +  '<div class="row" style="gap:8px"><span class="switch'+(a.banner?' on':'')+'" data-switch id="mtBanner"></span><span style="font-size:0.8846rem">banner</span><span class="desc" style="margin:0">站点首页横幅展示位</span></div>'
+   +  '<div class="f-label">copyright <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">缺省即原创 · 新文章可无此字段</span></div>'
+   +  '<input class="input" id="mtCr" value="'+esc(a.copyright||'')+'" placeholder="留空 = 原创">'
+   +  '<div class="f-label">自定义键值对 <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">未知字段往返保真</span></div>'
+   +  (kv||'<div class="desc" style="color:var(--faint);font-size:0.8077rem">暂无自定义键</div>')
+   +  '<div class="row" style="margin-top:6px"><button class="btn sm ghost" id="mtKvAdd">＋ 添加键值对</button></div>'
+   +'</div>';
+  // 就地编辑：input 即时写回 ARTS（不重渲染，避免打断输入；切页签/切文章状态不丢）
+  $('mtTitle').oninput=function(){a.title=this.value;renderList();};
+  $('mtSlug').oninput=function(){a.slug=this.value;};
+  $('mtDesc').oninput=function(){a.desc=this.value;};
+  $('mtDate').oninput=function(){a.date=this.value;};
+  $('mtLastmod').oninput=function(){a.lastmod=this.value;};
+  $('mtCr').oninput=function(){a.copyright=this.value.trim();};
+  $('mtDraft').onclick=function(){this.classList.toggle('on');a.draft=!this.classList.contains('on');
+    $('mtDraftLb').textContent=a.draft?'草稿':'已发布';renderList();};
+  $('mtBanner').onclick=function(){this.classList.toggle('on');a.banner=this.classList.contains('on');};
+  // 分类（受控）：× 移除，＋ 弹出候选
+  body.querySelectorAll('#mtCats i').forEach(x=>x.onclick=()=>{a.cats.splice(+x.dataset.ci,1);renderMetaTab();});
+  $('mtCatAdd').onclick=()=>{const el=$('mtCatCands');
+    if(el.style.display==='none'){const rest=SITE_CATS.filter(c=>a.cats.indexOf(c)<0);
+      el.innerHTML=rest.length?rest.map(c=>'<span class="chip sug" data-c="'+esc(c)+'">'+esc(c)+'</span>').join(''):'<span style="color:var(--faint);font-size:0.8077rem">站点分类已全部选用</span>';
+      el.style.display='';
+      el.querySelectorAll('[data-c]').forEach(x=>x.onclick=()=>{a.cats.push(x.dataset.c);renderMetaTab();});
+    }else el.style.display='none';};
+  // 标签：× 移除；回车自由添加；联想片点击添加；输入框实时过滤联想
+  body.querySelectorAll('#mtTags i').forEach(x=>x.onclick=()=>{a.tags.splice(+x.dataset.ti,1);renderMetaTab();});
+  const tin=$('mtTagIn');
+  tin.onkeydown=function(e){if(e.key==='Enter'){const v=this.value.trim();if(!v)return;
+    if(a.tags.indexOf(v)>=0){toast('标签已存在：'+v);return;}
+    a.tags.push(v);renderMetaTab();}};
+  tin.oninput=function(){const q=this.value.trim().toLowerCase();
+    body.querySelectorAll('#mtTagSug .chip').forEach(c=>{c.style.display=c.dataset.tag.toLowerCase().indexOf(q)>=0?'':'none';});};
+  body.querySelectorAll('#mtTagSug .chip').forEach(c=>c.onclick=()=>{a.tags.push(c.dataset.tag);renderMetaTab();});
+  // 自定义键值对：改键（防重名）/改值/删除/新增，全部即时写回 a.x
+  body.querySelectorAll('[data-kv]').forEach(row=>{const ok=row.dataset.kv;
+    const ki=row.querySelector('.kv-k'),vi=row.querySelector('.kv-v');
+    ki.onchange=function(){const nk=this.value.trim();
+      if(!nk||nk===ok){this.value=ok;return;}
+      if(a.x[nk]!=null){toast('键已存在：'+nk);this.value=ok;return;}
+      a.x[nk]=a.x[ok];delete a.x[ok];row.dataset.kv=nk;};
+    vi.oninput=function(){a.x[row.dataset.kv]=this.value;};
+    row.querySelector('.kv-x').onclick=()=>{delete a.x[row.dataset.kv];renderMetaTab();};});
+  const kvAdd=$('mtKvAdd');if(kvAdd)kvAdd.onclick=()=>{let n=1;while(a.x['custom'+n])n++;a.x['custom'+n]='';renderMetaTab();};
+  // 高级折叠区
+  $('mtAdvTgl').onclick=()=>{const b=$('mtAdv'),open=b.style.display==='none';
+    b.style.display=open?'':'none';$('mtAdvTgl').childNodes[0].textContent=open?'▾ 高级 ':'▸ 高级 ';};
+}
+/* 面板页签：大纲 | 元数据 切换（进入元数据按当前文章重渲染；resize 重算 seg 滑块） */
+document.querySelectorAll('#panelSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#panelSeg button').forEach(x=>x.classList.toggle('active',x===b));
+  const meta=b.dataset.t==='meta';
+  $('outlineTab').classList.toggle('active',!meta);
+  $('metaTab').classList.toggle('active',meta);
+  if(meta)renderMetaTab();
+  window.dispatchEvent(new Event('resize'));});
+/* 表单 | YAML 双向：表单→YAML 重新生成（自定义键/未知字段不丢）；YAML→表单行级解析回填，失败黄条提示且不覆盖表单 */
+document.querySelectorAll('#metaModeSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#metaModeSeg button').forEach(x=>x.classList.toggle('active',x===b));
+  const yaml=b.dataset.m==='yaml';
+  $('yamlWarn').style.display='none';
+  if(yaml){$('metaYaml').value=yamlOf(metaOf(curArt));}
+  else{const p=parseYaml($('metaYaml').value);
+    if(p){applyYamlToArt(metaOf(curArt),p);renderMetaTab();renderList();}
+    else{$('yamlWarn').textContent='YAML 解析失败：已保留表单原值 · 需以 --- 开头包裹，行格式为 key: value 或「  - 列表项」';$('yamlWarn').style.display='';}}
+  $('metaBody').style.display=yaml?'none':'';
+  $('yamlBody').style.display=yaml?'':'none';
+  window.dispatchEvent(new Event('resize'));});
+$('wpanel').addEventListener('transitionend',()=>window.dispatchEvent(new Event('resize'))); // 面板展开动画结束后重算滑块
+/* mMeta 弹层与元数据页签同源：打开时读取当前文章（与面板展示同一数据），保存写回 */
+function openMetaModal(){
+  closeModal2();
+  const a=metaOf(curArt);
+  $('mmTitle').value=a.title;$('mmSlug').value=a.slug;$('mmDesc').value=a.desc;
+  $('mmDate').value=a.date;$('mmAuthor').value=a.author||'Dotnet9';
+  $('mmDraft').classList.toggle('on',!a.draft);
+  $('mmCats').innerHTML=a.cats.map(c=>'<span class="chip">'+esc(c)+' <i>×</i></span>').join('')+'<span class="chip add">＋</span>';
+  $('mmTags').innerHTML=a.tags.map(t=>'<span class="chip">'+esc(t)+' <i>×</i></span>').join('')+'<span class="chip add">＋</span>';
+  openModal('mMeta');}
+function saveMetaModal(){ // 弹层「保存」：简单字段写回（与面板共用同一 ARTS 数据）
+  const a=metaOf(curArt);
+  a.title=$('mmTitle').value;a.slug=$('mmSlug').value;a.desc=$('mmDesc').value;
+  a.date=$('mmDate').value;a.author=$('mmAuthor').value;a.draft=!$('mmDraft').classList.contains('on');
+  renderMetaTab();renderList();
+  toast('元数据已保存（front matter 写回）');}
+/* ---------- 边栏折叠 ---------- */
 /* ---------- 边栏折叠 ---------- */
 const navEl=$('nav'),btnNav=$('btnNav');
 const icoFold='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 9l-3 3 3 3"/></svg>';
@@ -940,7 +1153,7 @@ function closeMenus(){$('mFile').classList.remove('open');$('mHelp').classList.r
 document.addEventListener('click',()=>{closeModal2();closeMenus();});
 function closeModal2(){$('mFile').classList.remove('open');}
 $('miNew').onclick=()=>{closeModal2();openModal('mNew');};
-$('miMeta').onclick=()=>{closeModal2();openModal('mMeta');};
+$('miMeta').onclick=()=>{closeModal2();openMetaModal();};
 $('miImg').onclick=()=>{closeModal2();openModal('mImg');};
 $('miUpdate').onclick=()=>{closeModal2();openUpdateCheck();};
 $('miAbout').onclick=()=>{closeModal2();openModal('mAbout');};

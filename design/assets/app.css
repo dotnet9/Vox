@@ -1280,3 +1280,16 @@ h1,h2,h3 { letter-spacing: -.025em; }
 /* 关于弹层：版本号可点击（模拟跳转 Releases，离线原型以 toast 呈现） */
 .vlink { color: var(--accent); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .vlink:hover { color: var(--accent-deep); }
+
+/* ---------- 写作页右面板：「大纲 | 元数据」双页签 + 元数据就地编辑（v59） ---------- */
+.wp-segbar { flex: none; padding: 10px 10px 9px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.wp-segbar .seg, .wp-metabar .seg { display: flex; width: 100%; }
+.wp-segbar .seg button, .wp-metabar .seg button { flex: 1; }
+.wp-metabar { margin-bottom: 2px; }
+#metaTab .input { font-size: 0.8846rem; }
+#metaYaml { min-height: 340px; white-space: pre; }
+#mtAdvTgl:hover { color: var(--accent); }
+.chip.sug { cursor: pointer; transition: border-color var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
+.chip.sug:hover { border-color: var(--accent); color: var(--accent); }
+.mt-ph { width: 64px; height: 40px; flex: none; border-radius: 6px; }
+.mt-ph.img-none { width: 64px; height: 40px; font-size: 0.6923rem; }
