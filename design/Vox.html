@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" data-accent="green">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=57">
+<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=58">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -16,6 +16,7 @@
           <span class="tb-file"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span></span>
   <span class="spacer"></span>
           <span class="tb-extras" id="tbExtras">
+            <button class="upd-pill" id="updPill" hidden>更新</button>
             <button class="tb-ico mcp-tb" id="btnTbMcp" title="MCP 服务（运行中 · 2 个客户端在线）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></button>
             <button class="tb-ico" id="btnTbSearch" title="搜索（Ctrl K）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
             <button class="tb-ico" id="btnTbLook" title="外观"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></button>
@@ -37,6 +38,15 @@
               <a class="lang-it">English</a>
               <a class="lang-it">繁體中文</a>
               <a class="lang-it">日本語</a>
+            </div>
+            <!-- 更新日志气泡（与更新浮窗、关于弹层共用同一份 CHANGELOG 数据） -->
+            <div class="tb-pop upd-pop" id="updPop">
+              <div class="up-head"><b id="upVer">v0.1.0-preview.2 更新日志</b><span id="upDate">2026年11月2日</span></div>
+              <div class="up-body" id="upBody"></div>
+              <div class="up-foot">
+                <a class="up-loglink" onclick="toast('打开完整更新日志（GitHub Releases）')">完整日志 ↗</a>
+                <button class="btn sm primary" id="upGo">立即更新</button>
+              </div>
             </div>
           </span>
   <div class="wbtns">
@@ -534,8 +544,8 @@
       <div class="srow"><label>写操作确认</label><div class="val">已开启 · article_write、git_push 等写入工具调用时弹窗确认</div></div>
     </div>
     <div class="setting">
-      <h3>关于</h3><div class="sdesc">Vox · 维声 0.1.0-preview.1 · 出品 码坊 CodeWF</div>
-      <div class="srow"><label>更新</label><div class="val">发布通道：GitHub Releases（不走应用商店）<button class="btn sm" style="margin-left:10px" onclick="toast('已是最新版本 0.1.0-preview.1')">检查更新</button></div></div>
+      <h3>关于</h3><div class="sdesc">Vox · 维声 <span data-vox-ver>0.1.0-preview.1</span> · 出品 码坊 CodeWF</div>
+      <div class="srow"><label>更新</label><div class="val">发布通道：GitHub Releases（不走应用商店）<button class="btn sm" style="margin-left:10px" onclick="openUpdateCheck()">检查更新</button></div></div>
       <div class="srow"><label>卸载</label><div class="val">Windows / Linux 使用系统卸载入口；macOS 可打开应用内卸载助手<button class="btn sm" style="margin-left:10px" onclick="toast('macOS 卸载助手原型：卸载-macOS.html')">卸载助手…</button></div></div>
     </div>
   </section>
@@ -551,7 +561,7 @@
     <div class="mpage active">
       <div class="field"><label>标题</label><input class="input" id="nTitle" placeholder="想好标题，slug 和日期自动生成" oninput="document.getElementById('nSlugPrev').textContent=newSlug(this.value)"></div>
       <div class="field"><label>slug（可改）</label><input class="input mono" value="new-article-slug" style="font-size:0.8462rem"></div>
-      <div class="slugprev" id="nSlugPrev">2026/10/new-article-slug.md + new-article-slug.yml</div>
+      <div class="slugprev" id="nSlugPrev">2026/10/new-article-slug.md · 元数据内嵌（front matter）</div>
     </div>
     <div class="mpage">
       <div class="field"><label>一句话简述 description</label><textarea class="input" rows="3" placeholder="列表页与 SEO 用，体检会检查"></textarea></div>
@@ -603,7 +613,7 @@ draft: true
       <label class="opt"><input type="radio" name="ilink" checked><span><b>相对路径（推荐）</b><span class="d mono">![城市全景](2026/09/dotnet-…-city-panorama.jpg)</span></span></label>
       <label class="opt"><input type="radio" name="ilink"><span><b>CDN URL</b><span class="d mono">![](https://img1.dotnet9.com/2026/09/…)</span></span></label>
     </div>
-    <div class="field row"><span class="switch" data-switch></span><span style="font-size:0.9231rem;color:var(--muted)">同时设为文章封面（写入 yml cover，存 CDN 形态）</span></div>
+    <div class="field row"><span class="switch" data-switch></span><span style="font-size:0.9231rem;color:var(--muted)">同时设为文章封面（写入文章元数据 cover，存 CDN 形态）</span></div>
   </div>
   <div class="mf">
     <button class="btn" onclick="closeModal('mImg')">取消</button>
@@ -654,6 +664,7 @@ draft: true
 <div class="mask" id="mMeta"><div class="modal">
   <div class="mh"><h3>文章元数据</h3><span class="x" onclick="closeModal('mMeta')">×</span></div>
   <div class="mb">
+          <div class="sdesc" style="margin:-4px 0 10px">元数据内嵌于文章文件头部（front matter）：展示时拆分为内容与元数据两区，保存时合并写回同一 .md 文件</div>
           <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>
           <div class="f-label">标题</div><input class="input" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
           <div class="f-label">slug</div><input class="input mono" value="dotnet-native-aot-win7-skia-dependency" style="font-size:0.8462rem">
@@ -698,27 +709,38 @@ draft: true
     <div class="map-choice-grid" id="mapStyleGrid"></div>
   </section>
 
-<div class="mask" id="mUpdate"><div class="modal" style="width:480px">
-  <div class="mh"><h3>检查更新</h3><span class="x" onclick="closeModal('mUpdate')">×</span></div>
-  <div class="mb">
-    <div class="kv"><span>当前版本</span><b>0.1.0-preview.1</b></div>
-    <div class="kv"><span>发布通道</span><b>GitHub Releases（dotnet9/Vox）</b></div>
-    <div id="updResult" style="margin-top:12px"></div>
+<!-- ============ 更新浮窗（非模态 · 可最小化，最小化后进度转标题栏药丸；与日志气泡共用数据源） ============ -->
+<section class="upd-win" id="updWin" hidden role="dialog" aria-label="软件更新">
+  <header class="uw-bar">
+    <span class="uw-title">软件更新</span>
+    <span class="uw-btns">
+      <button class="uw-btn" id="uwMin" title="最小化 · 下载继续进行，进度显示在标题栏「更新」按钮"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></button>
+      <button class="uw-btn uw-close" id="uwClose" title="关闭（下载中的下载继续）"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></button>
+    </span>
+  </header>
+  <div class="uw-body">
+    <div class="uw-hero">
+      <img class="uw-logo" src="../logo.svg" alt="">
+      <div class="uw-copy"><b id="uwTitle">正在检查更新…</b><span id="uwSub">正在查询 GitHub Releases（dotnet9/Vox）…</span></div>
+    </div>
+    <div class="uw-progress" id="uwProg" hidden>
+      <div class="uw-pl"><span>下载进度</span><b id="uwNum">0.0 MB / 0.0 MB</b></div>
+      <div class="uw-track"><i id="uwBar"></i></div>
+    </div>
+    <div class="uw-changes" id="uwChanges" hidden></div>
+    <div class="uw-actions" id="uwActions"></div>
+    <div class="uw-foot">当前 <span class="mono" id="uwCur">0.1.0-preview.1</span> · 发布通道：GitHub Releases · 不走应用商店</div>
   </div>
-  <div class="mf">
-    <button class="btn" id="btnGoRelease" style="display:none" onclick="toast('打开 GitHub Releases 下载新版本')">前往下载</button>
-    <button class="btn primary" id="btnCheckUpdate" onclick="doCheckUpdate(this)">检查更新</button>
-  </div>
-</div></div>
+</section>
 
 <div class="mask" id="mAbout"><div class="modal" style="width:420px">
   <div class="mh"><h3>关于 Vox</h3><span class="x" onclick="closeModal('mAbout')">×</span></div>
   <div class="mb" style="text-align:center">
     <img src="../logo.svg" style="width:64px;height:64px;border-radius:16px;margin:6px auto 10px;display:block">
     <b style="font-size:15px">Vox · 维声</b>
-    <p style="color:var(--muted);margin:6px 0 0">一处落笔，处处有声。<br>0.1.0-preview.1 · MIT © 沙漠尽头的狼 (codewf.com)</p>
+    <p style="color:var(--muted);margin:6px 0 0">一处落笔，处处有声。<br><span class="vlink" data-vox-ver onclick="toast('打开 GitHub Releases · dotnet9/Vox')">0.1.0-preview.1</span> · MIT © 沙漠尽头的狼 (codewf.com)</p>
   </div>
-  <div class="mf"><button class="btn" onclick="closeModal('mAbout')">关闭</button></div>
+  <div class="mf"><button class="btn" onclick="closeModal('mAbout')">关闭</button><button class="btn primary" onclick="closeModal('mAbout');openUpdateCheck()">检查更新…</button></div>
 </div></div>
 
 <div id="toast"></div>
@@ -920,14 +942,123 @@ function closeModal2(){$('mFile').classList.remove('open');}
 $('miNew').onclick=()=>{closeModal2();openModal('mNew');};
 $('miMeta').onclick=()=>{closeModal2();openModal('mMeta');};
 $('miImg').onclick=()=>{closeModal2();openModal('mImg');};
-$('miUpdate').onclick=()=>{closeModal2();openModal('mUpdate');resetUpdate();};
+$('miUpdate').onclick=()=>{closeModal2();openUpdateCheck();};
 $('miAbout').onclick=()=>{closeModal2();openModal('mAbout');};
-function resetUpdate(){$('updResult').innerHTML='';$('btnGoRelease').style.display='none';$('btnCheckUpdate').disabled=false;$('btnCheckUpdate').textContent='检查更新';}
-function doCheckUpdate(btn){btn.disabled=true;btn.textContent='检查中…';
-  $('updResult').innerHTML='<div style="color:var(--faint)">正在查询 GitHub Releases…</div>';
-  setTimeout(()=>{ // 演示：发现新版本（实现中对比 releases/latest 的 tag 与当前版本）
-    $('updResult').innerHTML='<div class="note"><span>⬆</span><span>发现新版本 <b>0.1.0-preview.2</b><br>· 修复安装包在部分系统的关联注册<br>· 写作页大纲跳转更顺滑</span></div>';
-    $('btnGoRelease').style.display='inline-flex';btn.disabled=false;btn.textContent='重新检查';},900);}
+/* ---------- 软件更新：单一日志数据源 + 状态机 + 标题栏药丸 ----------
+   口径：CHANGELOG 是唯一事实源，日志气泡（updPop）、更新浮窗（updWin）、关于弹层三处同源渲染。
+   状态机：checking → available → downloading → downloaded → installing（交接安装器）；
+   旁路：current（已是最新）/ canceled / failed（可重试）。最小化只藏窗，下载不中断，进度转标题栏药丸。 */
+const VOX_VER='0.1.0-preview.1';
+const CHANGELOG=[ // 倒序，实现中由 GitHub Releases 解析（此处为离线演示内置）
+  {ver:'0.1.0-preview.2',date:'2026年11月2日',sizeMB:96.4,
+   quote:'[系统要求] 本版本起 Windows 最低要求为 Windows 8（Skia 原生依赖不再支持 Win7）；macOS 最低 12（Monterey）。',
+   items:[['新增','标题栏更新提醒：发现新版本时标题栏出现「更新」按钮，点击即看更新日志'],
+          ['新增','下载支持最小化：进度显示在标题栏按钮上，下载不打断写作'],
+          ['优化','写作页大纲跳转更顺滑'],
+          ['修复','安装包在部分系统的关联注册']]},
+  {ver:'0.1.0-preview.1',date:'2026年10月20日',
+   items:[['新增','首个预览版：写作 / 文章库 / 图片库 / 发布中心 / 站点数据 / MCP 服务 / 设置']]}];
+const UPD_TAGCLS={'新增':'new','优化':'opt','修复':'fix','删除':'rm'};
+let updState='idle',updFound=false,updMinimized=false,updTimer=null,updTick=0,updTickGen=0;
+let updScenario=null,updFailedOnce=false; // 演示开关（不进产品界面）：控制台 VoxUpdate.setScenario('download-failed'|'current')
+const UPD_TICKS=26; // 演示：约 3.1 秒走完下载
+function updNewer(){return CHANGELOG.filter(v=>v.ver!==VOX_VER);}
+function updChangelogHTML(list){ // 类型化条目：[系统要求] 引用块 + 按标签分组的列表（气泡与浮窗共用）
+  const top=list[0];
+  let h=top.quote?'<div class="chg-quote">'+esc(top.quote)+'</div>':'';
+  const groups={};list.forEach(v=>v.items.forEach(it=>{(groups[it[0]]=groups[it[0]]||[]).push(it[1]);}));
+  Object.keys(groups).forEach(tag=>{
+    h+='<div class="chg-sec '+(UPD_TAGCLS[tag]||'')+'"><b>'+tag+'</b><ul>'+groups[tag].map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></div>';});
+  return h;}
+function updRenderChanges(){$('upVer').textContent='v'+updNewer()[0].ver+' 更新日志';$('upDate').textContent=updNewer()[0].date;
+  $('upBody').innerHTML=updChangelogHTML(updNewer());}
+function updSetPill(txt,fill){const p=$('updPill');p.hidden=!updFound;p.textContent=txt;
+  p.style.background=fill!=null?'linear-gradient(90deg, var(--accent-deep) '+fill+'%, var(--accent) '+fill+'%)':'';}
+function updPillSync(){ // 药丸随状态变形：更新 → 下载中 N% → 重启以更新；已是最新则隐藏
+  const p=$('updPill');
+  if(updState==='current'){p.hidden=true;return;}
+  if(updState==='checking'){p.hidden=!updFound;return;}
+  if(updState==='downloading'){const pct=Math.min(99,Math.round(updTick/UPD_TICKS*100));updSetPill('下载中 '+pct+'%',pct);p.classList.remove('ready');p.title='正在下载更新（'+pct+'%），点击恢复窗口';}
+  else if(updState==='downloaded'){updSetPill('重启以更新');p.classList.add('ready');p.title='新版本已就绪，点击恢复窗口';}
+  else if(updState==='idle'){p.hidden=true;return;}
+  else{updSetPill('更新');p.classList.remove('ready');p.title='发现新版本 '+updNewer()[0].ver+'，点击查看更新日志';}}
+function updHero(title,sub){$('uwTitle').textContent=title;$('uwSub').textContent=sub;$('uwSub').hidden=!sub;}
+function updActions(btns){const row=$('uwActions');row.replaceChildren();btns.forEach(spec=>{
+  const b=document.createElement('button');b.className='btn sm'+(spec.primary?' primary':'')+(spec.danger?' danger':'');
+  b.textContent=spec.label;b.onclick=spec.onClick;row.appendChild(b);});}
+function updProgress(ratio,done,total){$('uwProg').hidden=ratio==null;
+  if(ratio==null)return;const pct=Math.min(100,Math.round(ratio*100));
+  $('uwBar').style.width=pct+'%';$('uwNum').textContent=done.toFixed(1)+' MB / '+total.toFixed(1)+' MB';}
+function updShowWin(open){$('updWin').hidden=!open;updMinimized=!open&&updState==='downloading';
+  if(open){$('uwSub').hidden=false;}}
+function updRender(){
+  const newer=updNewer()[0];
+  $('uwCur').textContent=VOX_VER;
+  switch(updState){
+    case 'checking':updHero('正在检查更新…','正在查询 GitHub Releases（dotnet9/Vox）…');updActions([]);updProgress(null);break;
+    case 'current':
+      updHero('已是最新版本','当前 '+VOX_VER+'（'+CHANGELOG[0].date+' 发布）');
+      updActions([{label:'重新检查',onClick:updCheck}]);updProgress(null);break;
+    case 'available':
+      updHero('新版本 v'+newer.ver+' 可用','当前 '+VOX_VER+' · 更新日志如下，可先看日志再决定');
+      updActions([{label:'稍后',onClick:()=>updShowWin(false)},{label:'立即更新',primary:true,onClick:updStartDownload}]);updProgress(null);break;
+    case 'downloading':
+      updHero('正在下载 v'+newer.ver,'');updActions([{label:'取消下载',danger:true,onClick:updCancel}]);break;
+    case 'downloaded':
+      updHero('v'+newer.ver+' 已准备就绪','下载完成并通过校验，重启 Vox 后生效。');
+      updActions([{label:'稍后',onClick:()=>updShowWin(false)},{label:'重启以更新',primary:true,onClick:updInstall}]);updProgress(null);break;
+    case 'installing':
+      updHero('正在启动安装程序…','更新包已就绪。Vox 将退出，安装在独立安装程序中继续。');updActions([]);break;
+    case 'canceled':
+      updHero('已取消下载','可随时从标题栏「更新」或帮助菜单重新开始。');
+      updActions([{label:'重新下载',primary:true,onClick:updStartDownload}]);updProgress(null);break;
+    case 'failed':
+      updHero('下载失败，请重试','网络中断或磁盘不可写，已下载部分已保留。');
+      updActions([{label:'重试',primary:true,onClick:updStartDownload}]);updProgress(null);break;}
+  $('uwChanges').hidden=!(updState==='available'||updState==='downloading'||updState==='downloaded');
+  if(!$('uwChanges').hidden)$('uwChanges').innerHTML=updChangelogHTML(updNewer());
+  updPillSync();}
+function updCheck(){ // 手动检查（帮助菜单 / 设置 / 关于）：开窗 → checking → current / available
+  updFound=true;updShowWin(true);updState='checking';updRender();
+  const id=++updTickGen;setTimeout(()=>{if(id!==updTickGen)return;
+    updState=updScenario==='current'?'current':'available';updRender();},700);}
+function updStartDownload(){
+  updState='downloading';updTick=0;updRender();updShowWin(true);updProgress(0,0,updNewer()[0].sizeMB);
+  const id=++updTickGen;updTimer=setInterval(()=>{
+    if(id!==updTickGen){clearInterval(updTimer);return;}
+    updTick++;const total=updNewer()[0].sizeMB,done=Math.min(total,total*updTick/UPD_TICKS);
+    updProgress(done/total,done,total);
+    if(updMinimized)$('updWin').hidden=true; // 最小化时只走药丸，不开窗
+    updPillSync();
+    if(updScenario==='download-failed'&&!updFailedOnce&&updTick===9){clearInterval(updTimer);updFailedOnce=true;updState='failed';updRender();updShowWin(true);return;} // 演示失败分支（VoxUpdate.setScenario('download-failed')），可重试
+    if(updTick>=UPD_TICKS){clearInterval(updTimer);updState='downloaded';updRender();
+      if(updMinimized){$('updWin').hidden=true;toast('新版本已就绪 · 点击标题栏「重启以更新」');}}},120);}
+function updCancel(){updTickGen++;clearInterval(updTimer);updState='canceled';updRender();updShowWin(true);}
+function updInstall(){updState='installing';updRender();
+  const id=++updTickGen;setTimeout(()=>{if(id!==updTickGen)return;
+    location.assign('安装器-Windows.html');},600);} // 交接独立安装器（三平台安装原型已备）
+function openUpdateCheck(){ // 三个入口（帮助菜单 / 设置 / 关于）统一走这里
+  $('updPop').classList.remove('open');closeMenus();
+  if(updState==='downloading'||updState==='downloaded'||updState==='installing'){updShowWin(true);return;}
+  updRenderChanges();updCheck();}
+$('updPill').onclick=e=>{e.stopPropagation();
+  if(updState==='downloading'||updState==='downloaded'||updState==='installing'){updMinimized=false;updShowWin(true);closeTbPops();return;}
+  const was=$('updPop').classList.contains('open');closeTbPops();
+  if(!was){updRenderChanges();$('updPop').classList.add('open');}};
+$('upGo').onclick=e=>{e.stopPropagation();$('updPop').classList.remove('open');updRenderChanges();updCheck();};
+$('updPop').onclick=e=>e.stopPropagation();
+$('uwMin').onclick=()=>{updMinimized=true;$('updWin').hidden=true;
+  toast('已最小化 · 下载继续，进度见标题栏「更新」按钮');};
+$('uwClose').onclick=()=>{
+  if(updState==='downloading'){updMinimized=true;$('updWin').hidden=true;
+    toast('下载继续进行 · 进度见标题栏「更新」按钮');return;}
+  $('updWin').hidden=true;};
+/* 启动自动检查（演示）：1.4 秒后发现新版 → 状态 available（不开窗），标题栏浮现药丸 */
+setTimeout(()=>{updFound=true;updState='available';updRenderChanges();updPillSync();
+  toast('发现新版本 0.1.0-preview.2 · 点击标题栏「更新」查看日志');},1400);
+/* 版本号单源同步：凡标 data-vox-ver 的文本节点统一取 VOX_VER（关于弹层 / 设置页） */
+document.querySelectorAll('[data-vox-ver]').forEach(el=>{el.textContent=el.textContent.replace(/[\d]+\.[\d]+\.[\d]+-preview\.\d+/,VOX_VER);});
+window.VoxUpdate={setScenario(v){updScenario=v;updFailedOnce=false;}}; // 演示开关：'download-failed' 首次下载失败 / 'current' 已是最新
 /* ---------- 界面风格（Arc/Pixel）切换 ---------- */
 document.querySelectorAll('#styleSeg button').forEach(function(b){
   b.addEventListener('click', function(){
@@ -972,7 +1103,7 @@ document.querySelectorAll('.seg').forEach(enhanceSeg);
 /* ---------- 初始化 ---------- */
 bindSwitches();loadArt('aot');
 function newSlug(t){const s=(t||'新文章').toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g,'-').replace(/^-+|-+$/g,'')||'new-article-slug';
-  return '2026/10/'+s+'.md + '+s+'.yml';}
+  return '2026/10/'+s+'.md · 元数据内嵌（front matter）';}
 let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);}
 /* ---------- 需求 A：自动保存开关 → 写作视图保存状态 pill 联动（原型演示） ---------- */

@@ -1207,3 +1207,76 @@ h1,h2,h3 { letter-spacing: -.025em; }
   .vox-copy-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
   .vox-pub-footer-note {display:none}
 }
+
+/* ---------- 软件更新：标题栏药丸 + 日志气泡 + 可最小化浮窗（ZCode 式三段体验） ---------- */
+/* 药丸：发现新版常驻标题栏；下载中显示进度渐变；就绪后轻脉冲提示重启 */
+.upd-pill { height: 22px; padding: 0 11px; border: 0; border-radius: 11px; background: var(--accent);
+  color: var(--on-accent); font: 600 0.7692rem var(--font-ui); cursor: pointer; display: inline-flex;
+  align-items: center; gap: 5px; margin-right: 4px; transition: background var(--t-fast) var(--motion);
+  animation: upill-in var(--t-med) var(--motion); }
+.upd-pill:hover { background: var(--accent-deep); }
+.upd-pill[hidden] { display: none; }
+.upd-pill.ready { animation: upill-pulse 1.5s var(--motion) 3; }
+@keyframes upill-in { from { opacity: 0; transform: translateY(-7px) scale(.92); } }
+@keyframes upill-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 5px var(--accent-soft); } }
+
+/* 日志气泡：与外观/语言气泡同族锚定（tb-extras 右缘），条目与更新浮窗共用 .chg-* 渲染 */
+.upd-pop { width: 344px; padding: 0; }
+.upd-pop .up-head { display: flex; align-items: baseline; gap: 8px; padding: 13px 16px 9px; }
+.upd-pop .up-head b { font-size: 0.9615rem; font-weight: 650; }
+.upd-pop .up-head span { margin-left: auto; color: var(--faint); font-size: 0.7692rem; }
+.upd-pop .up-body { max-height: 300px; overflow-y: auto; padding: 2px 16px 10px; border-top: 1px solid var(--line); }
+.upd-pop .up-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px;
+  border-top: 1px solid var(--line); background: var(--surface-2); border-radius: 0 0 11px 11px; }
+.up-loglink { color: var(--muted); font-size: 0.8077rem; cursor: pointer; }
+.up-loglink:hover { color: var(--fg); }
+
+/* 更新日志条目（气泡与浮窗共用）：[系统要求] 引用块 + 类型化分组 */
+.chg-quote { font-style: italic; color: var(--muted); font-size: 0.8077rem; line-height: 1.65;
+  background: var(--surface-2); border-left: 3px solid var(--faint); border-radius: 8px;
+  padding: 8px 11px; margin: 8px 0 2px; }
+.upd-pop .chg-quote { background: var(--surface-3); }
+.chg-sec { margin-top: 10px; }
+.chg-sec b { display: flex; align-items: center; gap: 6px; font-size: 0.8077rem; font-weight: 650; letter-spacing: .04em; }
+.chg-sec b::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: currentColor; }
+.chg-sec.t-new b { color: var(--ok); } .chg-sec.t-opt b { color: var(--accent); }
+.chg-sec.t-fix b { color: var(--warn); } .chg-sec.t-rm b { color: var(--danger); }
+.chg-sec ul { margin: 5px 0 0; padding-left: 15px; list-style: disc; }
+.chg-sec li { color: var(--muted); font-size: 0.8462rem; line-height: 1.6; margin: 3px 0; }
+
+/* 更新浮窗：非模态独立小窗，带窗口级最小化/关闭 */
+.upd-win { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); width: 448px; max-width: calc(100vw - 32px);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow-win);
+  z-index: 75; overflow: hidden; animation: uwin-in var(--t-med) var(--motion); }
+.upd-win[hidden] { display: none; }
+@keyframes uwin-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.985); } }
+.uw-bar { display: flex; align-items: center; height: 36px; padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.uw-title { font-size: 0.8077rem; color: var(--muted); }
+.uw-btns { margin-left: auto; display: flex; gap: 2px; }
+.uw-btn { width: 32px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer; transition: background var(--t-fast) var(--motion); }
+.uw-btn svg { width: 10px; height: 10px; }
+.uw-btn:hover { background: var(--surface-3); color: var(--fg); }
+.uw-btn.uw-close:hover { background: var(--danger-soft); color: var(--danger); }
+.uw-body { padding: 18px 20px 14px; }
+.uw-hero { display: flex; align-items: center; gap: 14px; }
+.uw-logo { width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface-2); padding: 7px; object-fit: contain; }
+.uw-copy b { display: block; font-size: 1.0385rem; font-weight: 650; }
+.uw-copy span { display: block; color: var(--muted); font-size: 0.8077rem; margin-top: 3px; line-height: 1.5; }
+.uw-progress { margin-top: 16px; }
+.uw-pl { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.8462rem; }
+.uw-pl span { color: var(--fg); }
+.uw-pl b { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.8077rem; }
+.uw-track { height: 7px; border-radius: 99px; background: var(--surface-3); overflow: hidden; margin-top: 8px; }
+.uw-track i { display: block; height: 100%; width: 0; border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-deep)); transition: width .14s linear; }
+.uw-changes { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface-2); padding: 4px 14px 10px; max-height: 226px; overflow-y: auto; }
+.uw-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; min-height: 30px; }
+.uw-foot { margin-top: 10px; text-align: center; color: var(--faint); font-size: 0.7308rem; }
+
+/* 关于弹层：版本号可点击（模拟跳转 Releases，离线原型以 toast 呈现） */
+.vlink { color: var(--accent); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.vlink:hover { color: var(--accent-deep); }
