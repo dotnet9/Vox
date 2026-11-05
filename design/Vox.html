@@ -159,7 +159,7 @@
             <span><i class="lg-leaf"></i>内容节点</span>
           </div>
           <button class="btn sm ghost map-style-trigger" id="btnMapStyle" title="导图样式" aria-expanded="false"><span>导图样式</span><span class="caret">▾</span></button>
-          <div class="map-hint">拖动画布 · 双击节点编辑 · 滚轮缩放</div>
+          <div class="map-hint">拖动画布 · 双击节点定位源码 · 滚轮缩放</div>
           <div class="map-stage" id="mapStage" data-layout="right">
           <svg class="map-links" id="mapLinks"></svg>
           <div class="map-nodes" id="mapNodes"></div>
@@ -216,20 +216,20 @@
     </div>
   </section>
 
-  <!-- ======== 视图：图片库（缩略图墙 + 引用面板 + 孤儿清理，复用遗留 .agrid/.acard/.apanel 零件） ======== -->
+  <!-- ======== 视图：图片库（缩略图墙 + 引用面板 + 未引用图清理，复用遗留 .agrid/.acard/.apanel 零件） ======== -->
   <section class="view" id="view-images">
     <div class="pagehead"><h2>图片库</h2><span class="sub">仓库内全部图片 · 相对路径为唯一规范形态 · CDN 域名渲染时拼接</span><span class="spacer"></span>
       <button class="btn" onclick="openModal('mImg')">图片入库…</button>
-      <button class="btn danger" id="btnOrphanClean">清理孤儿图 <span class="cnt" id="orphanN" style="margin-left:2px">3</span></button></div>
+      <button class="btn danger" id="btnOrphanClean">清理未引用图 <span class="cnt" id="orphanN" style="margin-left:2px">3</span></button></div>
     <div class="stats">
       <div class="stat"><b id="imgStatTotal">259</b><span>张图片 · 跨 2019–2026</span></div>
       <div class="stat"><b>41.2 MB</b><span>入库压缩后占用</span></div>
       <div class="stat"><b id="imgStatUsed">238</b><span>已被文章引用</span></div>
-      <div class="stat"><b id="imgStatOrphan" style="color:var(--warn)">3</b><span>孤儿图（可回滚清理）</span></div>
+      <div class="stat"><b id="imgStatOrphan" style="color:var(--warn)">3</b><span>未被引用（可删除，经 git 提交）</span></div>
     </div>
     <div class="filters">
       <select class="select" id="imgFYear"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option><option>2019</option></select>
-      <select class="select" id="imgFRef"><option>全部引用状态</option><option>已引用</option><option>孤儿</option><option>封面</option></select>
+      <select class="select" id="imgFRef"><option>全部引用状态</option><option>已引用</option><option>未被引用</option><option>封面</option></select>
       <select class="select" id="imgFFmt"><option>全部格式</option><option>SVG</option><option>JPG</option><option>PNG</option></select>
       <span style="flex:1"></span>
       <input class="input" id="imgSearch" style="width:220px" placeholder="文件名搜索…">
@@ -276,7 +276,7 @@
         <div class="f-label" style="margin-top:0">作者</div>
         <div class="author"><b>Dotnet9</b><span class="d">dotnet9@codewf.com · 更改</span></div>
         <div class="f-label">Summary <span style="color:var(--danger)">*</span><span class="cnt" id="sumCnt">0/50</span></div>
-        <input class="input" id="cSummary" maxlength="72" placeholder="docs: 一句话说明这次提交">
+        <input class="input" id="cSummary" maxlength="72" placeholder="docs: 一句话说明这次提交（建议 50 字内）">
         <div class="f-label">Description <span style="color:var(--faint);font-weight:400;font-size:0.7692rem">可选 · 支持 Markdown</span></div>
         <textarea class="input" id="cDesc" rows="5" placeholder="补充说明，可留空" style="resize:vertical"></textarea>
         <div class="row" style="gap:8px;margin-top:6px">
@@ -413,7 +413,7 @@
           <div class="sdesc">仅监听本机回环地址 127.0.0.1，AI 客户端经 Bearer Token 鉴权访问；修改端口或令牌后需重启生效</div>
           <div class="srow"><label>启用服务</label><div class="val"><div class="row"><span class="switch on" data-switch id="swMcp"></span><span class="desc">关闭后客户端连接立即断开，审计记录保留</span></div></div></div>
           <div class="srow"><label>端口</label><div class="val"><div class="row"><input class="input mono" id="mcpPort" value="17891" style="width:110px"><span class="desc" id="mcpPortHint">1024–65535 · 重启后生效</span></div></div></div>
-          <div class="srow"><label>访问令牌</label><div class="val"><div class="row" style="flex-wrap:wrap"><input class="input mono" id="mcpToken" type="password" value="vox_9f3ac21e77b04d5c" style="width:250px"><button class="btn sm" id="btnMcpTokenGen">生成新令牌</button><button class="btn sm ghost" id="btnMcpTokenShow">显示</button><button class="btn sm ghost" id="btnMcpTokenCopy">复制</button></div><div class="desc">至少 24 个字符 · 重新生成并重启后旧令牌立即失效</div></div></div>
+          <div class="srow"><label>访问令牌</label><div class="val"><div class="row" style="flex-wrap:wrap"><input class="input mono" id="mcpToken" type="password" value="vox_9f3ac21e77b04d5c" style="width:250px"><button class="btn sm" id="btnMcpTokenGen">生成新令牌</button><button class="btn sm ghost" id="btnMcpTokenShow">显示</button><button class="btn sm ghost" id="btnMcpTokenCopy">复制</button></div><div class="desc">至少 24 个字符 · 重新生成后旧令牌立即失效（热生效，无需重启）</div></div></div>
           <div class="srow"><label>端点</label><div class="val"><div class="row"><code class="mono" id="mcpEndpointRow" style="font-size:.8462rem;color:var(--accent)"></code><button class="btn sm ghost" id="btnMcpEpCopy">复制地址</button></div></div></div>
         </div>
         <div>
@@ -511,7 +511,7 @@
           <tr><th>时间</th><th>客户端</th><th>工具</th><th>参数摘要</th><th>结果</th><th>耗时</th></tr>
         </table>
       </div>
-      <p class="pm-hint">审计日志本地保留 30 天 · 写入类调用记录参数摘要与变更范围，不记录令牌 · 拒绝记录同样留痕。</p>
+      <p class="pm-hint">审计日志本地保留最近 3000 条（约 2MB）· 写入类调用记录参数摘要与变更范围，不记录令牌 · 拒绝记录同样留痕。</p>
     </div>
   </section>
 
@@ -682,7 +682,7 @@ draft: true
           <div class="f-label">标题</div><input class="input" id="mmTitle" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
           <div class="f-label">slug</div><input class="input mono" id="mmSlug" value="dotnet-native-aot-win7-skia-dependency" style="font-size:0.8462rem">
           <div class="f-label">简述 description</div><textarea class="input" id="mmDesc" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
-          <div class="f-label">日期 <span style="color:var(--faint)">自动</span></div><input class="input mono" id="mmDate" value="2026-09-28 20:00:00" style="font-size:0.8462rem">
+          <div class="f-label">日期 <span style="color:var(--faint)">lastmod 保存时自动更新，无需手改</span></div><input class="input mono" id="mmDate" value="2026-09-28 20:00:00" style="font-size:0.8462rem">
           <div class="f-label">分类</div><div class="chips" id="mmCats"><span class="chip">.NET <i>×</i></span><span class="chip add">＋</span></div>
           <div class="f-label">标签</div><div class="chips" id="mmTags"><span class="chip">Native AOT <i>×</i></span><span class="chip">SkiaSharp <i>×</i></span><span class="chip">Win7 <i>×</i></span><span class="chip add">＋</span></div>
           <div class="f-label">作者 / 状态</div>
@@ -761,7 +761,7 @@ draft: true
 <script>
 const $=id=>document.getElementById(id);
 /* ---------- 视图切换 ---------- */
-const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','37 篇 · 全库浏览与筛选'],images:['图片库','259 张图片 · 引用与孤儿管理'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],mcp:['MCP 服务','本机 AI 接口 · 18 个工具 · 调用审计'],settings:['设置']};
+const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','37 篇 · 全库浏览与筛选'],images:['图片库','259 张图片 · 引用与未引用管理'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],mcp:['MCP 服务','本机 AI 接口 · 18 个工具 · 调用审计'],settings:['设置']};
 document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
   document.querySelectorAll('.nav .it').forEach(x=>x.classList.toggle('active',x===it));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+it.dataset.view));
@@ -1467,8 +1467,8 @@ const SYNC_INIT=[
      ['add','  { "name": "CodeWF 工具站", "url": "https://tools.dotnet9.com" }'],
    ]}},
  ]},
- {label:'删除（可回滚）',ph:'清理孤儿图 {n} 张',items:[
-  {id:'d1',s:'D',name:'cover_01.png · 孤儿图清理',path:'2019/11/cover_01.png',chk:true,
+ {label:'删除（可回滚）',ph:'清理未引用图片 {n} 张',items:[
+  {id:'d1',s:'D',name:'cover_01.png · 未引用图清理',path:'2019/11/cover_01.png',chk:true,
    diff:{kind:'imgdel',cls:'g1',oldCap:'删除前 · 84 KB · 1280×720'}},
  ]},
 ];
@@ -1559,7 +1559,7 @@ function renderHist(){
     r.innerHTML='<span class="hash">'+h.sha+'</span><span class="hm">'+esc(h.msg)+'</span>'
       +'<span class="path">'+h.when+' · '+esc(h.who)+'</span><span class="gh" title="在 GitHub 查看">↗</span>';
     r.onclick=e=>{
-      if(e.target.classList.contains('gh')){toast('在浏览器打开 github.com/dotnet9/Vox/commit/'+h.sha);return;}
+      if(e.target.classList.contains('gh')){toast('在浏览器打开 github.com/dotnet9/{owner}/{repo}/commit/'+h.sha);return;}
       const fl=r.nextElementSibling;
       if(fl&&fl.classList.contains('hfiles')){fl.remove();return;}
       const nf=document.createElement('div'); nf.className='hfiles';
@@ -2158,7 +2158,7 @@ var MCP_TOOLS=[
   {n:'article_create',d:'新建文章，自动生成 slug 与同名 yml',p:'rw',on:true},
   {n:'article_meta',d:'读写元数据（分类 / 标签 / 封面 / 草稿位）',p:'rw',on:true}]},
  {g:'图片',items:[
-  {n:'image_list',d:'图片库清单（年月 / 被引用 / 孤儿筛选）',p:'ro',on:true},
+  {n:'image_list',d:'图片库清单（年月 / 被引用 / 未引用筛选）',p:'ro',on:true},
   {n:'image_usage',d:'查询图片被哪些文章引用',p:'ro',on:true},
   {n:'image_import',d:'入库新图：网图下载 · 压缩 · 落位年月目录',p:'rw',on:true},
   {n:'image_replace',d:'替换正文图片引用，旧档保留可回滚',p:'rw',on:false}]},
@@ -2237,7 +2237,9 @@ function renderMcpClients(){
 }
 function mcpClientCfg(k){
   var c=MCP_CLIENTS[k],ep=mcpEndpoint();
-  if(c.mode==='stdio')return JSON.stringify({mcpServers:{vox:{command:'vox',args:['mcp','bridge','--endpoint',ep],env:{VOX_MCP_TOKEN:MCP.token}}}},null,2);
+  // 定夺：服务端仅 HTTP 端点，无应用内 stdio 桥——Claude 等暂不支持 Streamable HTTP 的客户端
+  // 给出 mcp-remote 桥接方案（社区通用），不再演示虚构的 vox mcp bridge CLI
+  if(c.mode==='stdio')return JSON.stringify({mcpServers:{vox:{command:'npx',args:['-y','mcp-remote',ep,'--header','Authorization: Bearer '+MCP.token]}}},null,2);
   if(c.mode==='raw')return '端点\n  '+ep+'\n请求头\n  Authorization: Bearer '+MCP.token+'\n协议\n  MCP Streamable HTTP（JSON-RPC 2.0）';
   return JSON.stringify({mcpServers:{vox:{url:ep,headers:{Authorization:'Bearer '+MCP.token}}}},null,2);
 }
@@ -2425,9 +2427,9 @@ const LIB_ROWS=[
  {key:'aot',t:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',ym:'2026/09',cat:'.NET',tags:'Native AOT · SkiaSharp',wc:'4,820',pub:'2026/09/dotnet-native-aot-…-dependency.md',draft:false,st:{site:'ok',wx:'stale',cnb:'off',csdn:'off'},tips:{wx:'原文 10-02 修改未重发'}},
  {key:'vex',t:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',ym:'2026/10',cat:'.NET',tags:'Vex · MCP',wc:'7,460',pub:'2026/10/vex-mcp-ai-upgrade.md',draft:false,st:{site:'ok',wx:'off',cnb:'off',csdn:'off'}},
  {key:'qtzu',t:'qtzu：一个 3D 英语学习游戏的开源实现',ym:'2026/09',cat:'C#开源项目',tags:'OpenGL · 游戏',wc:'6,140',pub:'2026/09/qtzu-3d-english-learning-game.md',draft:false,st:{site:'ok',wx:'ok',cnb:'ok',csdn:'err'},tips:{csdn:'token 已过期（401）'}},
- {key:'exp',t:'Markdown 一键导出社媒配图实战',ym:'2026/05',cat:'工具',tags:'Markdown',wc:'3,2xx',pub:'2026/05/codewf-markdown-export-images-social-copy.md',draft:false,st:{site:'ok',wx:'off',cnb:'ok',csdn:'off'}},
- {key:'di',t:'自己动手写依赖注入框架',ym:'2025/03',cat:'.NET',tags:'DI · 源码',wc:'—',pub:'2025/03/write-your-own-di-container.md',draft:true,st:{site:'off',wx:'off',cnb:'off',csdn:'off'}},
- {key:'sq',t:'SQLite 在桌面应用中的 12 个最佳实践',ym:'2024/12',cat:'数据库',tags:'SQLite',wc:'5,1xx',pub:'2024/12/sqlite-desktop-12-best-practices.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
+ {key:'exp',t:'Markdown 一键导出社媒配图实战',ym:'2026/05',cat:'工具',tags:'Markdown',wc:'3,284',pub:'2026/05/codewf-markdown-export-images-social-copy.md',draft:false,st:{site:'ok',wx:'off',cnb:'ok',csdn:'off'}},
+ {key:'di',t:'自己动手写依赖注入框架',ym:'2025/03',cat:'.NET',tags:'DI · 源码',wc:'1,842',pub:'2025/03/write-your-own-di-container.md',draft:true,st:{site:'off',wx:'off',cnb:'off',csdn:'off'}},
+ {key:'sq',t:'SQLite 在桌面应用中的 12 个最佳实践',ym:'2024/12',cat:'数据库',tags:'SQLite',wc:'5,167',pub:'2024/12/sqlite-desktop-12-best-practices.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
  {key:'av',t:'Avalonia 自绘控件的渲染管线剖析',ym:'2024/06',cat:'Avalonia',tags:'Avalonia · 渲染',wc:'8,332',pub:'2024/06/avalonia-render-pipeline.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
  {key:'ser',t:'C#百万对象序列化深度剖析',ym:'2023/12',cat:'.NET',tags:'序列化 · 性能',wc:'7,4xx',pub:'2023/12/deep-analysis-…-serialization.md',draft:false,st:{site:'stale',wx:'ok',cnb:'ok',csdn:'ok'},tips:{site:'本地修改未提交'}},
 ];
@@ -2474,7 +2476,7 @@ function renderMcpLive(){
 }
 renderMcpLive();
 
-/* ---------- 图片库：清单 / 筛选 / 引用面板 / 孤儿清理 ---------- */
+/* ---------- 图片库：清单 / 筛选 / 引用面板 / 未引用图清理 ---------- */
 const IMAGES=[
  {id:'i01',name:'dotnet-native-aot-win7-skia-dependency-chain.svg',path:'2026/09/',fmt:'SVG',g:'g1',dim:'1920×1080',size:'86 KB',date:'2026-09-28',refs:['.NET Native AOT 依赖 Win7：Skia 依赖链排查记'],cover:false,orphan:false},
  {id:'i02',name:'qtzu-city-panorama.jpg',path:'2026/09/',fmt:'JPG',g:'g2',dim:'1920×1080',size:'512 KB',date:'2026-09-21',refs:['qtzu：一个 3D 英语学习游戏的开源实现'],cover:true,orphan:false},
@@ -2497,14 +2499,14 @@ function renderImages(){
     if(fy!=='全部年份'&&im.path.indexOf(fy)!==0)return false;
     if(ff!=='全部格式'&&im.fmt!==ff)return false;
     if(fr==='已引用'&&im.refs.length===0)return false;
-    if(fr==='孤儿'&&!im.orphan)return false;
+    if(fr==='未被引用'&&!im.orphan)return false;
     if(fr==='封面'&&!im.cover)return false;
     if(q&&im.name.toLowerCase().indexOf(q)<0)return false;
     return true;});
   var grid=$('agrid');grid.innerHTML='';
   list.forEach(function(im){
     var d=document.createElement('div');d.className='acard'+(imgSel===im.id?' sel':'');
-    var flag=im.orphan?'<span class="badge warn">孤儿</span>':im.cover?'<span class="badge accent">封面</span>':'';
+    var flag=im.orphan?'<span class="badge warn">未被引用</span>':im.cover?'<span class="badge accent">封面</span>':'';
     d.innerHTML='<div class="ph '+im.g+'"><span class="flag">'+flag+'</span></div>'
       +'<div class="info"><b>'+esc(im.name)+'</b><span>'+im.path.slice(0,-1)+' · '+im.size+' · '+(im.refs.length?('被引用 '+im.refs.length+' 篇'):'未被引用')+'</span></div>';
     d.onclick=function(){imgSel=im.id;renderImages();};
@@ -2524,7 +2526,7 @@ function renderImgPanel(){
   p.style.display='';
   p.innerHTML='<div class="big '+im.g+'"></div>'
     +'<b style="font:500 0.8462rem var(--font-mono);word-break:break-all">'+esc(im.name)+'</b>'
-    +'<div style="margin:6px 0 10px">'+(im.orphan?'<span class="badge warn">孤儿图</span> ':'')+(im.cover?'<span class="badge accent">封面</span> ':'')+'<span class="badge">'+im.fmt+'</span></div>'
+    +'<div style="margin:6px 0 10px">'+(im.orphan?'<span class="badge warn">未引用图片</span> ':'')+(im.cover?'<span class="badge accent">封面</span> ':'')+'<span class="badge">'+im.fmt+'</span></div>'
     +'<div class="kv"><span>相对路径</span><b title="'+esc(im.path+im.name)+'">'+esc(im.path+im.name)+'</b></div>'
     +'<div class="kv"><span>尺寸</span><b>'+im.dim+'</b></div>'
     +'<div class="kv"><span>大小</span><b>'+im.size+'</b></div>'
@@ -2547,10 +2549,10 @@ function imgDelete(id){
 }
 $('btnOrphanClean').onclick=function(){
   var n=IMAGES.filter(function(im){return im.orphan;}).length;
-  if(!n){toast('没有孤儿图，工作区很干净');return;}
-  if(!confirm('清理 '+n+' 张孤儿图？文件经 git 提交删除，推送前可在同步视图「删除（可回滚）」分组撤回。'))return;
+  if(!n){toast('没有未引用图片，工作区很干净');return;}
+  if(!confirm('清理 '+n+' 张未引用图片？文件经 git 提交删除，推送前可在同步视图「删除（可回滚）」分组撤回。'))return;
   for(var i=IMAGES.length-1;i>=0;i--)if(IMAGES[i].orphan)IMAGES.splice(i,1);
-  imgSel=null;renderImages();toast('已清理 '+n+' 张孤儿图 · 变更已进 git 同步视图');
+  imgSel=null;renderImages();toast('已清理 '+n+' 张未引用图片 · 变更已进 git 同步视图');
 };
 ['imgFYear','imgFRef','imgFFmt'].forEach(function(id){$(id).onchange=renderImages;});
 $('imgSearch').oninput=function(){renderImages();};
