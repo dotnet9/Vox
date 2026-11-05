@@ -20,8 +20,8 @@ using static Vox.App.Views.Pages.WritePage;
 namespace Vox.App.Views.Pages;
 
 /// <summary>
-/// 图片库页（原型 #view-images）：统计条 + 筛选（年份/引用状态/格式/文件名）+ 缩略图墙 + 引用详情面板 + 孤儿图清理。
-/// 数据全部来自 <see cref="RepoScan.Images"/>（引用面含 site 数据，孤儿口径见 ImageAsset 决策 D6）。
+/// 图片库页（原型 #view-images）：统计条 + 筛选（年份/引用状态/格式/文件名）+ 缩略图墙 + 引用详情面板 + 未引用图片清理。
+/// 数据全部来自 <see cref="RepoScan.Images"/>（引用面含 site 数据，未引用口径见 ImageAsset 决策 D6）。
 /// </summary>
 public sealed class ImagesPage : UserControl
 {
@@ -65,7 +65,7 @@ public sealed class ImagesPage : UserControl
         var scroll = new ScrollViewer { Padding = new Thickness(18) };
         var host = new StackPanel { Spacing = 14 };
 
-        // 页头：标题 + 孤儿清理
+        // 页头：标题 + 未引用图片清理
         var head = new DockPanel { LastChildFill = false };
         var title = new TextBlock { Text = T("Vox.Images.Title"), FontSize = 16, FontWeight = FontWeight.SemiBold };
         var subtitle = new TextBlock { Text = T("Vox.Images.Subtitle"), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 2, 0, 0) };
@@ -169,7 +169,10 @@ public sealed class ImagesPage : UserControl
         _statsHost.Children.Clear();
         var years = all.Select(i => i.YearMonth).Where(m => m.Length >= 4).Select(m => m[..4]).Distinct().OrderBy(y => y).ToList();
         var span = years.Count == 0 ? null : years.Count == 1 ? years[0] : $"{years[0]}–{years[^1]}";
-        _statsHost.Children.Add(StatCard($"{all.Count}", span == null ? T("Vox.Images.Stats.Total") : TF("Vox.Images.Stats.TotalSpan", span)));
+        // 总张数 = 全量（含死链占位，卡片上有徽标），与文章库统计同口径
+        var totalCard = StatCard($"{all.Count}", span == null ? T("Vox.Images.Stats.Total") : TF("Vox.Images.Stats.TotalSpan", span));
+        ToolTip.SetTip(totalCard, T("Vox.Library.Stats.ImagesTip"));
+        _statsHost.Children.Add(totalCard);
         _statsHost.Children.Add(StatCard(FormatBytes(all.Sum(i => Math.Max(i.Bytes, 0))), T("Vox.Images.Stats.Bytes")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => !i.IsMissing && i.ReferencedBy.Count > 0)}", T("Vox.Images.Stats.Used")));
         _statsHost.Children.Add(StatCard($"{all.Count(i => i.IsOrphan)}", T("Vox.Images.Stats.Orphan"), "VoxWarn"));
@@ -309,7 +312,7 @@ public sealed class ImagesPage : UserControl
         var refsLabel = image.ReferencedBy.Count > 0 ? TF("Vox.Images.Label.Refs", image.ReferencedBy.Count) : T("Vox.Images.Pick.Orphan");
         var metaLine = image.IsMissing
             ? T("Vox.Images.Badge.Missing")
-            : string.Join(" · ", new[] { image.YearMonth, FormatBytes(image.Bytes), refsLabel }.Where(s => s.Length > 0));
+            : string.Join(" · ", new[] { image.YearMonth.Replace('-', '/'), FormatBytes(image.Bytes), refsLabel }.Where(s => s.Length > 0));
         var info = new StackPanel
         {
             Margin = new Thickness(8, 6),
@@ -327,7 +330,6 @@ public sealed class ImagesPage : UserControl
 
         var card = new Border
         {
-            Classes = { "image-card" },
             Width = 150,
             Margin = new Thickness(0, 0, 10, 10),
             CornerRadius = new CornerRadius(11),
@@ -336,9 +338,8 @@ public sealed class ImagesPage : UserControl
             Cursor = new Cursor(StandardCursorType.Hand),
         };
         Res(card, Border.BackgroundProperty, "VoxSurface");
-        Res(card, Border.BorderBrushProperty, "VoxLine");
-        card.BorderThickness = new Thickness(selected ? 2 : 1);
-        if (selected) Res(card, Border.BorderBrushProperty, "VoxAccent");
+        Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
+        card.BorderThickness = new Thickness(1);
         card.PointerEntered += (_, _) =>
         {
             if (selected) return;
@@ -356,7 +357,26 @@ public sealed class ImagesPage : UserControl
             RebuildGrid();
             RebuildDetail();
         };
-        return card;
+        if (!selected)
+        {
+            card.Classes.Add("image-card");
+            return card;
+        }
+
+        // 原型 .acard.sel：accent 描边 + 2px accent-soft 光环——外层 2px 填充 Border 等价 box-shadow ring
+        card.Margin = default;
+        card.Width = double.NaN;
+        var ring = new Border
+        {
+            Classes = { "image-card" },
+            Width = 150,
+            Margin = new Thickness(0, 0, 10, 10),
+            CornerRadius = new CornerRadius(13),
+            Padding = new Thickness(2),
+            Child = card,
+        };
+        Res(ring, Border.BackgroundProperty, "VoxAccentSoft");
+        return ring;
     }
 
     private readonly Dictionary<string, Avalonia.Controls.Image> _thumbRequests = new();

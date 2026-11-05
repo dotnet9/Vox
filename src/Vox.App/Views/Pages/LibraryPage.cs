@@ -152,12 +152,15 @@ public sealed class LibraryPage : UserControl
         var articles = scan?.Articles.Count ?? 0;
         var years = scan is { Articles.Count: > 0 } s ? $"{s.Articles.Min(a => a.Year)}–{s.Articles.Max(a => a.Year)}" : "—";
         var words = scan?.Articles.Sum(a => a.WordCount) ?? 0;
-        var images = scan?.Images.Count(i => !i.IsMissing) ?? 0;
+        // 口径与图片库页统一：全量张数（含被引用但缺失的死链占位），卡片 tooltip 注明，避免两页数字打架
+        var images = scan?.Images.Count ?? 0;
         var pending = scan is null ? 0 : PublishHub.Rows().Sum(r => r.Channels.Count(c => c.Status is PublishStatus.Stale or PublishStatus.Off or PublishStatus.Error));
 
         _statsHost.Children.Add(StatCard($"{articles}", TF("Vox.Library.Stats.ArticlesSpan", years)));
         _statsHost.Children.Add(StatCard(FormatWords(words), T("Vox.Library.Stats.WordsEngine")));
-        _statsHost.Children.Add(StatCard($"{images}", T("Vox.Library.Stats.Images")));
+        var imagesCard = StatCard($"{images}", T("Vox.Library.Stats.Images"));
+        ToolTip.SetTip(imagesCard, T("Vox.Library.Stats.ImagesTip"));
+        _statsHost.Children.Add(imagesCard);
         _statsHost.Children.Add(StatCard($"{pending}", T("Vox.Library.Stats.PendingAll")));
         LayoutStatsCards();
     }
@@ -236,8 +239,7 @@ public sealed class LibraryPage : UserControl
         var term = _search.Text?.Trim();
         if (!string.IsNullOrWhiteSpace(term))
         {
-            query = query.Where(a => a.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || a.Slug.Contains(term, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(a => MatchesTitleSlugOrBody(a, term));
         }
 
         var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
@@ -246,6 +248,26 @@ public sealed class LibraryPage : UserControl
         if (_platformFilter.Selected == T("Vox.Library.Filter.Error")) query = query.Where(a => rows.TryGetValue(a.MarkdownPath, out var r) && r.Channels.Any(c => c.Status == PublishStatus.Error));
 
         return query.OrderByDescending(a => a.Meta.Date).ToList();
+    }
+
+    /// <summary>搜索口径：标题 + slug + 正文。正文惰性读盘——仅标题/slug 未命中且查询 ≥2 字符才读全文
+    /// （当前 40 篇规模直接同步读即够；命中或单字符不碰磁盘）。写作页左侧列表搜索保持原口径不动。</summary>
+    private static bool MatchesTitleSlugOrBody(Article article, string term)
+    {
+        if (article.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
+        if (article.Slug.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
+        if (term.Length < 2) return false;
+        var root = AppState.Instance.CurrentRepoRoot;
+        if (root == null) return false;
+        try
+        {
+            var full = Path.Combine(root, article.MarkdownPath.Replace('/', Path.DirectorySeparatorChar));
+            return File.ReadAllText(full).Contains(term, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false; // 文件被移动/占用：按未命中处理
+        }
     }
 
     private void ConfigureGrid()
