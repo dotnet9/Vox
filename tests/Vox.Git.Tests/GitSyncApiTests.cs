@@ -52,6 +52,61 @@ public class GitSyncApiTests
     }
 
     [Fact]
+    public void SemanticChanges_counts_added_and_deleted_lines()
+    {
+        var (root, svc) = CreateRepo();
+        try
+        {
+            File.AppendAllText(Path.Combine(root, "2026", "01", "a.md"), "line3\nline4\n"); // 追加 2 行
+            File.WriteAllText(Path.Combine(root, "2026", "01", "b.md"), "x\ny\n"); // 新增未跟踪文件 2 行
+
+            var changes = svc.SemanticChanges();
+            var modified = changes.First(c => c.Path.EndsWith("a.md"));
+            Assert.Equal(2, modified.LinesAdded);
+            Assert.Equal(0, modified.LinesDeleted);
+            Assert.True(modified.HasLineStats);
+            var added = changes.First(c => c.Path.EndsWith("b.md"));
+            Assert.Equal(2, added.LinesAdded); // patch 口径或行数补齐均为 +2
+            Assert.True(added.HasLineStats);
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Fact]
+    public void SemanticChanges_reports_deleted_lines_for_removed_file()
+    {
+        var (root, svc) = CreateRepo();
+        try
+        {
+            File.Delete(Path.Combine(root, "2026", "01", "a.md")); // 原文件 2 行
+
+            var deleted = svc.SemanticChanges().First(c => c.Path.EndsWith("a.md"));
+            Assert.Equal(VoxChangeKind.Deleted, deleted.Kind);
+            Assert.Equal(0, deleted.LinesAdded);
+            Assert.Equal(2, deleted.LinesDeleted);
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Fact]
+    public void NormalizeRemoteUrl_normalizes_https_and_ssh_forms()
+    {
+        Assert.Equal("https://github.com/dotnet9/Vox", GitService.NormalizeRemoteUrl("https://github.com/dotnet9/Vox.git"));
+        Assert.Equal("https://github.com/dotnet9/Vox", GitService.NormalizeRemoteUrl("https://github.com/dotnet9/Vox"));
+        Assert.Equal("https://github.com/dotnet9/Vox", GitService.NormalizeRemoteUrl("git@github.com:dotnet9/Vox.git"));
+        Assert.Equal("https://gitlab.com/g/r", GitService.NormalizeRemoteUrl("ssh://git@gitlab.com/g/r.git"));
+        Assert.Null(GitService.NormalizeRemoteUrl("D:/repos/vox")); // 本地路径远端不归一
+        Assert.Null(GitService.NormalizeRemoteUrl("  "));
+        Assert.Null(GitService.NormalizeRemoteUrl(null));
+    }
+
+    [Fact]
     public void TextDiff_parses_hunks_with_kinds()
     {
         var (root, svc) = CreateRepo();

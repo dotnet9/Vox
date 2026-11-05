@@ -3,7 +3,7 @@ using LibGit2Sharp;
 namespace Vox.Git;
 
 /// <summary>语义化改动条目：聚合到“文章 / 图片 / 站点数据”视图，而不是文件名列表（需求 M1 同步 P0）。</summary>
-public sealed record ChangeEntry(string Path, ChangeKind Kind, string Category)
+public sealed record ChangeEntry(string Path, ChangeKind Kind, string Category, int LinesAdded = -1, int LinesDeleted = -1)
 {
     public string KindLabel => Kind switch
     {
@@ -13,6 +13,9 @@ public sealed record ChangeEntry(string Path, ChangeKind Kind, string Category)
         ChangeKind.Renamed => "R",
         _ => "?",
     };
+
+    /// <summary>行级统计可用（文本文件且 diff 已取到）；-1 表示未知（二进制/统计失败），UI 不显示计数。</summary>
+    public bool HasLineStats => LinesAdded >= 0 && LinesDeleted >= 0;
 }
 
 public enum ChangeKind
@@ -55,10 +58,10 @@ public sealed class GitService
         return (head.FriendlyName, head.TrackingDetails.AheadBy, head.TrackingDetails.BehindBy);
     }
 
-    /// <summary>工作区改动按仓库语义聚合：文章（md/yml）、图片、站点数据、其他。</summary>
+    /// <summary>工作区改动按仓库语义聚合：文章（md/yml）、图片、站点数据、其他；含 +/- 行数统计。</summary>
     public IReadOnlyList<ChangeEntry> SemanticChanges()
     {
-        var entries = new List<ChangeEntry>();
+        var pending = new List<(string Path, ChangeKind Kind)>();
         foreach (var item in Status())
         {
             var path = item.FilePath.Replace('\\', '/');
@@ -69,9 +72,55 @@ public sealed class GitService
             else if (item.State.HasFlag(FileStatus.ModifiedInWorkdir) || item.State.HasFlag(FileStatus.ModifiedInIndex)) kind = ChangeKind.Modified;
             else kind = ChangeKind.Other;
             if (kind == ChangeKind.Other) continue;
-            entries.Add(new ChangeEntry(path, kind, Categorize(path)));
+            pending.Add((path, kind));
         }
-        return entries;
+
+        var lineStats = CountLineStats(pending.Select(p => p.Path));
+        return pending
+            .Select(p => (p.Path, p.Kind, Stats: lineStats.GetValueOrDefault(p.Path, (-1, -1))))
+            .Select(e => new ChangeEntry(e.Path, e.Kind, Categorize(e.Path), e.Stats.Item1, e.Stats.Item2))
+            .ToList();
+    }
+
+    /// <summary>一批文件的 +/- 行数：HEAD（或空树）→ 工作区一次性 diff（与 TextDiff 同口径）取 Patch 行统计；失败的文件保持 -1（不阻断列表）。</summary>
+    private Dictionary<string, (int Added, int Deleted)> CountLineStats(IEnumerable<string> paths)
+    {
+        var stats = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var repo = new Repository(_repoRoot);
+            var patch = repo.Diff.Compare<Patch>(repo.Head.Tip?.Tree, DiffTargets.WorkingDirectory, paths);
+            foreach (var entry in patch)
+            {
+                stats[entry.Path.Replace('\\', '/')] = (entry.LinesAdded, entry.LinesDeleted);
+            }
+        }
+        catch
+        {
+            // 行统计失败（如无 HEAD 的空仓库 diff 异常）：保持空表，UI 不显示计数。
+        }
+
+        // 未跟踪文件在部分 diff 口径下不产生 patch：新增的文本文件按行数补齐（图片等二进制保持未知）。
+        foreach (var path in paths)
+        {
+            if (stats.ContainsKey(path) || IsImagePath(path)) continue;
+            try
+            {
+                var full = System.IO.Path.Combine(_repoRoot, path.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                if (File.Exists(full)) stats[path] = (File.ReadLines(full).Count(), 0);
+            }
+            catch
+            {
+                // 读取失败（占用/编码）：不补。
+            }
+        }
+        return stats;
+    }
+
+    private static bool IsImagePath(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+        return ext is ".svg" or ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp";
     }
 
     private static string Categorize(string path)
@@ -240,6 +289,47 @@ public sealed class GitService
             throw new InvalidOperationException("远端历史与本地分叉，无法快进合并——请用外部 git 处理（决策 D5 降级路径）。");
         }
         return (repo.Head.TrackingDetails.BehindBy ?? 0) == 0 ? before : 0;
+    }
+
+    /// <summary>origin 远端归一为 Web 首页（https://{host}/{owner}/{repo}）；SSH/HTTPS 形态统一，无 origin 或本地路径远端返回 null。</summary>
+    public string? RemoteUrl()
+    {
+        try
+        {
+            using var repo = new Repository(_repoRoot);
+            return NormalizeRemoteUrl(repo.Network.Remotes["origin"]?.Url);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>提交在远端（GitHub 等）的 Web 地址：https://{host}/{owner}/{repo}/commit/{sha}；无 origin 返回 null。</summary>
+    public string? CommitUrl(string sha) => RemoteUrl() is { } home ? $"{home}/commit/{sha}" : null;
+
+    /// <summary>任意远端地址 → https Web 首页：去 .git 尾、SSH（git@host:owner/repo / ssh://git@host/...）归一为 https。本地路径远端返回 null。</summary>
+    public static string? NormalizeRemoteUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        url = url.Trim().TrimEnd('/');
+        if (url.Contains('\\')) return null; // Windows 本地路径远端
+        if (url.Length >= 2 && url[1] == ':' && char.IsAsciiLetter(url[0])) return null; // 盘符形态（D:/repos/vox）
+        if (url.EndsWith(".git", StringComparison.OrdinalIgnoreCase)) url = url[..^4];
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var hostPath = url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase) ? url["ssh://".Length..] : url;
+            var at = hostPath.IndexOf('@');
+            if (at >= 0) hostPath = hostPath[(at + 1)..];
+            url = "https://" + hostPath.Replace(':', '/');
+        }
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
+            || !uri.Host.Contains('.')) return null; // 无点主机多为本地路径误归一
+        var segments = uri.AbsolutePath.Trim('/').Split('/');
+        if (segments.Length < 2 || segments.Any(string.IsNullOrEmpty)) return null;
+        return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath.TrimEnd('/')}";
     }
 
     public (string Name, string Email) Identity()

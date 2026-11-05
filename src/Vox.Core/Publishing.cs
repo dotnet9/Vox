@@ -179,8 +179,12 @@ public static class PublishChecks
         return rules;
     }
 
-    /// <summary>单篇检查：返回 (是否通过, 说明) 列表，用于发布对话框。</summary>
-    public static IReadOnlyList<(bool Ok, string Label)> EvaluateArticle(Article article, RepoScan scan)
+    /// <summary>
+    /// 单篇检查：返回 (是否通过, 说明) 列表，用于发布对话框。
+    /// siteStatus 为站点通道状态（PublishHub 同口径）：Stale（工作区有未提交修改）时警示先走 git 提交推送。
+    /// </summary>
+    public static IReadOnlyList<(bool Ok, string Label)> EvaluateArticle(
+        Article article, RepoScan scan, PublishStatus siteStatus = PublishStatus.Ok)
     {
         var list = new List<(bool, string)>
         {
@@ -194,6 +198,11 @@ public static class PublishChecks
             return img is { IsMissing: false };
         });
         list.Add((valid == total, total == 0 ? "图片引用（无图）" : $"图片引用 {valid}/{total} 有效"));
+        // 草稿未完成：draft:true 的文章站点渲染会隐藏，多平台发出的是半成品。
+        list.Add((!article.IsDraft, article.IsDraft ? "草稿未完成（draft: true）" : "非草稿"));
+        // 站点通道：该文件未提交时与渠道行「去提交推送」呼应，先完成 git 提交推送。
+        list.Add((siteStatus != PublishStatus.Stale,
+            siteStatus == PublishStatus.Stale ? "先完成 git 提交推送" : "站点已同步"));
         return list;
     }
 }

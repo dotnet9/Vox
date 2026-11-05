@@ -21,6 +21,7 @@ public sealed class PublishDialog : Border
     private readonly StackPanel _checkItems = new();
     private readonly Border _okBadge = new() { Classes = { "badge", "ok" }, Child = new TextBlock() };
     private readonly Border _warnBadge = new() { Classes = { "badge", "warn" }, Child = new TextBlock() };
+    private readonly Border _verdictBadge = new() { Classes = { "badge", "ok" }, Child = new TextBlock() };
     private readonly StackPanel _rows = new();
 
     // 复制字段内部标识（与界面文案解耦，切换语言不影响取值逻辑）
@@ -44,6 +45,8 @@ public sealed class PublishDialog : Border
         var skeleton = modal.Child;
         modal.Child = null; // 先断开骨架 Border 的逻辑父级，再借用其内容（否则「已有父级」崩溃）
         Child = skeleton;
+        // 标题区总评徽标（原型 #pubDlgOverall）：检查通过 / 有项目需要确认
+        if (skeleton is Border skeletonBorder) AttachVerdictBadge(skeletonBorder);
         close.Click += (_, _) => shell.CloseModal();
 
         // 发布前检查卡片
@@ -117,6 +120,23 @@ public sealed class PublishDialog : Border
         RebuildRows();
     }
 
+    /// <summary>把总评徽标插进弹层标题行（Modal.Create 的 header 是唯一的 DockPanel 子级）。</summary>
+    private void AttachVerdictBadge(Border skeleton)
+    {
+        if (skeleton.Child is not DockPanel root) return;
+        var header = root.Children.OfType<DockPanel>().FirstOrDefault();
+        var titleBlock = header?.Children.OfType<TextBlock>().FirstOrDefault();
+        if (header == null || titleBlock == null) return;
+        header.Children.Remove(titleBlock);
+        titleBlock.VerticalAlignment = VerticalAlignment.Center;
+        _verdictBadge.VerticalAlignment = VerticalAlignment.Center;
+        header.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 8,
+            Children = { titleBlock, _verdictBadge },
+        });
+    }
+
     /// <summary>复制字段显示文案（当前语言）。</summary>
     private static string FieldLabel(string field) => field switch
     {
@@ -144,7 +164,9 @@ public sealed class PublishDialog : Border
     {
         var scan = AppState.Instance.Scan;
         if (scan == null) return;
-        var checks = PublishChecks.EvaluateArticle(_article, scan);
+        // 站点通道状态同口径传入：stale（工作区未提交）时检查区警示「先完成 git 提交推送」
+        var siteStatus = PublishHub.EvaluateArticle(_article.MarkdownPath, PublishChannel.Site).Status;
+        var checks = PublishChecks.EvaluateArticle(_article, scan, siteStatus);
         _checkItems.Children.Clear();
         var warn = 0;
         foreach (var (ok, label) in checks)
@@ -165,6 +187,13 @@ public sealed class PublishDialog : Border
         (_okBadge.Child as TextBlock)!.Text = TF("Vox.Publish.Check.PassCount", checks.Count - warn);
         (_warnBadge.Child as TextBlock)!.Text = warn > 0 ? TF("Vox.Publish.Check.WarnCount", warn) : string.Empty;
         _warnBadge.IsVisible = warn > 0;
+        // 标题区总评徽标：全过「检查通过」，有未过项「有项目需要确认」
+        _verdictBadge.Classes.Clear();
+        _verdictBadge.Classes.Add("badge");
+        _verdictBadge.Classes.Add(warn > 0 ? "warn" : "ok");
+        (_verdictBadge.Child as TextBlock)!.Text = warn > 0
+            ? T("Vox.Publish.Dialog.VerdictWarn")
+            : T("Vox.Publish.Dialog.VerdictOk");
     }
 
     private void RebuildRows()
@@ -386,8 +415,33 @@ public sealed class PublishDialog : Border
         if (channel is { } copied)
         {
             Record(copied, PublishAction.Copy, true, FieldLabel(field), OnlineUrl(copied), null);
+            // 复制型平台（知乎）复制成功即视为已发布：MarkPublished 回写快照（=当前内容 hash，复制时间随快照记录），
+            // 矩阵可达「已同步」；原文再改后按状态机回到「需更新」。
+            if (copied == PublishChannel.Zhihu) MarkCopyPublished();
         }
         _shell.ShowToast(TF("Vox.Sync.Msg.Copied", FieldLabel(field)));
+    }
+
+    /// <summary>复制型平台的「已发布」回写：与 API 通道同一内容快照口径。</summary>
+    private void MarkCopyPublished()
+    {
+        try
+        {
+            var file = LinkStrategy.ToLocalFile(
+                AppState.Instance.CurrentRepoRoot ?? throw new InvalidOperationException("未配置仓库"),
+                _article.MarkdownPath);
+            if (!File.Exists(file)) return;
+            var hash = PublishStateStore.ContentHash(file);
+            var states = PublishStateStore.Load();
+            PublishStateStore.MarkPublished(states, _article.MarkdownPath, PublishChannel.Zhihu, hash);
+            PublishStateStore.Save(states);
+            PublishHub.Invalidate();
+            RebuildRows();
+        }
+        catch
+        {
+            // 回写失败不影响复制本身（剪贴板已有内容）。
+        }
     }
 
     private void Record(PublishChannel channel, PublishAction action, bool success, string? note, string? url, string? sha)

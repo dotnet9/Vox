@@ -37,6 +37,7 @@ public sealed class PublishPage : UserControl
     private readonly StackPanel _matrixTab = new();
     private readonly StackPanel _checkTab = new();
     private readonly TextBlock _pubSummary = new();
+    private readonly TKCode.Arc.SegmentedControl _tabs = new() { HorizontalAlignment = HorizontalAlignment.Left };
 
     // git 标签
     private readonly TextBlock _branchName = new();
@@ -53,12 +54,30 @@ public sealed class PublishPage : UserControl
     private readonly TextBlock _summaryCount = new();
     private readonly TextBox _descInput = new();
     private StackPanel _historyHost = new();
+    private readonly TextBlock _authorName = new() { FontSize = 12.5, FontWeight = FontWeight.Medium };
+    private readonly TextBlock _authorEmail = new() { FontSize = 10.5 };
+    private ArcButton _splitButton = new();
+    private ArcButton _unifiedButton = new();
+    private int _aheadCount;
+    private int _behindCount;
+    private bool _branchOk;
+    // Summary 自动生成：用户手改后不再覆盖（下次提交清空后恢复自动）
+    private bool _summaryUserEdited;
+    private bool _summaryFilling;
 
     // 矩阵标签
     private readonly Controls.MiniSelect _matrixFilter = new();
     private readonly Controls.MiniSelect _platformFilter = new();
     private readonly ArcInput _matrixSearch = new() { Width = 200, IsLabelVisible = false };
     private StackPanel _matrixHost = new();
+    private readonly TextBlock _statOk = new();
+    private readonly TextBlock _statStale = new();
+    private readonly TextBlock _statOff = new();
+    private readonly TextBlock _statErr = new();
+    private readonly Border _queueCard = new() { IsVisible = false };
+    private readonly TextBlock _queueCount = new();
+    private readonly StackPanel _queueRows = new();
+    private ArcButton _queueViewAll = new();
 
     // 检查标签
     private readonly StackPanel _checkGroupsHost = new();
@@ -88,7 +107,7 @@ public sealed class PublishPage : UserControl
         _shell = shell;
         BuildLayout();
         AppState.Instance.ScanChanged += () => Dispatcher.UIThread.Post(() => RefreshAll());
-        _shell.ModalClosed += () => Dispatcher.UIThread.Post(RefreshPublishLog);
+        _shell.ModalClosed += () => Dispatcher.UIThread.Post(() => { RefreshPublishLog(); RefreshQueue(); });
         AttachedToVisualTree += (_, _) => RefreshAll();
     }
 
@@ -107,7 +126,7 @@ public sealed class PublishPage : UserControl
         var root = new DockPanel { Margin = new Thickness(18, 14, 18, 14) };
 
         // 标签条（Arc SegmentedControl：滑块动画自带）
-        var seg = new TKCode.Arc.SegmentedControl { HorizontalAlignment = HorizontalAlignment.Left };
+        var seg = _tabs;
         var tabs = new (string Key, StackPanel Host)[]
         {
             ("Vox.Publish.Tab.Site", _siteTab), ("Vox.Publish.Tab.Matrix", _matrixTab), ("Vox.Publish.Tab.Check", _checkTab),
@@ -202,6 +221,7 @@ public sealed class PublishPage : UserControl
         changeHead.Children.Add(title);
         _checkAll.IsCheckedChanged += (_, _) =>
         {
+            if (_syncingCheckAll) return;
             if (_checkAll.IsChecked == true) _selectedPaths.UnionWith(_changes.Select(c => c.Path));
             else _selectedPaths.Clear();
             RenderChangeList();
@@ -219,12 +239,25 @@ public sealed class PublishPage : UserControl
         listBorder.BorderThickness = new Thickness(1);
         listBorder.Child = new ScrollViewer { Content = _changeList, MaxHeight = 360, MinHeight = 150 };
 
+        // diff 面板：并排 / 统一切换（原型 #view-sync 工具位）+ 内容区
         var diffBorder = new Border { CornerRadius = new CornerRadius(12) };
         Res(diffBorder, Border.BackgroundProperty, "VoxSurface");
         Res(diffBorder, Border.BorderBrushProperty, "VoxLine");
         diffBorder.BorderThickness = new Thickness(1);
+        _splitButton = new ArcButton { Variant = ArcButtonVariant.Primary, FontSize = 11, Padding = new Thickness(10, 4, 10, 4) };
+        _splitButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Sync.Diff.Split");
+        _unifiedButton = new ArcButton { Variant = ArcButtonVariant.Secondary, FontSize = 11, Padding = new Thickness(10, 4, 10, 4) };
+        _unifiedButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Sync.Diff.Unified");
+        _splitButton.Click += (_, _) => SetSplitMode(true);
+        _unifiedButton.Click += (_, _) => SetSplitMode(false);
+        var diffToggle = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 10, 6),
+            Children = { _unifiedButton, _splitButton },
+        };
         var diffScroll = new ScrollViewer { MaxHeight = 260, Content = _diffHost };
-        diffBorder.Child = diffScroll;
+        diffBorder.Child = new DockPanel { Children = { diffToggle.Dock(Dock.Top), diffScroll } };
 
         left.Children.Add(changeHead.Dock(Dock.Top));
         left.Children.Add(diffBorder.Dock(Dock.Bottom));
@@ -237,9 +270,12 @@ public sealed class PublishPage : UserControl
         var authorLabel = new TextBlock { Classes = { "flabel" }, Margin = new Thickness(0, 0, 0, 2) };
         authorLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Sync.Label.Author");
         commit.Children.Add(authorLabel);
-        var author = new TextBlock { FontSize = 12.5 };
-        author.Text = "Dotnet9 · dotnet9@codewf.com";
-        Res(author, TextBlock.ForegroundProperty, "VoxFg");
+        var author = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        Res(_authorName, TextBlock.ForegroundProperty, "VoxFg");
+        Res(_authorEmail, TextBlock.ForegroundProperty, "VoxFaint");
+        _authorEmail.VerticalAlignment = VerticalAlignment.Bottom;
+        author.Children.Add(_authorName);
+        author.Children.Add(_authorEmail);
         commit.Children.Add(author);
 
         var sumLabel = new StackPanel { Orientation = Orientation.Horizontal };
@@ -256,10 +292,23 @@ public sealed class PublishPage : UserControl
         sumLabel.Children.Add(required);
         sumLabel.Children.Add(_summaryCount);
         commit.Children.Add(sumLabel);
+        // Summary 计数：50 软限（超出变警示色并显示 72 硬限口径），手改后停用自动生成
+        ToolTip.SetTip(_summaryCount, T("Vox.Publish.Summary.LimitHint"));
         _summaryInput.TextChanged += (_, _) =>
         {
-            _summaryCount.Text = $"{_summaryInput.Text?.Length ?? 0}/50";
-            UpdateCommitState();
+            if (!_summaryFilling) _summaryUserEdited = true;
+            var length = _summaryInput.Text?.Length ?? 0;
+            if (length > 50)
+            {
+                _summaryCount.Text = $"{length}/72";
+                Res(_summaryCount, TextBlock.ForegroundProperty, "VoxWarn");
+            }
+            else
+            {
+                _summaryCount.Text = $"{length}/50";
+                Res(_summaryCount, TextBlock.ForegroundProperty, "VoxFaint");
+            }
+            if (!_summaryFilling) UpdateCommitState();
         };
         commit.Children.Add(_summaryInput);
 
@@ -319,6 +368,7 @@ public sealed class PublishPage : UserControl
         RefreshChanges();
         RefreshHistory();
         RefreshMatrix();
+        RefreshQueue();
         RefreshChecks();
         RefreshPubSummary();
         RefreshPublishLog();
@@ -339,20 +389,55 @@ public sealed class PublishPage : UserControl
 
     private void RefreshBranch()
     {
+        _branchOk = false;
         SafeGit(git =>
         {
             var (branch, ahead, behind) = git.BranchState();
+            _branchOk = true;
+            _aheadCount = ahead ?? 0;
+            _behindCount = behind ?? 0;
             _branchName.Text = branch;
-            (_aheadBadge.Child as TextBlock)!.Text = $"↑ {ahead ?? 0}";
-            _aheadBadge.IsVisible = ahead is > 0;
-            (_behindBadge.Child as TextBlock)!.Text = $"↓ {behind ?? 0}";
-            _behindBadge.IsVisible = behind is > 0;
-            _pullButton.IsVisible = behind is > 0;
-            _pushButton.IsVisible = ahead is > 0;
-            _syncState.Text = ahead is > 0 || behind is > 0
-                ? TF("Vox.Publish.Status.AheadBehind", ahead ?? 0, behind ?? 0)
+            (_aheadBadge.Child as TextBlock)!.Text = $"↑ {_aheadCount}";
+            _aheadBadge.IsVisible = _aheadCount > 0;
+            (_behindBadge.Child as TextBlock)!.Text = $"↓ {_behindCount}";
+            _behindBadge.IsVisible = _behindCount > 0;
+            _pullButton.IsVisible = _behindCount > 0;
+            UpdatePushButton();
+            var (name, email) = git.Identity();
+            _authorName.Text = name;
+            _authorEmail.Text = email;
+        }, () =>
+        {
+            _branchName.Text = string.Empty;
+            _pullButton.IsVisible = false;
+            _pushButton.IsVisible = false;
+        });
+        UpdateSyncState();
+    }
+
+    /// <summary>推送按钮：领先>0 显示「推送 N 个提交」；落后>0 不消失——禁用并悬停提示先拉取。</summary>
+    private void UpdatePushButton()
+    {
+        _pushButton.IsVisible = _branchOk && (_aheadCount > 0 || _behindCount > 0);
+        _pushButton.IsEnabled = _behindCount == 0;
+        _pushButton.Content = _aheadCount > 0 ? TF("Vox.Sync.Label.PushN", _aheadCount) : T("Vox.Common.Action.Push");
+        ToolTip.SetTip(_pushButton, _behindCount > 0 ? TF("Vox.Sync.Msg.BehindFirst", _behindCount) : null);
+    }
+
+    /// <summary>分支状态兼显工作区进度：「领先/落后（或已同步）· N 处未提交变更 · 已勾选 n」。</summary>
+    private void UpdateSyncState()
+    {
+        var selected = _changes.Count(c => _selectedPaths.Contains(c.Path));
+        var text = !_branchOk
+            ? T("Vox.Publish.Status.NoGit")
+            : _aheadCount > 0 || _behindCount > 0
+                ? TF("Vox.Publish.Status.AheadBehind", _aheadCount, _behindCount)
                 : T("Vox.Publish.Status.Synced");
-        }, () => _syncState.Text = T("Vox.Publish.Status.NoGit"));
+        if (_changes.Count > 0)
+        {
+            text += $" · {TF("Vox.Sync.State.Total", _changes.Count)} · {TF("Vox.Sync.State.Checked", selected)}";
+        }
+        _syncState.Text = text;
     }
 
     private void RefreshChanges()
@@ -364,6 +449,8 @@ public sealed class PublishPage : UserControl
             _selectedPaths.Clear();
             foreach (var change in _changes) _selectedPaths.Add(change.Path);
         }
+        // 无变更时隐藏全选框（原型的空态只有文案）
+        _checkAll.IsVisible = _changes.Count > 0;
         (_changeCount.Child as TextBlock)!.Text = _changes.Count.ToString();
         RenderChangeList();
         UpdateCommitState();
@@ -373,22 +460,40 @@ public sealed class PublishPage : UserControl
     {
         _changeList.Children.Clear();
         _rowBorders.Clear();
-        var groups = new (string Key, string LabelKey)[]
+        // 删除类变更单独聚合分组（提交后经 git 可回滚），不混入语义分组
+        var groups = new (string Key, string LabelKey, List<ChangeEntry> Items)[]
         {
-            ("article", "Vox.Sync.Group.article"), ("image", "Vox.Sync.Group.image"),
-            ("site", "Vox.Sync.Group.site"), ("other", "Vox.Sync.Group.other"),
+            ("article", "Vox.Sync.Group.article",
+                _changes.Where(c => c.Category == "article" && c.Kind != ChangeKind.Deleted).ToList()),
+            ("image", "Vox.Sync.Group.image",
+                _changes.Where(c => c.Category == "image" && c.Kind != ChangeKind.Deleted).ToList()),
+            ("site", "Vox.Sync.Group.site",
+                _changes.Where(c => c.Category == "site" && c.Kind != ChangeKind.Deleted).ToList()),
+            ("other", "Vox.Sync.Group.other",
+                _changes.Where(c => c.Category == "other" && c.Kind != ChangeKind.Deleted).ToList()),
+            ("deleted", "Vox.Sync.Group.deleted", _changes.Where(c => c.Kind == ChangeKind.Deleted).ToList()),
         };
-        foreach (var (key, labelKey) in groups)
+        foreach (var (key, labelKey, items) in groups)
         {
-            var items = _changes.Where(c => c.Category == key).ToList();
             if (items.Count == 0) continue;
 
             var kids = new StackPanel();
             var expanded = _expandedGroups.GetValueOrDefault(key, true);
-            var groupHead = GroupHeader(labelKey, key, items.Count, kids);
+            var groupHead = GroupHeader(labelKey, key, items, kids);
             kids.IsVisible = expanded;
             _changeList.Children.Add(groupHead);
             _changeList.Children.Add(kids);
+
+            if (key == "deleted")
+            {
+                var hint = new TextBlock
+                {
+                    FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(26, 6, 12, 6),
+                };
+                hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Sync.Group.DeletedHint");
+                Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+                kids.Children.Add(hint);
+            }
 
             foreach (var change in items)
             {
@@ -419,11 +524,12 @@ public sealed class PublishPage : UserControl
         }
     }
 
-    private Border GroupHeader(string labelKey, string key, int count, StackPanel kids)
+    private Border GroupHeader(string labelKey, string key, IReadOnlyList<ChangeEntry> items, StackPanel kids)
     {
+        var groupPaths = items.Select(c => c.Path).ToList();
+        var selectedCount = groupPaths.Count(p => _selectedPaths.Contains(p));
         var check = new CheckBox { Classes = { "vcheck" } };
-        var groupPaths = _changes.Where(c => c.Category == key).Select(c => c.Path).ToList();
-        check.IsChecked = groupPaths.All(p => _selectedPaths.Contains(p));
+        check.IsChecked = selectedCount == groupPaths.Count; // 部分勾选由「已选 n/N」提示，点击即全选该组
         check.IsCheckedChanged += (_, _) =>
         {
             if (check.IsChecked == true) _selectedPaths.UnionWith(groupPaths);
@@ -435,16 +541,20 @@ public sealed class PublishPage : UserControl
         var tri = new TextBlock { Text = kids.IsVisible ? "▾" : "▸", FontSize = 9, Width = 12 };
         var name = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold };
         name[!TextBlock.TextProperty] = I18n.Bind(labelKey);
-        var countBadge = new TextBlock { Text = count.ToString(), FontSize = 10.5, Opacity = 0.7 };
+        var countBadge = new TextBlock { Text = items.Count.ToString(), FontSize = 10.5, Opacity = 0.7 };
         Res(countBadge, TextBlock.ForegroundProperty, "VoxFaint");
+        var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { check, tri, name, countBadge } };
+        // 部分勾选时显示「已选 n/N」计数
+        if (selectedCount > 0 && selectedCount < groupPaths.Count)
+        {
+            var partial = new TextBlock { Text = TF("Vox.Sync.Label.SelectedOfTotal", selectedCount, groupPaths.Count), FontSize = 10.5 };
+            Res(partial, TextBlock.ForegroundProperty, "VoxMuted");
+            headRow.Children.Add(partial);
+        }
         var head = new Border
         {
             Padding = new Thickness(12, 7),
-            Child = new StackPanel
-            {
-                Orientation = Orientation.Horizontal, Spacing = 8,
-                Children = { check, tri, name, countBadge },
-            },
+            Child = headRow,
             Cursor = new Cursor(StandardCursorType.Hand),
         };
         Res(head, Border.BackgroundProperty, "VoxSurface2");
@@ -491,20 +601,35 @@ public sealed class PublishPage : UserControl
             Text = IoPath.GetFileName(change.Path), FontSize = 12.5, FontWeight = FontWeight.Medium,
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
+        // 行级 +/- 计数（原型 .chlist 行内「+38 −6」绿红小字；二进制 0/0 与未知不显示）
+        var lineStats = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        if (change.HasLineStats && change.LinesAdded + change.LinesDeleted > 0)
+        {
+            var plus = new TextBlock { Text = $"+{change.LinesAdded}", FontSize = 10, FontFamily = Mono };
+            Res(plus, TextBlock.ForegroundProperty, "VoxOk");
+            var minus = new TextBlock { Text = $"\u2212{change.LinesDeleted}", FontSize = 10, FontFamily = Mono };
+            Res(minus, TextBlock.ForegroundProperty, "VoxDanger");
+            lineStats.Children.Add(plus);
+            lineStats.Children.Add(minus);
+        }
         var path = new TextBlock
         {
             Text = change.Path, FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis,
             HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(10, 0, 0, 0),
         };
         Res(path, TextBlock.ForegroundProperty, "VoxFaint");
-        path.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        path.FontFamily = Mono;
 
         var row = new Border
         {
             Padding = new Thickness(26, 8, 12, 8),
             Child = new DockPanel
             {
-                Children = { path.Dock(Dock.Right), new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9, Children = { check, markBlock, name } } },
+                Children =
+                {
+                    path.Dock(Dock.Right),
+                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9, Children = { check, markBlock, name, lineStats } },
+                },
             },
             Cursor = new Cursor(StandardCursorType.Hand),
             BorderThickness = new Thickness(2, 0, 0, 0),
@@ -624,16 +749,46 @@ public sealed class PublishPage : UserControl
 
     private bool _splitMode = true;
 
+    /// <summary>切换并排/统一视图：更新按钮态并按当前模式重渲染（管线 RenderSplitDiff/RenderUnifiedDiff 已有）。</summary>
+    private void SetSplitMode(bool split)
+    {
+        _splitMode = split;
+        _splitButton.Variant = split ? ArcButtonVariant.Primary : ArcButtonVariant.Secondary;
+        _unifiedButton.Variant = split ? ArcButtonVariant.Secondary : ArcButtonVariant.Primary;
+        if (_diffPath is { Length: > 0 } current)
+        {
+            RenderDiff(current);
+            UpdateRowSelection();
+        }
+    }
+
     private void RenderDiff(string path)
     {
         _diffHost.Children.Clear();
+        // diff 头：A/D/M/R 徽章 + 文件路径
+        var change = _changes.FirstOrDefault(c => string.Equals(c.Path, path, StringComparison.OrdinalIgnoreCase));
+        var headerRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(12, 7),
+        };
+        if (change != null)
+        {
+            var badge = new Border
+            {
+                Classes = { "badge" },
+                Child = new TextBlock { Text = change.KindLabel, FontSize = 9.5, FontFamily = Mono },
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            var mark = change.KindLabel;
+            badge.Classes.Add(mark is "A" or "R" ? "ok" : mark == "D" ? "danger" : "warn");
+            headerRow.Children.Add(badge);
+        }
         var header = new TextBlock
         {
-            Text = path, FontSize = 11, FontWeight = FontWeight.SemiBold,
-            FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace"),
-            Margin = new Thickness(12, 7),
+            Text = path, FontSize = 11, FontWeight = FontWeight.SemiBold, FontFamily = Mono,
         };
-        _diffHost.Children.Add(header);
+        headerRow.Children.Add(header);
+        _diffHost.Children.Add(headerRow);
 
         var isImage = RepoScanner.ImageExtensions.Contains(IoPath.GetExtension(path).ToLowerInvariant());
         if (isImage)
@@ -820,6 +975,20 @@ public sealed class PublishPage : UserControl
         host.Children.Add(arrow);
         host.Children.Add(newSide);
         _diffHost.Children.Add(host);
+
+        // 容量差文案（原型「480 KB → 312 KB」）：新旧字节数都已知时显示一行
+        if (oldSize is > 0 && newSize > 0)
+        {
+            var delta = new TextBlock
+            {
+                Text = TF("Vox.Publish.Diff.SizeDelta",
+                    TF("Vox.Publish.Diff.KB", (oldSize.Value / 1024.0).ToString("F0")),
+                    TF("Vox.Publish.Diff.KB", (newSize / 1024.0).ToString("F0"))),
+                FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 10),
+            };
+            Res(delta, TextBlock.ForegroundProperty, "VoxMuted");
+            _diffHost.Children.Add(delta);
+        }
     }
 
     private static Border ImageThumb(Bitmap? bitmap, string caption)
@@ -859,7 +1028,59 @@ public sealed class PublishPage : UserControl
 
     // ---------- 提交流程 ----------
 
-    private void UpdateCommitState() { }
+    private bool _syncingCheckAll;
+
+    private void UpdateCommitState()
+    {
+        UpdateSyncState();
+        // 同步全选框状态（带守卫：程序化赋值也会触发 IsCheckedChanged，不能借此清空勾选）
+        var allSelected = _changes.Count > 0 && _changes.All(c => _selectedPaths.Contains(c.Path));
+        if (_checkAll.IsChecked != allSelected)
+        {
+            _syncingCheckAll = true;
+            _checkAll.IsChecked = allSelected;
+            _syncingCheckAll = false;
+        }
+        RegenerateSummary();
+    }
+
+    /// <summary>Summary 自动生成（原型「docs: 更新 2 篇文章、调整 1 张图片」）：勾选组变化即重算，用户手改后不覆盖。</summary>
+    private void RegenerateSummary()
+    {
+        if (_summaryUserEdited) return;
+        var selected = _changes.Where(c => _selectedPaths.Contains(c.Path)).ToList();
+        var parts = new List<string>();
+        void CountBy(string category, string phraseKey)
+        {
+            var count = selected.Count(c => c.Category == category && c.Kind != ChangeKind.Deleted);
+            if (count > 0) parts.Add(TF(phraseKey, count));
+        }
+        CountBy("article", "Vox.Sync.Phrase.Article");
+        CountBy("image", "Vox.Sync.Phrase.Image");
+        if (selected.Any(c => c.Category == "site" && c.Kind != ChangeKind.Deleted)) parts.Add(T("Vox.Sync.Phrase.Site"));
+        CountBy("other", "Vox.Sync.Phrase.Other");
+        var deleted = selected.Count(c => c.Kind == ChangeKind.Deleted);
+        if (deleted > 0) parts.Add(TF("Vox.Sync.Phrase.Deleted", deleted));
+
+        var text = parts.Count == 0 ? string.Empty : "docs: " + string.Join("、", parts);
+        if (text.Length > _summaryInput.MaxLength) text = text[.._summaryInput.MaxLength];
+        _summaryFilling = true;
+        try { _summaryInput.Text = text; }
+        finally { _summaryFilling = false; }
+    }
+
+    /// <summary>behind 保护：推送前远端有新提交先拦截提示拉取，不再裸抛 LibGit2Sharp 异常。</summary>
+    private bool EnsureNotBehind()
+    {
+        var behind = 0;
+        SafeGit(git => behind = git.BranchState().BehindBy ?? 0);
+        if (behind > 0)
+        {
+            _shell.ShowToast(TF("Vox.Sync.Msg.BehindFirst", behind));
+            return false;
+        }
+        return true;
+    }
 
     private void InsertDetail()
     {
@@ -874,9 +1095,12 @@ public sealed class PublishPage : UserControl
                  {
                      ("article", "Vox.Sync.Group.article"), ("image", "Vox.Sync.Group.image"),
                      ("site", "Vox.Sync.Group.site"), ("other", "Vox.Sync.Group.other"),
+                     ("deleted", "Vox.Sync.Group.deleted"),
                  })
         {
-            var items = selected.Where(c => c.Category == key).ToList();
+            var items = key == "deleted"
+                ? selected.Where(c => c.Kind == ChangeKind.Deleted).ToList()
+                : selected.Where(c => c.Category == key && c.Kind != ChangeKind.Deleted).ToList();
             if (items.Count == 0) continue;
             lines.Add(TF("Vox.Publish.Detail.Line", T(labelKey), items.Count,
                         string.Join("、", items.Take(3).Select(i => IoPath.GetFileName(i.Path)))
@@ -900,6 +1124,7 @@ public sealed class PublishPage : UserControl
             _shell.ShowToast(T("Vox.Publish.Msg.SummaryRequired"));
             return;
         }
+        if (push && !EnsureNotBehind()) return;
         var message = _summaryInput.Text.Trim()
             + (string.IsNullOrWhiteSpace(_descInput.Text) ? string.Empty : $"\n\n{_descInput.Text.Trim()}");
         var paths = selected.Select(c => c.Path).ToList();
@@ -923,6 +1148,7 @@ public sealed class PublishPage : UserControl
                 {
                     if (push) RecordSitePush(paths, headSha);
                     _summaryInput.Text = string.Empty;
+                    _summaryUserEdited = false; // 清空后恢复自动生成
                     _descInput.Text = string.Empty;
                     RefreshAll();
                     PublishHub.Invalidate();
@@ -962,6 +1188,7 @@ public sealed class PublishPage : UserControl
 
     private async Task PushAsync()
     {
+        if (!EnsureNotBehind()) return;
         await Task.Run(() =>
         {
             try
@@ -1033,6 +1260,8 @@ public sealed class PublishPage : UserControl
         _historyHost.Children.Clear();
         List<CommitInfo> commits = [];
         SafeGit(git => commits = git.History(15).ToList());
+        string? remoteHome = null;
+        SafeGit(git => remoteHome = git.RemoteUrl());
         foreach (var commit in commits)
         {
             if (_expandedCommits.Contains(commit.Sha))
@@ -1076,6 +1305,12 @@ public sealed class PublishPage : UserControl
                 Text = commit.Message.Split('\n')[0], FontSize = 11.5, FontWeight = FontWeight.Medium,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             };
+            var author = new TextBlock
+            {
+                Text = commit.Author, FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(author, TextBlock.ForegroundProperty, "VoxMuted");
             var when = new TextBlock
             {
                 Text = commit.When.LocalDateTime.ToString("MM-dd HH:mm"), FontSize = 10.5,
@@ -1086,12 +1321,35 @@ public sealed class PublishPage : UserControl
             {
                 Padding = new Thickness(10, 7),
                 CornerRadius = new CornerRadius(9),
-                Child = new DockPanel
-                {
-                    Children = { when.Dock(Dock.Right), new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { hash, message } } },
-                },
+                Child = new DockPanel(),
                 Cursor = new Cursor(StandardCursorType.Hand),
             };
+            var dock = (DockPanel)row.Child!;
+            dock.Children.Add(when.Dock(Dock.Right));
+            // GitHub 跳转 ↗（GitService remote URL 提取；无 origin 时隐藏）
+            if (remoteHome is { Length: > 0 } home)
+            {
+                var url = $"{home}/commit/{commit.Sha}";
+                var link = new TextBlock
+                {
+                    Text = "\u2197", FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+                    Cursor = new Cursor(StandardCursorType.Hand),
+                };
+                Res(link, TextBlock.ForegroundProperty, "VoxAccent");
+                ToolTip.SetTip(link, T("Vox.Sync.Label.OpenOnGitHub"));
+                link.PointerReleased += (_, e) =>
+                {
+                    e.Handled = true; // 不触发行展开
+                    ShellOpen("cmd.exe", "/c start \"\" \"" + url + "\"");
+                };
+                link.Margin = new Thickness(0, 0, 10, 0);
+                dock.Children.Add(link.Dock(Dock.Right));
+            }
+            dock.Children.Add(new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { hash, message, author },
+            });
             var captured = commit;
             row.PointerReleased += (_, _) =>
             {
@@ -1144,11 +1402,35 @@ public sealed class PublishPage : UserControl
         pagehead.Children.Add(heading);
         _matrixTab.Children.Add(pagehead);
 
+        // 四状态汇总卡（原型 .vox-pub-overview/.vox-pub-stat：4 列 · gap 10 · 卡内 n 上 k 下）
+        var overview = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
+            ColumnSpacing = 10,
+            Margin = new Thickness(0, 4, 0, 16),
+        };
+        foreach (var (card, column, labelKey) in new[]
+                 {
+                     (_statOk, 0, "Vox.Publish.Card.Ok"), (_statStale, 1, "Vox.Publish.Card.Stale"),
+                     (_statOff, 2, "Vox.Publish.Card.Off"), (_statErr, 3, "Vox.Publish.Card.Error"),
+                 })
+        {
+            var stat = StatCard(card, labelKey);
+            overview.Children.Add(stat);
+            Grid.SetColumn(stat, column);
+        }
+        _matrixTab.Children.Add(overview);
+
+        // 待处理任务队列（原型 .vox-pub-queue：err>stale>off 排序，前 5 条 + 查看全部跳矩阵筛选）
+        BuildQueueCard();
+        _matrixTab.Children.Add(_queueCard);
+
         var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 10) };
         _matrixFilter.Items = new[]
         {
             T("Vox.Publish.Filter.AllArticles"), T("Vox.Publish.Filter.OnlyPending"),
             T("Vox.Publish.Filter.OnlyStale"), T("Vox.Publish.Filter.OnlyFailed"),
+            T("Vox.Publish.Filter.Pending"),
         };
         _matrixFilter.Selected = T("Vox.Publish.Filter.AllArticles");
         _matrixFilter.SelectionChanged += _ => RefreshMatrix();
@@ -1172,17 +1454,169 @@ public sealed class PublishPage : UserControl
         Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
         Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
         tableWrap.BorderThickness = new Thickness(1);
-        var tableScroll = new ScrollViewer { MaxHeight = 480, Content = _matrixHost };
+        var tableScroll = new ScrollViewer { MaxHeight = 420, Content = _matrixHost };
         tableWrap.Child = tableScroll;
         _matrixTab.Children.Add(tableWrap);
 
         var hint = new TextBlock
         {
-            FontSize = 10.5, Margin = new Thickness(0, 10, 0, 0),
+            FontSize = 10.5,
         };
         hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Matrix.Hint");
         Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
-        _matrixTab.Children.Add(hint);
+        var hintPill = new Border
+        {
+            Padding = new Thickness(12, 9),
+            CornerRadius = new CornerRadius(8),
+            Margin = new Thickness(0, 10, 0, 0),
+            Child = hint,
+        };
+        Res(hintPill, Border.BackgroundProperty, "VoxSurface2");
+        _matrixTab.Children.Add(hintPill);
+    }
+
+    /// <summary>汇总卡（原型 .vox-pub-stat：padding 13×15 · 圆角 10 · n 1.65rem/700 · k 0.76rem muted）。</summary>
+    private static Border StatCard(TextBlock number, string labelKey)
+    {
+        number.FontSize = 21.5;
+        number.FontWeight = FontWeight.Bold;
+        Res(number, TextBlock.ForegroundProperty, "VoxFg");
+        var label = new TextBlock { FontSize = 10, Margin = new Thickness(0, 3, 0, 0) };
+        label[!TextBlock.TextProperty] = I18n.Bind(labelKey);
+        Res(label, TextBlock.ForegroundProperty, "VoxMuted");
+        var card = new Border
+        {
+            Padding = new Thickness(15, 13),
+            CornerRadius = new CornerRadius(10),
+            Child = new StackPanel { Children = { number, label } },
+        };
+        Res(card, Border.BackgroundProperty, "VoxSurface");
+        Res(card, Border.BorderBrushProperty, "VoxLine");
+        card.BorderThickness = new Thickness(1);
+        return card;
+    }
+
+    /// <summary>待处理任务队列卡（原型 .vox-pub-queue/-h/-task：圆角 10 · 头 13×15 surface-2 · 行 12×15 hover）。</summary>
+    private void BuildQueueCard()
+    {
+        _queueCard.CornerRadius = new CornerRadius(10);
+        _queueCard.Margin = new Thickness(0, 0, 0, 16);
+        Res(_queueCard, Border.BackgroundProperty, "VoxSurface");
+        Res(_queueCard, Border.BorderBrushProperty, "VoxLine");
+        _queueCard.BorderThickness = new Thickness(1);
+
+        var title = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold };
+        title[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Queue.Title");
+        _queueCount.FontSize = 10.5;
+        Res(_queueCount, TextBlock.ForegroundProperty, "VoxMuted");
+        var orderHint = new TextBlock { FontSize = 10.5, Margin = new Thickness(10, 0, 0, 0) };
+        orderHint[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Queue.Hint");
+        Res(orderHint, TextBlock.ForegroundProperty, "VoxMuted");
+        _queueViewAll = new ArcButton { Variant = ArcButtonVariant.Secondary, FontSize = 11 };
+        _queueViewAll.Click += (_, _) =>
+        {
+            // 跳矩阵并带筛选：切到多平台标签 + 状态筛选切到「仅待处理」
+            _tabs.SelectedIndex = 1;
+            _matrixFilter.Selected = T("Vox.Publish.Filter.Pending");
+            RefreshMatrix();
+        };
+        var headLeft = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
+            Children = { title, _queueCount },
+        };
+        var headPanel = new DockPanel
+        {
+            Children = { _queueViewAll.Dock(Dock.Right), orderHint.Dock(Dock.Right), headLeft },
+        };
+        var head = new Border { Padding = new Thickness(15, 13), Child = headPanel };
+        Res(head, Border.BackgroundProperty, "VoxSurface2");
+        Res(head, Border.BorderBrushProperty, "VoxLine");
+        head.BorderThickness = new Thickness(0, 0, 0, 1);
+        _queueCard.Child = new DockPanel { Children = { head.Dock(Dock.Top), _queueRows } };
+    }
+
+    /// <summary>待处理任务队列：err>stale>off 排序取前 5；按钮复用发布对话框入口。全部同步时隐藏。</summary>
+    private void RefreshQueue()
+    {
+        _queueRows.Children.Clear();
+        var tasks = new List<(ArticlePublishRow Row, int Channel, PublishStatus Status)>();
+        foreach (var row in PublishHub.Rows())
+        {
+            for (var channel = 0; channel < row.Channels.Length; channel++)
+            {
+                if (row.Channels[channel].Status is not PublishStatus.Ok)
+                {
+                    tasks.Add((row, channel, row.Channels[channel].Status));
+                }
+            }
+        }
+        var rank = new Dictionary<PublishStatus, int>
+        {
+            [PublishStatus.Error] = 0, [PublishStatus.Stale] = 1, [PublishStatus.Off] = 2,
+        };
+        // OrderBy 稳定排序：同档内保持矩阵的年月倒序
+        tasks = tasks.OrderBy(t => rank[t.Status]).ToList();
+        _queueCard.IsVisible = tasks.Count > 0;
+        if (tasks.Count == 0) return;
+        _queueCount.Text = TF("Vox.Publish.Queue.Count", tasks.Count);
+        _queueViewAll.Content = TF("Vox.Publish.Queue.ViewAll", tasks.Count);
+
+        var scan = AppState.Instance.Scan;
+        foreach (var (row, channel, status) in tasks.Take(5))
+        {
+            var article = scan?.FindArticle(row.MarkdownPath);
+            var title = new TextBlock
+            {
+                Text = row.Title, FontSize = 11.5, FontWeight = FontWeight.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            var metaLabel = status switch
+            {
+                PublishStatus.Error => T("Vox.Publish.Card.Error"),
+                PublishStatus.Stale => T("Vox.Publish.Card.Stale"),
+                _ => T("Vox.Publish.Card.Off"),
+            };
+            var meta = new TextBlock
+            {
+                Text = $"{ChannelText((PublishChannel)channel)} · {metaLabel}",
+                FontSize = 10, Margin = new Thickness(0, 3, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Res(meta, TextBlock.ForegroundProperty, "VoxMuted");
+            var button = new ArcButton
+            {
+                Variant = status == PublishStatus.Error ? ArcButtonVariant.Danger : ArcButtonVariant.Primary,
+                FontSize = 11,
+                Content = status switch
+                {
+                    PublishStatus.Error => T("Vox.Publish.Queue.HandleError"),
+                    PublishStatus.Stale => T("Vox.Publish.Queue.UpdateContent"),
+                    _ => T("Vox.Publish.Queue.GoPublish"),
+                },
+            };
+            var captured = article;
+            button.Click += (_, _) =>
+            {
+                if (captured is { } art) _shell.ShowModal(new PublishDialog(_shell, art));
+                else _shell.ShowToast(T("Vox.PublishLog.Msg.ArticleGone"));
+            };
+            var taskRow = new Border
+            {
+                Padding = new Thickness(15, 12),
+                Child = new DockPanel
+                {
+                    Children = { button.Dock(Dock.Right), new StackPanel { Children = { title, meta } } },
+                },
+            };
+            Res(taskRow, Border.BorderBrushProperty, "VoxLine");
+            taskRow.BorderThickness = new Thickness(0, 0, 0, 1);
+            taskRow.PointerEntered += (_, _) => Res(taskRow, Border.BackgroundProperty, "VoxSurface2");
+            taskRow.PointerExited += (_, _) =>
+            {
+                taskRow[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxSurface");
+            };
+            _queueRows.Children.Add(taskRow);
+        }
     }
 
     private void RefreshMatrix()
@@ -1191,9 +1625,21 @@ public sealed class PublishPage : UserControl
         var scan = AppState.Instance.Scan;
         if (scan == null) return;
 
+        // 平台筛选单选时该平台列高亮（其余列淡化）
+        int? focusChannel = null;
+        if (_platformFilter.Selected is { Length: > 0 } platform && platform != T("Vox.Publish.Filter.AllPlatforms"))
+        {
+            focusChannel = platform == T("Vox.Publish.Channel.Site") ? 0
+                : platform == T("Vox.Publish.Channel.WeChat") ? 1
+                : platform == T("Vox.Publish.Channel.Cnblogs") ? 2
+                : platform == "CSDN" ? 3
+                : 4;
+        }
+
         // 表头
         var headerColumns = "*,46,46,46,46,46,80";
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions(headerColumns) };
+        var headerCells = new TextBlock[5];
         foreach (var (text, index) in new[]
                  {
                      T("Vox.Sync.Group.article"), T("Vox.Publish.Channel.Site"), T("Vox.Publish.Channel.WeChat"),
@@ -1204,7 +1650,19 @@ public sealed class PublishPage : UserControl
             Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
             header.Children.Add(cell);
             Grid.SetColumn(cell, index);
-            if (index is > 0 and < 6) cell.HorizontalAlignment = HorizontalAlignment.Center;
+            if (index is > 0 and < 6)
+            {
+                cell.HorizontalAlignment = HorizontalAlignment.Center;
+                headerCells[index - 1] = cell;
+            }
+        }
+        if (focusChannel is { } focus)
+        {
+            for (var i = 0; i < headerCells.Length; i++)
+            {
+                headerCells[i].Opacity = i == focus ? 1 : 0.4;
+                if (i == focus) Res(headerCells[i], TextBlock.ForegroundProperty, "VoxFg");
+            }
         }
         var headerBorder = new Border { Padding = new Thickness(14, 9), Child = header };
         Res(headerBorder, Border.BackgroundProperty, "VoxSurface2");
@@ -1213,24 +1671,15 @@ public sealed class PublishPage : UserControl
         _matrixHost.Children.Add(headerBorder);
 
         var term = _matrixSearch.Text?.Trim();
+        var rendered = 0;
         foreach (var row in PublishHub.Rows())
         {
             var article = scan.FindArticle(row.MarkdownPath);
             if (article == null) continue;
             if (!string.IsNullOrWhiteSpace(term) && !row.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) continue;
-
-            PublishStatus? filterStatus = MatchFilter(_matrixFilter.Selected);
-            if (filterStatus.HasValue && row.Channels.All(c => c.Status != filterStatus.Value)) continue;
-            if (_platformFilter.Selected is { Length: > 0 } platform && platform != T("Vox.Publish.Filter.AllPlatforms"))
-            {
-                var index = platform == T("Vox.Publish.Channel.Site") ? 0
-                    : platform == T("Vox.Publish.Channel.WeChat") ? 1
-                    : platform == T("Vox.Publish.Channel.Cnblogs") ? 2
-                    : platform == "CSDN" ? 3
-                    : 4;
-                var wanted = MatchFilter(_matrixFilter.Selected);
-                if (wanted.HasValue && row.Channels[index].Status != wanted.Value) continue;
-            }
+            if (!StatusFilterMatches(row.Channels)) continue;
+            if (focusChannel is { } wanted && MatchFilter(_matrixFilter.Selected) is { } status
+                && row.Channels[wanted].Status != status) continue;
 
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions(headerColumns) };
             var titleHost = new StackPanel { Margin = new Thickness(14, 0, 0, 0) };
@@ -1247,14 +1696,22 @@ public sealed class PublishPage : UserControl
 
             for (var channel = 0; channel < 5; channel++)
             {
-                var (status, note) = row.Channels[channel];
+                var (status2, note) = row.Channels[channel];
                 var cell = new TextBlock
                 {
-                    Text = StatusGlyph(status),
-                    Classes = { "pm-st", status switch { PublishStatus.Ok => "ok", PublishStatus.Stale => "stale", PublishStatus.Error => "err", _ => "off" } },
+                    Text = StatusGlyph(status2),
+                    Classes = { "pm-st", status2 switch { PublishStatus.Ok => "ok", PublishStatus.Stale => "stale", PublishStatus.Error => "err", _ => "off" } },
                     HorizontalAlignment = HorizontalAlignment.Center,
                 };
-                ToolTip.SetTip(cell, TF("Vox.Publish.Matrix.CellTip", ChannelText((PublishChannel)channel), StatusText(status), note));
+                ToolTip.SetTip(cell, TF("Vox.Publish.Matrix.CellTip", ChannelText((PublishChannel)channel), StatusText(status2), note));
+                if (focusChannel is { } fc) cell.Opacity = channel == fc ? 1 : 0.35;
+                // 状态点可点击打开发布对话框（与行尾「发布…」同入口，原型 .pm-st cursor:pointer）
+                cell.Cursor = new Cursor(StandardCursorType.Hand);
+                cell.PointerReleased += (_, e) =>
+                {
+                    e.Handled = true;
+                    _shell.ShowModal(new PublishDialog(_shell, article));
+                };
                 grid.Children.Add(cell);
                 Grid.SetColumn(cell, 1 + channel);
             }
@@ -1275,7 +1732,30 @@ public sealed class PublishPage : UserControl
                 rowBorder[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxSurface");
             };
             _matrixHost.Children.Add(rowBorder);
+            rendered++;
         }
+
+        // 空态：筛选/搜索无匹配
+        if (rendered == 0)
+        {
+            var empty = new Border { Padding = new Thickness(0, 26, 0, 26), Child = new TextBlock
+            {
+                Text = T("Vox.Publish.Matrix.Empty"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
+            } };
+            Res((TextBlock)empty.Child!, TextBlock.ForegroundProperty, "VoxFaint");
+            _matrixHost.Children.Add(empty);
+        }
+    }
+
+    /// <summary>状态筛选匹配：单状态沿用 MatchFilter，「仅待处理」为组合口径（任一通道非已同步）。</summary>
+    private bool StatusFilterMatches((PublishStatus Status, string Note)[] channels)
+    {
+        if (_matrixFilter.Selected == T("Vox.Publish.Filter.Pending"))
+        {
+            return channels.Any(c => c.Status != PublishStatus.Ok);
+        }
+        var wanted = MatchFilter(_matrixFilter.Selected);
+        return !wanted.HasValue || channels.Any(c => c.Status == wanted.Value);
     }
 
     /// <summary>平台显示文案（WritePage.ChannelName 的多语言版）。</summary>
@@ -1703,5 +2183,10 @@ public sealed class PublishPage : UserControl
         var off = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Off));
         var err = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Error));
         _pubSummary.Text = TF("Vox.Publish.Summary", ok, stale, off, err);
+        // 四状态汇总卡与汇总条同源（原型 .vox-pub-overview）
+        _statOk.Text = ok.ToString();
+        _statStale.Text = stale.ToString();
+        _statOff.Text = off.ToString();
+        _statErr.Text = err.ToString();
     }
 }
