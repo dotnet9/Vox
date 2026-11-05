@@ -26,7 +26,8 @@ public sealed class NewArticleModal : Border
     };
     private readonly Border[] _stepPages = new Border[4];
     private readonly TextBox _titleInput = Modal.Input();
-    private readonly TextBox _slugInput = Modal.Input("new-article-slug", mono: true);
+    // slug 留空 + watermark（审计②-12 定夺）：预填固定值会反向遮蔽标题派生 slug。
+    private readonly TextBox _slugInput = Modal.Input(null, mono: true, watermark: null);
     private readonly TextBlock _slugPreview = new();
     private readonly TextBox _descInput = Modal.Area();
     private readonly TextBox _dateInput = Modal.Input(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), mono: true);
@@ -69,6 +70,7 @@ public sealed class NewArticleModal : Border
         _titleInput.TextChanged += (_, _) => RefreshSlugPreview();
         step1.Children.Add(_titleInput);
         step1.Children.Add(BoundLabel("Vox.Wizard.New.FieldSlug"));
+        _slugInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Wizard.New.SlugPlaceholder");
         _slugInput.TextChanged += (_, _) => RefreshSlugPreview();
         step1.Children.Add(_slugInput);
         WritePage.Res(_slugPreview, TextBlock.ForegroundProperty, "VoxAccent");
@@ -120,6 +122,16 @@ public sealed class NewArticleModal : Border
         };
         WritePage.Res(previewWrap, Border.BackgroundProperty, "VoxSurface2");
         step4.Children.Add(previewWrap);
+        // 预览后缀文案（原型 sdesc 口径）：说明元数据内嵌 front matter 的存储形态。
+        var frontMatterNote = new TextBlock
+        {
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 2, 0, 0),
+        };
+        frontMatterNote[!TextBlock.TextProperty] = I18n.Bind("Vox.Wizard.New.FrontMatterNote");
+        WritePage.Res(frontMatterNote, TextBlock.ForegroundProperty, "VoxFaint");
+        step4.Children.Add(frontMatterNote);
         var note = new TextBlock { FontSize = 11.5 };
         note[!TextBlock.TextProperty] = I18n.Bind("Vox.Wizard.New.CreatedNote");
         WritePage.Res(note, TextBlock.ForegroundProperty, "VoxMuted");

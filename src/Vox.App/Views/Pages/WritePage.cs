@@ -47,6 +47,10 @@ public sealed class WritePage : UserControl
     private bool _listVisible = true;
     private Grid _pageRoot = null!;
 
+    // 列表头工作台 kicker（原型 .workspace-kicker）：保存状态点 + 状态文案随 _dirty 更新
+    private Shapes.Ellipse _workspaceDot = null!;
+    private TextBlock _workspaceStatus = null!;
+
     // 中列（源码卡 | 预览卡 | 导图卡）
     private readonly MarkdownEditorView _editorView = new();
     private readonly ThemeVariantScope _editorScope = new();
@@ -54,6 +58,8 @@ public sealed class WritePage : UserControl
     private readonly MarkdownViewer _preview = new();
     private readonly ScrollViewer _previewScroll = new();
     private readonly MarkdownMindMapView _mapView = new();
+    /// <summary>导图点阵画刷的圆点 Drawing：主题切换时只换 Brush，瓦片几何复用。</summary>
+    private readonly GeometryDrawing _mapDotDrawing = new() { Geometry = new EllipseGeometry(new Point(9, 9), 1, 1) };
     private Border _srcCard = null!;
     private Border _prevCard = null!;
     private Border _mapCard = null!;
@@ -172,7 +178,8 @@ public sealed class WritePage : UserControl
         // 配色键保留控件内置 CodeWFMarkdownEditor* 默认值，由 VoxTheme 的 MarkdownEditorPalette
         // 同名资源统一供给，避免在此重复定义一套可能与语义调色板脱节的键。
         _editorView.ShowLineNumbers = true;
-        _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
+        // placeholder 动态篇数（原型 L111「搜索 37 篇…」）：随索引重建重绑（TFBind 参数为运行时值，语言切换自动重排）。
+        _search[!TextBox.WatermarkProperty] = TFBind("Vox.Write.List.SearchFmt", 0);
 
         _debounce.Tick += (_, _) => { _debounce.Stop(); RefreshPreview(); };
         _autoSaveTimer.Tick += (_, _) => { _autoSaveTimer.Stop(); AutoSaveTick(); };
@@ -183,6 +190,7 @@ public sealed class WritePage : UserControl
             ApplyAutoSaveMode();
             ApplyAiChrome();
             ApplyEditorTheme();
+            RefreshMapDotgridBrush();
         });
         AttachedToVisualTree += (_, _) =>
         {
@@ -213,10 +221,11 @@ public sealed class WritePage : UserControl
         };
 
         // 导图双击/Enter 节点时定位到对应 Markdown 源码行，避免提示与实际交互不一致。
+        // 经 _modeSeg 赋值切换（SelectionChanged → SetMode），模式条选中态保持同步。
         _mapView.SourceRequested += (_, node) =>
         {
             if (node.SourceLine <= 0 || Editor.Document.LineCount <= 0) return;
-            SetMode(0);
+            _modeSeg.SelectedValue = 0;
             var line = Math.Clamp(node.SourceLine, 1, Editor.Document.LineCount);
             var offset = Editor.Document.GetOffset(line, 1);
             Editor.Select(offset, 0);
@@ -417,8 +426,7 @@ public sealed class WritePage : UserControl
             BorderThickness = new Thickness(0, 0, 0, 1),
             Child = new StackPanel
             {
-                Orientation = Orientation.Horizontal, Spacing = 6,
-                Children = { _search, viewseg, newButton },
+                Children = { BuildWorkspaceKicker(), BuildListSearchRow(viewseg, newButton) },
             },
         };
         Res(head, Border.BorderBrushProperty, "VoxLine");
@@ -432,12 +440,102 @@ public sealed class WritePage : UserControl
         return Card(new Panel { Children = { dock } }, new Thickness(10, 10, 2, 10));
     }
 
+    /// <summary>列表头工作台 kicker（原型 L109）：V 标记 + 「写作工作台」+ CONTENT WORKSPACE 小字 + 右侧保存状态点。
+    /// 尺寸按原型 CSS（27px 标记 / 8px 小字 / 底部分隔线 + 10px 间距），颜色走 Vox 令牌。</summary>
+    private Control BuildWorkspaceKicker()
+    {
+        var markText = new TextBlock
+        {
+            Text = "V",
+            FontWeight = FontWeight.Bold,
+            FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(markText, TextBlock.ForegroundProperty, "VoxOnAccent");
+        var mark = new Border
+        {
+            Width = 27,
+            Height = 27,
+            CornerRadius = new CornerRadius(8),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = markText,
+        };
+        Res(mark, Border.BackgroundProperty, "VoxAccent");
+
+        var title = new TextBlock
+        {
+            FontSize = Fs(12),
+            FontWeight = FontWeight.Bold,
+            [!TextBlock.TextProperty] = I18n.Bind("Vox.Write.List.WorkspaceTitle"),
+        };
+        var sub = new TextBlock
+        {
+            FontSize = 8,
+            FontWeight = FontWeight.SemiBold,
+            LetterSpacing = 1.05,
+            Margin = new Thickness(0, 2, 0, 0),
+            [!TextBlock.TextProperty] = I18n.Bind("Vox.Write.List.WorkspaceSubtitle"),
+        };
+        Res(sub, TextBlock.ForegroundProperty, "VoxFaint");
+
+        _workspaceDot = new Shapes.Ellipse { Width = 6, Height = 6, VerticalAlignment = VerticalAlignment.Center };
+        Res(_workspaceDot, Shapes.Ellipse.FillProperty, "VoxOk");
+        _workspaceStatus = new TextBlock
+        {
+            FontSize = Fs(10),
+            VerticalAlignment = VerticalAlignment.Center,
+            Text = T(Write.Status.Saved),
+        };
+        Res(_workspaceStatus, TextBlock.ForegroundProperty, "VoxMuted");
+        var status = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { _workspaceDot, _workspaceStatus },
+        };
+
+        return new Border
+        {
+            Padding = new Thickness(2, 2, 3, 11),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Margin = new Thickness(0, 0, 0, 10),
+            Child = new DockPanel
+            {
+                Children =
+                {
+                    status.Dock(Dock.Right),
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 9,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children = { mark, new StackPanel { Children = { title, sub } } },
+                    },
+                },
+            },
+        };
+    }
+
+    /// <summary>列表头第二行（原型 .lrow）：动态篇数搜索框 + 列表/树形切换 + 新建钮。</summary>
+    private Panel BuildListSearchRow(Border viewseg, Button newButton)
+    {
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Children = { _search, viewseg, newButton },
+        };
+    }
+
     private void ReloadArticles()
     {
         _articleHost.Children.Clear();
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
+            _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
             var empty = new TextBlock
             {
                 FontSize = Fs(11), Margin = new Thickness(14, 10),
@@ -448,11 +546,17 @@ public sealed class WritePage : UserControl
             return;
         }
 
+        // placeholder 动态篇数（原型「搜索 37 篇…」）：随索引重绑。
+        _search[!TextBox.WatermarkProperty] = TFBind("Vox.Write.List.SearchFmt", scan.Articles.Count);
+
+        // 搜索口径（原型 L911）：标题 + 标签 + 分类（正文全文检索在文章库页，slug 为实现保留项）。
         var query = _search.Text?.Trim();
         var articles = scan.Articles
             .Where(a => string.IsNullOrWhiteSpace(query)
                 || a.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || a.Slug.Contains(query, StringComparison.OrdinalIgnoreCase))
+                || a.Slug.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || a.Meta.Tags.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase))
+                || a.Meta.Categories.Any(c => c.Contains(query, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(a => a.Meta.Date)
             .ToList();
 
@@ -470,7 +574,7 @@ public sealed class WritePage : UserControl
                 foreach (var monthGroup in yearGroup.GroupBy(a => a.Month).OrderByDescending(g => g.Key))
                 {
                     var monthKids = new StackPanel();
-                    yearKids.Children.Add(GroupHead($"{yearGroup.Key}/{monthGroup.Key}", monthGroup.Count(), monthKids, year: false));
+                    yearKids.Children.Add(GroupHead(monthGroup.Key, monthGroup.Count(), monthKids, year: false));
                     yearKids.Children.Add(monthKids);
                     foreach (var article in monthGroup)
                     {
@@ -480,6 +584,20 @@ public sealed class WritePage : UserControl
                     }
                 }
             }
+        }
+
+        // 无匹配空态（原型 L914）：有仓库、有关键词但一篇未中。
+        if (articles.Count == 0 && !string.IsNullOrWhiteSpace(query))
+        {
+            var noMatch = new TextBlock
+            {
+                FontSize = Fs(11),
+                Margin = new Thickness(22, 14),
+                TextAlignment = TextAlignment.Center,
+            };
+            noMatch[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.List.NoMatch");
+            Res(noMatch, TextBlock.ForegroundProperty, "VoxFaint");
+            _articleHost.Children.Add(noMatch);
         }
 
         var count = new TextBlock
@@ -504,16 +622,29 @@ public sealed class WritePage : UserControl
         };
         var meta = new TextBlock
         {
-            FontSize = Fs(10.5), Margin = new Thickness(0, 2, 0, 0), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
-            Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}"
-                   + (article.IsDraft ? " · " + T(Library.Badge.Draft) : string.Empty),
+            FontSize = Fs(10.5), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+            Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}",
         };
+        // 草稿徽标（原型 L905）：meta 行右侧 accent 徽标（margin-left:auto 口径），非行内文本。
+        Panel metaRow;
+        if (article.IsDraft)
+        {
+            var flag = Badge(T(Library.Badge.Draft), "accent");
+            flag.VerticalAlignment = VerticalAlignment.Center;
+            metaRow = new DockPanel { Children = { flag.Dock(Dock.Right), meta } };
+        }
+        else
+        {
+            metaRow = new StackPanel { Children = { meta } };
+        }
+        metaRow.Margin = new Thickness(0, 2, 0, 0);
         var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
         Res(bar, Border.BackgroundProperty, "VoxAccent");
 
         var content = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
         content.Children.Add(bar);
-        var text = new StackPanel { Children = { title, meta } };
+        var text = new StackPanel { Children = { title, metaRow } };
         content.Children.Add(text);
         Grid.SetColumn(text, 1);
 
@@ -539,18 +670,27 @@ public sealed class WritePage : UserControl
         }
     }
 
+    /// <summary>树形分组头（原型 L917-919）：年「2026 年」/ 月「09 月」，右侧「N 篇 ▾」计数与折叠三角。</summary>
     private Button GroupHead(string label, int count, StackPanel kids, bool year)
     {
         var tri = new TextBlock { Text = "▾", FontSize = 9, VerticalAlignment = VerticalAlignment.Center };
         var text = new TextBlock
         {
-            Text = label, FontSize = Fs(year ? 11 : 10.5), FontWeight = FontWeight.SemiBold,
-            Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+            // 年「2026 年」/ 月「09 月」（原型 .yt/.mt 文案口径）
+            Text = year ? TF("Vox.Write.List.YearFmt", label) : TF("Vox.Write.List.MonthFmt", label),
+            FontSize = Fs(year ? 11 : 10.5), FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
         };
         var cnt = new TextBlock
         {
-            Text = count.ToString(), FontSize = Fs(10), Opacity = 0.75,
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
+            Text = TF("Vox.Write.List.Count", count), FontSize = Fs(10), Opacity = 0.75,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var cntRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Children = { cnt, tri },
         };
 
         var head = new Button
@@ -562,8 +702,8 @@ public sealed class WritePage : UserControl
             {
                 Children =
                 {
-                    cnt.Dock(Dock.Right),
-                    new StackPanel { Orientation = Orientation.Horizontal, Children = { tri, text } },
+                    cntRow.Dock(Dock.Right),
+                    text,
                 },
             },
         };
@@ -607,9 +747,9 @@ public sealed class WritePage : UserControl
         BindPreviewBrushes();
         _prevCard = Card(new Panel { Children = { _previewScroll, BuildTypoButton() } }, new Thickness(2, 10, 2, 10));
 
-        // 导图卡：MarkdownMindMapView 全宽画布（第四态），右上角导图样式钮。
+        // 导图卡：MarkdownMindMapView 全宽画布（第四态），底层点阵 + 右上角导图样式钮。
         BindMapBrushes();
-        _mapCard = Card(new Panel { Children = { _mapView, BuildMapLegend(), BuildMapStyleButton(), BuildMapHint() } }, new Thickness(10, 10, 10, 10));
+        _mapCard = Card(new Panel { Children = { BuildMapDotgrid(), _mapView, BuildMapLegend(), BuildMapStyleButton(), BuildMapHint() } }, new Thickness(10, 10, 10, 10));
         Grid.SetColumnSpan(_mapCard, 3);
 
         // 源码 | 分隔条 | 预览（分屏态专用分隔条）
@@ -624,6 +764,8 @@ public sealed class WritePage : UserControl
         center.Children.Add(_prevCard);
         Grid.SetColumn(_prevCard, 2);
         center.Children.Add(_mapCard);
+
+        ClampSplitColumn(); // 分屏源码列占比约束（拖动与窗口缩放都收在 20%–80%，原型 L2108 口径）
 
         // 浮动模式条（四态：源码/分屏/预览/导图，骑视图区底边居中；Arc SegmentedControl 自带滑块动画）
         foreach (var (labelKey, mode) in new[] { ("Vox.Write.Mode.Source", 0), ("Vox.Write.Mode.Split", 1), ("Vox.Write.Mode.Preview", 2), ("Vox.Write.Mode.Map", 3) })
@@ -870,6 +1012,7 @@ public sealed class WritePage : UserControl
                     Spacing = 2,
                     Children =
                     {
+                        BuildTypoSwatch(key),
                         new TextBlock { FontSize = Fs(12), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, [!TextBlock.TextProperty] = I18n.Bind(nameKey) },
                         new TextBlock { FontSize = Fs(10), Opacity = 0.72, TextWrapping = TextWrapping.Wrap, MinHeight = 26, [!TextBlock.TextProperty] = I18n.Bind(descKey) },
                     },
@@ -912,6 +1055,78 @@ public sealed class WritePage : UserControl
         };
     }
 
+    /// <summary>排版主题的缩微示意标题文案键（原型 swatch 的 h2：简约/文档/书卷/技术/刊物）。</summary>
+    private static string SwatchNameKey(string key) => key switch
+    {
+        "Basic" => "Vox.Write.Typo.Swatch.Document",
+        "InkBlack" => "Vox.Write.Typo.Swatch.Book",
+        "TechnologyBlue" => "Vox.Write.Typo.Swatch.Technical",
+        "WeChatFormat" => "Vox.Write.Typo.Swatch.Editorial",
+        _ => "Vox.Write.Typo.Swatch.Simple",
+    };
+
+    /// <summary>排版主题与原型 #prevInner[data-typo] 同源的强调色（文档/技术蓝、书卷棕、刊物青绿）。</summary>
+    private static string SwatchAccentHex(string key) => key switch
+    {
+        "Basic" or "TechnologyBlue" => "#376C9A",
+        "InkBlack" => "#70604F",
+        "WeChatFormat" => "#24766B",
+        _ => "#343B43",
+    };
+
+    /// <summary>排版卡内嵌文档缩微预览（原型 type-swatch/type-document）：白底文档按 0.5 缩放内嵌，
+    /// 以 h2 / p / blockquote / ul 四元素示意；书卷主题切衬线字体。</summary>
+    private Control BuildTypoSwatch(string key)
+    {
+        var accentColor = Color.Parse(SwatchAccentHex(key));
+        var accent = new SolidColorBrush(accentColor);
+        var ink = new SolidColorBrush(Color.Parse("#30343B"));
+        var quoteBg = new SolidColorBrush(Color.FromArgb(0x10, accentColor.R, accentColor.G, accentColor.B)); // color-mix 6% 口径
+        var isSerif = string.Equals(key, "InkBlack", StringComparison.OrdinalIgnoreCase);
+        var fontFamily = isSerif ? SerifFont : null;
+
+        // 缩放文档：全尺寸 256 宽（=卡片内 128 可视宽 ×2），0.5 缩放后落到 90px 高的视窗。
+        var doc = new StackPanel { Width = 256, Margin = new Thickness(16, 13, 16, 0) };
+        doc.Children.Add(new TextBlock
+        {
+            Text = T(SwatchNameKey(key)),
+            FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = accent, FontFamily = fontFamily,
+            Margin = new Thickness(0, 0, 0, 6),
+        });
+        doc.Children.Add(new TextBlock
+        {
+            Text = T("Vox.Write.Typo.Swatch.SampleP"),
+            FontSize = 13, LineHeight = 24, Foreground = ink, TextWrapping = TextWrapping.Wrap, FontFamily = fontFamily,
+        });
+        doc.Children.Add(new Border
+        {
+            BorderThickness = new Thickness(3, 0, 0, 0),
+            BorderBrush = accent,
+            Background = quoteBg,
+            Padding = new Thickness(10, 5),
+            Margin = new Thickness(0, 10, 0, 0),
+            Child = new TextBlock { Text = T("Vox.Write.Typo.Swatch.SampleQuote"), FontSize = 12.5, Foreground = ink, FontFamily = fontFamily },
+        });
+        var list = new StackPanel { Margin = new Thickness(14, 8, 0, 0) };
+        foreach (var sample in new[] { "Vox.Write.Typo.Swatch.SampleList1", "Vox.Write.Typo.Swatch.SampleList2" })
+        {
+            list.Children.Add(new TextBlock { Text = "• " + T(sample), FontSize = 12.5, LineHeight = 21, Foreground = ink, FontFamily = fontFamily });
+        }
+        doc.Children.Add(list);
+        doc.RenderTransform = new ScaleTransform(0.5, 0.5);
+        doc.RenderTransformOrigin = new RelativePoint(0, 0, RelativeUnit.Relative);
+
+        return new Border
+        {
+            Height = 90,
+            CornerRadius = new CornerRadius(2),
+            ClipToBounds = true,
+            Margin = new Thickness(0, 0, 0, 6),
+            Background = new SolidColorBrush(Colors.White),
+            Child = doc,
+        };
+    }
+
     /// <summary>正文密度与标题 em 比例同步原型 #prevInner 的 CSS 规则。</summary>
     private void ApplyPreviewDensity(double fontSize)
     {
@@ -946,6 +1161,34 @@ public sealed class WritePage : UserControl
     }
 
     // ---------- 导图（第四态） ----------
+
+    /// <summary>导图画布点阵（原型 .map-dotgrid）：18px 网距 1px 圆点、opacity .55，铺满导图卡底层。</summary>
+    private Control BuildMapDotgrid()
+    {
+        var brush = new DrawingBrush
+        {
+            Drawing = _mapDotDrawing,
+            TileMode = TileMode.Tile,
+            DestinationRect = new RelativeRect(new Rect(0, 0, 18, 18), RelativeUnit.Absolute),
+        };
+        var grid = new Border
+        {
+            Opacity = 0.55,
+            IsHitTestVisible = false,
+            Background = brush,
+        };
+        RefreshMapDotgridBrush();
+        return grid;
+    }
+
+    /// <summary>点阵颜色接 VoxLineStrong 令牌（Drawing 不是控件接不了 DynamicResource，主题切换时显式刷新）。</summary>
+    private void RefreshMapDotgridBrush()
+    {
+        if (Application.Current!.TryFindResource("VoxLineStrong", out var value) && value is IBrush brush)
+        {
+            _mapDotDrawing.Brush = brush;
+        }
+    }
 
     /// <summary>原型左上角图例：标题节点与内容节点。</summary>
     private Control BuildMapLegend()
@@ -1032,13 +1275,14 @@ public sealed class WritePage : UserControl
 
     private Flyout BuildMapStyleFlyout()
     {
+        // 结构组带 120×74 迷你预览（原型 map-miniature 口径）；风格组保持现有节点风格卡（原型②配色与实现风格页签语义差异已定夺为实现口径）。
         var structGrid = ChoiceGrid(MapLayouts, _mapView.LayoutKind.ToString(), value =>
         {
             if (!Enum.TryParse<MindMapLayoutKind>(value, ignoreCase: true, out var layout)) return;
             _mapView.LayoutKind = layout;
             AppState.Instance.Settings.MindMapLayout = value.ToLowerInvariant();
             AppState.Instance.SaveSettings();
-        });
+        }, mini: MapMiniature);
         var styleGrid = ChoiceGrid(MapStyles, _mapView.StyleKind.ToString(), value =>
         {
             if (!Enum.TryParse<MindMapStyleKind>(value, ignoreCase: true, out var style)) return;
@@ -1081,12 +1325,16 @@ public sealed class WritePage : UserControl
         };
     }
 
-    /// <summary>选择卡片网格：选中态描边强调色，点击即改视图属性。</summary>
-    private WrapPanel ChoiceGrid((string NameKey, string DescKey, string Key)[] options, string current, Action<string> apply)
+    /// <summary>选择卡片网格：选中态描边强调色，点击即改视图属性；mini 工厂非空时卡片顶部内嵌迷你预览（导图结构）。</summary>
+    private WrapPanel ChoiceGrid((string NameKey, string DescKey, string Key)[] options, string current, Action<string> apply, Func<string, Control>? mini = null)
     {
         var wrap = new WrapPanel();
         foreach (var (nameKey, descKey, key) in options)
         {
+            var content = new StackPanel { Spacing = 2 };
+            if (mini != null) content.Children.Add(mini(key));
+            content.Children.Add(new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind(nameKey) });
+            content.Children.Add(new TextBlock { FontSize = 10, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis, [!TextBlock.TextProperty] = I18n.Bind(descKey) });
             var card = new Button
             {
                 Classes = { "btn", "ghost" },
@@ -1095,15 +1343,7 @@ public sealed class WritePage : UserControl
                 Padding = new Thickness(10, 8),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Tag = key,
-                Content = new StackPanel
-                {
-                    Spacing = 2,
-                    Children =
-                    {
-                        new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, [!TextBlock.TextProperty] = I18n.Bind(nameKey) },
-                        new TextBlock { FontSize = 10, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis, [!TextBlock.TextProperty] = I18n.Bind(descKey) },
-                    },
-                },
+                Content = content,
             };
             MarkChoiceSelected(card, string.Equals(key, current, StringComparison.OrdinalIgnoreCase));
             var captured = key;
@@ -1118,6 +1358,77 @@ public sealed class WritePage : UserControl
             wrap.Children.Add(card);
         }
         return wrap;
+    }
+
+    /// <summary>结构卡片迷你图（原型 L714-720 的 map-miniature 数据直抄）：120×74 画布，折线连接 + root/内容节点；
+    /// 颜色走 Vox 令牌（accent 描边、root 填充 accent、节点填 VoxBg）。</summary>
+    private Control MapMiniature(string layoutKey)
+    {
+        var (links, root, nodes) = layoutKey switch
+        {
+            "Right" => ("M10 37 H 34 M34 37 V 15 H 52 M34 37 V 59 H 52",
+                new Rect(0, 27, 34, 18),
+                new[] { new Rect(52, 8, 52, 14), new Rect(52, 52, 52, 14) }),
+            "Balanced" => ("M60 37 H 44 M44 37 V 15 H 30 M44 37 V 59 H 30 M60 37 H 76 M76 37 V 15 H 92 M76 37 V 59 H 92",
+                new Rect(44, 27, 32, 18),
+                new[] { new Rect(14, 8, 46, 14), new Rect(14, 52, 46, 14), new Rect(76, 8, 44, 14), new Rect(76, 52, 44, 14) }),
+            "Radial" => ("M60 37 L 20 12 M60 37 L 100 12 M60 37 L 20 62 M60 37 L 100 62",
+                new Rect(44, 27, 32, 18),
+                new[] { new Rect(2, 4, 44, 14), new Rect(76, 4, 42, 14), new Rect(2, 56, 44, 14), new Rect(76, 56, 42, 14) }),
+            "Down" => ("M60 14 V 30 M60 30 H 22 M60 30 H 98 M22 30 V 42 M98 30 V 42",
+                new Rect(42, 4, 36, 16),
+                new[] { new Rect(2, 42, 44, 14), new Rect(76, 42, 42, 14) }),
+            "Outline" => ("M14 8 V 62 M22 15 H 44 M22 29 H 52 M22 43 H 44 M22 57 H 52",
+                new Rect(8, 0, 40, 15),
+                new[] { new Rect(44, 8, 52, 13), new Rect(52, 22, 52, 13), new Rect(44, 36, 52, 13), new Rect(52, 50, 52, 13) }),
+            "Fishbone" => ("M8 37 H 112 M36 37 L 52 16 M36 37 L 52 58 M76 37 L 92 16 M76 37 L 92 58",
+                new Rect(0, 28, 34, 17),
+                new[] { new Rect(52, 8, 48, 13), new Rect(52, 52, 48, 13), new Rect(92, 8, 26, 13), new Rect(92, 52, 26, 13) }),
+            _ => ("", new Rect(0, 27, 34, 18), Array.Empty<Rect>()),
+        };
+
+        var canvas = new Canvas { Width = 120, Height = 74, Margin = new Thickness(0, 0, 0, 4), ClipToBounds = false };
+        if (links.Length > 0)
+        {
+            var link = new Shapes.Path
+            {
+                Data = Geometry.Parse(links),
+                StrokeThickness = 2,
+                Opacity = 0.6,
+            };
+            Res(link, Shapes.Shape.StrokeProperty, "VoxAccent");
+            canvas.Children.Add(link);
+        }
+        foreach (var node in nodes)
+        {
+            var rect = new Shapes.Rectangle
+            {
+                Width = node.Width,
+                Height = node.Height,
+                RadiusX = 4,
+                RadiusY = 4,
+                StrokeThickness = 2,
+                [Canvas.LeftProperty] = node.X,
+                [Canvas.TopProperty] = node.Y,
+            };
+            Res(rect, Shapes.Shape.FillProperty, "VoxBg");
+            Res(rect, Shapes.Shape.StrokeProperty, "VoxAccent");
+            canvas.Children.Add(rect);
+        }
+        var rootRect = new Shapes.Rectangle
+        {
+            Width = root.Width,
+            Height = root.Height,
+            RadiusX = 4,
+            RadiusY = 4,
+            StrokeThickness = 2,
+            [Canvas.LeftProperty] = root.X,
+            [Canvas.TopProperty] = root.Y,
+        };
+        Res(rootRect, Shapes.Shape.FillProperty, "VoxAccent");
+        Res(rootRect, Shapes.Shape.StrokeProperty, "VoxAccent");
+        canvas.Children.Add(rootRect);
+        return canvas;
     }
 
     private static void MarkChoiceSelected(Button card, bool selected)
@@ -2215,6 +2526,24 @@ public sealed class WritePage : UserControl
         }
     }
 
+    /// <summary>分屏比例约束（原型 L2108：Math.max(20, Math.min(80, …))）：源码列星号占比拖出
+    /// 20%–80% 区间时立即回夹；改列宽会再次触发本处理器，夹紧后差值为零自然收敛。</summary>
+    private void ClampSplitColumn()
+    {
+        _editorCol.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != ColumnDefinition.WidthProperty || _mode != 1) return;
+            if (!_editorCol.Width.IsStar || !_previewCol.Width.IsStar) return;
+            var total = _editorCol.Width.Value + _previewCol.Width.Value;
+            if (total <= 0) return;
+            var fraction = _editorCol.Width.Value / total;
+            var clamped = Math.Clamp(fraction, 0.2, 0.8);
+            if (Math.Abs(clamped - fraction) <= 0.0005) return;
+            _editorCol.Width = new GridLength(clamped * 2, GridUnitType.Star);
+            _previewCol.Width = new GridLength((1 - clamped) * 2, GridUnitType.Star);
+        };
+    }
+
     // ---------- 仓库 / 打开 / 保存 ----------
 
     private void OnRepoReady()
@@ -2485,9 +2814,14 @@ public sealed class WritePage : UserControl
         }
     }
 
-    /// <summary>保存状态 pill：自动保存开启且有当前文章时显示，脏 = 未保存，否则已保存。</summary>
+    /// <summary>保存状态：列表头 kicker 状态点恒显（脏 = 未保存黄点）；pill 自动保存开启且有当前文章时显示。</summary>
     private void UpdateSaveState()
     {
+        if (_workspaceStatus != null)
+        {
+            _workspaceStatus.Text = T(_dirty ? Write.Status.Unsaved : Write.Status.Saved);
+            Res(_workspaceDot, Shapes.Ellipse.FillProperty, _dirty ? "VoxWarn" : "VoxOk");
+        }
         if (_savePill == null) return;
         _savePill.IsVisible = AppState.Instance.Settings.AutoSave && _attached && _current != null;
         if (!_savePill.IsVisible) return;
@@ -2519,6 +2853,10 @@ public sealed class WritePage : UserControl
 
     private static readonly FontFamily MonoFont =
         FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+
+    /// <summary>书卷排版（InkBlack）的衬线字体栈，与 ApplyPreviewAccent/原型 #prevInner 一致。</summary>
+    private static readonly FontFamily SerifFont =
+        FontFamily.Parse("Noto Serif SC, Songti SC, SimSun, serif");
 
     private void BuildAiTrigger()
     {
@@ -3086,6 +3424,12 @@ public sealed class WritePage : UserControl
                 host.Children.Add(FieldLabel(T("Vox.Write.Outline.Tasks")));
                 host.Children.Add(Badge(TF("Vox.Write.Outline.TasksDone", done, total), "ok"));
             }
+            else if (text.Length > 0)
+            {
+                // 无任务清单灰色占位徽标（原型 L930）。
+                host.Children.Add(FieldLabel(T("Vox.Write.Outline.Tasks")));
+                host.Children.Add(Badge(T("Vox.Write.Outline.NoTasks")));
+            }
         }
         catch
         {
@@ -3126,6 +3470,12 @@ public sealed class WritePage : UserControl
 
     private void JumpToOutline(MarkdownOutlineItem item)
     {
+        // 导图态点大纲：先切回源码再定位（原型 L933 口径）；预览态保留同步滚动增强。
+        // 走 _modeSeg 赋值（经 SelectionChanged → SetMode），模式条选中态保持同步。
+        if (_mode == 3)
+        {
+            _modeSeg.SelectedValue = 0;
+        }
         var line = Math.Clamp(item.Line, 1, Math.Max(1, Editor.Document.LineCount));
         Editor.ScrollToLine(line); // AvaloniaEdit 行号 1 起
         Editor.TextArea.Caret.Line = line;

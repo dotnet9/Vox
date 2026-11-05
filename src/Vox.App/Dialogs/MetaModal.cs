@@ -47,8 +47,8 @@ public sealed class MetaModal : Border
         {
             if (DateTime.TryParse(v, out var date)) meta.Date = date;
         }, mono: true));
-        body.Children.Add(Chips("Vox.Meta.Label.CategoriesField", meta.Categories));
-        body.Children.Add(Chips("Vox.Meta.Label.TagsField", meta.Tags));
+        body.Children.Add(CategoryChips(meta.Categories));
+        body.Children.Add(TagChips(meta.Tags));
 
         // 作者 / 状态（原型 mmAuthor + mmDraft：switch on = 已发布）
         var authorRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -100,6 +100,11 @@ public sealed class MetaModal : Border
                 _shell.ShowToast(TF("Vox.Meta.Msg.SaveFailed", ex.Message));
             }
         };
+        // footer 双钮（原型 L692-694）：取消直接关闭，保存写回。
+        var cancel = new Button { Classes = { "btn" } };
+        cancel[!Button.ContentProperty] = I18n.Bind("Vox.Common.Action.Cancel");
+        cancel.Click += (_, _) => shell.CloseModal();
+        footer.Children.Add(cancel);
         footer.Children.Add(save);
     }
 
@@ -148,7 +153,25 @@ public sealed class MetaModal : Border
             placeholder[!TextBlock.TextProperty] = I18n.Bind("Vox.Meta.Label.CoverPlaceholder");
             cover.Child = placeholder;
         }
-        return cover;
+        // 封面操作区（原型 L681 cover>ops）：右上「更换 / 从正文选」两个演示级按钮。
+        var ops = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 8, 8, 0),
+        };
+        var pick = new Button { Classes = { "btn", "sm" } };
+        pick[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.CoverPick");
+        pick.Click += (_, _) => _shell.ShowToast(T("Vox.Meta.Msg.CoverDemoPick"));
+        var pickBody = new Button { Classes = { "btn", "sm" } };
+        pickBody[!Button.ContentProperty] = I18n.Bind("Vox.Write.Meta.CoverFromBody");
+        pickBody.Click += (_, _) => _shell.ShowToast(T("Vox.Meta.Msg.CoverDemoBody"));
+        ops.Children.Add(pick);
+        ops.Children.Add(pickBody);
+        var host = new Panel { Children = { cover, ops } };
+        return host;
     }
 
     /// <summary>字段标签：label 参数为 i18n 键，文案动态绑定，语言切换实时刷新。</summary>
@@ -180,60 +203,145 @@ public sealed class MetaModal : Border
         return panel;
     }
 
-    private Control Chips(string label, List<string> values)
+    /// <summary>值 chip（已选分类/标签）：× 移除（原型 renderModalChips 的 chip+× 口径）。</summary>
+    private static Border ValueChip(string value, Action remove)
     {
+        var chip = new Border
+        {
+            Classes = { "chip" }, Margin = new Thickness(0, 0, 6, 6),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 5,
+                Children = { new TextBlock { Text = value }, new TextBlock { Text = "×", Opacity = 0.6 } },
+            },
+        };
+        chip.PointerReleased += (_, e) =>
+        {
+            e.Handled = true;
+            remove();
+        };
+        return chip;
+    }
+
+    /// <summary>「＋」添加 chip（虚线描边，点击展开添加区）。</summary>
+    private static Border AddChip(string tooltipKey, Action onAdd)
+    {
+        var add = new Border
+        {
+            Classes = { "chip", "add" }, Margin = new Thickness(0, 0, 6, 6),
+            Child = new TextBlock { Text = "＋" },
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+        };
+        ToolTip.SetTip(add, T(tooltipKey));
+        add.PointerReleased += (_, e) =>
+        {
+            e.Handled = true;
+            onAdd();
+        };
+        return add;
+    }
+
+    /// <summary>分类 chips：受控于 site/categories.json 展示名，「＋」展开候选行（仅可添加站点分类，与面板 RebuildCats 同口径）。</summary>
+    private Control CategoryChips(List<string> values)
+    {
+        var siteCats = SiteCategories.LoadDisplayNames(_repoRoot);
         var panel = new StackPanel();
-        panel.Children.Add(Label(label));
+        panel.Children.Add(Label("Vox.Meta.Label.CategoriesField"));
+        var candidates = new WrapPanel { IsVisible = false };
         var wrap = new WrapPanel();
         void Rebuild()
         {
             wrap.Children.Clear();
             foreach (var value in values.ToList())
             {
-                var chip = new Border
-                {
-                    Classes = { "chip" }, Margin = new Thickness(0, 0, 6, 6),
-                    Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
-                    Child = new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal, Spacing = 5,
-                        Children = { new TextBlock { Text = value }, new TextBlock { Text = "×", Opacity = 0.6 } },
-                    },
-                };
                 var captured = value;
-                chip.PointerReleased += (_, _) => { values.Remove(captured); Rebuild(); };
-                wrap.Children.Add(chip);
+                wrap.Children.Add(ValueChip(value, () => { values.Remove(captured); Rebuild(); }));
             }
-            var add = new Border
+            wrap.Children.Add(AddChip("Vox.Meta.Label.AddFromSiteCats", () =>
             {
-                Classes = { "chip", "add" }, Margin = new Thickness(0, 0, 6, 6), Child = new TextBlock { Text = "＋" },
-                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
-            };
-            add.PointerReleased += (_, e) =>
+                candidates.Children.Clear();
+                var rest = siteCats.Where(c => !values.Contains(c)).ToList();
+                if (rest.Count == 0)
+                {
+                    candidates.Children.Add(new TextBlock { Text = T("Vox.Write.Meta.CategoryAllUsed"), FontSize = 10.5, Margin = new Thickness(2, 2, 2, 6) });
+                }
+                else
+                {
+                    foreach (var candidate in rest)
+                    {
+                        var sug = new Border
+                        {
+                            Classes = { "chip", "sug" }, Margin = new Thickness(0, 0, 6, 6),
+                            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+                            Child = new TextBlock { Text = candidate },
+                        };
+                        ToolTip.SetTip(sug, candidate);
+                        var capturedCandidate = candidate;
+                        sug.PointerReleased += (_, e) =>
+                        {
+                            e.Handled = true;
+                            if (!values.Contains(capturedCandidate)) values.Add(capturedCandidate);
+                            Rebuild();
+                        };
+                        candidates.Children.Add(sug);
+                    }
+                }
+                candidates.IsVisible = true;
+            }));
+        }
+        Rebuild();
+        panel.Children.Add(wrap);
+        panel.Children.Add(candidates);
+        return panel;
+    }
+
+    /// <summary>标签 chips：自由添加但每篇 ≤5 拦截（与面板 tagInput 同口径；重复/超限 toast 提示）。</summary>
+    private Control TagChips(List<string> values)
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(Label("Vox.Meta.Label.TagsField"));
+        var wrap = new WrapPanel();
+        void Rebuild()
+        {
+            wrap.Children.Clear();
+            foreach (var value in values.ToList())
             {
-                var input = new TextBox { Classes = { "vinput" }, Width = 104, FontSize = 11, MinHeight = 22, Watermark = T("Vox.Meta.Label.EnterToAdd") };
-                wrap.Children.Add(input);
+                var captured = value;
+                wrap.Children.Add(ValueChip(value, () => { values.Remove(captured); Rebuild(); }));
+            }
+            wrap.Children.Add(AddChip("Vox.Meta.Label.EnterToAddMax5", () =>
+            {
+                var input = new TextBox
+                {
+                    Classes = { "vinput" }, Width = 104, FontSize = 11, MinHeight = 22,
+                    Watermark = values.Count >= 5 ? T("Vox.Write.Meta.TagLimitReached") : T("Vox.Meta.Label.EnterToAdd"),
+                };
+                // 输入框插在「＋」chip 之前；空回车/失焦收起（原型 chip-input 口径）。
+                var closeInput = () => wrap.Children.Remove(input);
+                wrap.Children.Insert(wrap.Children.Count - 1, input);
                 input.Focus();
                 input.KeyDown += (_, ke) =>
                 {
-                    if (ke.Key == Avalonia.Input.Key.Enter && !string.IsNullOrWhiteSpace(input.Text))
+                    if (ke.Key != Avalonia.Input.Key.Enter) return;
+                    ke.Handled = true;
+                    var v = input.Text?.Trim() ?? string.Empty;
+                    if (v.Length == 0) { closeInput(); return; } // 空回车收起输入框
+                    if (values.Contains(v))
                     {
-                        var v = input.Text.Trim();
-                        if (!values.Contains(v)) values.Add(v);
-                        Rebuild();
+                        _shell.ShowToast(TF("Vox.Write.Meta.TagExists", v));
+                        return;
                     }
-                };
-                input.LostFocus += (_, _) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(input.Text) && !values.Contains(input.Text.Trim()))
+                    if (values.Count >= 5)
                     {
-                        values.Add(input.Text.Trim());
+                        _shell.ShowToast(T("Vox.Meta.Msg.TagsLimitReached"));
+                        return;
                     }
+                    values.Add(v);
                     Rebuild();
                 };
-                e.Handled = true;
-            };
-            wrap.Children.Add(add);
+                input.LostFocus += (_, _) => closeInput();
+            }));
         }
         Rebuild();
         panel.Children.Add(wrap);

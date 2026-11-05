@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -87,6 +88,7 @@ public partial class MainWindow : Window
         Services.McpService.CallAudited += _ => UpdateMcpBadge();
         UpdateNavCounts();
         ApplyChrome(); // 标题栏/菜单/搜索浮层固定文案接 I18n 动态绑定（含初始值）
+        UpdateMcpBadge(); // MCP 按钮 tooltip 动态文案初始化（无仓库不 AutoStart 时也要给出停止态文案）
 
         // 界面密度切换：清页缓存整体重建（字号 Fs() 与区块在构造期取值）；
         // 语言切换不重建——文案全部走 I18n.Bind 动态绑定，随 CultureChanged 自动刷新。
@@ -249,7 +251,7 @@ public partial class MainWindow : Window
         MiNew[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
         MiMeta[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
         MiImg[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
-        BtnTbMcp[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Mcp");
+        // MCP 按钮 tooltip 走动态文案（UpdateMcpBadge 按服务现态重绑），这里不再静态绑定。
         BtnTbSearch[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Search");
         BtnTbLook[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Appearance");
         BtnTbLang[!ToolTip.TipProperty] = I18n.Bind("Vox.Settings.Appearance.Language");
@@ -529,6 +531,17 @@ public partial class MainWindow : Window
         }
         var notes = string.Join("\n", badges.Select((b, i) => WritePage.ChannelName((PublishChannel)i) + "：" + WritePage.StatusText(b.Status) + " · " + b.Note));
         ToolTip.SetTip(FileBadges, notes);
+        // 发布徽标可点击（原型 L16 onclick=openPublishDlg）：点开当前文章的发布对话框；hover 手型提示可点。
+        FileBadges.Cursor = new Cursor(StandardCursorType.Hand);
+        FileBadges.PointerReleased -= OnFileBadgesReleased; // SetCurrentFile 每次保存后调用，防重复订阅
+        FileBadges.PointerReleased += OnFileBadgesReleased;
+    }
+
+    private void OnFileBadgesReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonReleased) return;
+        e.Handled = true;
+        OpenCurrentArticlePublish();
     }
 
     // ---------- 标题栏 ----------
@@ -675,6 +688,13 @@ public partial class MainWindow : Window
 
         BtnTbMcp.Click += (_, _) => ShowPage("mcp");
         BtnTbSearch.Click += (_, _) => OpenSearch();
+        // 标题栏发布状态徽标可点击直达发布对话框（原型 pub-badges onclick 口径）。
+        FileBadges.Cursor = new Cursor(StandardCursorType.Hand);
+        FileBadges.PointerReleased += (_, e) =>
+        {
+            e.Handled = true;
+            OpenCurrentArticlePublish();
+        };
         SearchOverlay.PointerReleased += (_, e) => { if (e.Source == SearchOverlay) CloseSearch(); };
         SearchInput.KeyDown += OnSearchKeyDown;
         SearchInput.PropertyChanged += (_, e) =>
@@ -861,7 +881,15 @@ public partial class MainWindow : Window
         var clients = Services.McpService.Clients.Count;
         SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
         McpTopbarDot.Fill = TryBrush(Services.McpService.IsRunning ? "VoxOk" : "VoxFaint");
+        // 标题栏 MCP tooltip 动态文案（原型 L20 口径）：运行中带在线客户端数，停止态单独文案。
+        BtnTbMcp[!ToolTip.TipProperty] = Services.McpService.IsRunning
+            ? TFBind("Vox.Shell.Tooltip.McpRunningFmt", clients)
+            : (object)I18n.Bind("Vox.Shell.Tooltip.McpStopped");
     });
+
+    /// <summary>带占位参数的动态文案绑定（同 WritePage.TFBind：参数为运行时值，语言切换按当前语言重新格式化）。</summary>
+    private static MultiBinding TFBind(object key, params object[] args) =>
+        (MultiBinding)new CodeWF.Avalonia.Lang.MarkupExtensions.I18nBinding(key, null, args).ProvideValue(null!);
 
     private async void UpdateNavCounts()
     {
@@ -998,7 +1026,7 @@ public partial class MainWindow : Window
         ToastText.Text = message;
         Toast.IsVisible = true;
         _toastTimer?.Stop();
-        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1900) };
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2200) }; // 与原型 2200ms 对齐
         _toastTimer.Tick += (_, _) =>
         {
             Toast.IsVisible = false;
