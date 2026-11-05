@@ -1247,7 +1247,7 @@ h1,h2,h3 { letter-spacing: -.025em; }
 /* 更新浮窗：非模态独立小窗，带窗口级最小化/关闭 */
 .upd-win { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); width: 448px; max-width: calc(100vw - 32px);
   background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow-win);
-  z-index: 75; overflow: hidden; animation: uwin-in var(--t-med) var(--motion); }
+  z-index: 45; overflow: hidden; animation: uwin-in var(--t-med) var(--motion); } /* 低于模态遮罩(50)：弹层打开时被盖住，不再悬浮于对话框之上 */
 .upd-win[hidden] { display: none; }
 @keyframes uwin-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.985); } }
 .uw-bar { display: flex; align-items: center; height: 36px; padding: 0 8px 0 14px;

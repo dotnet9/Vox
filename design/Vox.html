@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" data-accent="green">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <link rel="icon" href="../logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=59">
+<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=60">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -87,7 +87,7 @@
         <div class="sp-group">文章</div>
         <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">.NET Native AOT 依赖 Win7：Skia 依赖链排查记</span><span class="sp-m">2026/09 · 4,820 字</span></a>
         <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">qtzu：一个 3D 英语学习游戏的开源实现</span><span class="sp-m">2026/09 · 6,140 字</span></a>
-        <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">Vex 升级：编辑器长出 AI 的手——MCP 支持全记录</span><span class="sp-m">2026/10 · 6,140 字</span></a>
+        <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">Vex 升级：编辑器长出 AI 的手——MCP 支持全记录</span><span class="sp-m">2026/10 · 7,460 字</span></a>
         <a class="sp-it" data-k="art" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg><span class="sp-t">Avalonia 自绘控件的渲染管线剖析</span><span class="sp-m">2024/06 · 8,332 字</span></a>
         <div class="sp-group">图片</div>
         <a class="sp-it" data-k="img" onclick="spOpen(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg><span class="sp-t">dotnet-native-aot-…-dependency-chain.svg</span><span class="sp-m">2026/09 · 被引用 1 篇</span></a>
@@ -678,7 +678,7 @@ draft: true
   <div class="mh"><h3>文章元数据</h3><span class="x" onclick="closeModal('mMeta')">×</span></div>
   <div class="mb">
           <div class="sdesc" style="margin:-4px 0 10px">元数据内嵌于文章文件头部（front matter）：展示时拆分为内容与元数据两区，保存时合并写回同一 .md 文件</div>
-          <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm">更换</button><button class="btn sm">从正文选</button></div></div>
+          <div class="cover">◈ 封面预览<div class="ops"><button class="btn sm" onclick="toast('演示：经图片库选择封面并写回 cover')">更换</button><button class="btn sm" onclick="toast('演示：选取正文插图设为封面')">从正文选</button></div></div>
           <div class="f-label">标题</div><input class="input" id="mmTitle" value=".NET Native AOT 依赖 Win7：Skia 依赖链排查记">
           <div class="f-label">slug</div><input class="input mono" id="mmSlug" value="dotnet-native-aot-win7-skia-dependency" style="font-size:0.8462rem">
           <div class="f-label">简述 description</div><textarea class="input" id="mmDesc" rows="2">记录 Native AOT 产物在 Win7 上因 Skia 原生依赖崩溃的完整排查链。</textarea>
@@ -867,15 +867,15 @@ qtzu:{year:'2026',path:'2026/09',title:'qtzu：一个 3D 英语学习游戏的�
  cover:'2026/09/qtzu-city-panorama.jpg',pub:['ok','ok','ok','err'],
  lines:[['h','# qtzu：一个 3D 英语学习游戏的开源实现'],['',''],['','用 C# + OpenGL 做了一个 3D 英语学习游戏 qtzu，'],['','城市探索 + 宠物牧场 + 单词关卡，代码全部开源。'],['',''],['h2','## 玩法概览'],['',''],['img','![城市全景](2026/09/qtzu-city-panorama.jpg)'],['',''],['h2','## 技术栈'],['',''],['','- OpenGL 4.5 + OpenAL 音效'],['','- Tiled 地图 / 自研轻量 ECS'],['','- 目标 .NET 10，支持 Windows 与 Linux']],
  prev:'<p>用 C# + OpenGL 做了一个 3D 英语学习游戏 qtzu，城市探索 + 宠物牧场 + 单词关卡，代码全部开源。</p><h2>玩法概览</h2><div class="codeblock"><div class="cb-h">qtzu-city-panorama.jpg<span class="spacer"></span>查看原图</div><div class="ph g2" style="height:110px;border-radius:0"></div></div><h2>技术栈</h2><div class="task"><i></i>OpenGL 4.5 + OpenAL 音效</div><div class="task"><i></i>Tiled 地图 / 自研轻量 ECS</div><div class="task"><i></i>目标 .NET 10，支持 Windows 与 Linux</div>'},
-exp:{year:'2026',path:'2026/05',title:'Markdown 一键导出社媒配图实战',slug:'codewf-markdown-export-images-social-copy',date:'2026-05-12 20:00',min:6,cats:['工具'],tags:['Markdown'],draft:false,g:'g3',cur:11,desc:'把博客关键图快速导出为社媒尺寸配图的一条自动化管线。',
+exp:{year:'2026',path:'2026/05',title:'Markdown 一键导出社媒配图实战',slug:'codewf-markdown-export-images-social-copy',date:'2026-05-12 20:00',min:6,cats:['工具'],tags:['Markdown'],draft:false,g:'g3',cur:11,cover:'https://img1.dotnet9.com/2026/05/codewf-markdown-export-images-social-copy-cover.png',desc:'把博客关键图快速导出为社媒尺寸配图的一条自动化管线。',
  pub:['ok','off','ok','off'],
- lines:[['h','# Markdown 一键导出社媒配图实战'],['',''],['','把博客文章里的关键图快速导出为社媒尺寸配图，'],['','本文给出一条可复用的自动化管线。'],['',''],['h2','## 思路'],['',''],['','- 解析 md 抽出图片与标题'],['','- 按平台裁切：公众号 900×383 / 小红书 1080×1440'],['',''],['bq','> 本文是仓库里唯一使用相对路径引用图片的文章'],['',''],['h2','## 小结'],['',''],['','- 模板化 + 批处理，5 分钟出全套配图']],
- prev:'<p>把博客文章里的关键图快速导出为社媒尺寸配图，本文给出一条可复用的自动化管线。</p><h2>思路</h2><div class="task"><i></i>解析 md 抽出图片与标题</div><div class="task"><i></i>按平台裁切：公众号 900×383 / 小红书 1080×1440</div><blockquote>本文是仓库里唯一使用相对路径引用图片的文章</blockquote><h2>小结</h2><p>模板化 + 批处理，5 分钟出全套配图。</p>'},
+ lines:[['h','# Markdown 一键导出社媒配图实战'],['',''],['','把博客文章里的关键图快速导出为社媒尺寸配图，'],['','本文给出一条可复用的自动化管线。'],['',''],['h2','## 思路'],['',''],['','- 解析 md 抽出图片与标题'],['','- 按平台裁切：公众号 900×383 / 小红书 1080×1440'],['',''],['bq','> 本文插图使用相对路径引用（全库规范形态）'],['',''],['h2','## 小结'],['',''],['','- 模板化 + 批处理，5 分钟出全套配图']],
+ prev:'<p>把博客文章里的关键图快速导出为社媒尺寸配图，本文给出一条可复用的自动化管线。</p><h2>思路</h2><div class="task"><i></i>解析 md 抽出图片与标题</div><div class="task"><i></i>按平台裁切：公众号 900×383 / 小红书 1080×1440</div><blockquote>本文插图使用相对路径引用（全库规范形态）</blockquote><h2>小结</h2><p>模板化 + 批处理，5 分钟出全套配图。</p>'},
 di:{year:'2025',path:'2025/03',title:'自己动手写依赖注入框架',slug:'write-your-own-di-container',date:'2025-03-08 20:00',min:2,cats:['.NET'],tags:['DI','源码'],draft:true,g:'g5',cur:11,desc:'（草稿）从零实现一个最小 IoC 容器，讲清注册、解析与生命周期。',
  copyright:'Original',pub:['off','off','off','off'],
  lines:[['h','# 自己动手写依赖注入框架'],['',''],['bq','> 草稿：大纲阶段，勿外传'],['',''],['h2','## 背景'],['',''],['','- 想讲清 IoC 容器的三要素：注册、解析、生命周期'],['',''],['h2','## 大纲'],['',''],['tk','- [ ] 最小可用版：100 行实现'],['tk','- [ ] 单例 / 瞬态 / 作用域'],['tk','- [ ] 循环依赖检测'],['tk','- [ ] 与 MS.DI 的基准对比']],
  prev:'<blockquote>草稿：大纲阶段，勿外传</blockquote><h2>背景</h2><p>想讲清 IoC 容器的三要素：注册、解析、生命周期。</p><h2>大纲</h2><div class="task"><i></i>最小可用版：100 行实现</div><div class="task"><i></i>单例 / 瞬态 / 作用域</div><div class="task"><i></i>循环依赖检测</div>'},
-sq:{year:'2024',path:'2024/12',title:'SQLite 在桌面应用中的 12 个最佳实践',slug:'sqlite-desktop-12-best-practices',date:'2024-12-02 20:00',min:9,cats:['数据库'],tags:['SQLite'],draft:false,g:'g6',cur:7,desc:'WAL、busy_timeout、连接池……桌面应用里把 SQLite 用稳的 12 条军规。',
+sq:{year:'2024',path:'2024/12',title:'SQLite 在桌面应用中的 12 个最佳实践',slug:'sqlite-desktop-12-best-practices',date:'2024-12-02 20:00',min:9,cats:['数据库'],tags:['SQLite'],draft:false,g:'g6',cur:7,cover:'https://img1.dotnet9.com/2024/12/sqlite-desktop-12-best-practices-cover.png',desc:'WAL、busy_timeout、连接池……桌面应用里把 SQLite 用稳的 12 条军规。',
  copyright:'Original',pub:['ok','ok','off','off'],
  lines:[['h','# SQLite 在桌面应用中的 12 个最佳实践'],['',''],['','桌面场景没有 DBA，SQLite 的坑要提前绕开。'],['',''],['h2','## 清单速览'],['',''],['','- WAL 模式 + busy_timeout 是标配'],['','- 单写多读：一个写连接 + 只读连接池'],['','- 索引要在数据量小的时候就建好'],['',''],['h2','## 展开'],['',''],['','逐条展开前 6 条，后 6 条下篇再谈。']],
  prev:'<p>桌面场景没有 DBA，SQLite 的坑要提前绕开。</p><h2>清单速览</h2><div class="task"><i></i>WAL 模式 + busy_timeout 是标配</div><div class="task"><i></i>单写多读：一个写连接 + 只读连接池</div><div class="task"><i></i>索引要在数据量小的时候就建好</div><h2>展开</h2><p>逐条展开前 6 条，后 6 条下篇再谈。</p>'},
@@ -887,21 +887,20 @@ vex:{year:'2026',path:'2026/10',title:'Vex 升级：编辑器长出 AI 的手—
  cover:'2026/10/vex-mcp-architecture.svg',banner:true,pub:['ok','off','off','off'],
  lines:[['h','# Vex 升级：编辑器长出 AI 的手——MCP 支持全记录'],['',''],['','给 Vex 接上 MCP：外部 AI 客户端经本机接口直接读写文档。'],['',''],['h2','## 接入方式'],['',''],['','stdio 桥接 Claude Desktop / Cursor，HTTP 直连亦可'],['',''],['h2','## 工具与审计'],['',''],['tk','- [x] 29 个工具 · 操作审计'],['tk','- [ ] 写操作应用内确认'],['',''],['h2','## 小结'],['',''],['bq','> 编辑器长出 AI 的手，关键是不失控。']],
  prev:'<p>给 Vex 接上 MCP：外部 AI 客户端经本机接口直接读写文档。</p><h2>接入方式</h2><p>stdio 桥接 Claude Desktop / Cursor，HTTP 直连亦可。</p><h2>工具与审计</h2><div class="task done"><i></i>29 个工具 · 操作审计</div><div class="task"><i></i>写操作应用内确认</div><h2>小结</h2><blockquote>编辑器长出 AI 的手，关键是不失控。</blockquote>'},
-ser:{year:'2023',path:'2023/12',title:'C#百万对象序列化深度剖析',slug:'deep-analysis-million-object-serialization',date:'2023-12-09 20:00',min:12,cats:['.NET'],tags:['序列化','性能'],draft:false,g:'g5',cur:7,desc:'MessagePack / MemoryPack / System.Text.Json 在百万对象下的吞吐与内存对比。',
+ser:{year:'2023',path:'2023/12',title:'C#百万对象序列化深度剖析',slug:'deep-analysis-million-object-serialization',date:'2023-12-09 20:00',min:12,cats:['.NET'],tags:['序列化','性能'],draft:false,g:'g5',cur:7,cover:'https://img1.dotnet9.com/2023/12/deep-analysis-million-object-serialization-cover.png',desc:'MessagePack / MemoryPack / System.Text.Json 在百万对象下的吞吐与内存对比。',
  copyright:'Original',pub:['stale','ok','ok','ok'],
  lines:[['h','# C#百万对象序列化深度剖析'],['',''],['','三个序列化器，一百万个对象，跑在同一台机器上。'],['',''],['h2','## 基准设置'],['',''],['','- MessagePack · MemoryPack · System.Text.Json'],['','- 对象图：100 万个扁平 POCO'],['',''],['h2','## 结论'],['',''],['','MemoryPack 吞吐最高，MessagePack 兼容性最稳。']],
  prev:'<p>三个序列化器，一百万个对象，跑在同一台机器上。</p><h2>基准设置</h2><div class="task"><i></i>MessagePack · MemoryPack · System.Text.Json</div><div class="task"><i></i>对象图：100 万个扁平 POCO</div><h2>结论</h2><p>MemoryPack 吞吐最高，MessagePack 兼容性最稳。</p>'}};
 let curArt='aot',listMode='list';
 function bindSwitches(){document.querySelectorAll('[data-switch]').forEach(s=>s.onclick=()=>s.classList.toggle('on'));}
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');} // 双引号一并转义：值会进 value=""/data-* 属性，含 " 会截断属性注入事件
 function renderLines(a){
   $('gutter').innerHTML=a.lines.map((_,i)=>'<i>'+(i+1)+'</i>').join('');
   $('elines').innerHTML=a.lines.map((l,i)=>{
     const cls=[l[0],i===a.cur?'cur':''].join(' ').trim();
     const txt=esc(l[1]).replace(/`([^`]+)`/,'<code>$1</code>');
-    return '<i class="'+(cls||'')+'">'+txt+'</i>';}).join('');
+    return '<i id="eline-'+i+'" class="'+(cls||'')+'">'+txt+'</i>';}).join('');
   }
-function coverCls(a){return a.g;}
 function artItem(k,a){
   const flag=a.draft?'<span class="badge accent" style="margin-left:auto">草稿</span>':'';
   return '<div class="wit '+(k===curArt?'active':'')+'" data-art="'+k+'"><b>'+a.title+'</b><div class="m">'+a.path+' · '+a.cats[0]+flag+'</div></div>';
@@ -931,15 +930,15 @@ function renderOutline(a){
   $('outlTask').innerHTML=tk.length?'<span class="badge ok">'+done+' / '+tk.length+' 已完成</span>':'<span class="badge">无任务清单</span>';
   tb.querySelectorAll('a').forEach(x=>x.onclick=()=>{const a2=ARTS[curArt];a2.cur=+x.dataset.ln;renderLines(a2);
     const seg=document.querySelector('#modeSeg button.active').dataset.m;
-    if(seg==='prev')document.querySelectorAll('#modeSeg button')[0].click();
+    if(seg==='prev'||seg==='map')document.querySelectorAll('#modeSeg button')[0].click(); // 预览/导图态点大纲：先回源码再定位
     const line=document.getElementById('eline-'+a2.cur);
     if(line)line.scrollIntoView({block:'center',behavior:'smooth'});});
 }
-function loadArt(k){curArt=k;const a=ARTS[k];
+function loadArt(k){applyYamlIfDirty();curArt=k;const a=ARTS[k];
   renderLines(a);$('prevInner').innerHTML='<div class="article"><h1>'+a.title+'</h1><div class="meta">'+a.date+' · Dotnet9 · 分类 '+a.cats.join(' / ')+' · 阅读 '+a.min+' min</div>'+a.prev+'</div>';
   renderOutline(a);renderList();renderMetaTab();
   $('yamlWarn').style.display='none'; // 切文章后隐藏上一 YAML 解析警示
-  if($('yamlBody').style.display!=='none')$('metaYaml').value=yamlOf(metaOf(k)); // YAML 态随文章重生成
+  if($('yamlBody').style.display!=='none'){$('metaYaml').value=yamlOf(metaOf(k));_yamlBase=$('metaYaml').value;} // YAML 态随文章重生成（同步基准防误判手改）
 }
 document.querySelectorAll('#listSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#listSeg button').forEach(x=>x.classList.toggle('active',x===b));
@@ -966,30 +965,44 @@ function yamlOf(a){ // 由 meta 生成 front matter（--- 包裹；自定义键�
   Object.keys(a.x||{}).forEach(k=>L.push(k+': '+(Array.isArray(a.x[k])?'\n'+a.x[k].map(v=>'  - '+v).join('\n'):a.x[k])));
   L.push('---');
   return L.join('\n');}
-const yamlStr=s=>String(s).trim().replace(/^["']|["']$/g,''); // 去引号（行级解析够用）
-function parseYaml(txt){ // 简单行级解析：已知键映射回字段，未知键收进自定义键对象；结构损坏返回 null
+const yamlStr=s=>{s=String(s).trim(); // 仅首尾成对同种引号才剥（值如 11" 的尾随引号不受伤）
+  if(s.length>1&&((s[0]==='"'&&s[s.length-1]==='"')||(s[0]==="'"&&s[s.length-1]==="'")))return s.slice(1,-1);
+  return s;};
+const YAML_SCALARS=['title','slug','description','date','lastmod','cover','author','copyright']; // 已知标量键白名单：cats/tags/draft/banner 各有分支，其余键（含 cats:/x: 这类内部字段名）一律走自定义键，杜绝击穿
+const yamlBool=v=>v==='true'||v==='True'||v==='TRUE'||v==='yes';
+const splitInline=v=>{ // 引号感知切分行内数组：["a, b", c] → ['a, b','c']（裸按逗号切会拆碎带逗号的值）
+  const items=[];let cur='',q=null;
+  for(let j=1;j<v.length-1;j++){const ch=v[j];
+    if(q){if(ch===q&&v[j-1]!=='\\')q=null;else cur+=ch;}
+    else if(ch==='"'||ch==="'")q=ch;
+    else if(ch===','){items.push(yamlStr(cur));cur='';}
+    else cur+=ch;}
+  if(cur.trim())items.push(yamlStr(cur));
+  return items.filter(Boolean);};
+function parseYaml(txt){ // 行级解析：已知键映射回字段，未知键收进自定义键（值一律字符串，防布尔击穿 esc）；缺闭合 --- 视为损坏返回 null
   const out={title:'',slug:'',description:'',date:'',lastmod:'',cover:'',cats:[],tags:[],author:'',draft:false,banner:null,copyright:'',x:{}};
-  const lines=String(txt).split('\n');let i=0;
+  const lines=String(txt).split('\n');let i=0,closed=false;
   while(i<lines.length&&!lines[i].trim())i++;
   if(!lines[i]||lines[i].trim()!=='---')return null; // 必须以 --- 开头
   i++;let lastKey=null;
   for(;i<lines.length;i++){
     const raw=lines[i];
     if(!raw.trim())continue;
-    if(raw.trim()==='---')break;
+    if(raw.trim()==='---'){closed=true;break;}
     if(raw.trim().charAt(0)==='#')continue; // 注释行
     const m=raw.match(/^([A-Za-z_][\w\-.]*)\s*:(.*)$/);
     if(m){const k=m[1],v=m[2].trim();lastKey=k;
       if(k==='categories'||k==='tags'){
-        if(v==='[]'||v==='')out[k]=[];
+        const key=k==='categories'?'cats':'tags';
+        if(v==='[]'||v==='')out[key]=[];
         else if(v.charAt(0)==='['){
           if(v.charAt(v.length-1)!==']')return null; // 行内数组未闭合 → 结构损坏（否则 '[unclosed' 会被当字符串静默写入）
-          out[k]=v.slice(1,-1).split(',').map(yamlStr).filter(Boolean);} // 行内数组
-        else out[k]=[]; // 块列表，由后续 - 行填充
-      }else if(k==='draft')out.draft=(v==='true');
-      else if(k==='banner')out.banner=v===''?null:(v==='true');
-      else if(k in out)out[k]=yamlStr(v);
-      else out.x[k]=v===''?'':(v==='true'?true:v==='false'?false:yamlStr(v));
+          out[key]=splitInline(v);}
+        else out[key]=[]; // 块列表，由后续 - 行填充
+      }else if(k==='draft')out.draft=yamlBool(v);
+      else if(k==='banner')out.banner=v===''?null:yamlBool(v);
+      else if(YAML_SCALARS.includes(k))out[k]=yamlStr(v);
+      else out.x[k]=yamlStr(v); // 未知键：一律字符串（true/false 也存字面量），任何键名都进不了内部字段
     }else{const it=raw.match(/^\s*-\s+(.+)$/);
       if(!it||!lastKey)return null; // 既不是键也不是列表项 → 解析失败
       const v=yamlStr(it[1]);
@@ -998,7 +1011,7 @@ function parseYaml(txt){ // 简单行级解析：已知键映射回字段，未�
       else{if(!Array.isArray(out.x[lastKey]))out.x[lastKey]=out.x[lastKey]?[out.x[lastKey]]:[];out.x[lastKey].push(v);}
     }
   }
-  return out;}
+  return closed?out:null;} // 从未遇到闭合 ---：整个 front matter 视为损坏（防全空对象把元数据静默清空）
 function applyYamlToArt(a,p){a.title=p.title;a.slug=p.slug;a.desc=p.description;a.date=p.date;
   a.lastmod=p.lastmod;a.cover=p.cover;a.cats=p.cats;a.tags=p.tags;
   a.author=p.author||'Dotnet9';a.draft=p.draft;a.banner=p.banner;a.copyright=p.copyright;a.x=p.x;}
@@ -1097,6 +1110,8 @@ function renderMetaTab(){
 }
 /* 面板页签：大纲 | 元数据 切换（进入元数据按当前文章重渲染；resize 重算 seg 滑块） */
 document.querySelectorAll('#panelSeg button').forEach(b=>b.onclick=()=>{
+  if(b.classList.contains('active'))return;
+  applyYamlIfDirty(); // 离开元数据页签：YAML 态手改先应用/明示放弃，不静默丢
   document.querySelectorAll('#panelSeg button').forEach(x=>x.classList.toggle('active',x===b));
   const meta=b.dataset.t==='meta';
   $('outlineTab').classList.toggle('active',!meta);
@@ -1104,14 +1119,22 @@ document.querySelectorAll('#panelSeg button').forEach(b=>b.onclick=()=>{
   if(meta)renderMetaTab();
   window.dispatchEvent(new Event('resize'));});
 /* 表单 | YAML 双向：表单→YAML 重新生成（自定义键/未知字段不丢）；YAML→表单行级解析回填，失败黄条提示且不覆盖表单 */
+let _yamlBase=''; // 进入 YAML 态时的生成基准：切页签/切文章时比对，手改未应用不静默丢
+function applyYamlIfDirty(){
+  if($('yamlBody').style.display==='none'||$('metaYaml').value===_yamlBase)return;
+  const p=parseYaml($('metaYaml').value);
+  if(p){applyYamlToArt(metaOf(curArt),p);_yamlBase=yamlOf(metaOf(curArt));$('yamlWarn').style.display='none';}
+  else{$('yamlWarn').textContent='YAML 有未应用的修改（解析失败）：已放弃，请回元数据页签修正后再切「表单」';
+    $('yamlWarn').style.display='';_yamlBase=$('metaYaml').value;}} // base 前移，避免同一段文本反复提示
 document.querySelectorAll('#metaModeSeg button').forEach(b=>b.onclick=()=>{
+  if(b.classList.contains('active'))return; // 重复点击已选模式不重生成（否则覆盖手改）
   document.querySelectorAll('#metaModeSeg button').forEach(x=>x.classList.toggle('active',x===b));
   const yaml=b.dataset.m==='yaml';
   $('yamlWarn').style.display='none';
-  if(yaml){$('metaYaml').value=yamlOf(metaOf(curArt));}
+  if(yaml){$('metaYaml').value=yamlOf(metaOf(curArt));_yamlBase=$('metaYaml').value;}
   else{const p=parseYaml($('metaYaml').value);
     if(p){applyYamlToArt(metaOf(curArt),p);renderMetaTab();renderList();}
-    else{$('yamlWarn').textContent='YAML 解析失败：已保留表单原值 · 需以 --- 开头包裹，行格式为 key: value 或「  - 列表项」';$('yamlWarn').style.display='';}}
+    else{$('yamlWarn').textContent='YAML 解析失败：已保留表单原值 · 需以 --- 包裹（含闭合 ---），行格式为 key: value 或「  - 列表项」';$('yamlWarn').style.display='';}}
   $('metaBody').style.display=yaml?'none':'';
   $('yamlBody').style.display=yaml?'':'none';
   window.dispatchEvent(new Event('resize'));});
@@ -1123,16 +1146,41 @@ function openMetaModal(){
   $('mmTitle').value=a.title;$('mmSlug').value=a.slug;$('mmDesc').value=a.desc;
   $('mmDate').value=a.date;$('mmAuthor').value=a.author||'Dotnet9';
   $('mmDraft').classList.toggle('on',!a.draft);
-  $('mmCats').innerHTML=a.cats.map(c=>'<span class="chip">'+esc(c)+' <i>×</i></span>').join('')+'<span class="chip add">＋</span>';
-  $('mmTags').innerHTML=a.tags.map(t=>'<span class="chip">'+esc(t)+' <i>×</i></span>').join('')+'<span class="chip add">＋</span>';
+  renderModalChips(a);
   openModal('mMeta');}
-function saveMetaModal(){ // 弹层「保存」：简单字段写回（与面板共用同一 ARTS 数据）
+function renderModalChips(a){ // 弹层分类/标签 chips：× 移除；＋ 行内添加（分类受控候选、标签自由，≤5 口径与面板一致）
+  $('mmCats').innerHTML=a.cats.map(c=>'<span class="chip" data-v="'+esc(c)+'">'+esc(c)+' <i>×</i></span>').join('')
+    +'<span class="chip add" title="从站点分类添加">＋</span>';
+  $('mmTags').innerHTML=a.tags.map(t=>'<span class="chip" data-v="'+esc(t)+'">'+esc(t)+' <i>×</i></span>').join('')
+    +'<span class="chip add" title="回车添加，最多 5 个">＋</span>';}
+['mmCats','mmTags'].forEach(id=>{$(id).addEventListener('click',e=>{ // 事件委托：重建 innerHTML 也不丢绑定
+  const a=metaOf(curArt),isCats=id==='mmCats';
+  const chip=e.target.closest('.chip');
+  if(!chip||!$(id).contains(chip))return;
+  if(chip.classList.contains('add')){
+    if(e.target.tagName==='INPUT')return;
+    if($(id).querySelector('.chip-input'))return; // 已有输入框不叠加
+    const inp=document.createElement('input');inp.className='input chip-input';inp.style.cssText='width:110px;height:22px;font-size:.78rem;padding:0 6px';
+    if(isCats){const rest=SITE_CATS.filter(c=>a.cats.indexOf(c)<0);inp.placeholder=rest[0]?'候选：'+rest.join(' / '):'（站点分类已全选）';}
+    else inp.placeholder=a.tags.length>=5?'已达上限 5':'回车添加';
+    chip.before(inp);inp.focus();
+    inp.onkeydown=ev=>{if(ev.key==='Enter'){const v=inp.value.trim();
+      if(v){if(isCats){if(SITE_CATS.indexOf(v)>=0&&a.cats.indexOf(v)<0)a.cats.push(v);}
+        else if(a.tags.indexOf(v)<0&&a.tags.length<5)a.tags.push(v);}
+      renderModalChips(a);renderMetaTab();}}; // 空回车/非法值也收起输入框
+    inp.onblur=()=>inp.remove();
+  }else if(e.target.tagName==='I'){
+    const v=chip.dataset.v;
+    if(isCats)a.cats=a.cats.filter(c=>c!==v);else a.tags=a.tags.filter(t=>t!==v);
+    renderModalChips(a);renderMetaTab();}});});
+function saveMetaModal(){ // 弹层「保存」：与面板同一 ARTS 数据；lastmod 自动更新；banner/copyright/自定义键不经弹层、原值保留
   const a=metaOf(curArt);
   a.title=$('mmTitle').value;a.slug=$('mmSlug').value;a.desc=$('mmDesc').value;
   a.date=$('mmDate').value;a.author=$('mmAuthor').value;a.draft=!$('mmDraft').classList.contains('on');
+  a.lastmod=new Date().toLocaleString('sv-SE').slice(0,16); // 保存即自动更新（用户不可直接改）
+  if($('yamlBody').style.display!=='none'){$('metaYaml').value=yamlOf(a);_yamlBase=$('metaYaml').value;} // YAML 态打开弹层：保存后同步重生成（含基准），防旧值回滚
   renderMetaTab();renderList();
-  toast('元数据已保存（front matter 写回）');}
-/* ---------- 边栏折叠 ---------- */
+  toast('元数据已保存（front matter 写回，lastmod 已更新）');}
 /* ---------- 边栏折叠 ---------- */
 const navEl=$('nav'),btnNav=$('btnNav');
 const icoFold='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 9l-3 3 3 3"/></svg>';
@@ -1192,7 +1240,8 @@ function updChangelogHTML(list){ // 类型化条目：[系统要求] 引用块 +
 function updRenderChanges(){$('upVer').textContent='v'+updNewer()[0].ver+' 更新日志';$('upDate').textContent=updNewer()[0].date;
   $('upBody').innerHTML=updChangelogHTML(updNewer());}
 function updSetPill(txt,fill){const p=$('updPill');p.hidden=!updFound;p.textContent=txt;
-  p.style.background=fill!=null?'linear-gradient(90deg, var(--accent-deep) '+fill+'%, var(--accent) '+fill+'%)':'';}
+  // 填充段掺 30% accent 提亮：亮色 green/amber 下 accent-deep 上的 on-accent 文字对比不足（<4.5:1）
+  p.style.background=fill!=null?'linear-gradient(90deg, color-mix(in srgb, var(--accent-deep), var(--accent) 30%) '+fill+'%, var(--accent) '+fill+'%)':'';}
 function updPillSync(){ // 药丸随状态变形：更新 → 下载中 N% → 重启以更新；已是最新则隐藏
   const p=$('updPill');
   if(updState==='current'){p.hidden=true;return;}
@@ -1238,10 +1287,12 @@ function updRender(){
   if(!$('uwChanges').hidden)$('uwChanges').innerHTML=updChangelogHTML(updNewer());
   updPillSync();}
 function updCheck(){ // 手动检查（帮助菜单 / 设置 / 关于）：开窗 → checking → current / available
-  updFound=true;updShowWin(true);updState='checking';updRender();
+  updShowWin(true);updState='checking';updRender(); // 药丸在 checking 态保持原样（发现新版才亮，避免复查时闪旧文案）
   const id=++updTickGen;setTimeout(()=>{if(id!==updTickGen)return;
+    if(updScenario!=='current')updFound=true;
     updState=updScenario==='current'?'current':'available';updRender();},700);}
 function updStartDownload(){
+  $('updPop').classList.remove('open'); // 开窗即收气泡：两者不同时叠开
   updState='downloading';updTick=0;updRender();updShowWin(true);updProgress(0,0,updNewer()[0].sizeMB);
   const id=++updTickGen;updTimer=setInterval(()=>{
     if(id!==updTickGen){clearInterval(updTimer);return;}
@@ -1262,6 +1313,7 @@ function openUpdateCheck(){ // 三个入口（帮助菜单 / 设置 / 关于）�
   updRenderChanges();updCheck();}
 $('updPill').onclick=e=>{e.stopPropagation();
   if(updState==='downloading'||updState==='downloaded'||updState==='installing'){updMinimized=false;updShowWin(true);closeTbPops();return;}
+  if(!$('updWin').hidden){closeTbPops();return;} // 浮窗已开（available/failed 等态）：不开气泡，聚焦浮窗即可，避免两层叠开
   const was=$('updPop').classList.contains('open');closeTbPops();
   if(!was){updRenderChanges();$('updPop').classList.add('open');}};
 $('upGo').onclick=e=>{e.stopPropagation();$('updPop').classList.remove('open');updRenderChanges();
@@ -1273,9 +1325,13 @@ $('uwClose').onclick=()=>{
   if(updState==='downloading'){updMinimized=true;$('updWin').hidden=true;
     toast('下载继续进行 · 进度见标题栏「更新」按钮');return;}
   $('updWin').hidden=true;};
-/* 启动自动检查（演示）：1.4 秒后发现新版 → 状态 available（不开窗），标题栏浮现药丸 */
-setTimeout(()=>{updFound=true;updState='available';updRenderChanges();updPillSync();
-  toast('发现新版本 0.1.0-preview.2 · 点击标题栏「更新」查看日志');},1400);
+/* 启动自动检查（演示）：1.4 秒后发现新版 → 状态 available（不开窗），标题栏浮现药丸。
+   代际守卫与 idle 前置：用户在 1.4s 内已手动检查/开始下载时不打扰；setScenario('current') 同样生效 */
+setTimeout(()=>{const id=++updTickGen;
+  setTimeout(()=>{if(id!==updTickGen||updState!=='idle')return;
+    if(updScenario==='current'){updState='current';updPillSync();return;}
+    updFound=true;updState='available';updRenderChanges();updPillSync();
+    toast('发现新版本 0.1.0-preview.2 · 点击标题栏「更新」查看日志');},0);},1400);
 /* 版本号单源同步：凡标 data-vox-ver 的文本节点统一取 VOX_VER（关于弹层 / 设置页） */
 document.querySelectorAll('[data-vox-ver]').forEach(el=>{el.textContent=el.textContent.replace(/[\d]+\.[\d]+\.[\d]+-preview\.\d+/,VOX_VER);});
 window.VoxUpdate={setScenario(v){updScenario=v;updFailedOnce=false;}}; // 演示开关：'download-failed' 首次下载失败 / 'current' 已是最新
@@ -1752,7 +1808,7 @@ const CHECK_RULES=[
  {n:'失效图片引用', c:3, desc:'3 处引用的图片不存在（含 site/ 前缀的 CDN 资产 2 处）', act:'逐条处理'},
  {n:'缺 author', c:18, desc:'站点渲染默认站长（信息项，可批量补 Dotnet9）', act:'批量补全'},
  {n:'草稿未完成', c:1, desc:'draft: true 的文章（写作页可切换）', act:'查看'},
- {n:'无封面 / 无简述', c:0, desc:'发布到公众号/头条的必备字段', act:''},
+ {n:'无封面 / 无简述', c:1, desc:'发布到公众号/头条的必备字段', act:''},
 ];
 function renderChecks(){
   $('chkGroups').innerHTML=CHECK_RULES.map(r=>`
@@ -2367,7 +2423,7 @@ function editArticle(k){
 /* ---------- 文章库：数据驱动渲染 + 筛选/搜索 ---------- */
 const LIB_ROWS=[
  {key:'aot',t:'.NET Native AOT 依赖 Win7：Skia 依赖链排查记',ym:'2026/09',cat:'.NET',tags:'Native AOT · SkiaSharp',wc:'4,820',pub:'2026/09/dotnet-native-aot-…-dependency.md',draft:false,st:{site:'ok',wx:'stale',cnb:'off',csdn:'off'},tips:{wx:'原文 10-02 修改未重发'}},
- {key:'vex',t:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',ym:'2026/10',cat:'.NET',tags:'Vex · MCP',wc:'6,140',pub:'2026/10/vex-mcp-ai-upgrade.md',draft:false,st:{site:'ok',wx:'off',cnb:'off',csdn:'off'}},
+ {key:'vex',t:'Vex 升级：编辑器长出 AI 的手——MCP 支持全记录',ym:'2026/10',cat:'.NET',tags:'Vex · MCP',wc:'7,460',pub:'2026/10/vex-mcp-ai-upgrade.md',draft:false,st:{site:'ok',wx:'off',cnb:'off',csdn:'off'}},
  {key:'qtzu',t:'qtzu：一个 3D 英语学习游戏的开源实现',ym:'2026/09',cat:'C#开源项目',tags:'OpenGL · 游戏',wc:'6,140',pub:'2026/09/qtzu-3d-english-learning-game.md',draft:false,st:{site:'ok',wx:'ok',cnb:'ok',csdn:'err'},tips:{csdn:'token 已过期（401）'}},
  {key:'exp',t:'Markdown 一键导出社媒配图实战',ym:'2026/05',cat:'工具',tags:'Markdown',wc:'3,2xx',pub:'2026/05/codewf-markdown-export-images-social-copy.md',draft:false,st:{site:'ok',wx:'off',cnb:'ok',csdn:'off'}},
  {key:'di',t:'自己动手写依赖注入框架',ym:'2025/03',cat:'.NET',tags:'DI · 源码',wc:'—',pub:'2025/03/write-your-own-di-container.md',draft:true,st:{site:'off',wx:'off',cnb:'off',csdn:'off'}},
