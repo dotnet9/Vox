@@ -265,9 +265,21 @@ public sealed class SiteDataPage : UserControl
                 var captured = element;
                 box.LostFocus += (_, _) =>
                 {
-                    if (string.IsNullOrWhiteSpace(box.Text) || IsNumericLike(box.Text))
+                    // 回写口径修复：此前仅「空白或纯数字」才回写——友链名称/URL 等文本编辑全部丢失，
+                    // 且数字一律写成字符串。现按原值类型保真：原数字且可解析则保持数字，其余写字符串。
+                    if (string.IsNullOrWhiteSpace(box.Text))
                     {
-                        captured[prop] = string.IsNullOrWhiteSpace(box.Text) ? null : JsonValue.Create(box.Text);
+                        captured[prop] = null;
+                        return;
+                    }
+                    var wasNumber = captured[prop] is JsonValue v && v.TryGetValue<decimal>(out _);
+                    if (wasNumber && decimal.TryParse(box.Text, System.Globalization.CultureInfo.InvariantCulture, out var num))
+                    {
+                        captured[prop] = JsonValue.Create(num);
+                    }
+                    else
+                    {
+                        captured[prop] = JsonValue.Create(box.Text);
                     }
                 };
                 row.Children.Add(box);

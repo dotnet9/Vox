@@ -84,6 +84,7 @@ public sealed class WritePage : UserControl
     private Border _yamlWarn = null!;       // YAML 解析失败黄条（原型 #yamlWarn）
     private TextBlock _metaEmpty = null!;
     private bool _metaYamlMode;             // false=表单 true=YAML
+    private string _yamlBase = string.Empty; // 进入/重生成 YAML 态时的基准文本：切页签、切文章、刷新前比对，手改不静默丢
     private bool _metaDirty;                // 元数据被就地编辑过（保存时合并写回 front matter 并刷 lastmod）
     private bool _metaBuilding;             // 表单重建中：控件赋值触发的 TextChanged 不算用户编辑
     private IReadOnlyList<string> _siteCats = []; // site/categories.json 展示名（受控候选）
@@ -1296,6 +1297,7 @@ public sealed class WritePage : UserControl
         if (yaml)
         {
             _yamlBox.Text = WrapYaml(YamlSidecar.Serialize(_current.Meta));
+            _yamlBase = _yamlBox.Text; // 记基准：此后 textarea 与基准不同即「手改未应用」
         }
         else if (_metaYamlMode)
         {
@@ -1359,7 +1361,24 @@ public sealed class WritePage : UserControl
         meta.Normalize();
     }
 
-    /// <summary>元数据页签刷新入口：无文章出占位；YAML 态重生成源码；表单态整体重建（原型 renderMetaTab/loadArt 口径）。</summary>
+    /// <summary>YAML 态手改在刷新/切页签/切文章前收口：与基准不同先尝试应用（成功写回内存并标脏），
+    /// 解析失败黄条明示放弃——与原型 applyYamlIfDirty 同口径，不静默丢编辑。</summary>
+    private void ApplyYamlIfDirty()
+    {
+        if (_current == null || !_metaYamlMode || !_yamlBody.IsVisible || _yamlBox.Text == _yamlBase) return;
+        if (TryParseYamlEditor(_yamlBox.Text, out var parsed, out var error))
+        {
+            ApplyMeta(parsed);
+            MarkMetaDirty();
+            _yamlBase = _yamlBox.Text;
+        }
+        else
+        {
+            ShowYamlWarn(error); // 明示放弃：流程继续（重生成/切文章照走），磁盘与表单为真相源
+        }
+    }
+
+    /// <summary>元数据页签刷新入口：无文章出占位；YAML 态先收口手改再重生成源码；表单态整体重建（原型 renderMetaTab/loadArt 口径）。</summary>
     private void RefreshMetaTab()
     {
         if (_current == null)
@@ -1373,7 +1392,9 @@ public sealed class WritePage : UserControl
         _metaEmpty.IsVisible = false;
         if (_metaYamlMode)
         {
-            _yamlBox.Text = WrapYaml(YamlSidecar.Serialize(_current.Meta)); // YAML 态随文章重生成
+            ApplyYamlIfDirty();
+            _yamlBox.Text = WrapYaml(YamlSidecar.Serialize(_current.Meta)); // YAML 态随文章重生成（含基准同步）
+            _yamlBase = _yamlBox.Text;
         }
         else
         {
@@ -2223,6 +2244,9 @@ public sealed class WritePage : UserControl
     public async Task OpenArticleAsync(Article article)
     {
         if (_repoRoot == null || _loading) return;
+        // 切文章前先收口旧文 YAML 手改：必须在 _current 换向前应用（成功置脏→随下行保存落盘；失败黄条放弃）。
+        // 此前收口发生在换向后的 RefreshMetaTab 里，旧文手改会被 ApplyMeta 到新文章（数据错乱级次序缺陷）。
+        ApplyYamlIfDirty();
         if (_dirty && _current != null) SaveCurrent(silent: true);
 
         _loading = true;

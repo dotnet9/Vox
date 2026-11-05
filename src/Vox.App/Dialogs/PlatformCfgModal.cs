@@ -119,20 +119,25 @@ public sealed class PlatformCfgModal : Border
             }));
 
         // 发布默认项
+        // 口径：公众号经官方 API 只写草稿箱（安全上限，「直接群发」不设开关以免误导）——
+        // 「仅草稿箱」从死开关降为说明文字；AutoHint 开关真实持久化、推送成功后消费。
         var defaultsLabel = Modal.Label(string.Empty);
         defaultsLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.Defaults");
         body.Children.Add(defaultsLabel);
-        var draftOnly = new CheckBox { Classes = { "vcheck" }, IsChecked = true };
-        draftOnly[!CheckBox.ContentProperty] = I18n.Bind("Vox.Settings.Platform.DraftOnly");
-        var autoHint = new CheckBox { Classes = { "vcheck" } };
+        var draftOnlyNote = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 11 };
+        draftOnlyNote[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Platform.DraftOnlyNote");
+        WritePage.Res(draftOnlyNote, TextBlock.ForegroundProperty, "VoxMuted");
+        body.Children.Add(draftOnlyNote);
+        var autoHint = new CheckBox { Classes = { "vcheck" }, IsChecked = AppState.Instance.Settings.PublishAutoHintAfterPush };
         autoHint[!CheckBox.ContentProperty] = I18n.Bind("Vox.Settings.Platform.AutoHint");
-        body.Children.Add(draftOnly);
         body.Children.Add(autoHint);
 
         var save = new ArcButton { Variant = ArcButtonVariant.Primary };
         save[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
         save.Click += (_, _) =>
         {
+            AppState.Instance.Settings.PublishAutoHintAfterPush = autoHint.IsChecked == true;
+            AppState.Instance.SaveSettings();
             _onSaved?.Invoke();
             _shell.CloseModal();
             _shell.ShowToast(T("Vox.Settings.Platform.Saved"));

@@ -984,6 +984,12 @@ public sealed class PublishPage : UserControl
                 {
                     RecordSitePush(pushed, headSha);
                     _shell.ShowToast(T("Vox.Publish.Msg.Pushed"));
+                    // 发布默认项「提交 git 时自动提示发布」：推送后仍有平台待处理则提示（PublishHub 全通道口径）
+                    if (AppState.Instance.Settings.PublishAutoHintAfterPush)
+                    {
+                        var pending = Services.PublishHub.PendingCount();
+                        if (pending > 0) _shell.ShowToast(TF("Vox.Publish.Msg.AutoHint", pending));
+                    }
                     RefreshAll();
                 });
             }
