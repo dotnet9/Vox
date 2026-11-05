@@ -2279,6 +2279,25 @@ public sealed class WritePage : UserControl
         if (_current == null || _repoRoot == null) return false;
         try
         {
+            // YAML 态守卫：编辑框内容未切回表单时，保存/切文章前先应用，否则会静默丢失；
+            // 损坏则与外部改动守卫同口径——非静默提示并跳过本次写入（切文章按既有语义放弃）。
+            if (_metaYamlMode && _yamlBody.IsVisible)
+            {
+                if (TryParseYamlEditor(_yamlBox.Text, out var pendingYaml, out var yamlError))
+                {
+                    ApplyMeta(pendingYaml);
+                    _metaDirty = true;
+                }
+                else
+                {
+                    if (!silent)
+                    {
+                        ShowYamlWarn(yamlError);
+                        _shell.ShowToast(T("Vox.Write.Meta.YamlUnapplied"));
+                    }
+                    return false;
+                }
+            }
             var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
             // 外部改写守卫（修静默覆盖丢数据）：磁盘内容偏离上次已知基线时绝不覆盖。
             // 自动保存开：跳过本次写入，文件监视马上会静默载入外部版本；关闭：提示用户外部改动存在。
@@ -3139,7 +3158,33 @@ public sealed class WritePage : UserControl
             return;
         }
         SetPanelVisible(true);
-        _shell.ShowModal(new MetaModal(_shell, _repoRoot, _current));
+        _shell.ShowModal(new MetaModal(_shell, _repoRoot, _current, SyncMetaFromDisk));
+    }
+
+    /// <summary>弹层保存后的从盘同步：刷新外部改动判定基线 + 内存元数据以磁盘为准（弹层只改元数据不动正文）。
+    /// 不做这步，自家写入会让守卫误判「外部改写」——自动保存关：Ctrl+S 被误拦；开：触发防抖静默重载丢键入。</summary>
+    private void SyncMetaFromDisk()
+    {
+        if (_current == null || _repoRoot == null) return;
+        try
+        {
+            var file = LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath);
+            var disk = ReadDiskContent(file);
+            if (disk is null) return;
+            _diskBaseline = disk;
+            _metaDirty = false; // 弹层已连 lastmod 一起落盘；正文 _dirty 不动，未保存键入仍走正常保存链
+            if (YamlSidecar.TrySplitFrontMatter(disk, out var yaml, out _) && yaml.Length > 0
+                && YamlSidecar.TryParseFrontMatter(yaml, out var meta, out _))
+            {
+                ApplyMeta(meta);
+            }
+            RefreshMetaTab();
+            UpdateBadges();
+        }
+        catch
+        {
+            // 同步失败不阻塞弹层关闭；监视器/下次加载仍会以磁盘为真相源兜底
+        }
     }
 
     public void OpenImageIntake()

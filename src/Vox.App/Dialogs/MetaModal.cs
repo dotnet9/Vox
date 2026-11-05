@@ -18,12 +18,15 @@ public sealed class MetaModal : Border
     private readonly MainWindow _shell;
     private readonly string _repoRoot;
     private readonly Article _article;
+    private readonly Action? _onSaved;
 
-    public MetaModal(MainWindow shell, string repoRoot, Article article)
+    /// <param name="onSaved">落盘成功后的回调（WritePage 借此同步磁盘基线与内存元数据，避免自家写入被外部改动守卫误判）。</param>
+    public MetaModal(MainWindow shell, string repoRoot, Article article, Action? onSaved = null)
     {
         _shell = shell;
         _repoRoot = repoRoot;
         _article = article;
+        _onSaved = onSaved;
 
         var (modal, body, footer, close) = Modal.Create(TF("Vox.Meta.Label.DialogTitleFmt", article.Title), 560, 640);
         Classes.AddRange(modal.Classes);
@@ -88,6 +91,7 @@ public sealed class MetaModal : Border
                 });
                 Services.PublishHub.Invalidate();
                 AppState.Instance.NotifyRepoChanged();
+                _onSaved?.Invoke();
                 _shell.CloseModal();
                 _shell.ShowToast(T("Vox.Meta.Msg.Saved"));
             }

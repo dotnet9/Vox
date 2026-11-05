@@ -361,6 +361,7 @@
   "Vox.Write.Meta.YamlHint": "front matter 由當前元數據生成（內嵌 .md 檔案頭部）· 未知欄位原樣保留，可直接編輯",
   "Vox.Write.Meta.YamlParseFailed": "YAML 解析失敗：已保留表單原值 · 需以 --- 開頭包裹，行格式為 key: value 或「  - 列表項」",
   "Vox.Write.Meta.YamlParseFailedReason": "YAML 解析失敗：已保留表單原值 · {0}",
+  "Vox.Write.Meta.YamlUnapplied": "YAML 有未套用的修改（解析失敗）：已跳過本次儲存，請先修正或切回表單",
   "Vox.Meta.Label.AuthorStatusField": "作者 / 狀態",
   "Vox.Write.Msg.NeedRepo": "先在設定中配置內容倉庫",
   "Vox.Write.Msg.NeedArticle": "先選擇一篇文章",

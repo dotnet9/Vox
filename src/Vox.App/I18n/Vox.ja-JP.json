@@ -361,6 +361,7 @@
   "Vox.Write.Meta.YamlHint": "front matter は現在のメタデータから生成（.md ファイル冒頭に埋込）· 不明フィールドはそのまま編集可",
   "Vox.Write.Meta.YamlParseFailed": "YAML 解析に失敗：フォーム値は保持されました · --- で挟み、行は key: value または「  - 項目」の形式で",
   "Vox.Write.Meta.YamlParseFailedReason": "YAML 解析に失敗：フォーム値は保持されました · {0}",
+  "Vox.Write.Meta.YamlUnapplied": "YAML に未適用の編集があります（解析失敗）：保存をスキップしました。修正するかフォームに戻ってください",
   "Vox.Meta.Label.AuthorStatusField": "著者 / 状態",
   "Vox.Write.Msg.NeedRepo": "先に設定でコンテンツリポジトリを構成してください",
   "Vox.Write.Msg.NeedArticle": "まず記事を選択してください",
