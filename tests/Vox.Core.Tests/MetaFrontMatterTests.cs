@@ -241,4 +241,79 @@ pinned:
             System.IO.Directory.Delete(dir, true);
         }
     }
+
+    [Fact]
+    public void Serialize_with_equal_scalar_values_and_extra_emits_no_random_anchor()
+    {
+        // H1：banner/draft 同为 false 且带自定义键（合并路径），RepresentationModel 会给相等节点随机锚 → 每次保存 diff 噪音
+        var ok = YamlSidecar.TryParseFrontMatter(RealFrontMatter, out var meta, out var error);
+        Assert.True(ok, error);
+        meta.Banner = false;
+        meta.Draft = false;
+
+        var yaml1 = YamlSidecar.Serialize(meta).Replace("\r\n", "\n");
+        var yaml2 = YamlSidecar.Serialize(meta).Replace("\r\n", "\n");
+
+        Assert.DoesNotContain("&", yaml1); // 无锚点（含随机锚 2143201769 形态）
+        Assert.Equal(yaml1, yaml2);        // 幂等：两次序列化逐字一致
+        Assert.Contains("banner: false", yaml1);
+        Assert.Contains("custom-note", yaml1); // Extra 仍在
+    }
+
+    [Fact]
+    public void Duplicate_keys_fail_loudly_instead_of_dropping_extras()
+    {
+        // H2：事件反序列化容忍重复键（后者胜）、YamlStream 抛 Duplicate key——必须整体判失败，不得静默丢自定义键
+        var dup = "title: 旧\ncustom-note: 历史备注\ntitle: 新\n";
+        var ok = YamlSidecar.TryParseFrontMatter(dup, out _, out var error);
+
+        Assert.False(ok);
+        Assert.NotNull(error);
+    }
+
+    [Fact]
+    public void Body_starting_with_horizontal_rule_is_not_mistaken_as_front_matter()
+    {
+        // M1：无 front matter、正文以 --- 水平线开头的文件：首行标题会被当 YAML 注释——不得误切，否则保存即吃掉首行
+        var md = "---\n\n# 大标题\n\n---\n\n正文…";
+        var split = YamlSidecar.TrySplitFrontMatter(md, out var yaml, out var body);
+
+        Assert.False(split);
+        Assert.Equal(string.Empty, yaml);
+        Assert.Equal(md, body); // 原文完整保留
+    }
+
+    [Theory]
+    [InlineData("---\ntitle: t\n---")]          // 闭合 --- 位于文件尾、无尾换行
+    [InlineData("--- \ntitle: t\n---")]         // 开头 --- 带尾随空格
+    [InlineData("---\ntitle: t\n--- ")]         // 闭合 --- 带尾随空格
+    public void Front_matter_split_accepts_eof_and_trailing_space_variants(string md)
+    {
+        // M2：真实世界形态容错（拒绝会判为无元数据 → 保存后出现双 --- 块）
+        var split = YamlSidecar.TrySplitFrontMatter(md, out var yaml, out _);
+
+        Assert.True(split);
+        Assert.Contains("title: t", yaml);
+    }
+
+    [Fact]
+    public void ComposeMarkdown_keeps_leading_indent_of_body()
+    {
+        // M4：正文首行 4 空格缩进代码块——TrimStart() 会剥掉缩进毁掉语义，只允许剥换行
+        var composed = YamlSidecar.ComposeMarkdown(
+            new ArticleMeta { Title = "t", Slug = "t", Date = new DateTime(2026, 10, 3) }, "    int x = 1;");
+
+        Assert.EndsWith("\n\n    int x = 1;", composed.Replace("\r\n", "\n"));
+    }
+
+    [Fact]
+    public void Scalar_categories_parses_as_single_element_list()
+    {
+        // M5：categories: .NET 是 Hugo 合法写法，默认标量→List 抛异常拖垮整篇——收为单元素
+        var ok = YamlSidecar.TryParseFrontMatter("title: t\ncategories: .NET\ntags: [A, B]\n", out var meta, out var error);
+
+        Assert.True(ok, error);
+        Assert.Equal([".NET"], meta.Categories);
+        Assert.Equal(["A", "B"], meta.Tags); // 列表形态不受影响
+    }
 }

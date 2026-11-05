@@ -82,7 +82,8 @@ public sealed record PublishTaskItem(
     int Attempt = 0,
     string? RemoteArticleId = null,
     string? PublishedUrl = null,
-    string? Error = null)
+    string? Error = null,
+    string? CommitSha = null)
 {
     public static PublishTaskItem Create(
         PublishContent content,

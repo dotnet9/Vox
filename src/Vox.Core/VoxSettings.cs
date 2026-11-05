@@ -86,6 +86,9 @@ public sealed class VoxSettings
     /// <summary>被逐个下线的工具名（默认下线 image_replace，与原型一致）。</summary>
     public List<string> McpDisabledTools { get; set; } = ["image_replace"];
 
+    /// <summary>提交并推送成功后，若有平台待发布/需更新则 toast 提示（平台账户弹层「发布默认项」）。</summary>
+    public bool PublishAutoHintAfterPush { get; set; } = true;
+
     [JsonIgnore]
     public LinkOptions Link => new()
     {

@@ -152,7 +152,9 @@ public sealed class PublishTaskRunner
             Action = task.Action,
             Success = success,
             Note = note,
-            Sha = task.ContentHash,
+            // Sha 语义=发布时关联的 git 提交（与 PublishDialog.Record 的 HeadSha() 同口径）；
+            // ContentHash 是内容快照指纹、存于快照库，不得冒充提交号写入历史。
+            Sha = task.CommitSha,
             Url = url,
         }, _logPath);
 }
