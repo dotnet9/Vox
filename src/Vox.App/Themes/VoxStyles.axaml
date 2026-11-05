@@ -397,6 +397,230 @@
     <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
   </Style>
 
+  <!-- ══════════ 软件更新：标题栏药丸 + 日志气泡（原型 upd-pill/upd-pop/chg-*） ══════════ -->
+  <!-- 药丸：22px 全圆角胶囊 accent 底；前景钉 on-accent 语义令牌（防标题栏继承前景污染，深强调色下保持可读）。 -->
+  <Style Selector="Border.upd-pill">
+    <Setter Property="Height" Value="22"/>
+    <Setter Property="CornerRadius" Value="11"/>
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <!-- 悬停加档一阶；下载中不换底，进度读数不被悬停态打乱。 -->
+  <Style Selector="Border.upd-pill:pointerover:not(.downloading)">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentDeep}"/>
+  </Style>
+  <!-- 下载进度左段：accent-deep 掺 30% accent 提亮的混色（VoxAccentProgress 令牌随主题重算）。 -->
+  <Style Selector="Border.upd-pill-fill">
+    <Setter Property="CornerRadius" Value="11,0,0,11"/>
+    <Setter Property="Background" Value="{DynamicResource VoxAccentProgress}"/>
+  </Style>
+  <Style Selector="TextBlock.upd-pill-text">
+    <Setter Property="Foreground" Value="{DynamicResource VoxOnAccent}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <!-- 就绪后脉冲环：accent-soft 淡环呼吸三次，提示「重启以更新」。 -->
+  <Style Selector="Border.upd-pill-pulse">
+    <Setter Property="Margin" Value="-4"/>
+    <Setter Property="Opacity" Value="0"/>
+    <Setter Property="BorderThickness" Value="5"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="CornerRadius" Value="15"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+  </Style>
+  <Style Selector="Border.upd-pill-pulse.ready">
+    <Style.Animations>
+      <Animation Duration="0:0:1.5" IterationCount="3">
+        <KeyFrame Cue="0%">
+          <Setter Property="Opacity" Value="0"/>
+        </KeyFrame>
+        <KeyFrame Cue="50%">
+          <Setter Property="Opacity" Value="1"/>
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="Opacity" Value="0"/>
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+  <!-- 日志气泡：344px，标题/滚动正文/脚部三段（原型 .upd-pop 内距 16px 口径）。 -->
+  <Style Selector="Border.upd-pop">
+    <Setter Property="Width" Value="344"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="BoxShadow" Value="0 12 32 0 #1E000000, 0 2 8 0 #0F000000"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+  <Style Selector="Border.upd-pop-body">
+    <Setter Property="Padding" Value="16,2,16,10"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="0,1,0,0"/>
+  </Style>
+  <Style Selector="Border.upd-pop-foot">
+    <Setter Property="Padding" Value="16,10"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="0,1,0,0"/>
+    <Setter Property="CornerRadius" Value="0,0,11,11"/>
+  </Style>
+  <Style Selector="Button.up-loglink">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.up-loglink:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <!-- 更新日志条目（气泡与更新窗共用，原型 .chg-*）：[系统要求]/[注意] 引用块 + 类型化分组。
+       四档语义色：新增 ok / 优化 accent / 修复 warn / 删除 danger。 -->
+  <Style Selector="Border.chg-quote">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxFaint}"/>
+    <Setter Property="BorderThickness" Value="3,0,0,0"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="11,8"/>
+    <Setter Property="Margin" Value="0,8,0,2"/>
+  </Style>
+  <Style Selector="TextBlock.chg-quote">
+    <Setter Property="FontStyle" Value="Italic"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec">
+    <Setter Property="Margin" Value="0,10,0,0"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec > Border.chg-dot">
+    <Setter Property="Width" Value="6"/>
+    <Setter Property="Height" Value="6"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{DynamicResource VoxFaint}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec > TextBlock">
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.4"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-new > Border.chg-dot">
+    <Setter Property="Background" Value="{DynamicResource VoxOk}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-new > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource VoxOk}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-opt > Border.chg-dot">
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-opt > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-fix > Border.chg-dot">
+    <Setter Property="Background" Value="{DynamicResource VoxWarn}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-fix > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource VoxWarn}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-rm > Border.chg-dot">
+    <Setter Property="Background" Value="{DynamicResource VoxDanger}"/>
+  </Style>
+  <Style Selector="StackPanel.chg-sec.t-rm > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource VoxDanger}"/>
+  </Style>
+  <Style Selector="TextBlock.chg-mark">
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
+    <Setter Property="Margin" Value="0,0,6,0"/>
+  </Style>
+  <Style Selector="TextBlock.chg-item">
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <!-- 更新浮窗窗体（原型 uw-*）：自绘标题栏 + 进度轨道 + 日志卡。 -->
+  <Style Selector="Border.uw-bar">
+    <Setter Property="Height" Value="36"/>
+    <Setter Property="Padding" Value="14,0,8,0"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  </Style>
+  <Style Selector="TextBlock.uw-title">
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+  </Style>
+  <Style Selector="Button.uw-btn">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="Height" Value="26"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.uw-btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Button.uw-btn.close:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxDangerSoft}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxDanger}"/>
+  </Style>
+  <Style Selector="Border.uw-body">
+    <Setter Property="Padding" Value="20,18,20,14"/>
+  </Style>
+  <Style Selector="Border.uw-logo">
+    <Setter Property="Width" Value="46"/>
+    <Setter Property="Height" Value="46"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="7"/>
+  </Style>
+  <Style Selector="Border.uw-progress">
+    <Setter Property="Margin" Value="0,16,0,0"/>
+  </Style>
+  <Style Selector="Border.uw-track">
+    <Setter Property="Height" Value="7"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusPill}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+    <Setter Property="Margin" Value="0,8,0,0"/>
+  </Style>
+  <Style Selector="Border.uw-fill">
+    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusPill}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Border.uw-changes">
+    <Setter Property="Margin" Value="0,14,0,0"/>
+    <Setter Property="Padding" Value="14,4,14,10"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+  </Style>
+
   <!-- ══════════ .mnu 下拉菜单 ══════════ -->
   <Style Selector="Border.mnu">
     <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>

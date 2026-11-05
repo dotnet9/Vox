@@ -191,6 +191,11 @@ public static class VoxTheme
         r["CodeWFMarkdownEditorCurrentLineNumberBrush"] = Brush(accent);
         r["VoxAccentDeep"] = Brush(isDark ? preset.DarkDeep : preset.LightDeep);
         r["VoxAccentSoft"] = Brush(HexSoft(accent));
+        // 更新进度专用派生令牌：药丸左段 = accent-deep 掺 30% accent 提亮（亮色 green/amber 下
+        // accent-deep 上的 on-accent 文字对比不足，原型 color-mix 同款）；Color 版供渐变 Stop 动态引用。
+        var deep = isDark ? preset.DarkDeep : preset.LightDeep;
+        r["VoxAccentProgress"] = Brush(MixHex(deep, accent, 0.30));
+        r["VoxAccentDeepColor"] = Color.Parse(deep);
         // DataGrid 的 Semi 主题默认蓝调，这里把悬停/选中/分隔线接到 Vox 画刷
         r["DataGridRowBackground"] = Brushes.Transparent;
         r["DataGridRowPointeroverBackground"] = Brush(p.Surface2);
@@ -215,6 +220,15 @@ public static class VoxTheme
     {
         var c = Color.Parse(hex);
         return $"#21{c.R:X2}{c.G:X2}{c.B:X2}"; // 13% 透明度，原型 --accent-soft 口径
+    }
+
+    /// <summary>十六进制混色（right 占 rightRatio），Vex AccentPaletteResources 的先例。</summary>
+    private static string MixHex(string left, string right, double rightRatio)
+    {
+        byte Mix(byte a, byte b) => (byte)Math.Round(a * (1 - rightRatio) + b * rightRatio);
+        var l = Color.Parse(left);
+        var r = Color.Parse(right);
+        return $"#{Mix(l.R, r.R):X2}{Mix(l.G, r.G):X2}{Mix(l.B, r.B):X2}";
     }
 
     private static SolidColorBrush Brush(string hex) => new(Color.Parse(hex));

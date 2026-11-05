@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -106,6 +107,22 @@ public partial class MainWindow : Window
         WireChromeCommands(); // XAML 固定控件事件一次性挂接（重建链路不重复挂接）
 
         BuildTitlebarExtras();
+        BuildUpdateExperience(); // 标题栏「更新」药丸 + 更新会话接线 + 启动静默检查
+    }
+
+    // ---------- 软件更新（三段体验：药丸 / 日志气泡 / 更新窗，单一会话数据源） ----------
+
+    /// <summary>把更新会话接到主壳：toast 与应用退出由宿主提供，药丸挂在标题栏图标区首位（原型 tb-extras 顺序），
+    /// 启动后台静默检查（不阻塞、离线静默失败）。</summary>
+    private void BuildUpdateExperience()
+    {
+        var session = Services.UpdateSession.Instance;
+        session.Toast = ShowToast;
+        session.ShutdownApp = () =>
+            (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+        session.WindowRequested += () => Dispatcher.UIThread.Post(() => Views.UpdateWindow.Show(session));
+        TbExtras.Children.Insert(0, new Controls.UpdatePill(session) { Margin = new Thickness(0, 0, 4, 0) });
+        _ = session.RunStartupCheckAsync();
     }
 
     // ---------- 标题栏三钮（外观/语言/搜索，原型 v25 口径） ----------
@@ -621,7 +638,7 @@ public partial class MainWindow : Window
         MiNew.Click += (_, _) => WriteCommand(p => p.OpenNewArticle());
         MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
         MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
-        MiUpdate.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); ShowModal(new Dialogs.HelpDialogs.UpdateModal(this)); };
+        MiUpdate.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); Services.UpdateSession.Instance.OpenFromMenu(); };
         MiAbout.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); ShowModal(new Dialogs.HelpDialogs.AboutModal(this)); };
 
         // 新窗口：拉起空白 Vox 进程；打开目录/文件在当前进程内切换仓库（不新开进程）。

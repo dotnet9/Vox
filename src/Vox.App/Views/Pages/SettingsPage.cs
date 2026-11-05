@@ -272,7 +272,8 @@ public sealed class SettingsPage : UserControl
         var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
         var checkUpdate = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         checkUpdate[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.About.CheckUpdate");
-        checkUpdate.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.About.UpToDate"));
+        // 检查更新与标题栏药丸/帮助菜单共用同一更新会话（单一数据源）：开窗恢复现场或重新检查。
+        checkUpdate.Click += (_, _) => Services.UpdateSession.Instance.OpenFromMenu();
         aboutCard.Add(Row("Vox.Settings.About.UpdateRow", new StackPanel
         {
             Orientation = Orientation.Horizontal,
