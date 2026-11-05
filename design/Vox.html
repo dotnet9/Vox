@@ -786,11 +786,15 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showPage(id){const m=document.getElementById(id),ps=m.querySelectorAll('.mpage'),ss=m.querySelectorAll('.msteps i');
   ps.forEach((p,k)=>p.classList.toggle('active',k===cur[id]));ss.forEach((s,k)=>s.classList.toggle('on',k<=cur[id]));
   const nx=m.querySelector('.mf .primary');if(!ps.length||!nx)return;
-  nx.textContent=cur[id]===ps.length-1?(id==='mNew'?'创建并打开':'完成'):'下一步';}
+  const last=cur[id]===ps.length-1;
+  nx.textContent=last?(id==='mNew'?'创建并打开':'完成'):'下一步';
+  nx.onclick=last?()=>finishModal(id):()=>stepModal(id,1);}
 function stepModal(id,d){const m=document.getElementById(id),n=m.querySelectorAll('.mpage').length;
   cur[id]=Math.max(0,Math.min(n-1,cur[id]+d));
-  if(cur[id]===n-1&&d>0){if(id==='mNew'){closeModal(id);toast('已创建 2026/10/new-article-slug.md · 进入写作页');}else closeModal(id);return;}
   showPage(id);}
+function finishModal(id){ // 末页「创建并打开/完成」才真正执行：确认页必须先展示（主钮文案与进度点全亮依赖此约定）
+  if(id==='mNew')toast('已创建 2026/10/new-article-slug.md · 进入写作页');
+  closeModal(id);}
 document.getElementById('btnNew').onclick=()=>openModal('mNew');
 document.querySelectorAll('.mask').forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('open')});
 /* ---------- 外观 / 语言（标题栏弹层，原「设置→外观」已移除） ---------- */
@@ -978,7 +982,9 @@ function parseYaml(txt){ // 简单行级解析：已知键映射回字段，未�
     if(m){const k=m[1],v=m[2].trim();lastKey=k;
       if(k==='categories'||k==='tags'){
         if(v==='[]'||v==='')out[k]=[];
-        else if(v.charAt(0)==='[')out[k]=v.replace(/^\[|\]$/g,'').split(',').map(yamlStr).filter(Boolean); // 行内数组
+        else if(v.charAt(0)==='['){
+          if(v.charAt(v.length-1)!==']')return null; // 行内数组未闭合 → 结构损坏（否则 '[unclosed' 会被当字符串静默写入）
+          out[k]=v.slice(1,-1).split(',').map(yamlStr).filter(Boolean);} // 行内数组
         else out[k]=[]; // 块列表，由后续 - 行填充
       }else if(k==='draft')out.draft=(v==='true');
       else if(k==='banner')out.banner=v===''?null:(v==='true');
@@ -1258,7 +1264,8 @@ $('updPill').onclick=e=>{e.stopPropagation();
   if(updState==='downloading'||updState==='downloaded'||updState==='installing'){updMinimized=false;updShowWin(true);closeTbPops();return;}
   const was=$('updPop').classList.contains('open');closeTbPops();
   if(!was){updRenderChanges();$('updPop').classList.add('open');}};
-$('upGo').onclick=e=>{e.stopPropagation();$('updPop').classList.remove('open');updRenderChanges();updCheck();};
+$('upGo').onclick=e=>{e.stopPropagation();$('updPop').classList.remove('open');updRenderChanges();
+  updState='available';updStartDownload();}; // 日志已在气泡看过：直达下载，不再回浮窗二次确认（与 Vex 口径一致）
 $('updPop').onclick=e=>e.stopPropagation();
 $('uwMin').onclick=()=>{updMinimized=true;$('updWin').hidden=true;
   toast('已最小化 · 下载继续，进度见标题栏「更新」按钮');};
