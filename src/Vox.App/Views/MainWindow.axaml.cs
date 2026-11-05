@@ -882,9 +882,15 @@ public partial class MainWindow : Window
         SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
         McpTopbarDot.Fill = TryBrush(Services.McpService.IsRunning ? "VoxOk" : "VoxFaint");
         // 标题栏 MCP tooltip 动态文案（原型 L20 口径）：运行中带在线客户端数，停止态单独文案。
-        BtnTbMcp[!ToolTip.TipProperty] = Services.McpService.IsRunning
-            ? TFBind("Vox.Shell.Tooltip.McpRunningFmt", clients)
-            : (object)I18n.Bind("Vox.Shell.Tooltip.McpStopped");
+        // 三元混型赋值在固定候选库（Avalonia 12.1.4，索引器收 BindingBase）下编译失败——分型赋值：
+        if (Services.McpService.IsRunning)
+        {
+            BtnTbMcp[!ToolTip.TipProperty] = TFBind("Vox.Shell.Tooltip.McpRunningFmt", clients);
+        }
+        else
+        {
+            ToolTip.SetTip(BtnTbMcp, T("Vox.Shell.Tooltip.McpStopped"));
+        }
     });
 
     /// <summary>带占位参数的动态文案绑定（同 WritePage.TFBind：参数为运行时值，语言切换按当前语言重新格式化）。</summary>

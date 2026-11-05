@@ -58,8 +58,9 @@ public sealed class WritePage : UserControl
     private readonly MarkdownViewer _preview = new();
     private readonly ScrollViewer _previewScroll = new();
     private readonly MarkdownMindMapView _mapView = new();
-    /// <summary>导图点阵画刷的圆点 Drawing：主题切换时只换 Brush，瓦片几何复用。</summary>
-    private readonly GeometryDrawing _mapDotDrawing = new() { Geometry = new EllipseGeometry(new Point(9, 9), 1, 1) };
+    /// <summary>导图点阵画刷的圆点 Drawing：主题切换时只换 Brush，瓦片几何复用。
+    /// EllipseGeometry 用 Rect 构造（Center/Radius 三参构造是 Avalonia 12.1.5 新增，固定候选库的 12.1.4 没有）。</summary>
+    private readonly GeometryDrawing _mapDotDrawing = new() { Geometry = new EllipseGeometry(new Rect(8, 8, 2, 2)) };
     private Border _srcCard = null!;
     private Border _prevCard = null!;
     private Border _mapCard = null!;
