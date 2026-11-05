@@ -217,4 +217,28 @@ pinned:
         Assert.Equal(string.Empty, meta.Title);
         Assert.Empty(meta.Extra);
     }
+
+    [Fact]
+    public void SaveToMarkdown_invalidates_stale_sidecar_yml()
+    {
+        // 读取侧 sidecar 优先：遗留同名 .yml 会遮蔽内联块（编辑看似丢失）。内联写入后必须移除 sidecar（回归守卫）。
+        var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "vox-yaml-test-" + System.IO.Path.GetRandomFileName());
+        System.IO.Directory.CreateDirectory(dir);
+        try
+        {
+            var md = System.IO.Path.Combine(dir, "a.md");
+            var yml = System.IO.Path.ChangeExtension(md, ".yml");
+            System.IO.File.WriteAllText(md, "---\ntitle: 内联新值\n---\n\n正文");
+            System.IO.File.WriteAllText(yml, "title: sidecar旧值\n");
+
+            YamlSidecar.SaveToMarkdown(md, new ArticleMeta { Title = "内联新值", Slug = "a", Date = new DateTime(2026, 10, 3) });
+
+            Assert.False(System.IO.File.Exists(yml), "内联写入后遗留 sidecar 应被移除");
+            Assert.Equal("内联新值", YamlSidecar.LoadFromMarkdown(md).Title);
+        }
+        finally
+        {
+            System.IO.Directory.Delete(dir, true);
+        }
+    }
 }

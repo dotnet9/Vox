@@ -86,13 +86,16 @@ public static partial class YamlSidecar
         }
     }
 
-    /// <summary>把元数据写为 md 内联 front matter（已有块则替换，无则前置），正文保持不变。</summary>
+    /// <summary>把元数据写为 md 内联 front matter（已有块则替换，无则前置），正文保持不变。
+    /// 内联即规范形态：遗留同名 .yml 会因读取侧「sidecar 优先」遮蔽内联块（编辑看似丢失），写入后一并移除。</summary>
     public static void SaveToMarkdown(string markdownPath, ArticleMeta meta)
     {
         meta.Normalize();
         var text = File.Exists(markdownPath) ? File.ReadAllText(markdownPath) : string.Empty;
         TrySplitFrontMatter(text, out _, out var body);
         File.WriteAllText(markdownPath, ComposeMarkdown(meta, body), new UTF8Encoding(false));
+        var legacySidecar = SidecarPathFor(markdownPath);
+        if (File.Exists(legacySidecar)) File.Delete(legacySidecar);
     }
 
     /// <summary>读改写：载入元数据 → mutate → 写回内联 front matter。</summary>
