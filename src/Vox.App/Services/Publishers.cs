@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 namespace Vox.App.Services;
 
+
 /// <summary>API 发布器统一口径：成功返回平台侧标识/链接，失败抛异常（消息直达发布对话框与状态库）。</summary>
 public interface IPlatformPublisher
 {
@@ -55,10 +56,10 @@ public sealed class WeChatPublisher(WeChatAccount account) : IPlatformPublisher
         var payload = $$"""
         {
           "articles": [{
-            "title": {{System.Text.Json.JsonSerializer.Serialize(title)}},
+            "title": {{Publishers.J(title)}},
             "author": "Dotnet9",
-            "content": {{System.Text.Json.JsonSerializer.Serialize(html)}},
-            "thumb_media_id": {{System.Text.Json.JsonSerializer.Serialize(thumbId)}},
+            "content": {{Publishers.J(html)}},
+            "thumb_media_id": {{Publishers.J(thumbId)}},
             "need_open_comment": 0,
             "only_fans_can_comment": 0
           }]
@@ -203,15 +204,15 @@ public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
 
         var payload = $$"""
         {
-          "title": {{System.Text.Json.JsonSerializer.Serialize(title)}},
-          "markdowncontent": {{System.Text.Json.JsonSerializer.Serialize(markdown)}},
-          "content": {{System.Text.Json.JsonSerializer.Serialize(markdown)}},
+          "title": {{Publishers.J(title)}},
+          "markdowncontent": {{Publishers.J(markdown)}},
+          "content": {{Publishers.J(markdown)}},
           "readType": "public",
           "level": "0",
           "tags": "",
           "status": 0,
           "source": "pc_mdeditor",
-          "cover": {{System.Text.Json.JsonSerializer.Serialize(coverCdnUrl ?? "")}}
+          "cover": {{Publishers.J(coverCdnUrl ?? "")}}
         }
         """;
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -286,6 +287,10 @@ public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
 
 public static class Publishers
 {
+    /// <summary>JSON 字符串字面量转义（源生成 AOT 安全）。</summary>
+    internal static string J(string? s) =>
+        System.Text.Json.JsonSerializer.Serialize(s ?? string.Empty, AppJsonContext.Default.String);
+
     public static IPlatformPublisher? TryCreate(Core.PublishChannel channel) => channel switch
     {
         Core.PublishChannel.WeChat => PlatformAccounts.LoadWeChat() is { IsConfigured: true } account

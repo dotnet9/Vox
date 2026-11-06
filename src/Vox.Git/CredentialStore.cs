@@ -157,7 +157,8 @@ public sealed class ProtectedFileCredentialStore : ICredentialStore
         {
             var raw = File.ReadAllBytes(path);
             var plain = Protect(raw, decrypt: true);
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(plain, JsonSerializerOptions) ?? [];
+            // AOT 源生成上下文：NativeAOT 下反射序列化被禁用（PAT/平台凭据读写崩溃路径）
+            return JsonSerializer.Deserialize(plain, CredentialJsonContext.Default.DictionaryStringString) ?? [];
         }
         catch
         {
@@ -168,7 +169,7 @@ public sealed class ProtectedFileCredentialStore : ICredentialStore
     private static void Persist(Dictionary<string, string> entries)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(StorePath())!);
-        var plain = JsonSerializer.SerializeToUtf8Bytes(entries);
+        var plain = JsonSerializer.SerializeToUtf8Bytes(entries, CredentialJsonContext.Default.DictionaryStringString);
         File.WriteAllBytes(StorePath(), Protect(plain, decrypt: false));
     }
 
@@ -183,9 +184,9 @@ public sealed class ProtectedFileCredentialStore : ICredentialStore
         // 非 Windows 兜底：Base64（文件权限即隐私边界）；Secret Service 集成留待后续（架构.md 平台差异表）。
         return decrypt ? Convert.FromBase64String(Encoding.UTF8.GetString(data)) : Encoding.UTF8.GetBytes(Convert.ToBase64String(data));
     }
-
-    private static readonly System.Text.Json.JsonSerializerOptions JsonSerializerOptions = new()
-    {
-        WriteIndented = false,
-    };
 }
+
+/// <summary>凭据键值存储的 AOT 源生成上下文（NativeAOT 下反射序列化被禁用）。</summary>
+[System.Text.Json.Serialization.JsonSourceGenerationOptions(WriteIndented = false)]
+[System.Text.Json.Serialization.JsonSerializable(typeof(Dictionary<string, string>))]
+internal sealed partial class CredentialJsonContext : System.Text.Json.Serialization.JsonSerializerContext;
