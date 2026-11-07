@@ -20,7 +20,7 @@
   <div class="titlebar">
     <img src="../logo.svg" alt=""><span class="t">Vox 卸载向导</span><span class="sub">维声 · 内容仓库治理台</span>
     <span class="spacer"></span>
-    <span class="wc"><i><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></i><i><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></i><i class="close"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></i></span>
+    <span class="wc"><i><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></i><i><svg aria-hidden="true" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></i><i class="close"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></i></span>
   </div>
   <div class="win-body">
     <aside class="rail">
@@ -93,13 +93,13 @@ function go(i){cur=Math.max(0,Math.min(i,steps.length-1));
 }
 function run(){
   const bar=document.getElementById('bar'),term=document.getElementById('term');
-  bar.style.width='0%';term.innerHTML='<div>准备卸载…</div>';clearInterval(timer);
+  bar.style.transform='scaleX(0)';term.innerHTML='<div>准备卸载…</div>';clearInterval(timer);
   const keep=document.querySelector('input[name="data"]:checked').value===''||true;
   const keepData=!document.getElementById('confirmDel').checked;
   const lines=['移除 .md 文件关联…','删除开始菜单与桌面快捷方式…']
     .concat(keepData?['保留用户数据（%APPDATA%\\Vox 与系统凭据）…']:['清除用户数据与凭据管理器条目…'])
     .concat(['移除程序文件与内置 git 组件 MinGit…']);
-  let p=0;timer=setInterval(()=>{p=Math.min(100,p+10+Math.random()*12);bar.style.width=p+'%';
+  let p=0;timer=setInterval(()=>{p=Math.min(100,p+10+Math.random()*12);bar.style.transform='scaleX('+(p/100)+')';
     const i=Math.min(lines.length-1,Math.floor(p/100*lines.length));
     if(!term.querySelector('[data-i="'+i+'"]')){const d=document.createElement('div');d.dataset.i=i;d.innerHTML=lines[i]+' <span class="ok">✓</span>';term.appendChild(d);term.scrollTop=term.scrollHeight;}
     if(p>=100){clearInterval(timer);setTimeout(()=>go(3),450);}

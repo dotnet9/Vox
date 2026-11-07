@@ -371,13 +371,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .viewseg button.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .viewseg svg { width: 13px; height: 13px; }
 .ygroup { padding: 0; }
-.yhead { display: flex; align-items: center; padding: 4px 10px; cursor: pointer;
+.yhead { display: flex; align-items: center; padding: 1px 10px; cursor: pointer;
   font: 600 0.8462rem var(--font-ui); color: var(--accent); background: var(--accent-soft); border-bottom: 1px solid var(--line); }
-.yhead .tri { margin-left: auto; transition: transform var(--t-fast) var(--motion); font-size: 0.6923rem; color: var(--accent); }
+.yhead .tri { margin: 0 0 0 auto; padding: 0; line-height: 1; transition: transform var(--t-fast) var(--motion); font-size: 1.7308rem; color: var(--accent); }
 .yhead.closed .tri { transform: rotate(-90deg); }
-.mhead { display: flex; align-items: center; padding: 3px 10px 3px 22px; cursor: pointer;
+.mhead { display: flex; align-items: center; padding: 0 10px 0 22px; cursor: pointer;
   font: 600 0.8077rem var(--font-ui); color: var(--fg); background: var(--surface-2); border-bottom: 1px solid var(--line); }
-.mhead .tri { margin-left: auto; transition: transform var(--t-fast) var(--motion); font-size: 0.6923rem; color: var(--faint); }
+.mhead .tri { margin: 0 0 0 auto; padding: 0; line-height: 1; transition: transform var(--t-fast) var(--motion); font-size: 1.7308rem; color: var(--faint); }
 .mhead.closed .tri { transform: rotate(-90deg); }
 .ykids { overflow: hidden; }
 .yhead.closed + .ykids { display: none; }

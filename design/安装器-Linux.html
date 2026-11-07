@@ -4,6 +4,7 @@
 <link rel="icon" href="../logo.svg">
 <link rel="stylesheet" href="assets/tokens.css">
 <style>
+html, body { overflow-x: clip; }
 body.stage {
   min-height: 100vh; display: flex; flex-direction: column; align-items: center;
   padding: 34px 20px 26px;
@@ -35,18 +36,18 @@ html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at
 .gshb .install {
   border:0; border-radius: 99px; padding: 6px 18px; cursor: pointer;
   background: var(--accent); color: var(--on-accent); font: 600 12px var(--font-ui);
-  transition: all var(--t-fast) var(--motion); position: relative; overflow: hidden;
+  transition: background var(--t-fast) var(--motion); position: relative; overflow: hidden;
 }
 .gshb .install:hover { background: var(--accent-deep); }
-.gshb .install .bar { position:absolute; left:0; top:0; bottom:0; width:0%;
-  background: rgba(255,255,255,.30); transition: width .3s var(--motion); }
+.gshb .install .bar { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin: left;
+  background: rgba(255,255,255,.30); transition: transform .3s var(--motion); }
 .gs-body { flex:1; overflow-y: auto; padding: 16px 18px 14px; }
 .gapp { display:flex; gap:14px; align-items:center; margin-bottom:12px; }
 .gapp img { width: 62px; height: 62px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
 .gapp h2 { margin:0; font-size: 15.5px; font-weight: 700; letter-spacing: -.2px; }
 .gapp .origin { color: var(--faint); font-size: 11px; margin-top: 2px; }
 .gapp .meta { color: var(--muted); font-size: 10.5px; margin-top: 4px; display:flex; gap:10px; align-items:center; }
-.stars { color: #f0a30a; letter-spacing: 1px; font-size: 10px; }
+.stars { color: #f0a30a; font-size: 10px; }
 .banner { height: 110px; border-radius: 10px; margin-bottom: 12px;
   background: linear-gradient(120deg, #4338ca, #6d28d9 60%, #9d5cff);
   display:flex; align-items:center; gap:16px; padding: 0 22px; color:#fff; overflow:hidden; position:relative; }
@@ -129,8 +130,8 @@ let stage=0;
 btn.onclick=()=>{
   if(stage===0){
     stage=1;txt.textContent='安装中…';
-    let p=0;const t=setInterval(()=>{p=Math.min(100,p+7+Math.random()*9);bar.style.width=p+'%';
-      if(p>=100){clearInterval(t);stage=2;bar.style.width='0%';txt.textContent='打开';}},240);
+    let p=0;const t=setInterval(()=>{p=Math.min(100,p+7+Math.random()*9);bar.style.transform='scaleX('+(p/100)+')';
+      if(p>=100){clearInterval(t);stage=2;bar.style.transform='scaleX(0)';txt.textContent='打开';}},240);
   }else if(stage===2){ window.location.href='Vox.html'; }
 };
 document.getElementById('btnTheme').onclick=e=>{const r=document.documentElement,d=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=d;e.target.textContent=d==='dark'?'亮色':'暗色';};
