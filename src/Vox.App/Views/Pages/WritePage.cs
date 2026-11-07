@@ -1,7 +1,10 @@
+using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Data.Converters;
 using Avalonia.Interactivity;
 using Shapes = Avalonia.Controls.Shapes;
 using Avalonia.Input;
@@ -37,10 +40,25 @@ public sealed class WritePage : UserControl
 {
     private readonly MainWindow _shell;
 
-    // 左列（列表卡）
+    // 左列（列表卡）：列表模式走 ListBox + ObservableCollection（自带 UI 虚拟化，学 Vex files-list），
+    // 过滤/索引变化只增删集合条目，不重建控件树；树形模式保留分组 StackPanel（展开/收起嵌套结构）。
     private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 116, MinWidth = 0 };
-    private readonly StackPanel _articleHost = new();
-    private readonly List<Button> _listButtons = new();  // 列表项按钮追踪：切文章时只更新选中态，不全量重建
+    private readonly StackPanel _articleHost = new();          // 树形模式宿主
+    private readonly ScrollViewer _treeScroll = new() { IsVisible = false }; // 树形模式滚动宿主（列表模式用 ListBox 自带滚动）
+    private readonly ObservableCollection<ArticleItemVm> _articleItems = new(); // 列表模式数据源
+    private readonly ListBox _articleList = new() { Classes = { "files-list" } };
+    private readonly TextBlock _listEmpty = new()              // 无仓库 / 无匹配空态（列表/树形共用覆盖层）
+    {
+        FontSize = Fs(11), Margin = new Thickness(22, 14),
+        TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
+        IsVisible = false,
+    };
+    private readonly TextBlock _listCount = new()              // 底部总篇数（列表/树形共用，不再随滚动滚走）
+    {
+        FontSize = Fs(10), Margin = new Thickness(14, 8, 0, 8),
+        IsVisible = false,
+    };
+    private readonly List<Button> _listButtons = new();  // 树形模式项按钮追踪：切文章时只更新选中态
     private bool _treeMode;
     private Button _listHandle = null!;      // 列表折叠钮：展开时列表卡内右下，收起时骑页左缘
     private GridSplitter _listSplitter = null!;
@@ -437,8 +455,17 @@ public sealed class WritePage : UserControl
             if (e.Property == TextBox.TextProperty) ReloadArticles();
         };
 
+        // 列表模式：ListBox 直连 VM 集合（行模板全字段绑定，容器随虚拟化复用）；
+        // 树形模式：ScrollViewer + 分组 StackPanel；空态覆盖两层宿主之上，总篇数固定底部。
+        _treeScroll.Content = _articleHost;
+        Res(_listEmpty, TextBlock.ForegroundProperty, "VoxFaint");
+        Res(_listCount, TextBlock.ForegroundProperty, "VoxFaint");
+        _articleList.ItemsSource = _articleItems;
+        _articleList.ItemTemplate = new FuncDataTemplate<ArticleItemVm>((_, _) => BuildArticleRow());
+        _articleList.SelectionChanged += OnArticleListSelection;
+        var body = new Panel { Children = { _articleList, _treeScroll, _listEmpty } };
         // 句柄寄宿层：Panel 叠放（DockPanel 会把未停靠子项当 Left 停靠）。
-        var dock = new DockPanel { Children = { head.Dock(Dock.Top), new ScrollViewer { Content = _articleHost } } };
+        var dock = new DockPanel { Children = { head.Dock(Dock.Top), _listCount.Dock(Dock.Bottom), body } };
         return Card(new Panel { Children = { dock } }, new Thickness(10, 10, 2, 10));
     }
 
@@ -533,24 +560,25 @@ public sealed class WritePage : UserControl
 
     private void ReloadArticles()
     {
-        _articleHost.Children.Clear();
-        _listButtons.Clear();
+        // 双宿主显隐随模式切换（列表=ListBox 虚拟化，树形=StackPanel 分组）。
+        _treeScroll.IsVisible = _treeMode;
+        _articleList.IsVisible = !_treeMode;
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
             _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
-            var empty = new TextBlock
-            {
-                FontSize = Fs(11), Margin = new Thickness(14, 10),
-                TextWrapping = TextWrapping.Wrap,
-            };
-            empty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.List.NoRepo");
-            _articleHost.Children.Add(empty);
+            _articleItems.Clear();
+            _articleHost.Children.Clear();
+            _listButtons.Clear();
+            _listCount.IsVisible = false;
+            ShowListEmpty("Vox.Write.List.NoRepo");
             return;
         }
 
-        // placeholder 动态篇数（原型「搜索 37 篇…」）：随索引重绑。
+        // placeholder 动态篇数（原型「搜索 37 篇…」）：随索引重绑；底部总篇数同步。
         _search[!TextBox.WatermarkProperty] = TFBind("Vox.Write.List.SearchFmt", scan.Articles.Count);
+        _listCount.IsVisible = true;
+        _listCount[!TextBlock.TextProperty] = TFBind("Vox.Write.List.Total", scan.Articles.Count);
 
         // 搜索口径（原型 L911）：标题 + 标签 + 分类（正文全文检索在文章库页，slug 为实现保留项）。
         var query = _search.Text?.Trim();
@@ -565,10 +593,15 @@ public sealed class WritePage : UserControl
 
         if (!_treeMode)
         {
-            foreach (var article in articles) _articleHost.Children.Add(ArticleItem(article));
+            // 列表模式：只刷新 VM 集合（增删条目触发 ItemsControl 差量重排 + 虚拟化回收），不重建控件树。
+            _articleItems.Clear();
+            foreach (var article in articles) _articleItems.Add(CreateArticleItemVm(article));
         }
         else
         {
+            // 树形模式：年/月分组嵌套 StackPanel，展开态寄宿在子面板上，条数少，保留整体重建。
+            _articleHost.Children.Clear();
+            _listButtons.Clear();
             foreach (var yearGroup in articles.GroupBy(a => a.Year).OrderByDescending(g => g.Key))
             {
                 var yearKids = new StackPanel();
@@ -581,7 +614,7 @@ public sealed class WritePage : UserControl
                     yearKids.Children.Add(monthKids);
                     foreach (var article in monthGroup)
                     {
-                        var item = ArticleItem(article);
+                        var item = TreeArticleItem(article);
                         item.Margin = new Thickness(26, 0, 0, 0);
                         monthKids.Children.Add(item);
                     }
@@ -592,69 +625,130 @@ public sealed class WritePage : UserControl
         // 无匹配空态（原型 L914）：有仓库、有关键词但一篇未中。
         if (articles.Count == 0 && !string.IsNullOrWhiteSpace(query))
         {
-            var noMatch = new TextBlock
-            {
-                FontSize = Fs(11),
-                Margin = new Thickness(22, 14),
-                TextAlignment = TextAlignment.Center,
-            };
-            noMatch[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.List.NoMatch");
-            Res(noMatch, TextBlock.ForegroundProperty, "VoxFaint");
-            _articleHost.Children.Add(noMatch);
+            ShowListEmpty("Vox.Write.List.NoMatch");
+        }
+        else
+        {
+            _listEmpty.IsVisible = false;
         }
 
-        var count = new TextBlock
-        {
-            FontSize = Fs(10), Margin = new Thickness(14, 8, 0, 8),
-        };
-        count[!TextBlock.TextProperty] = TFBind("Vox.Write.List.Total", scan.Articles.Count);
-        Res(count, TextBlock.ForegroundProperty, "VoxFaint");
-        _articleHost.Children.Add(count);
+        // 重建后恢复选中态：列表模式回写 SelectedItem（按路径比对，不触发打开）。
+        UpdateListSelection();
+    }
+
+    /// <summary>空态文案（无仓库 / 无匹配）：单控件换绑 i18n 键，不重建控件树。</summary>
+    private void ShowListEmpty(string key)
+    {
+        _listEmpty.IsVisible = true;
+        _listEmpty[!TextBlock.TextProperty] = I18n.Bind(key);
     }
 
     /// <summary>带占位参数的动态文案绑定（参数为运行时值，语言切换时按当前语言重新格式化）。</summary>
     private static MultiBinding TFBind(object key, params object[] args) =>
         (MultiBinding)new CodeWF.Avalonia.Lang.MarkupExtensions.I18nBinding(key, null, args).ProvideValue(null!);
 
-    private Button ArticleItem(Article article, bool compact = false)
+    /// <summary>列表行展示 VM：标题/meta/草稿/图标等展示字段在集合刷新时预解析，
+    /// 行容器由 ListBox 虚拟化复用（学 Vex ShellFilesView 的 ListBox.files-list 模式）。</summary>
+    private sealed class ArticleItemVm
+    {
+        public required Article Article { get; init; }
+        public required string MarkdownPath { get; init; }
+        public required string Title { get; init; }
+        public required string MetaLine { get; init; }
+        public required bool IsDraft { get; init; }
+        public IImage? Icon { get; init; }
+    }
+
+    /// <summary>集合条目工厂：展示字段一次算好（图标经 FileIconCatalog 共享位图缓存）。</summary>
+    private ArticleItemVm CreateArticleItemVm(Article article) => new()
+    {
+        Article = article,
+        MarkdownPath = article.MarkdownPath,
+        Title = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
+        MetaLine = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}",
+        IsDraft = article.IsDraft,
+        Icon = FileIconImage(Path.GetFileName(article.MarkdownPath), folder: false, expanded: false)?.Source,
+    };
+
+    /// <summary>列表行模板（原型 .wit 口径）：accent 选中条 + 文件图标 + 标题 + meta 行 + 草稿徽标。
+    /// 全部展示字段走 VM 绑定：容器被虚拟化回收复用时仅重绑数据，行结构只建一次。</summary>
+    private Control BuildArticleRow()
+    {
+        var title = new TextBlock
+        {
+            FontSize = Fs(11.5), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        title[!TextBlock.TextProperty] = new Binding(nameof(ArticleItemVm.Title));
+        var meta = new TextBlock
+        {
+            FontSize = Fs(10), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        meta[!TextBlock.TextProperty] = new Binding(nameof(ArticleItemVm.MetaLine));
+
+        // 草稿徽标（原型 L905）：meta 行右侧 accent 徽标，由 IsDraft 驱动显隐。
+        var flag = Badge(T(Library.Badge.Draft), "accent");
+        flag.VerticalAlignment = VerticalAlignment.Center;
+        flag.Bind(Layoutable.IsVisibleProperty, new Binding(nameof(ArticleItemVm.IsDraft)));
+        var metaRow = new DockPanel { Margin = new Thickness(0, 1, 0, 0), Children = { flag.Dock(Dock.Right), meta } };
+
+        // 选中标识：2px accent 条，显隐随 ListBoxItem.IsSelected（不可见时 Auto 列塌缩，与旧 Button 口径一致）。
+        var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
+        Res(bar, Border.BackgroundProperty, "VoxAccent");
+        bar.Bind(Layoutable.IsVisibleProperty, new Binding("IsSelected")
+        {
+            RelativeSource = new RelativeSource
+            {
+                Mode = RelativeSourceMode.FindAncestor,
+                AncestorType = typeof(ListBoxItem),
+                AncestorLevel = 1,
+            },
+        });
+
+        // 文件图标：无命中主题时整格隐藏（Auto 列塌缩），与旧实现省略图标一致。
+        var icon = new Avalonia.Controls.Image
+        {
+            Width = 13, Height = 13,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0),
+            IsVisible = false,
+        };
+        icon[!Avalonia.Controls.Image.SourceProperty] = new Binding(nameof(ArticleItemVm.Icon));
+        icon.Bind(Layoutable.IsVisibleProperty, new Binding(nameof(ArticleItemVm.Icon)) { Converter = ObjectConverters.IsNotNull });
+
+        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*") };
+        content.Children.Add(bar);
+        content.Children.Add(icon);
+        Grid.SetColumn(icon, 1);
+        var text = new StackPanel { Children = { title, metaRow } };
+        content.Children.Add(text);
+        Grid.SetColumn(text, 2);
+        return content;
+    }
+
+    /// <summary>列表点击行 → 打开文章；程序化选中（重建恢复高亮 / 打开文章回写）按路径比对去重，不重复打开。</summary>
+    private void OnArticleListSelection(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_articleList.SelectedItem is not ArticleItemVm vm) return;
+        if (string.Equals(vm.MarkdownPath, _current?.MarkdownPath, StringComparison.OrdinalIgnoreCase)) return;
+        Dispatcher.UIThread.Post(async () => await OpenArticleAsync(vm.Article));
+    }
+
+    /// <summary>树形模式文章项：单行化（无 meta 行，草稿徽标并入标题行右置，原型树形定稿口径）。</summary>
+    private Button TreeArticleItem(Article article)
     {
         var title = new TextBlock
         {
             Text = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
             FontSize = Fs(11.5), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis,
         };
-        var meta = new TextBlock
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { title } };
+        if (article.IsDraft)
         {
-            FontSize = Fs(10), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center,
-            Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}",
-        };
-        // 草稿徽标（原型 L905）：meta 行右侧 accent 徽标（margin-left:auto 口径），非行内文本。
-        // 树形模式（compact）单行化：无 meta 行，草稿徽标并入标题行右置（原型树形定稿口径）。
-        Panel metaRow;
-        if (compact)
-        {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { title } };
-            if (article.IsDraft)
-            {
-                var flag = Badge(T(Library.Badge.Draft), "accent");
-                flag.VerticalAlignment = VerticalAlignment.Center;
-                row.Children.Add(flag);
-                DockPanel.SetDock(flag, Dock.Right);
-            }
-            metaRow = row;
+            var flag = Badge(T(Library.Badge.Draft), "accent");
+            flag.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(flag);
+            DockPanel.SetDock(flag, Dock.Right);
         }
-        else
-        {
-            metaRow = new StackPanel { Children = { meta } };
-            if (article.IsDraft)
-            {
-                var flag = Badge(T(Library.Badge.Draft), "accent");
-                flag.VerticalAlignment = VerticalAlignment.Center;
-                metaRow = new DockPanel { Children = { flag.Dock(Dock.Right), meta } };
-            }
-        }
-        metaRow.Margin = compact ? new Thickness(0) : new Thickness(0, 1, 0, 0);
         var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
         Res(bar, Border.BackgroundProperty, "VoxAccent");
 
@@ -666,10 +760,9 @@ public sealed class WritePage : UserControl
             content.Children.Add(icon);
             Grid.SetColumn(icon, 1);
         }
-        // 树形单行：标题即整行（metaRow 里装的就是 title+flag 行），不另起 text StackPanel
-        var text = compact ? metaRow : new StackPanel { Children = { title, metaRow } };
-        content.Children.Add(text);
-        Grid.SetColumn(text, 2);
+        // 树形单行：标题（+草稿徽标）即整行
+        content.Children.Add(row);
+        Grid.SetColumn(row, 2);
 
         var button = new Button
         {
@@ -2606,7 +2699,11 @@ public sealed class WritePage : UserControl
 
         if (_repoRoot == null)
         {
+            _articleItems.Clear();
             _articleHost.Children.Clear();
+            _listButtons.Clear();
+            _listCount.IsVisible = false;
+            _listEmpty.IsVisible = false;
             _current = null;
             _preview.Markdown = null;
             _outlineHost.Children.Clear();
@@ -3433,13 +3530,25 @@ public sealed class WritePage : UserControl
         RebuildMapIfVisible();
     }
 
-    /// <summary>切文章后列表只更新选中态（全量重建留给索引/过滤变化）。</summary>
+    /// <summary>切文章后列表只更新选中态（全量重建留给索引/过滤变化）：
+    /// 列表模式按路径回写 ListBox.SelectedItem（选中变化经 OnArticleListSelection 去重，不触发打开），
+    /// 树形模式仍遍历分组里的按钮更新 active。</summary>
     private void UpdateListSelection()
     {
         var currentPath = _current?.MarkdownPath;
-        foreach (var b in _listButtons)
-            if (b.Tag is Article a && currentPath != null)
-                MarkItemSelected(b, string.Equals(a.MarkdownPath, currentPath, StringComparison.OrdinalIgnoreCase));
+        if (!_treeMode)
+        {
+            _articleList.SelectedItem = currentPath == null
+                ? null
+                : _articleItems.FirstOrDefault(vm =>
+                    string.Equals(vm.MarkdownPath, currentPath, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            foreach (var b in _listButtons)
+                if (b.Tag is Article a && currentPath != null)
+                    MarkItemSelected(b, string.Equals(a.MarkdownPath, currentPath, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     private void RebuildOutline()

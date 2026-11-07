@@ -757,6 +757,30 @@
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
   </Style>
 
+  <!-- 写作页文章列表（ListBox.files-list）：密度口径对齐 Button.wit——10,4 内距、6px 圆角、1px 行距、透明底。
+       虚拟化列表（学 Vex ShellFilesView 的 files-list 模式），行底色绘制在行模板 PART_ContentPresenter 上。 -->
+  <Style Selector="ListBox.files-list">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+  </Style>
+  <Style Selector="ListBox.files-list ListBoxItem">
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="Margin" Value="0,0,0,1"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="ListBox.files-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="ListBox.files-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.files-list ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+  </Style>
+
   <Style Selector="Border.viewseg">
     <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
