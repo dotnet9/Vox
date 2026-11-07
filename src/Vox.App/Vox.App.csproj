@@ -44,4 +44,11 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\app.ico" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- 文件类型图标（material-icon-theme 子集）：磁盘 Content 而非 Ava 资源——FileIconCatalog 按
+         AppContext.BaseDirectory/file-icons 从文件系统按需读取并缓存解码位图，AOT 发布原样携带。 -->
+    <Content Include="Assets\FileIcons\**\*" Link="file-icons\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
 </Project>

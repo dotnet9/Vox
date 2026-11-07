@@ -643,11 +643,17 @@ public sealed class WritePage : UserControl
         var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
         Res(bar, Border.BackgroundProperty, "VoxAccent");
 
-        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        var content = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*") };
         content.Children.Add(bar);
+        var icon = FileIconImage(Path.GetFileName(article.MarkdownPath), folder: false, expanded: false);
+        if (icon != null)
+        {
+            content.Children.Add(icon);
+            Grid.SetColumn(icon, 1);
+        }
         var text = new StackPanel { Children = { title, metaRow } };
         content.Children.Add(text);
-        Grid.SetColumn(text, 1);
+        Grid.SetColumn(text, 2);
 
         var button = new Button
         {
@@ -694,6 +700,7 @@ public sealed class WritePage : UserControl
             Children = { cnt, tri },
         };
 
+        var folderIcon = FileIconImage(label, folder: true, expanded: true);
         var head = new Button
         {
             Padding = new Thickness(year ? 14 : 26, year ? 7 : 5, 14, year ? 7 : 5),
@@ -704,7 +711,13 @@ public sealed class WritePage : UserControl
                 Children =
                 {
                     cntRow.Dock(Dock.Right),
-                    text,
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 6,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children = { folderIcon, text },
+                    },
                 },
             },
         };
@@ -714,6 +727,12 @@ public sealed class WritePage : UserControl
         {
             kids.IsVisible = !kids.IsVisible;
             tri.Text = kids.IsVisible ? "▾" : "▸";
+            if (folderIcon != null)
+            {
+                folderIcon.Source = Services.FileIconCatalog.Default.Resolve(
+                    label, isFolder: true, expanded: kids.IsVisible,
+                    light: ActualThemeVariant == Avalonia.Styling.ThemeVariant.Light);
+            }
         };
         return head;
     }
@@ -1439,6 +1458,18 @@ public sealed class WritePage : UserControl
     }
 
     private bool _mapDirty; // 导图不可见期间正文/文章变化：切到导图态再重建（切文件链路省一次全量布局）
+
+    /// <summary>文件类型图标（material-icon-theme 主题，Vex FileIconCatalog 同源）：按文件名/文件夹解析，明暗随界面主题。</summary>
+    private Avalonia.Controls.Image? FileIconImage(string name, bool folder, bool expanded)
+    {
+        var light = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Light;
+        var source = Services.FileIconCatalog.Default.Resolve(name, folder, expanded, light);
+        return source is null ? null : new Avalonia.Controls.Image
+        {
+            Source = source, Width = 16, Height = 16,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0),
+        };
+    }
 
     /// <summary>导图态可见才重建；不可见只置脏，SetMode 切入时补建。</summary>
     private void RebuildMapIfVisible()
