@@ -9,6 +9,10 @@
 </head>
 <body class="stage">
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+</defs></svg>
 <div class="appwin">
 <header class="topbar">
   <img class="tb-logo" src="../logo.svg" alt=""><span class="tb-name">Vox · 维声</span>
@@ -904,7 +908,7 @@ function renderLines(a){
   }
 function artItem(k,a){
   const flag=a.draft?'<span class="badge accent" style="margin-left:auto">草稿</span>':'';
-  return '<div class="wit '+(k===curArt?'active':'')+'" data-art="'+k+'"><b>'+a.title+'</b><div class="m">'+a.path+' · '+a.cats[0]+flag+'</div></div>';
+  return '<div class="wit '+(k===curArt?'active':'')+'" data-art="'+k+'"><b><svg class="ico" aria-hidden="true"><use href="#i-file"/></svg><span class="wit-t">'+a.title+'</span></b><div class="m">'+a.path+' · '+a.cats[0]+flag+'</div></div>';
 }
 function renderList(){
   const el=$('artList');
@@ -917,7 +921,7 @@ function renderList(){
       const months=tree[y];const total=Object.values(months).reduce((s,x)=>s+x.length,0);
       return '<div class="ygroup"><div class="yhead"><span class="yt">'+y+' 年</span><span class="ycnt">'+total+' 篇<span class="tri">▾</span></span></div><div class="ykids">'+
         Object.keys(months).sort().reverse().map(m=>
-          '<div class="mhead"><span class="mt">'+m+' 月</span><span class="ycnt">'+months[m].length+' 篇<span class="tri">▾</span></span></div><div class="mkids">'+
+          '<div class="mhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="mt">'+m+' 月</span><span class="ycnt">'+months[m].length+' 篇<span class="tri">▾</span></span></div><div class="mkids">'+
           months[m].map(k=>artItem(k,ARTS[k])).join('')+'</div>').join('')+
         '</div></div>';}).join('');}
   el.querySelectorAll('.wit').forEach(w=>w.onclick=()=>loadArt(w.dataset.art));
