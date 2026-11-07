@@ -11,7 +11,6 @@ using Avalonia.Threading;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Infrastructure;
 using static Vox.App.Infrastructure.I18n;
-using static Vox.App.Infrastructure.VoxTheme;
 using Vox.App.Views.Pages;
 using Vox.App.Dialogs;
 using Vox.App.Services;
@@ -90,9 +89,10 @@ public partial class MainWindow : Window
         ApplyChrome(); // 标题栏/菜单/搜索浮层固定文案接 I18n 动态绑定（含初始值）
         UpdateMcpBadge(); // MCP 按钮 tooltip 动态文案初始化（无仓库不 AutoStart 时也要给出停止态文案）
 
-        // 界面密度切换：清页缓存整体重建（字号 Fs() 与区块在构造期取值）；
+        // 界面密度切换：令牌经 VoxTheme 整档字典单次通知，全树 DynamicResource 自动刷新（导航/标题栏零重建）；
+        // 仅写作页仍构造期取 Fs() 显式字号，由 OnDensityChanged 单独作废重建（见该方法说明）。
         // 语言切换不重建——文案全部走 I18n.Bind 动态绑定，随 CultureChanged 自动刷新。
-        VoxTheme.DensityChanged += RebuildForAppearance;
+        VoxTheme.DensityChanged += OnDensityChanged;
 
         // 已配置仓库时启动即建索引（先让窗口渲染出来再扫），并后台预热发布状态缓存
         // （全量文章 hash + git diff，后台构建完成后导航首开文章库/发布中心不再冻结）。
@@ -235,7 +235,8 @@ public partial class MainWindow : Window
             lang.Children.Add(item);
         }
         BtnTbLang.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(lang) };
-        // 搜索浮层/热键等固定控件事件在 WireChromeCommands 一次性挂接（本方法随密度重建反复执行）。
+        // 搜索浮层/热键等固定控件事件在 WireChromeCommands 一次性挂接；本方法构造期只执行一次
+        //（密度切换不再重建标题栏，弹层内控件字号走令牌 DynamicResource 随整档通知自动刷新）。
     }
 
     /// <summary>标题栏与搜索浮层固定文案：全部接 I18n 动态绑定（初始即取当前语言，切换自动跟随）。</summary>
@@ -808,9 +809,11 @@ public partial class MainWindow : Window
         var expanded = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"), Margin = new Thickness(2, 0, 2, 0) };
         var expIcon = new LucideIcon { Kind = icon, Width = 16, Height = 16, StrokeThickness = 2 };
         Grid.SetColumn(expIcon, 0);
-        var expLabel = new TextBlock { FontSize = Fs(12.5), FontWeight = FontWeight.Medium,
+        var expLabel = new TextBlock { FontWeight = FontWeight.Medium,
             Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         expLabel[!TextBlock.TextProperty] = I18n.Bind(labelKey);
+        // 字号接密度令牌（VoxFontSizeMd 即 Fs(12.5) 基线）：密度切换随整档字典通知自动刷新，导航零重建。
+        expLabel[!TextBlock.FontSizeProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("VoxFontSizeMd");
         Grid.SetColumn(expLabel, 1);
         var cnt = new Border { Classes = { "navcnt" }, IsVisible = false,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
@@ -955,20 +958,19 @@ public partial class MainWindow : Window
         MarkActive(key);
     }
 
-    /// <summary>密度/语言切换后整体重建：导航文案、标题栏、当前页全部按新档取值。</summary>
-    private void RebuildForAppearance()
+    /// <summary>密度切换收尾——确需重建的唯一场景：写作页仍有 44 处构造期 Fs() 显式字号，
+    /// DynamicResource 令牌覆盖不到，只作废写作页缓存并在当前页是写作页时按新档重建。
+    /// 导航/标题栏/其余页面全部消费令牌 DynamicResource，随 VoxTheme 整档字典单次通知自动刷新，零重建。
+    /// （语言切换不重建：文案全部走 I18n.Bind 动态绑定。）</summary>
+    private void OnDensityChanged()
     {
         Dispatcher.UIThread.Post(() =>
         {
-            _pages.Clear();
-            NavItems.Children.Clear();
-            _navButtons.Clear();
-            BuildNav();
-            ApplyNavMode();
-            BuildTitlebarExtras();
-            PageHost.Content = GetPage(_currentKey);
-            MarkActive(_currentKey);
-            UpdateNavCounts();
+            _pages.Remove("write");
+            if (PageHost.Content is WritePage)
+            {
+                PageHost.Content = GetPage("write");
+            }
         });
     }
 
