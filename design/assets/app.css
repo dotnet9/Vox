@@ -3,12 +3,12 @@
    Arc 品牌风；正式实现由 TKCode.Arc 组件原生接管。
    ============================================================ */
 
-html, body { height: 100%; }
+html, body { height: 100%; overflow-x: clip; }
 
 /* 桌面舞台：应用以桌面窗体呈现（自绘标题栏 + 窗体投影） */
 body.stage {
   display: flex; flex-direction: column; align-items: center;
-  height: 100vh; padding: 22px 28px 26px; overflow: hidden;
+  height: 100vh; padding: 22px 28px 26px; overflow-x: clip;
   /* 桌面舞台恒为浅色：明暗切换只作用于窗体自身，不影响窗外背景 */
   background:
     radial-gradient(1200px 560px at 50% -12%, rgba(124,92,255,.10), transparent 60%),
@@ -61,7 +61,7 @@ body.stage {
   padding: 8px 10px; border-radius: 9px; cursor: pointer;
   color: var(--muted); font-size: 0.9615rem; font-weight: 500;
   border: 1px solid transparent;
-  transition: all var(--t-fast) var(--motion);
+  transition: background var(--t-fast) var(--motion), color var(--t-fast) var(--motion);
 }
 .nav .it:hover { background: var(--surface-2); color: var(--fg); }
 .nav .it.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
@@ -139,7 +139,7 @@ body.stage {
   box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 .wlist.off { width: 0 !important; margin: 0 !important; border-width: 0; padding: 0; opacity: 0;
   box-shadow: none; pointer-events: none; }
-.wlist { transition: width var(--t-med) var(--motion), margin var(--t-med) var(--motion),
+.wlist { transition: margin var(--t-med) var(--motion),
   border-width var(--t-med) var(--motion), padding var(--t-med) var(--motion), opacity var(--t-med) var(--motion); }
 .wlist .lhead, .wlist .lscroll { min-width: 248px; }
 .wlist > .edge-btn { right: -12px; bottom: 17px; }
@@ -226,19 +226,20 @@ html[data-theme="dark"] .elines i.lnk { color: #6fd39a; }
 .drop {
   border: 1.5px dashed var(--line-strong); border-radius: 11px; padding: 18px 12px;
   text-align: center; color: var(--muted); font-size: 0.8846rem; cursor: pointer;
-  transition: all var(--t-fast) var(--motion); background: var(--surface-2);
+  transition: border-color var(--t-fast) var(--motion), color var(--t-fast) var(--motion), background var(--t-fast) var(--motion); background: var(--surface-2);
 }
 .drop:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .thumbgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .thumb { position: relative; height: 58px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; cursor: pointer; }
 .thumb span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 0.6538rem; padding: 2px 5px; background: rgba(0,0,0,.45); color: #fff; font-family: var(--font-mono); }
 .g1{background:linear-gradient(135deg,#4338ca,#7c5cff)} .g2{background:linear-gradient(135deg,#0e7490,#14a06a)}
-.g3{background:linear-gradient(135deg,#b45309,#ee7a1c)} .g4{background:linear-gradient(135deg,#be185d,#7c5cff)}
+.g3{background:linear-gradient(135deg,#b45309,#ee7a1c)} .g4{background:linear-gradient(135deg,#be185d,#e0447c)}
 .g5{background:linear-gradient(135deg,#334155,#64748b)} .g6{background:linear-gradient(135deg,#065f46,#0e7490)}
 
 /* ---------- 通用页头与统计 ---------- */
 .pagehead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.pagehead h2 { font-size: 1.2308rem; font-weight: 650; margin: 0; letter-spacing: -.3px; }
+.stat b { font-variant-numeric: tabular-nums; }
+.pagehead h2 { font-size: 1.2308rem; font-weight: 650; margin: 0; letter-spacing: -.3px; overflow-wrap: break-word; min-width: 0; }
 .pagehead .sub { color: var(--faint); font-size: 0.8846rem; }
 .pagehead .spacer { flex: 1; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
@@ -269,7 +270,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 /* ---------- 图片库 ---------- */
 .assets-body { display: flex; gap: 14px; min-height: 0; }
 .agrid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; align-content: start; }
-.acard { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; cursor: pointer; transition: all var(--t-fast) var(--motion); }
+.acard { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; cursor: pointer; transition: border-color var(--t-fast) var(--motion), box-shadow var(--t-fast) var(--motion), transform var(--t-fast) var(--motion); }
 .acard:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 .acard.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .acard .ph { height: 88px; position: relative; }
@@ -287,7 +288,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 
 /* ---------- 体检 ---------- */
 .audit-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-.ag { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; cursor: pointer; transition: all var(--t-fast) var(--motion); }
+.ag { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; cursor: pointer; transition: border-color var(--t-fast) var(--motion), box-shadow var(--t-fast) var(--motion); }
 .ag:hover { border-color: var(--line-strong); }
 .ag.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .ag .row { align-items: baseline; }
@@ -346,11 +347,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .mpage { display: none; } .mpage.active { display: block; }
 .slugprev { font: 500 0.8846rem var(--font-mono); color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
 
-#toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--fg); color: var(--bg); padding: 9px 18px; border-radius: 99px; font-size: 0.9231rem; font-weight: 500; opacity: 0; pointer-events: none; transition: all var(--t-med) var(--motion); z-index: 99; }
+#toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--fg); color: var(--bg); padding: 9px 18px; border-radius: 99px; font-size: 0.9231rem; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity var(--t-med) var(--motion), transform var(--t-med) var(--motion); z-index: 99; }
 #toast.show { opacity: 1; transform: translateX(-50%); }
 
 /* ---------- 边栏折叠 ---------- */
-.nav { transition: width var(--t-med) var(--motion); }
+.nav { transition: margin var(--t-med) var(--motion); }
 .nav.collapsed { width: 56px; padding-left: 8px; padding-right: 8px; }
 .nav.collapsed .lb, .nav.collapsed .cnt, .nav.collapsed .repo, .nav.collapsed .lbl, .nav.collapsed .sep { display: none; }
 .nav.collapsed .brand { justify-content: center; padding-left: 0; padding-right: 0; }
@@ -390,7 +391,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .nav.collapsed .themeline { justify-content: center; }
 .wpanel.off { width: 0 !important; margin: 0 !important; border-width: 0; opacity: 0;
   box-shadow: none; pointer-events: none; }
-.wpanel { transition: width var(--t-med) var(--motion), margin var(--t-med) var(--motion),
+.wpanel { transition: margin var(--t-med) var(--motion),
   border-width var(--t-med) var(--motion), opacity var(--t-med) var(--motion),
   box-shadow var(--t-fast) var(--motion), border-color var(--t-fast) var(--motion); }
 .wpanel > *:not(button) { min-width: 280px; }
@@ -409,7 +410,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
   display: grid; place-items: center; align-content: center; justify-content: center;
   padding: 0; margin: 0; line-height: 0; cursor: pointer;
   border: 1px solid var(--line-strong); background: var(--surface); color: var(--muted);
-  box-shadow: 0 1px 4px rgba(0,0,0,.14); transition: all var(--t-fast) var(--motion); }
+  box-shadow: 0 1px 4px rgba(0,0,0,.14); transition: border-color var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
 .edge-btn svg { width: 12px; height: 12px; display: block; margin: auto; }
 .edge-btn:hover { color: var(--accent); border-color: var(--accent); }
 .nav { position: relative; }
@@ -445,7 +446,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .chhead { display: flex; align-items: center; gap: 8px; }
 .chhead .selall { display: flex; align-items: center; gap: 6px; font-size: 0.8846rem; color: var(--muted); cursor: pointer; }
 .chlist { flex: 1; min-height: 150px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.chg-group-h { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); cursor: pointer; font-weight: 600; font-size: 0.9231rem; user-select: none; }
+.chg-group-h { position: sticky; top: 36px; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); cursor: pointer; font-weight: 600; font-size: 0.9231rem; user-select: none; }
 .chg-group-h .part { color: var(--warn); font-size: 0.8077rem; font-weight: 500; }
 .chrow2 { display: flex; align-items: center; gap: 9px; padding: 8px 12px 8px 26px; cursor: pointer; border-left: 2px solid transparent; }
 .chrow2:hover { background: var(--surface-2); }
@@ -457,7 +458,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .chrow2 .minus { color: var(--danger); }
 .diffpane { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); max-height: 250px; overflow: auto; flex: none; }
 .diff-empty { padding: 22px; text-align: center; color: var(--faint); font-size: 0.8846rem; }
-.diff-h { position: sticky; top: 0; display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); font: 600 0.8462rem var(--font-mono); }
+.diff-h { position: sticky; top: 36px; display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); font: 600 0.8462rem var(--font-mono); }
 .dline { font: 400 0.8462rem/1.75 var(--font-mono); padding: 0 12px; white-space: pre-wrap; word-break: break-all; }
 .dline.add { background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); }
 .dline.del { background: color-mix(in srgb, var(--danger) 11%, transparent); color: var(--danger); }
@@ -545,7 +546,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 /* ---------- 列表与编辑区之间可拖竖条 ---------- */
 .colsplit { flex: none; width: 6px; margin: 0; cursor: col-resize; background: transparent; z-index: 15;
   border-radius: 99px; transition: background var(--t-fast) var(--motion),
-  width var(--t-med) var(--motion), opacity var(--t-med) var(--motion); }
+  opacity var(--t-med) var(--motion); }
 .colsplit.off { width: 0; opacity: 0; pointer-events: none; }
 .colsplit:hover, .colsplit.on { background: var(--accent-soft); }
 .colsplit::after { content: ""; display: block; width: 2px; height: 26px; margin: 44vh auto 0; border-radius: 99px;
@@ -648,7 +649,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .typography-popover .popover-title{display:flex;align-items:center;justify-content:space-between;padding:0 0 12px;font-size:14px;color:var(--fg);font-weight:600}
 .typography-popover .icon-button{border:0;background:transparent;color:var(--faint);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:5px}
 .typography-popover .icon-button:hover{background:var(--surface-2);color:var(--fg)}
-.typography-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:2px;scrollbar-gutter:stable}
+.typography-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;overflow-y:auto;overflow-x:clip;overscroll-behavior:contain;padding:2px;scrollbar-gutter:stable}
 .typography-card{position:relative;display:flex;flex-direction:column;align-items:stretch;min-height:222px;padding:9px;border:1px solid var(--line);background:var(--bg);border-radius:6px;text-align:left;color:var(--fg);cursor:pointer}
 .typography-card:hover{border-color:var(--accent)}
 .typography-card[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
@@ -741,7 +742,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .map-stage .map-node { position: absolute; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   padding: 8px 16px; font-size: 12.5px; font-weight: 600; color: var(--fg); white-space: nowrap;
-  transition: left 260ms var(--motion), top 260ms var(--motion), height 200ms var(--motion), border-color 160ms; }
+  transition: transform 260ms var(--motion), border-color 160ms; }
 .map-stage .map-node.leaf, .map-stage .map-node.content { font-weight: 400; font-size: 11.5px; color: var(--muted); }
 .map-stage[data-layout] .map-node.enter { animation: map-node-in var(--t-med) var(--motion) both; }
 @keyframes map-node-in { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
@@ -807,7 +808,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 
 /* 结构 / 配色 上下平铺：步骤分组标签（替代原页签，①→② 引导联想） */
 .map-step-label { display: flex; align-items: center; gap: 7px; font: 600 0.8846rem var(--font-ui); color: var(--fg); margin: 14px 0 9px; transition: color var(--t-fast) var(--motion); }
-.map-step-label i { font-style: normal; width: 17px; height: 17px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 0.7308rem/17px var(--font-ui); text-align: center; flex: none; transition: all var(--t-fast) var(--motion); }
+.map-step-label i { font-style: normal; width: 17px; height: 17px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 0.7308rem/17px var(--font-ui); text-align: center; flex: none; transition: background var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
 .map-step-label .hint { font-weight: 400; font-size: 0.7308rem; color: var(--faint); }
 .map-step-label.nudge { color: var(--accent); }
 .map-step-label.nudge i { background: var(--accent); color: var(--on-accent); }
@@ -824,7 +825,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
   border-radius: 7px;
   background: var(--surface);
   box-shadow: 0 1px 4px rgba(0,0,0,.16);
-  transition: left .3s cubic-bezier(.3,1.25,.36,1), width .3s cubic-bezier(.3,1.25,.36,1);
+  transition: transform .3s cubic-bezier(.3,1.25,.36,1);
   pointer-events: none; z-index: 0;
 }
 .seg.has-thumb > button { position: relative; z-index: 1; }
@@ -835,7 +836,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .row { display: flex; align-items: center; gap: 8px; }
 .field { margin: 9px 0; }
 .field > label { display: block; font: 600 0.8077rem var(--font-ui); color: var(--muted); margin-bottom: 4px; }
-.opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; transition: all var(--t-fast) var(--motion); }
+.opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; transition: border-color var(--t-fast) var(--motion), background var(--t-fast) var(--motion); }
 .opt:hover { border-color: var(--line-strong); background: var(--surface-2); }
 .opt input { margin: 3px 0 0; accent-color: var(--accent); }
 .opt b { font-size: 0.9231rem; font-weight: 600; display: block; }
@@ -879,7 +880,7 @@ pre.mcp-code { margin: 8px 0 0; padding: 12px 14px; background: var(--surface-2)
 .ai-trigger { position: absolute; right: 14px; bottom: 10px; z-index: 31; display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface);
   box-shadow: 0 1px 4px rgba(0,0,0,.10); color: var(--fg); font: 500 0.8462rem var(--font-ui); cursor: pointer;
-  transition: all var(--t-fast) var(--motion); }
+  transition: border-color var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
 .ai-trigger:hover { border-color: var(--accent); color: var(--accent); }
 .ai-trigger .spark { color: var(--accent); font-weight: 600; }
 .ai-pop { position: absolute; right: 12px; bottom: 46px; width: 360px; z-index: 46; background: var(--surface);
@@ -889,7 +890,7 @@ pre.mcp-code { margin: 8px 0 0; padding: 12px 14px; background: var(--surface-2)
 .ai-pop .ai-head { display: flex; align-items: center; font-weight: 600; font-size: 0.9615rem; }
 .ai-pop .ai-head .x { margin-left: auto; cursor: pointer; color: var(--faint); font-size: 1.1538rem; line-height: 1; }
 .ai-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 8px; }
-.ai-chips .chip { cursor: pointer; transition: all var(--t-fast) var(--motion); }
+.ai-chips .chip { cursor: pointer; transition: background var(--t-fast) var(--motion), border-color var(--t-fast) var(--motion); }
 .ai-chips .chip:hover { border-color: var(--accent); color: var(--accent); }
 .ai-row { display: flex; gap: 6px; }
 .ai-row .input { flex: 1; }
@@ -1154,7 +1155,7 @@ h1,h2,h3 { letter-spacing: -.025em; }
 
 
 /* ---------- Publishing workflow dialog ---------- */
-.vox-publish-modal {width:min(760px,calc(100vw - 36px));max-width:760px!important;border-radius:15px;overflow:hidden}
+.vox-publish-modal {width:100%;max-width:760px;border-radius:15px;overflow:hidden}
 .vox-publish-modal .mh {padding:17px 21px 14px;align-items:center}
 .vox-modal-kicker {font:700 9px var(--font-mono);letter-spacing:1.2px;color:#829181;margin-bottom:4px}
 .vox-publish-modal .mh h3 {font-size:1.12rem;letter-spacing:-.025em}
@@ -1271,7 +1272,7 @@ h1,h2,h3 { letter-spacing: -.025em; }
 .uw-pl b { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.8077rem; }
 .uw-track { height: 7px; border-radius: 99px; background: var(--surface-3); overflow: hidden; margin-top: 8px; }
 .uw-track i { display: block; height: 100%; width: 0; border-radius: 99px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-deep)); transition: width .14s linear; }
+  background: linear-gradient(90deg, var(--accent), var(--accent-deep)); transform-origin: left; }
 .uw-changes { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--surface-2); padding: 4px 14px 10px; max-height: 226px; overflow-y: auto; }
 .uw-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; min-height: 30px; }
