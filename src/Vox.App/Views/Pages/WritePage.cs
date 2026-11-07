@@ -40,6 +40,7 @@ public sealed class WritePage : UserControl
     // 左列（列表卡）
     private readonly TextBox _search = new() { Classes = { "vinput" }, Width = 116, MinWidth = 0 };
     private readonly StackPanel _articleHost = new();
+    private readonly List<Button> _listButtons = new();  // 列表项按钮追踪：切文章时只更新选中态，不全量重建
     private bool _treeMode;
     private Button _listHandle = null!;      // 列表折叠钮：展开时列表卡内右下，收起时骑页左缘
     private GridSplitter _listSplitter = null!;
@@ -533,6 +534,7 @@ public sealed class WritePage : UserControl
     private void ReloadArticles()
     {
         _articleHost.Children.Clear();
+        _listButtons.Clear();
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
@@ -619,11 +621,11 @@ public sealed class WritePage : UserControl
         var title = new TextBlock
         {
             Text = string.IsNullOrEmpty(article.Title) ? article.Slug : article.Title,
-            FontSize = Fs(12), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = Fs(11.5), FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis,
         };
         var meta = new TextBlock
         {
-            FontSize = Fs(10.5), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = Fs(10), Opacity = 0.75, TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
             Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}",
         };
@@ -664,6 +666,7 @@ public sealed class WritePage : UserControl
         // 选中标识按 MarkdownPath 比对：保存触发索引重建后新实例也能保持高亮（引用比较会丢）。
         MarkItemSelected(button, string.Equals(article.MarkdownPath, _current?.MarkdownPath, StringComparison.OrdinalIgnoreCase));
         button.Click += (_, _) => Dispatcher.UIThread.Post(async () => await OpenArticleAsync(article));
+        _listButtons.Add(button);
         return button;
     }
 
@@ -703,7 +706,7 @@ public sealed class WritePage : UserControl
         var folderIcon = FileIconImage(label, folder: true, expanded: true);
         var head = new Button
         {
-            Padding = new Thickness(year ? 14 : 26, year ? 7 : 5, 14, year ? 7 : 5),
+            Padding = new Thickness(year ? 10 : 22, year ? 4 : 3, 10, year ? 4 : 3),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             CornerRadius = new CornerRadius(0),
             Content = new DockPanel
@@ -1466,8 +1469,8 @@ public sealed class WritePage : UserControl
         var source = Services.FileIconCatalog.Default.Resolve(name, folder, expanded, light);
         return source is null ? null : new Avalonia.Controls.Image
         {
-            Source = source, Width = 16, Height = 16,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0),
+            Source = source, Width = 14, Height = 14,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
         };
     }
 
@@ -2645,10 +2648,15 @@ public sealed class WritePage : UserControl
             UpdateSaveState();
 
             UpdateBadges();
-            RebuildOutline();
-            RebuildMapIfVisible(); // 导图态不可见时只置脏：切到导图再建（切文件链路去掉一次全量布局）
-            RefreshMetaTab(); // 元数据页签随文章切换重渲染（YAML 态同样重新生成）
-            ReloadArticles();
+            // 重构建后移（Dispatcher Background）：先让新文章的编辑器/预览上屏，大纲/元数据/导图随后补齐；
+            // 列表只做选中态轻量更新（ReloadArticles 全量重建留给索引变化时）。
+            Dispatcher.UIThread.Post(() =>
+            {
+                RebuildOutline();
+                RebuildMapIfVisible();
+                RefreshMetaTab();
+                UpdateListSelection();
+            }, DispatcherPriority.Background);
         }
         finally
         {
@@ -3419,6 +3427,15 @@ public sealed class WritePage : UserControl
         _preview.Markdown = _editorView.Text; // 增量渲染（Markdown 赋值即调度）
         RebuildOutline();
         RebuildMapIfVisible();
+    }
+
+    /// <summary>切文章后列表只更新选中态（全量重建留给索引/过滤变化）。</summary>
+    private void UpdateListSelection()
+    {
+        var currentPath = _current?.MarkdownPath;
+        foreach (var b in _listButtons)
+            if (b.Tag is Article a && currentPath != null)
+                MarkItemSelected(b, string.Equals(a.MarkdownPath, currentPath, StringComparison.OrdinalIgnoreCase));
     }
 
     private void RebuildOutline()
