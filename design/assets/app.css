@@ -146,6 +146,7 @@ body.stage {
 .wlist .lhead { padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .wlist .lscroll { overflow-y: auto; flex: 1; }
 .wit { padding: 4px 10px; margin: 0 0 1px; border-radius: 6px; cursor: pointer; transition: background var(--t-fast) var(--motion); }
+.write-body .wit { padding: 3px 8px; }
 .wit:hover { background: var(--surface-2); }
 .wit.active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
 .wit b { display: block; font-size: 0.8846rem; font-weight: 600; line-height: 1.45; }
@@ -374,12 +375,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
   font: 600 0.8462rem var(--font-ui); color: var(--accent); background: var(--accent-soft); border-bottom: 1px solid var(--line); }
 .yhead .tri { transition: transform var(--t-fast) var(--motion); font-size: 0.6923rem; color: var(--accent); }
 .yhead.closed .tri { transform: rotate(-90deg); }
-.yhead .ycnt { margin-left: auto; color: var(--accent); opacity: .75; font-weight: 500; font-size: 0.7692rem; }
 .mhead { display: flex; align-items: center; padding: 3px 10px 3px 22px; cursor: pointer;
   font: 600 0.8077rem var(--font-ui); color: var(--fg); background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .mhead .tri { transition: transform var(--t-fast) var(--motion); font-size: 0.6923rem; color: var(--faint); }
 .mhead.closed .tri { transform: rotate(-90deg); }
-.mhead .ycnt { margin-left: auto; color: var(--faint); font-weight: 400; font-size: 0.7692rem; }
 .ykids { overflow: hidden; }
 .yhead.closed + .ykids { display: none; }
 
@@ -1009,12 +1008,12 @@ body.stage {
 .wlist .lhead { padding: 13px 13px 11px; }
 .wlist .lscroll { padding: 4px 0; }
 .wit { padding: 4px 10px; margin: 0 0 1px; border-radius: 6px; }
-.wit .ico { width: 13px; height: 13px; flex: none; margin: 2px 6px 0 0; color: var(--muted); stroke-width: 1.4; }
+.wit .ico { width: 13px; height: 13px; flex: none; margin: 2px 0 0; color: var(--muted); stroke-width: 1.4; }
 .yhead svg, .mhead svg { width: 13px; height: 13px; flex: none; }
 .yhead svg { color: var(--accent); }
 .mhead svg { color: var(--muted); }
 .wit .wit-t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.wit b { display: flex; align-items: flex-start; gap: 6px; }
+.wit b { display: flex; align-items: flex-start; gap: 5px; }
 .wmain { margin: 12px 12px 12px 0; }
 .wcontent {
   overflow: hidden;

@@ -906,9 +906,10 @@ function renderLines(a){
     const txt=esc(l[1]).replace(/`([^`]+)`/,'<code>$1</code>');
     return '<i id="eline-'+i+'" class="'+(cls||'')+'">'+txt+'</i>';}).join('');
   }
-function artItem(k,a){
+function artItem(k,a,compact){
   const flag=a.draft?'<span class="badge accent" style="margin-left:auto">草稿</span>':'';
-  return '<div class="wit '+(k===curArt?'active':'')+'" data-art="'+k+'"><b><svg class="ico" aria-hidden="true"><use href="#i-file"/></svg><span class="wit-t">'+a.title+'</span></b><div class="m">'+a.path+' · '+a.cats[0]+flag+'</div></div>';
+  const head='<b><svg class="ico" aria-hidden="true"><use href="#i-file"/></svg><span class="wit-t">'+a.title+'</span>'+flag+'</b>';
+  return '<div class="wit '+(k===curArt?'active':'')+'" data-art="'+k+'">'+head+(compact?'':'<div class="m">'+a.path+' · '+a.cats[0]+'</div>')+'</div>';
 }
 function renderList(){
   const el=$('artList');
@@ -918,11 +919,11 @@ function renderList(){
   else{const tree={};keys.forEach(k=>{const a=ARTS[k];const seg=a.path.split('/');(tree[seg[0]]=tree[seg[0]]||{})[seg[1]]=(tree[seg[0]][seg[1]]||[]).concat(k);});
     if(!keys.length){el.innerHTML='<div style="padding:22px;text-align:center;color:var(--faint)">无匹配文章</div>';}
     else el.innerHTML=Object.keys(tree).sort().reverse().map(y=>{
-      const months=tree[y];const total=Object.values(months).reduce((s,x)=>s+x.length,0);
-      return '<div class="ygroup"><div class="yhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="yt">'+y+' 年</span><span class="ycnt">'+total+' 篇<span class="tri">▾</span></span></div><div class="ykids">'+
+      const months=tree[y];
+      return '<div class="ygroup"><div class="yhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="yt">'+y+' 年</span><span class="tri">▾</span></div><div class="ykids">'+
         Object.keys(months).sort().reverse().map(m=>
-          '<div class="mhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="mt">'+m+' 月</span><span class="ycnt">'+months[m].length+' 篇<span class="tri">▾</span></span></div><div class="mkids">'+
-          months[m].map(k=>artItem(k,ARTS[k])).join('')+'</div>').join('')+
+          '<div class="mhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="mt">'+m+' 月</span><span class="tri">▾</span></div><div class="mkids">'+
+          months[m].map(k=>artItem(k,ARTS[k],true)).join('')+'</div>').join('')+
         '</div></div>';}).join('');}
   el.querySelectorAll('.wit').forEach(w=>w.onclick=()=>loadArt(w.dataset.art));
   el.querySelectorAll('.yhead,.mhead').forEach(hh=>hh.onclick=()=>hh.classList.toggle('closed'));
