@@ -616,7 +616,7 @@ public sealed class WritePage : UserControl
     private static MultiBinding TFBind(object key, params object[] args) =>
         (MultiBinding)new CodeWF.Avalonia.Lang.MarkupExtensions.I18nBinding(key, null, args).ProvideValue(null!);
 
-    private Button ArticleItem(Article article)
+    private Button ArticleItem(Article article, bool compact = false)
     {
         var title = new TextBlock
         {
@@ -630,18 +630,31 @@ public sealed class WritePage : UserControl
             Text = $"{article.Year}/{article.Month} · {(article.Meta.Categories.Count > 0 ? article.Meta.Categories[0] : article.Meta.Author ?? "")}",
         };
         // 草稿徽标（原型 L905）：meta 行右侧 accent 徽标（margin-left:auto 口径），非行内文本。
+        // 树形模式（compact）单行化：无 meta 行，草稿徽标并入标题行右置（原型树形定稿口径）。
         Panel metaRow;
-        if (article.IsDraft)
+        if (compact)
         {
-            var flag = Badge(T(Library.Badge.Draft), "accent");
-            flag.VerticalAlignment = VerticalAlignment.Center;
-            metaRow = new DockPanel { Children = { flag.Dock(Dock.Right), meta } };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { title } };
+            if (article.IsDraft)
+            {
+                var flag = Badge(T(Library.Badge.Draft), "accent");
+                flag.VerticalAlignment = VerticalAlignment.Center;
+                row.Children.Add(flag);
+                DockPanel.SetDock(flag, Dock.Right);
+            }
+            metaRow = row;
         }
         else
         {
             metaRow = new StackPanel { Children = { meta } };
+            if (article.IsDraft)
+            {
+                var flag = Badge(T(Library.Badge.Draft), "accent");
+                flag.VerticalAlignment = VerticalAlignment.Center;
+                metaRow = new DockPanel { Children = { flag.Dock(Dock.Right), meta } };
+            }
         }
-        metaRow.Margin = new Thickness(0, 2, 0, 0);
+        metaRow.Margin = compact ? new Thickness(0) : new Thickness(0, 2, 0, 0);
         var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
         Res(bar, Border.BackgroundProperty, "VoxAccent");
 
@@ -653,7 +666,8 @@ public sealed class WritePage : UserControl
             content.Children.Add(icon);
             Grid.SetColumn(icon, 1);
         }
-        var text = new StackPanel { Children = { title, metaRow } };
+        // 树形单行：标题即整行（metaRow 里装的就是 title+flag 行），不另起 text StackPanel
+        var text = compact ? metaRow : new StackPanel { Children = { title, metaRow } };
         content.Children.Add(text);
         Grid.SetColumn(text, 2);
 
@@ -680,10 +694,10 @@ public sealed class WritePage : UserControl
         }
     }
 
-    /// <summary>树形分组头（原型 L917-919）：年「2026 年」/ 月「09 月」，右侧「N 篇 ▾」计数与折叠三角。</summary>
+    /// <summary>树形分组头（原型 L917-919 树形定稿）：年「2026 年」/ 月「09 月」，折叠三角居右放大（去「N 篇」提示）。</summary>
     private Button GroupHead(string label, int count, StackPanel kids, bool year)
     {
-        var tri = new TextBlock { Text = "▾", FontSize = 9, VerticalAlignment = VerticalAlignment.Center };
+        var tri = new TextBlock { Text = "▾", FontSize = Fs(22.5), VerticalAlignment = VerticalAlignment.Center }; // 原型树形定稿：三角 2.5 倍居右
         var text = new TextBlock
         {
             // 年「2026 年」/ 月「09 月」（原型 .yt/.mt 文案口径）
@@ -691,33 +705,22 @@ public sealed class WritePage : UserControl
             FontSize = Fs(year ? 11 : 10.5), FontWeight = FontWeight.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        var cnt = new TextBlock
-        {
-            Text = TF("Vox.Write.List.Count", count), FontSize = Fs(10), Opacity = 0.75,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        var cntRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Children = { cnt, tri },
-        };
 
         var folderIcon = FileIconImage(label, folder: true, expanded: true);
         var head = new Button
         {
-            Padding = new Thickness(year ? 10 : 22, year ? 4 : 3, 10, year ? 4 : 3),
+            Padding = new Thickness(year ? 10 : 22, 1, 10, 1),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             CornerRadius = new CornerRadius(0),
             Content = new DockPanel
             {
                 Children =
                 {
-                    cntRow.Dock(Dock.Right),
+                    tri.Dock(Dock.Right), // 折叠三角居右（原型树形定稿：去「N 篇」提示）
                     new StackPanel
                     {
                         Orientation = Orientation.Horizontal,
-                        Spacing = 6,
+                        Spacing = 5,
                         VerticalAlignment = VerticalAlignment.Center,
                         Children = { folderIcon, text },
                     },
@@ -1470,7 +1473,7 @@ public sealed class WritePage : UserControl
         return source is null ? null : new Avalonia.Controls.Image
         {
             Source = source, Width = 14, Height = 14,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0),
         };
     }
 
