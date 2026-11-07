@@ -37,16 +37,34 @@ public sealed class LibraryPage : UserControl
     private readonly TextBlock _footInfo = new();
     private readonly StackPanel _pagerHost = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
     private const int PageSize = 15;
+
+    /// <summary>全文搜索防抖窗口：键入停止该时长后才执行匹配（含正文有界读），键击期间不读盘。</summary>
+    private const int SearchDebounceMs = 300;
+    private readonly Avalonia.Threading.DispatcherTimer _searchDebounce = new() { Interval = TimeSpan.FromMilliseconds(SearchDebounceMs) };
+
+    // 全文搜索的防抖 + 取消状态：逐查询换新 CancellationTokenSource，完成后按引用比对，失效结果不回填。
+    private CancellationTokenSource? _searchCts;
+    private string _searchTerm = string.Empty; // 防抖后生效的搜索词（Filtered 的口径来源）
+    // 正文头部有界读命中集；null = 本轮后台扫描尚未完成。非 null 时必然对应 _searchTerm
+    //（RunSearch 换词即置空，回填经取消源引用比对把关），故无需再记「命中集对应的词」。
+    private HashSet<string>? _bodyMatches;
     private int _page;
 
     public LibraryPage(MainWindow shell)
     {
         _shell = shell;
         BuildLayout();
+        DetachedFromVisualTree += (_, _) =>
+        {
+            // 页面按导航重建（MainWindow.GetPage 每次 new）：卸载即停防抖表 + 作废在途扫描
+            _searchDebounce.Stop();
+            _searchCts?.Cancel();
+        };
         AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             PublishHub.Invalidate();
             Rebuild();
+            ScheduleSearch(); // 索引重建后按当前关键词重跑正文扫描（ScheduleSearch 先取消在途结果）
         });
         Rebuild();
     }
@@ -91,7 +109,7 @@ public sealed class LibraryPage : UserControl
             if (e.Property == TextBox.TextProperty)
             {
                 _page = 0;
-                RebuildTable();
+                ScheduleSearch(); // 防抖：键入期间只重置计时器，不读盘、不重建
             }
         };
         host.Children.Add(filters);
@@ -236,7 +254,7 @@ public sealed class LibraryPage : UserControl
         if (_statusFilter.Selected == T("Vox.Library.Badge.Published")) query = query.Where(a => !a.IsDraft);
         if (_statusFilter.Selected == T("Vox.Library.Badge.Draft")) query = query.Where(a => a.IsDraft);
 
-        var term = _search.Text?.Trim();
+        var term = _searchTerm; // 防抖生效词：键入中的临时文本不触发过滤（由计时器统一处理）
         if (!string.IsNullOrWhiteSpace(term))
         {
             query = query.Where(a => MatchesTitleSlugOrBody(a, term));
@@ -250,24 +268,90 @@ public sealed class LibraryPage : UserControl
         return query.OrderByDescending(a => a.Meta.Date).ToList();
     }
 
-    /// <summary>搜索口径：标题 + slug + 正文。正文惰性读盘——仅标题/slug 未命中且查询 ≥2 字符才读全文
-    /// （当前 40 篇规模直接同步读即够；命中或单字符不碰磁盘）。写作页左侧列表搜索保持原口径不动。</summary>
-    private static bool MatchesTitleSlugOrBody(Article article, string term)
+    /// <summary>搜索口径：标题 + slug + 正文头部。标题/slug 同步命中；正文命中由防抖后台扫描预计算
+    ///（<see cref="RepoScanner.MatchBodyHeads"/>：每篇只读前 <see cref="RepoScanner.SearchHeadBytes"/> 字节、
+    /// 可取消），扫描未完成时先按标题/slug 展示，完成后回填刷新。写作页左侧列表搜索保持原口径不动。</summary>
+    private bool MatchesTitleSlugOrBody(Article article, string term)
     {
         if (article.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
         if (article.Slug.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
         if (term.Length < 2) return false;
-        var root = AppState.Instance.CurrentRepoRoot;
-        if (root == null) return false;
+        // 正文命中集只含「标题/slug 均未命中」的正文独有命中；后台扫描未就绪（null）时按未命中处理
+        return _bodyMatches?.Contains(article.MarkdownPath) == true;
+    }
+
+    /// <summary>键入防抖入口：立即取消在途正文扫描（取消点：新键入到来），重启计时器等待输入停稳。</summary>
+    private void ScheduleSearch()
+    {
+        _searchCts?.Cancel();
+        _searchDebounce.Stop();
+        _searchDebounce.Tick -= SearchDebounceTick;
+        _searchDebounce.Tick += SearchDebounceTick;
+        _searchDebounce.Start();
+    }
+
+    private void SearchDebounceTick(object? sender, EventArgs e)
+    {
+        _searchDebounce.Stop();
+        _searchDebounce.Tick -= SearchDebounceTick;
+        RunSearch();
+    }
+
+    /// <summary>防抖到期：先按标题/slug + 既有筛选即时重建（纯内存，不读盘），
+    /// 再后台做正文头部有界扫描；扫描完成且查询未被取代时回填命中集并再次重建。</summary>
+    private void RunSearch()
+    {
+        var scan = AppState.Instance.Scan;
+        var repoRoot = AppState.Instance.CurrentRepoRoot;
+        var term = _search.Text?.Trim() ?? string.Empty;
+        var cts = ReplaceSearchCts();
+        _searchTerm = term;
+        _bodyMatches = null; // 换词即作废旧命中集：本轮先按标题/slug 展示
+        RebuildTable();
+
+        // 与原口径一致：单字符/空查询不读正文
+        if (term.Length < 2 || scan == null || repoRoot == null) return;
+        _ = ScanBodyMatchesAsync(scan, term, repoRoot, cts);
+    }
+
+    /// <summary>逐查询换新取消源：旧源取消（在途扫描在下一个取消点终止）并释放，返回供本轮使用的新源。</summary>
+    private CancellationTokenSource ReplaceSearchCts()
+    {
+        var old = _searchCts;
+        _searchCts = new CancellationTokenSource();
+        if (old != null)
+        {
+            old.Cancel();
+            old.Dispose();
+        }
+        return _searchCts;
+    }
+
+    /// <summary>后台正文扫描：有界读（每篇头部 ≤ <see cref="RepoScanner.SearchHeadBytes"/>，UTF-8），
+    /// 逐篇取消检查。被取消或取消源已被换新（新键入/重扫描/页面卸载）时直接丢弃，不回填。</summary>
+    private async Task ScanBodyMatchesAsync(RepoScan scan, string term, string repoRoot, CancellationTokenSource cts)
+    {
+        var token = cts.Token;
+        HashSet<string> matches;
         try
         {
-            var full = Path.Combine(root, article.MarkdownPath.Replace('/', Path.DirectorySeparatorChar));
-            return File.ReadAllText(full).Contains(term, StringComparison.OrdinalIgnoreCase);
+            matches = await Task.Run(() => RepoScanner.MatchBodyHeads(repoRoot, scan.Articles, term, token), token)
+                .ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            return false; // 文件被移动/占用：按未命中处理
+            return; // 被新查询/页面卸载取消：静默丢弃
         }
+        catch (Exception)
+        {
+            matches = []; // 兜底：扫描异常按无正文命中处理，标题/slug 口径仍然可用
+        }
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (cts != _searchCts) return; // 已失效结果不回填
+            _bodyMatches = matches;
+            RebuildTable();
+        });
     }
 
     private void ConfigureGrid()

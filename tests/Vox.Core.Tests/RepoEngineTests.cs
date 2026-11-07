@@ -373,3 +373,191 @@ public class FixOpsTests
         }
     }
 }
+
+/// <summary>文章库全文搜索：正文头部有界读 + 取消语义（LibraryPage 防抖搜索的领域侧口径）。</summary>
+public class RepoSearchTests
+{
+    private static string CreateSearchRepo()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-search").FullName;
+        Directory.CreateDirectory(Path.Combine(root, "2026", "10"));
+        // 头部命中：needle 在 8KB 窗口内
+        File.WriteAllText(Path.Combine(root, "2026", "10", "head-hit.md"),
+            "---\ntitle: HeadHit\nslug: head-hit\n---\n\n正文里直接写出 needle。\n");
+        // 尾部命中：needle 在 ~16KB 处，8KB 有界窗口读不到 → 按未命中
+        File.WriteAllText(Path.Combine(root, "2026", "10", "tail-only.md"),
+            "---\ntitle: TailOnly\nslug: tail-only\n---\n\n" + new string('x', RepoScanner.SearchHeadBytes * 2) + "\nneedle\n");
+        // 65KB 大文档：needle 在头部 1KB 处 → 有界读即可命中，无需全文读
+        File.WriteAllText(Path.Combine(root, "2026", "10", "big-head.md"),
+            "---\ntitle: BigHead\nslug: big-head\n---\n\n" + new string('y', 1024) + " needle\n" + new string('z', 64 * 1024));
+        // 标题已命中且正文头部也含 needle：MatchBodyHeads 必须跳过（不读盘、不入集）
+        File.WriteAllText(Path.Combine(root, "2026", "10", "title-hit.md"),
+            "---\ntitle: Needle 主标题\nslug: title-hit\n---\n\n正文也提到 needle，但标题已命中不应重复读盘。\n");
+        // CJK 多字节命中
+        File.WriteAllText(Path.Combine(root, "2026", "10", "cjk.md"),
+            "---\ntitle: Cjk\nslug: cjk\n---\n\n这里的独特词出现在头部。\n");
+        return root;
+    }
+
+    private static Article ArticleOf(string path, string title, string slug) => new()
+    {
+        MarkdownPath = path,
+        MetaPath = Path.ChangeExtension(path, ".yml"),
+        Year = "2026",
+        Month = "10",
+        Slug = slug,
+        Meta = new ArticleMeta { Title = title, Slug = slug },
+    };
+
+    [Fact]
+    public void ReadHeadText_reads_only_first_window()
+    {
+        var root = CreateSearchRepo();
+        try
+        {
+            var big = Path.Combine(root, "2026", "10", "big-head.md");
+
+            var head = RepoScanner.ReadHeadText(big, 32);
+            Assert.Equal(32, head.Length); // ASCII 区域：窗口字节数 = 解码字符数，严格截断
+            Assert.StartsWith("---", head);
+
+            var window = RepoScanner.ReadHeadText(big, RepoScanner.SearchHeadBytes);
+            Assert.Contains("needle", window); // 1KB 处的命中词在窗口内
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReadHeadText_cancelled_token_throws_before_opening_file()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        // 路径指向不存在的文件：若取消点在打开文件之后，会先抛 FileNotFoundException 而非 OCE
+        var missing = Path.Combine(Path.GetTempPath(), "vox-search-should-not-exist.md");
+        Assert.Throws<OperationCanceledException>(() =>
+            RepoScanner.ReadHeadText(missing, RepoScanner.SearchHeadBytes, cts.Token));
+    }
+
+    [Fact]
+    public void BodyHeadContains_bounded_window_and_cancellation_semantics()
+    {
+        var root = CreateSearchRepo();
+        try
+        {
+            Assert.True(RepoScanner.BodyHeadContains(root, "2026/10/head-hit.md", "needle", CancellationToken.None));
+            Assert.True(RepoScanner.BodyHeadContains(root, "2026/10/big-head.md", "needle", CancellationToken.None)); // 65KB 文档头部命中
+            Assert.False(RepoScanner.BodyHeadContains(root, "2026/10/tail-only.md", "needle", CancellationToken.None)); // 窗口外不命中
+            Assert.True(RepoScanner.BodyHeadContains(root, "2026/10/cjk.md", "独特词", CancellationToken.None)); // CJK 多字节
+            Assert.False(RepoScanner.BodyHeadContains(root, "2026/10/missing.md", "needle", CancellationToken.None)); // 缺失文件按未命中
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            // 取消必须穿透「按未命中处理」口径，以 OCE 抛出
+            Assert.Throws<OperationCanceledException>(() =>
+                RepoScanner.BodyHeadContains(root, "2026/10/head-hit.md", "needle", cts.Token));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MatchBodyHeads_returns_body_only_hits_and_skips_title_hits()
+    {
+        var root = CreateSearchRepo();
+        try
+        {
+            var articles = new[]
+            {
+                ArticleOf("2026/10/head-hit.md", "HeadHit", "head-hit"),
+                ArticleOf("2026/10/tail-only.md", "TailOnly", "tail-only"),
+                ArticleOf("2026/10/big-head.md", "BigHead", "big-head"),
+                ArticleOf("2026/10/title-hit.md", "Needle 主标题", "title-hit"), // 标题已命中
+                ArticleOf("2026/10/cjk.md", "Cjk", "cjk"),
+            };
+
+            var matches = RepoScanner.MatchBodyHeads(root, articles, "needle", CancellationToken.None);
+
+            // 仅正文头部命中的两篇入集；标题已命中的 title-hit.md 虽正文也含 needle，但不入集（跳过读盘）
+            Assert.Equal(new[] { "2026/10/big-head.md", "2026/10/head-hit.md" }, matches.OrderBy(p => p, StringComparer.OrdinalIgnoreCase));
+
+            var cjkMatches = RepoScanner.MatchBodyHeads(root, articles, "独特词", CancellationToken.None);
+            Assert.Equal(new[] { "2026/10/cjk.md" }, cjkMatches);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MatchBodyHeads_cancelled_throws_before_reading()
+    {
+        var root = CreateSearchRepo();
+        try
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var articles = new[] { ArticleOf("2026/10/head-hit.md", "HeadHit", "head-hit") };
+            Assert.Throws<OperationCanceledException>(() =>
+                RepoScanner.MatchBodyHeads(root, articles, "needle", cts.Token));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Scan_prefers_sidecar_meta_over_inline_front_matter()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-both").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2026", "10"));
+            File.WriteAllText(Path.Combine(root, "2026", "10", "both.md"),
+                "---\ntitle: InlineTitle\nslug: inline\n---\n\n正文\n");
+            File.WriteAllText(Path.Combine(root, "2026", "10", "both.yml"),
+                "title: SidecarTitle\nslug: sidecar\ndate: 2026-10-01 08:00:00\n");
+
+            var scan = RepoScanner.Scan(root);
+
+            var article = Assert.Single(scan.Articles);
+            Assert.Equal("SidecarTitle", article.Title); // sidecar 优先口径不变
+            Assert.Equal("sidecar", article.Slug);
+            Assert.Empty(scan.Errors);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Scan_reports_inline_front_matter_parse_errors()
+    {
+        var root = Directory.CreateTempSubdirectory("vox-badfm").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "2026", "10"));
+            File.WriteAllText(Path.Combine(root, "2026", "10", "bad.md"),
+                "---\ntitle: Bad\ndate: not-a-date\n---\n\n正文\n");
+            File.WriteAllText(Path.Combine(root, "2026", "10", "good.md"),
+                "---\ntitle: Good\nslug: good\n---\n\n正文\n");
+
+            var scan = RepoScanner.Scan(root);
+
+            var error = Assert.Single(scan.Errors);
+            Assert.Equal("2026/10/bad.yml", error.MetaPath); // 错误口径：MetaPath 仍按 sidecar 路径记录
+            Assert.Equal("2026/10/good.md", Assert.Single(scan.Articles).MarkdownPath); // 坏文件不入索引，好文件不受影响
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}

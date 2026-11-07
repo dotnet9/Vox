@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Vox.Core;
@@ -76,7 +77,9 @@ public static class RepoScanner
                 scan.Missing.Add(new MissingMeta(relative, "missing-metadata"));
             }
 
-            if (!YamlSidecar.TryLoadFromMarkdown(mdFullPath, out var meta, out var error))
+            // 元数据解析复用上面已读入的 md 全文（sidecar 优先口径不变）——原先经 TryLoadFromMarkdown
+            // 会对同一文件做第二次全文读盘，全库扫描时纯属浪费；错误口径与其保持一致。
+            if (!TryLoadMeta(mdFullPath, text, hasSidecar, out var meta, out var error))
             {
                 scan.Errors.Add(new MetaError(metaPath, error ?? "parse-error"));
                 continue;
@@ -171,6 +174,74 @@ public static class RepoScanner
         }
 
         return scan;
+    }
+
+    // ---------- 文章库搜索：正文头部有界读（可取消） ----------
+
+    /// <summary>正文匹配的有界读窗口（字节）：只匹配文章头部，足够覆盖 front matter + 首屏正文；
+    /// 超大文档不再全文读盘。按需调大此常量即可扩大匹配窗口。</summary>
+    public const int SearchHeadBytes = 8 * 1024;
+
+    /// <summary>有界读：只读文件头部至多 maxBytes 字节并按 UTF-8 解码（BOM 解码为起始零宽字符，不影响包含判定）。
+    /// 窗口边界可能截断多字节字符（解码为替换符），对包含判定无影响。取消点：进文件前与每次读块之间。</summary>
+    public static string ReadHeadText(string path, int maxBytes, CancellationToken cancellationToken = default)
+    {
+        if (maxBytes <= 0) return string.Empty;
+        cancellationToken.ThrowIfCancellationRequested();
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var buffer = new byte[maxBytes];
+        var read = 0;
+        while (read < maxBytes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = stream.Read(buffer, read, maxBytes - read);
+            if (count <= 0) break;
+            read += count;
+        }
+        return Encoding.UTF8.GetString(buffer, 0, read);
+    }
+
+    /// <summary>正文头部是否包含 term（OrdinalIgnoreCase）。文件被移动/占用按未命中处理（与原同步搜索口径一致）；
+    /// 取消以 OperationCanceledException 透传——不能把「已取消」伪装成「未命中」。</summary>
+    public static bool BodyHeadContains(string repoRoot, string markdownPath, string term, CancellationToken cancellationToken, int maxBytes = SearchHeadBytes)
+    {
+        var full = Path.Combine(repoRoot, markdownPath.Replace('/', Path.DirectorySeparatorChar));
+        try
+        {
+            return ReadHeadText(full, maxBytes, cancellationToken).Contains(term, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 防抖搜索的正文预匹配：对「标题/slug 均未命中」的文章逐篇做头部有界读（每篇一个取消点），
+    /// 返回仅含正文独有命中的 MarkdownPath 集合（OrdinalIgnoreCase）。标题/slug 命中的文章不读盘、不入集
+    ///（由调用方的同步口径先行覆盖）。取消抛 OperationCanceledException；调用方完成后须校验结果是否已失效再回填。
+    /// </summary>
+    public static HashSet<string> MatchBodyHeads(string repoRoot, IEnumerable<Article> articles, string term, CancellationToken cancellationToken, int maxBytes = SearchHeadBytes)
+    {
+        var matches = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var article in articles)
+        {
+            cancellationToken.ThrowIfCancellationRequested(); // 取消点：每篇文章之间
+            if (article.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || article.Slug.Contains(term, StringComparison.OrdinalIgnoreCase))
+            {
+                continue; // 标题/slug 已命中：不碰盘
+            }
+            if (BodyHeadContains(repoRoot, article.MarkdownPath, term, cancellationToken, maxBytes))
+            {
+                matches.Add(article.MarkdownPath);
+            }
+        }
+        return matches;
     }
 
     /// <summary>取正文首个 ATX H1 文本（跳过 front matter；遇到首个非标题行即停）。</summary>
@@ -270,6 +341,45 @@ public static class RepoScanner
             scan.Images.Add(image);
         }
         if (!image.ReferencedBy.Contains(referencedBy)) image.ReferencedBy.Add(referencedBy);
+    }
+
+    /// <summary>
+    /// 等价于 YamlSidecar.TryLoadFromMarkdown（sidecar yml 优先，其次 md 内联 front matter），
+    /// 但内联分支复用调用方已读入的 md 全文，避免扫描阶段每篇文章二次全文读盘。
+    /// 错误口径与其一致：任何解析异常转为 (false, ex.Message)，由扫描记入 Errors。
+    /// </summary>
+    private static bool TryLoadMeta(string markdownPath, string markdownText, bool hasSidecar, out ArticleMeta? meta, out string? error)
+    {
+        try
+        {
+            meta = hasSidecar
+                ? YamlSidecar.Load(Path.ChangeExtension(markdownPath, ".yml"))
+                : ParseInlineMeta(markdownText);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            meta = null;
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    /// <summary>内联 front matter 解析（YamlSidecar.ParseOrThrow 的公开面复刻，那边是 private）：
+    /// 空块 → 默认空 meta；解析失败抛 InvalidOperationException（错误文案经 TryParseFrontMatter，与原路径一致）。</summary>
+    private static ArticleMeta ParseInlineMeta(string markdownText)
+    {
+        YamlSidecar.TrySplitFrontMatter(markdownText, out var yaml, out _);
+        if (yaml.Length == 0)
+        {
+            return new ArticleMeta { Title = string.Empty, Slug = string.Empty };
+        }
+        if (YamlSidecar.TryParseFrontMatter(yaml, out var meta, out var parseError))
+        {
+            return meta;
+        }
+        throw new InvalidOperationException(parseError ?? "front matter parse failed");
     }
 
     private static string ReadText(string path)
