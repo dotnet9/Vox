@@ -919,7 +919,7 @@ function renderList(){
     if(!keys.length){el.innerHTML='<div style="padding:22px;text-align:center;color:var(--faint)">无匹配文章</div>';}
     else el.innerHTML=Object.keys(tree).sort().reverse().map(y=>{
       const months=tree[y];const total=Object.values(months).reduce((s,x)=>s+x.length,0);
-      return '<div class="ygroup"><div class="yhead"><span class="yt">'+y+' 年</span><span class="ycnt">'+total+' 篇<span class="tri">▾</span></span></div><div class="ykids">'+
+      return '<div class="ygroup"><div class="yhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="yt">'+y+' 年</span><span class="ycnt">'+total+' 篇<span class="tri">▾</span></span></div><div class="ykids">'+
         Object.keys(months).sort().reverse().map(m=>
           '<div class="mhead"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="mt">'+m+' 月</span><span class="ycnt">'+months[m].length+' 篇<span class="tri">▾</span></span></div><div class="mkids">'+
           months[m].map(k=>artItem(k,ARTS[k])).join('')+'</div>').join('')+
