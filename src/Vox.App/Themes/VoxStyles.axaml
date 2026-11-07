@@ -74,11 +74,12 @@
     
       <ControlTheme x:Key="VoxCheckTheme" TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-        <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
+        <!-- 原型 .article .task 口径：字号 0.9615rem（12.5px）、图标-文字 gap 8px -->
+        <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
           <ControlTemplate>
-            <StackPanel Orientation="Horizontal" Spacing="7" Background="Transparent">
+            <StackPanel Orientation="Horizontal" Spacing="8" Background="Transparent">
               <Panel Width="15" Height="15" VerticalAlignment="Center">
                 <Border Name="PART_Box" Width="14" Height="14" CornerRadius="4"
                         BorderThickness="1.5" BorderBrush="{DynamicResource VoxLineStrong}"
@@ -102,6 +103,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
+    <!-- 原型 .btn：7px 14px 内距、字号 12.5px、圆角 8px（VoxRadiusControl=8，2026 refinement 口径） -->
     <Setter Property="Padding" Value="14,7"/>
     <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
     <Setter Property="FontWeight" Value="Medium"/>
@@ -238,7 +240,8 @@
   <Style Selector="Border.vwarn">
     <Setter Property="Background" Value="{DynamicResource VoxWarnSoft}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
-    <Setter Property="Padding" Value="10,8"/>
+    <!-- 原型 .note 密度口径：9px 12px 内距、8px 圆角（VoxRadiusControl=8 同源） -->
+    <Setter Property="Padding" Value="12,9"/>
   </Style>
   <Style Selector="Border.vwarn TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource VoxWarn}"/>
@@ -251,7 +254,8 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
+    <!-- 原型 .seg 容器圆角 9px（与 .btn/.input 的 8px 不同源，故钉值而非走 VoxRadiusControl） -->
+    <Setter Property="CornerRadius" Value="9"/>
     <Setter Property="Padding" Value="2"/>
   </Style>
   <Style Selector="Border.seg Button.segbtn">
@@ -281,7 +285,9 @@
     <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
-    <Setter Property="Padding" Value="10,8"/>
+    <!-- 原型 .nav .it（2026 refinement）：8px 11px 内距、min-height 38px、8px 圆角 -->
+    <Setter Property="Padding" Value="11,8"/>
+    <Setter Property="MinHeight" Value="38"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Transitions">
@@ -300,7 +306,8 @@
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
   <Style Selector="Button.navit Border.navcnt">
-    <Setter Property="TextElement.FontSize" Value="10"/>
+    <!-- 原型 .cnt 字号 0.7692rem（10px）→ Xxs 令牌，随密度档等比缩放 -->
+    <Setter Property="TextElement.FontSize" Value="{DynamicResource VoxFontSizeXxs}"/>
     <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxFaint}"/>
     <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusPill}"/>
@@ -342,7 +349,8 @@
     <Setter Property="Height" Value="30"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
+    <!-- 原型 .tb-ico 圆角 8px（30×30 方钮），非 VoxRadiusSmall 的 7px 档 -->
+    <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -402,6 +410,8 @@
   <Style Selector="Border.upd-pill">
     <Setter Property="Height" Value="22"/>
     <Setter Property="CornerRadius" Value="11"/>
+    <!-- 原型 .upd-pill：padding 0 11px 水平内距 -->
+    <Setter Property="Padding" Value="11,0"/>
     <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Transitions">
@@ -421,7 +431,8 @@
   </Style>
   <Style Selector="TextBlock.upd-pill-text">
     <Setter Property="Foreground" Value="{DynamicResource VoxOnAccent}"/>
-    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXs}"/>
+    <!-- 原型 .upd-pill 字号 0.7692rem（10px）→ Xxs 令牌（原误挂 Xs 10.5） -->
+    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXxs}"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
   <!-- 就绪后脉冲环：accent-soft 淡环呼吸三次，提示「重启以更新」。 -->
@@ -626,7 +637,8 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
+    <!-- 原型 .mnu 圆角 10px（弹层族：mnu 10 / tb-pop 12 / modal 16 各自钉值） -->
+    <Setter Property="CornerRadius" Value="10"/>
     <Setter Property="Padding" Value="5"/>
     <Setter Property="BoxShadow" Value="0 12 32 0 #1E000000, 0 2 8 0 #0F000000"/>
     <Setter Property="MinWidth" Value="150"/>
@@ -659,7 +671,8 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadius}"/>
+    <!-- 原型 .modal 圆角固定 16px（不随密度档 den-radius 缩放），故钉值不走 VoxRadius -->
+    <Setter Property="CornerRadius" Value="16"/>
     <Setter Property="BoxShadow" Value="0 24 70 0 #29000000, 0 4 16 0 #14000000"/>
     <Setter Property="Width" Value="560"/>
     <Setter Property="MaxHeight" Value="700"/>
@@ -748,7 +761,8 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
+    <!-- 原型 .viewseg：容器 8px 圆角、按钮 6px、26×22（.lhead 视图切换） -->
+    <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="Padding" Value="2"/>
   </Style>
   <Style Selector="Border.viewseg Button.vsegbtn">
@@ -756,7 +770,7 @@
     <Setter Property="Height" Value="22"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFaint}"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -789,7 +803,8 @@
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
     <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="Padding" Value="4,2"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
+    <!-- 原型 .outl a：2px 4px 内距、6px 圆角 -->
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Transitions">
@@ -810,11 +825,12 @@
   <Style Selector="Border.drop">
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
     <Setter Property="BorderThickness" Value="1.5"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
+    <!-- 原型 .drop：11px 圆角（1.5px 虚线框）、18px 12px 内距、字号 0.8846rem -->
+    <Setter Property="CornerRadius" Value="11"/>
     <Setter Property="Padding" Value="12,18"/>
     <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
     <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="TextElement.FontSize" Value="11.5"/>
+    <Setter Property="TextElement.FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
     <Setter Property="Cursor" Value="Hand"/>
   </Style>
   <Style Selector="Border.drop:pointerover">
@@ -825,7 +841,8 @@
 
   <Style Selector="Border.thumb">
     <Setter Property="Height" Value="58"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
+    <!-- 原型 .thumb：58px 高、8px 圆角 -->
+    <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -893,7 +910,8 @@
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
     <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMd}"/>
     <Setter Property="Padding" Value="10,8"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
+    <!-- 原型 .sp-it：8px 10px 内距、8px 圆角 -->
+    <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Transitions">

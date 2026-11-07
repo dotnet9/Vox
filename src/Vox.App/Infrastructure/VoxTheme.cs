@@ -108,7 +108,7 @@ public static class VoxTheme
     {
         if (Application.Current is not { } app) return;
         app.Resources["VoxRadius"] = new Avalonia.CornerRadius(Radius);
-        app.Resources["VoxRadiusControl"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 9);
+        app.Resources["VoxRadiusControl"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 8);
         app.Resources["VoxRadiusSmall"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 7);
         app.Resources["VoxRadiusTiny"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 5);
         app.Resources["VoxRadiusPill"] = new Avalonia.CornerRadius(_style == StylePixel ? 0 : 99);
