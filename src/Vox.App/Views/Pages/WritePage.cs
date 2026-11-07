@@ -654,7 +654,7 @@ public sealed class WritePage : UserControl
                 metaRow = new DockPanel { Children = { flag.Dock(Dock.Right), meta } };
             }
         }
-        metaRow.Margin = compact ? new Thickness(0) : new Thickness(0, 2, 0, 0);
+        metaRow.Margin = compact ? new Thickness(0) : new Thickness(0, 1, 0, 0);
         var bar = new Border { Width = 2, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsVisible = false };
         Res(bar, Border.BackgroundProperty, "VoxAccent");
 
@@ -709,7 +709,8 @@ public sealed class WritePage : UserControl
         var folderIcon = FileIconImage(label, folder: true, expanded: true);
         var head = new Button
         {
-            Padding = new Thickness(year ? 10 : 22, 1, 10, 1),
+            Height = 23, // 原型 .yhead/.mhead 定稿：与文件行等高（放大三角恰好容下）
+            Padding = new Thickness(year ? 10 : 22, 0, 10, 0),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             CornerRadius = new CornerRadius(0),
             Content = new DockPanel
@@ -1472,7 +1473,7 @@ public sealed class WritePage : UserControl
         var source = Services.FileIconCatalog.Default.Resolve(name, folder, expanded, light);
         return source is null ? null : new Avalonia.Controls.Image
         {
-            Source = source, Width = 14, Height = 14,
+            Source = source, Width = 13, Height = 13,
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0),
         };
     }

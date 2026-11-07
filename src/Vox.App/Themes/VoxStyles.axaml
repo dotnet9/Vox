@@ -726,8 +726,10 @@
   <Style Selector="Button.wit">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-    <Setter Property="Padding" Value="14,10"/>
-    <Setter Property="CornerRadius" Value="0"/>
+    <!-- 原型 app.css .wit 密度口径：4px 10px 内距、6px 圆角行、1px 行距 -->
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="Margin" Value="0,0,0,1"/>
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Transitions">
       <Transitions>
