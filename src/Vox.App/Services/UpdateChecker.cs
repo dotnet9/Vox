@@ -13,8 +13,8 @@ public sealed record UpdateCheckResult(bool HasUpdate, string? NewVersion, strin
         new(false, null, null, null, null, publishedDate);
 }
 
-/// <summary>一个可下载的发布资产（GitHub Releases assets 里的安装包）。</summary>
-public sealed record UpdateAssetInfo(string Url, string Name, long SizeBytes);
+/// <summary>一个可下载的发布资产（GitHub Releases assets 里的安装包）。ChecksumUrl 指向同名 .sha256 伴生文件（可空）。</summary>
+public sealed record UpdateAssetInfo(string Url, string Name, long SizeBytes, string? ChecksumUrl = null);
 
 /// <summary>下载进度（字节口径，界面换算 MB/百分比）。</summary>
 public readonly record struct UpdateDownloadProgress(long ReceivedBytes, long TotalBytes)
@@ -159,12 +159,18 @@ public sealed class UpdateChecker
 
         UpdateAssetInfo? best = null;
         var bestScore = int.MinValue;
+        var checksums = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var asset in assets.EnumerateArray())
         {
             var name = asset.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
             var url = asset.TryGetProperty("browser_download_url", out var urlEl) ? urlEl.GetString() : null;
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url)) continue;
             var lower = name.ToLowerInvariant();
+            if (lower.EndsWith(".sha256", StringComparison.Ordinal))
+            {
+                checksums[name[..^".sha256".Length]] = url; // 伴生校验文件：产物名 → sha256 文件地址
+                continue;
+            }
             if (!osKeys.Any(key => lower.Contains(key, StringComparison.Ordinal))) continue;
 
             var ext = Path.GetExtension(lower);
@@ -181,13 +187,16 @@ public sealed class UpdateChecker
                 var size = asset.TryGetProperty("size", out var sizeEl) && sizeEl.ValueKind == JsonValueKind.Number
                     ? sizeEl.GetInt64()
                     : 0;
-                best = new UpdateAssetInfo(url, name, size);
+                best = new UpdateAssetInfo(url, name, size,
+                    checksums.TryGetValue(name, out var checksumUrl) ? checksumUrl : null);
             }
         }
         return best;
     }
 
-    /// <summary>流式下载发布资产到 %TEMP%\VoxUpdate，报告字节进度；取消时抛 OperationCanceledException（半成品文件保留）。</summary>
+    /// <summary>流式下载发布资产到 %TEMP%\VoxUpdate，报告字节进度；取消时抛 OperationCanceledException（半成品文件保留）。
+    /// 下载完成即校验 SHA-256（边下边算）：发布流水线为产物附 .sha256 伴生文件（内容形如「&lt;hex&gt;  &lt;文件名&gt;」）；
+    /// 不匹配抛 InvalidOperationException（更新会话转失败可重试），伴生文件缺失（旧版 Release）跳过校验不阻断。</summary>
     public async Task<string> DownloadAssetAsync(UpdateAssetInfo asset,
         IProgress<UpdateDownloadProgress> progress, CancellationToken cancellationToken = default)
     {
@@ -201,16 +210,43 @@ public sealed class UpdateChecker
 
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var targetStream = File.Create(target);
+        using var sha = System.Security.Cryptography.SHA256.Create();
         var buffer = new byte[1 << 16];
         long received = 0;
         int read;
         while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
         {
             await targetStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            sha.TransformBlock(buffer, 0, read, null, 0);
             received += read;
             progress.Report(new UpdateDownloadProgress(received, total));
         }
+        sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        await VerifyChecksumAsync(target, Convert.ToHexString(sha.Hash!), asset.ChecksumUrl, cancellationToken);
         return target;
+    }
+
+    /// <summary>取伴生 .sha256（内容首段 hex）与本地哈希比对；不匹配删除坏包并抛异常，转失败可重试。</summary>
+    private async Task VerifyChecksumAsync(string target, string actualHex, string? checksumUrl, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(checksumUrl)) return;
+        try
+        {
+            var expected = await Http.GetStringAsync(checksumUrl, ct);
+            var hex = expected.Split(' ', '\t', '\n')[0].Trim();
+            if (!string.Equals(hex, actualHex, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(target);
+                throw new InvalidOperationException(
+                    $"Checksum mismatch for {Path.GetFileName(target)}: expected {hex[..Math.Min(12, hex.Length)]}…, got {actualHex[..12]}…");
+            }
+        }
+        catch (InvalidOperationException) { throw; }
+        catch (Exception ex)
+        {
+            // 校验文件拉不到不阻断安装（产物主体已落盘），带原因上抛由会话决定呈现
+            throw new InvalidOperationException($"Checksum file unavailable: {ex.Message}", ex);
+        }
     }
 
     public static void OpenReleasePage(string? url = null)
