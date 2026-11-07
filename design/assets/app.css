@@ -145,11 +145,11 @@ body.stage {
 .wlist > .edge-btn { right: -12px; bottom: 17px; }
 .wlist .lhead { padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .wlist .lscroll { overflow-y: auto; flex: 1; }
-.wit { padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background var(--t-fast) var(--motion); }
+.wit { padding: 4px 10px; margin: 0 0 1px; border-radius: 6px; cursor: pointer; transition: background var(--t-fast) var(--motion); }
 .wit:hover { background: var(--surface-2); }
 .wit.active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
-.wit b { display: block; font-size: 0.9231rem; font-weight: 600; line-height: 1.5; }
-.wit .m { color: var(--faint); font-size: 0.8077rem; margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+.wit b { display: block; font-size: 0.8846rem; font-weight: 600; line-height: 1.45; }
+.wit .m { color: var(--faint); font-size: 0.7692rem; margin-top: 1px; display: flex; gap: 6px; align-items: center; }
 
 .wcenter { flex: 1; min-width: 0; display: flex; }
 /* ---------- 编辑器（行号 + 逐行高亮） ---------- */
@@ -370,12 +370,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .viewseg button.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .viewseg svg { width: 13px; height: 13px; }
 .ygroup { padding: 0; }
-.yhead { display: flex; align-items: center; padding: 7px 14px; cursor: pointer;
+.yhead { display: flex; align-items: center; padding: 4px 10px; cursor: pointer;
   font: 600 0.8462rem var(--font-ui); color: var(--accent); background: var(--accent-soft); border-bottom: 1px solid var(--line); }
 .yhead .tri { transition: transform var(--t-fast) var(--motion); font-size: 0.6923rem; color: var(--accent); }
 .yhead.closed .tri { transform: rotate(-90deg); }
 .yhead .ycnt { margin-left: auto; color: var(--accent); opacity: .75; font-weight: 500; font-size: 0.7692rem; }
-.mhead { display: flex; align-items: center; padding: 5px 14px 5px 26px; cursor: pointer;
+.mhead { display: flex; align-items: center; padding: 3px 10px 3px 22px; cursor: pointer;
   font: 600 0.8077rem var(--font-ui); color: var(--fg); background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .mhead .tri { transition: transform var(--t-fast) var(--motion); font-size: 0.6923rem; color: var(--faint); }
 .mhead.closed .tri { transform: rotate(-90deg); }
