@@ -2777,6 +2777,43 @@ public sealed class WritePage : UserControl
             OpenNewArticle();
             e.Handled = true;
         }
+        else if (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            if (TryPasteImageFromClipboardAsync().GetAwaiter().GetResult())
+            {
+                e.Handled = true;
+                return;
+            }
+            /* 剪贴板没有图片时让正常文本粘贴走内置管线（不设 e.Handled）。 */
+        }
+    }
+
+    /// <summary>
+    ///     FR-图片粘贴：剪贴板有位图时保存到文章同目录（时间戳文件名），
+    ///     插入相对路径引用并返回 true；无位图返回 false（走文本粘贴）。
+    /// </summary>
+    private async Task<bool> TryPasteImageFromClipboardAsync()
+    {
+        if (_current == null || _repoRoot == null) return false;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null) return false;
+        var bitmap = await global::Avalonia.Input.Platform.ClipboardExtensions.TryGetBitmapAsync(clipboard);
+        if (bitmap is null) return false;
+
+        var mdDir = Path.GetDirectoryName(LinkStrategy.ToLocalFile(_repoRoot, _current.MarkdownPath))!;
+        Directory.CreateDirectory(mdDir);
+        var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var fileName = $"image-{stamp}.png";
+        var attempt = 0;
+        while (File.Exists(Path.Combine(mdDir, fileName)))
+        {
+            attempt++;
+            fileName = $"image-{stamp}-{attempt}.png";
+        }
+        var fullPath = Path.Combine(mdDir, fileName);
+        bitmap.Save(fullPath);
+        InsertImageMarkdown(Path.GetRelativePath(_repoRoot, fullPath));
+        return true;
     }
 
     private bool SaveCurrent(bool silent = false)
