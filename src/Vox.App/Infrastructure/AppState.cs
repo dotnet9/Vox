@@ -123,20 +123,43 @@ public sealed class AppState
             ScanChanged?.Invoke();
             return;
         }
-        try
-        {
-            IsScanning = true;
-            Scan = RepoScanner.Scan(Settings.RepoPath!, Settings.Link);
-        }
-        finally
-        {
-            IsScanning = false;
-        }
-        ScanChanged?.Invoke();
+        // 扫描移后台线程：全库枚举+逐文件 front matter 切分不再阻塞 UI（此前每次保存都在 UI 线程全量读盘）。
+        IsScanning = true;
+        _ = RescanCoreAsync();
     }
 
-    /// <summary>文件级变更后只重扫受影响部分太复杂——M1 直接全量重建（536 篇规模亚秒级）。</summary>
-    public void NotifyRepoChanged() => Rescan();
+    private async Task RescanCoreAsync()
+    {
+        var repoRoot = Settings.RepoPath!;
+        var link = Settings.Link;
+        var scan = await Task.Run(() => RepoScanner.Scan(repoRoot, link)).ConfigureAwait(false);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (Settings.RepoPath != repoRoot) return; // 期间用户已切换仓库：丢弃过期结果
+            Scan = scan;
+            IsScanning = false;
+            ScanChanged?.Invoke();
+        });
+    }
+
+    private readonly Avalonia.Threading.DispatcherTimer _rescanDebounce = new() { Interval = TimeSpan.FromMilliseconds(600) };
+
+    /// <summary>文件级变更的防抖合并：连续保存/切文章只触发一次全库重扫（扫描本身已在后台线程）。
+    /// 需要立即刷新的入口（设置页「重新扫描」按钮、打开仓库）仍直接调 Rescan()。</summary>
+    public void NotifyRepoChanged()
+    {
+        _rescanDebounce.Stop();
+        _rescanDebounce.Tick -= RescanDebounceTick;
+        _rescanDebounce.Tick += RescanDebounceTick;
+        _rescanDebounce.Start();
+    }
+
+    private void RescanDebounceTick(object? sender, EventArgs e)
+    {
+        _rescanDebounce.Stop();
+        _rescanDebounce.Tick -= RescanDebounceTick;
+        Rescan();
+    }
 
     public Git.GitService? Git() => HasRepo ? new Git.GitService(Settings.RepoPath!) : null;
 

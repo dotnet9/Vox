@@ -1438,8 +1438,19 @@ public sealed class WritePage : UserControl
         Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
     }
 
+    private bool _mapDirty; // 导图不可见期间正文/文章变化：切到导图态再重建（切文件链路省一次全量布局）
+
+    /// <summary>导图态可见才重建；不可见只置脏，SetMode 切入时补建。</summary>
+    private void RebuildMapIfVisible()
+    {
+        if (_mode != 3) { _mapDirty = true; return; }
+        RebuildMap();
+        _mapDirty = false;
+    }
+
     private void RebuildMap()
     {
+        _mapDirty = false;
         var text = _editorView.Text;
         if (string.IsNullOrWhiteSpace(text) || _current == null)
         {
@@ -2604,7 +2615,7 @@ public sealed class WritePage : UserControl
 
             UpdateBadges();
             RebuildOutline();
-            RebuildMap();
+            RebuildMapIfVisible(); // 导图态不可见时只置脏：切到导图再建（切文件链路去掉一次全量布局）
             RefreshMetaTab(); // 元数据页签随文章切换重渲染（YAML 态同样重新生成）
             ReloadArticles();
         }
@@ -2794,7 +2805,7 @@ public sealed class WritePage : UserControl
         _metaDirty = false;
         UpdateBadges();
         RebuildOutline();
-        RebuildMap();
+        RebuildMapIfVisible();
         RefreshMetaTab(); // 元数据页签同步磁盘最新（YAML 态同样重生成）
         UpdateSaveState();
         _shell.ShowToast(T(hadUnsavedEdits
@@ -3376,7 +3387,7 @@ public sealed class WritePage : UserControl
         if (_current == null) return;
         _preview.Markdown = _editorView.Text; // 增量渲染（Markdown 赋值即调度）
         RebuildOutline();
-        RebuildMap();
+        RebuildMapIfVisible();
     }
 
     private void RebuildOutline()
