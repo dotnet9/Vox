@@ -18,7 +18,7 @@ namespace Vox.App;
 /// <summary>运行正式原生产物的窗口和页面验证，设置与证据仅写入指定目录。</summary>
 internal static class RuntimeVerification
 {
-    public static void Run(string directory, bool requireNative = true)
+    public static void Run(string directory, bool requireNative = true, bool captureDocs = false)
     {
         if (requireNative && RuntimeFeature.IsDynamicCodeSupported)
             throw new InvalidOperationException("Runtime verification requires a NativeAOT executable.");
@@ -30,7 +30,7 @@ internal static class RuntimeVerification
         var article = Path.Combine(articleDirectory, "native-blog.md");
         var metadata = new ArticleMeta
         {
-            Title = "NativeAOT 博文", Slug = "native-blog", Date = new DateTime(2026, 11, 8),
+            Title = captureDocs ? "用 Vox 管理 Markdown 内容仓库" : "NativeAOT 博文", Slug = "native-blog", Date = new DateTime(2026, 11, 8),
             LastMod = null, Banner = null, Categories = ["Avalonia UI"], Tags = ["CSharp", "Markdown"]
         };
         var outlineSource = string.Join("\n", Enumerable.Range(1, 50).Select(index =>
@@ -45,7 +45,7 @@ internal static class RuntimeVerification
             throw new InvalidOperationException("Native blog YAML and nullable metadata did not round-trip.");
         for (var index = 0; index < 1000; index++)
             File.WriteAllText(Path.Combine(articleDirectory, $"runtime-{index:D4}.md"),
-                $"---\ntitle: Runtime article {index:D4}\nslug: runtime-{index:D4}\ndate: 2026-11-07 12:00:00\n---\n\n# Runtime article {index:D4}\n");
+                $"---\ntitle: {(captureDocs ? "Markdown 写作手记" : "Runtime article")} {index:D4}\nslug: runtime-{index:D4}\ndate: 2026-11-07 12:00:00\n---\n\n# 写作笔记 {index:D4}\n");
         AppContext.SetData("Vox.SettingsFile", Path.Combine(root, "settings.json"));
         SettingsStore.Save(new VoxSettings { MotionLevel = "Off", IsDark = null });
         if (SettingsStore.Load().IsDark is not null)
@@ -76,6 +76,7 @@ internal static class RuntimeVerification
             WaitUntil(() => reopening.IsCompleted);
             reopening.GetAwaiter().GetResult();
             VerifyOutline();
+            if (captureDocs) CaptureDocs();
             foreach (var culture in new[] { "zh-CN", "en-US", "zh-TW", "ja-JP" })
             {
                 I18nManager.Instance.Culture = CultureInfo.GetCultureInfo(culture);
@@ -93,8 +94,8 @@ internal static class RuntimeVerification
                         WaitUntil(() => host?.Content is Control { Bounds.Width: > 0, Bounds.Height: > 0 });
                         using var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
                         bitmap.Render(window);
-                        if (page == "write" && culture == "zh-CN")
-                            bitmap.Save(Path.Combine(root, dark ? "write-dark.png" : "write-light.png"));
+                        if (culture == "zh-CN")
+                            bitmap.Save(Path.Combine(root, page + (dark ? "-dark.png" : "-light.png")));
                         renders++;
                         if (page == "write")
                         {
@@ -117,6 +118,69 @@ internal static class RuntimeVerification
             void SwitchNavigation(bool tree) => writer.GetVisualDescendants().OfType<Button>()
                 .Single(button => button.Name == (tree ? "ArticleTreeMode" : "ArticleListMode"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+            void CaptureDocs()
+            {
+                File.WriteAllText(article, "# 用 Vox 管理 Markdown 内容仓库\n\n一处落笔，处处有声。文章、元数据与发布状态放在同一个工作台。\n\n" +
+                    "## 1. 打开内容仓库\n\n选择本地仓库，保留普通 Markdown 文件。列表按文章组织，树形按年和月展开。\n\n" +
+                    "## 2. 写作与预览\n\n源码、分屏、预览和思维导图共享当前文章。\n\n- 写下思路，再整理章节\n- 相对路径引用图片\n- 保存前检查文章元数据\n\n" +
+                    "## 3. 用大纲整理长文\n\n点击右侧章节跳转；继续向下阅读时，当前章节随阅读位置更新。\n\n" +
+                    "| 工作区 | 用途 |\n| --- | --- |\n| 写作 | 源码与阅读对照 |\n| 文章库 | 搜索和筛选文章 |\n| 发布中心 | 检查与分发 |\n\n" +
+                    "## 4. 管理 YAML 元数据\n\n标题、日期、分类和标签保存在文章头部。可空字段、列表与自定义键按原有结构保留。\n\n" +
+                    "## 5. 检查后再发布\n\n> 先确认预览和元数据，再选择站点 Git、官方 API 或复制助手。\n\n" +
+                    "## 6. 阅读与回顾\n\n滚动阅读不会改写正文。回到大纲可再次点击当前章节，重新定位到标题。\n\n" +
+                    "## 7. 内容属于你\n\n演示使用隔离仓库，不连接平台凭据，也不执行提交或远程发布。\n");
+                YamlSidecar.SaveToMarkdown(article, metadata);
+                var load = writer.OpenArticleAsync(scannedArticle); WaitUntil(() => load.IsCompleted); load.GetAwaiter().GetResult();
+                I18nManager.Instance.Culture = CultureInfo.GetCultureInfo("zh-CN");
+                AppState.Instance.Settings.IsDark = false; ThemeService.Apply(AppState.Instance.Settings);
+                var mode = writer.GetVisualDescendants().OfType<TKCode.Arc.SegmentedControl>().Single(control => control.Name == "WriteMode");
+                mode.SelectedValue = 1;
+                Record("列表与树形", frame =>
+                {
+                    if (frame == 5) SwitchNavigation(tree: true);
+                    if (frame == 15) { list.SelectedItem = list.Items[0]; Press(Key.Left); }
+                    if (frame == 25) Press(Key.Right);
+                    if (frame == 40) SwitchNavigation(tree: false);
+                });
+                Record("写作视图", frame =>
+                {
+                    if (frame % 15 == 0) mode.SelectedValue = new[] { 0, 1, 2, 3 }[frame / 15];
+                });
+                mode.SelectedValue = 2;
+                WaitUntil(() => writer.GetVisualDescendants().OfType<ScrollViewer>().Any(control => control.Name == "ArticlePreviewScroll"));
+                var scroll = writer.GetVisualDescendants().OfType<ScrollViewer>().Single(control => control.Name == "ArticlePreviewScroll");
+                var outline = writer.GetVisualDescendants().OfType<ListBox>().Single(control => control.Name == "ArticleOutline");
+                var rows = outline.Items.Cast<OutlineNavigationRow>().ToArray();
+                if (rows.Length != 8) throw new InvalidOperationException("Documentation article outline did not rebuild.");
+                Record("大纲与阅读", frame =>
+                {
+                    if (frame is 5 or 20)
+                    {
+                        outline.SelectedItem = rows[frame == 5 ? 2 : 5];
+                        outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                    }
+                    if (frame is >= 35 and < 55) scroll.Offset = new Vector(0, Math.Max(0, scroll.Offset.Y - 40));
+                });
+                mode.SelectedValue = 1;
+                scroll.Offset = default;
+                foreach (var editor in writer.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>())
+                { editor.CaretOffset = 0; editor.ScrollToHome(); }
+
+                void Record(string name, Action<int> step)
+                {
+                    var folder = Path.Combine(root, name); Directory.CreateDirectory(folder);
+                    for (var frame = 0; frame < 60; frame++)
+                    {
+                        step(frame);
+                        var until = Environment.TickCount64 + 100; WaitUntil(() => Environment.TickCount64 >= until);
+                        if (frame % 15 == 0) Console.WriteLine($"DOCS {name}/{frame}: window={window.Bounds}; writer={writer.Bounds}; mode={mode.SelectedValue}");
+                        using var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
+                        bitmap.Render(window); bitmap.Save(Path.Combine(folder, $"{frame:D3}.png"));
+                    }
+                    Console.WriteLine("RECORD " + name + "; frames=60; interval=100ms");
+                }
+            }
 
             void VerifyOutline()
             {

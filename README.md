@@ -6,7 +6,7 @@
 
 Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与多平台分发工作台**，第一目标是服务自建站点 [CodeWF](https://codewf.com) 的内容源仓库 [Assets.Dotnet9](https://github.com/dotnet9/Assets.Dotnet9)：写作、文章/图片管理、站点数据、Git 同步、多平台发布与状态追踪在一个应用内闭环。
 
-作者：沙漠尽头的狼 · 出品：[码坊 CodeWF](https://codewf.com) · 姊妹产品：[Vex · 维刻](https://github.com/dotnet9/Vex)（独立维护）· 当前状态：**V1 原型与主要工作区基线已冻结，进入实现对齐与发布能力完善阶段**
+作者：沙漠尽头的狼 · 出品：[码坊 CodeWF](https://codewf.com) · 姊妹产品：[Vex · 维刻](https://github.com/dotnet9/Vex)（独立维护）· 已发布版本：**0.2.0-preview.2**
 
 > 代码不是护城河，闭环才是。
 
@@ -22,7 +22,37 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 
 ## 当前产品基线
 
-主原型：[design/Vox.html](design/Vox.html) · 共享样式：[design/assets/app.css](design/assets/app.css)
+当前为桌面预览版，已有真实的七工作区实现。下面的 PNG / GIF 采集于 2026-11-08 本地验收构建（版本元数据仍为 0.2.0-preview.2）；本次阅读大纲修复尚未发布。界面使用隔离演示仓库，不连接平台凭据，也不执行远程发布。
+
+![Vox 写作与预览工作台](docs/images/runtime-write-light.png)
+
+### 文章列表与树形
+
+参照 Vex 的单行导航与选中样式，列表和年 / 月树共用虚拟化宿主。左右方向键折叠、展开目录，切换视图保留当前文章。
+
+![列表和树形切换、键盘展开折叠](docs/images/runtime-navigation.gif)
+
+### 同一文章的四种视图
+
+源码、分屏、预览、思维导图共享当前文章；右侧可切换大纲和元数据。
+
+![写作视图实际切换](docs/images/runtime-writing.gif)
+
+### 大纲定位与阅读跟随
+
+大纲已按 Vex 的层级角标、章节编号与单行标题组织，并使用虚拟化 ListBox。支持标题筛选（保留父级上下文）、左右键折叠展开、点击或 Enter / Space 显式定位；已选节点可以重复激活。阅读预览滚动更新当前章节高亮，不改变正文或抢占焦点。
+
+![大纲点击与阅读位置跟随](docs/images/runtime-outline.gif)
+
+| 文章库 | 发布中心 |
+| --- | --- |
+| ![文章筛选与列表](docs/images/runtime-library-light.png) | ![发布工作区](docs/images/runtime-publish-light.png) |
+
+| 站点数据 | 设置 |
+| --- | --- |
+| ![站点数据维护](docs/images/runtime-site-light.png) | ![应用设置](docs/images/runtime-settings-light.png) |
+
+采集流程、演示数据与验证边界见[当前操作手册](docs/软件操作手册.md)。设计参考仍在 [design/Vox.html](design/Vox.html)，不作为功能已经实现的证据。
 
 当前主窗口冻结为七个导航工作区：
 
@@ -34,7 +64,7 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 - **MCP 服务**：服务配置、客户端、工具目录、调用审计。
 - **设置**：仓库、保存、链接策略、凭据、平台、LLM、外观（Arc / Pixel、密度、明暗、动效与强调色）等。
 
-原型中的文章数、图片数、在线客户端数、发布状态等均为演示数据；正式实现必须读取真实仓库与本地状态，不得照搬固定值。
+真实应用从所选仓库读取文章与本地状态。上述媒体使用专门生成的演示仓库；1001 篇文章用于验证虚拟化和滚动回收，不代表用户仓库的实际数据规模。平台发布成功需以真实服务返回及结果核验为准。
 
 ## 接下来优先完善
 
@@ -61,11 +91,20 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 
 .NET 11 RC · Avalonia 12.1.5 · [TKCode.Arc](https://www.nuget.org/packages/TKCode.Arc)（官方 NuGet 组件、独立主题、强调色与弹簧动效）· [CodeWF.Avalonia.Markdown](https://github.com/dotnet9/CodeWF.Avalonia)（Markdown 实时预览与排版内核）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（与 Vex 使用同一编辑器）。
 
-SDK 固定在 `global.json`，目标框架与编译默认值在 `build/ProjectDefaults.props`，NuGet 版本变量在 `build/Versions.props`，`Directory.Packages.props` 只维护中央包声明。主分支跟随最新稳定／预览依赖，不以 Win7 为兼容目标；升级前代码冻结在 `win7-archive`，不继续维护。Arc 只从官方 NuGet 安装；当前 `0.3.2-preview.2` 精确依赖 Avalonia 12.1.4，采用 12.1.5 时保留 `NU1608` 警告，等待上游放宽约束。
+SDK 固定在 `global.json`，目标框架与编译默认值在 `build/ProjectDefaults.props`，NuGet 版本变量在 `build/Versions.props`，`Directory.Packages.props` 只维护中央包声明。主分支跟随稳定／预览依赖，不以 Win7 为兼容目标；升级前代码冻结在 `win7-archive`。当前使用官方 NuGet Arc **0.4.0-preview.5**、CodeWF.Avalonia **12.1.5.2**、Toolkit **1.1.6**。Arc 仍精确依赖 Avalonia 12.1.4，采用 12.1.5 时保留 `NU1608` 警告，并以本机与 CI 验证覆盖兼容性。启用 nullable 与 C# preview，可空诊断作为构建错误。
 
-候选自研库在全新环境先执行 `pwsh scripts/restore_library_candidate.ps1 -OutputRoot ../vox-library-candidate`，再执行 `pwsh scripts/build.ps1 -Test`。该脚本只重建固定提交的 CodeWF.Avalonia 包，Arc 始终从 nuget.org 还原。
+默认从正式 NuGet 还原，无需重建候选自研库：
 
-跨平台：支持 Windows / macOS / Linux，目标 **win-x64、linux-x64、linux-arm64、osx-x64、osx-arm64** 五个 RID；发布沿用 Vex 的 GitHub Actions 五平台原生 runner 矩阵。**分发只走 GitHub Releases**（原型见 [design/](design/Vox软件原型.html)）：Windows 安装器为 Arc 品牌向导，macOS 为标准 DMG 拖拽安装（签名 + 公证），Linux 由系统软件中心 / 包管理器接管——均遵循各平台惯例；应用内检查更新直接从 Releases 下载替换，不走应用商店。品牌资产（logo.svg / png / ico）在仓库根目录统一维护。
+```powershell
+$work = 'D:/github/temp_files/vox-dev'
+dotnet build Vox.slnx -c Release "-p:ArtifactsPath=$work/artifacts"
+dotnet test Vox.slnx -c Release --no-build "-p:ArtifactsPath=$work/artifacts"
+dotnet run --project src/Vox.App -c Release --no-build "-p:ArtifactsPath=$work/artifacts"
+```
+
+跨平台：目标 **win-x64、linux-x64、linux-arm64、osx-x64、osx-arm64** 五个 RID；分发通过 [GitHub Releases](https://github.com/dotnet9/Vox/releases/latest)，Windows 为安装器、macOS 为 DMG、Linux 为 DEB。macOS 当前脚本使用 ad-hoc 签名，未宣称 Developer ID 签名或公证完成。品牌资产在仓库根目录维护。
+
+2026-11-08 两种构建验证已通过：JIT 实际窗口覆盖四语言、七页、明暗主题、1001 篇文章虚拟化和树键盘操作；win-x64 NativeAOT 发布产物运行退出码 0，YAML / nullable 往返、大纲导航与阅读跟随均通过。其他平台的人工体验与外部平台真实发布仍需独立验收。
 
 应用外观由 Arc 管理；Markdown、思维导图、表格和国际化复用 CodeWF.Avalonia，产品不覆盖这些库的控件模板。
 
@@ -74,7 +113,8 @@ SDK 固定在 `global.json`，目标框架与编译默认值在 `build/ProjectDe
 - [产品需求基线](docs/需求.md) —— 功能范围、用户工作流、非目标、开放问题
 - [架构与技术选型](docs/架构.md) —— 解决方案结构、依赖锁版、git 分层、链接策略
 - [信息架构](docs/信息架构.md) —— 页面结构与旧原型处置
-- [软件操作手册](docs/软件操作手册.md) —— 原型操作说明与全量界面截图
+- [软件操作手册](docs/软件操作手册.md) —— 当前应用操作、真实 PNG / GIF 与采集流程
+- [历史原型操作手册](docs/原型操作手册.md) —— 早期设计参考，不代表当前功能状态
 - [决策记录](docs/决策记录.md) —— 为什么这么定（ADR-lite）
 - [Assets.Dotnet9 体检基线](docs/Assets.Dotnet9体检基线.md) —— 2026-10-23 存量快照，体检规则的验收基准
 - [技术验证清单](docs/技术验证Spike.md) —— 动工前必须跑通的 4 个 spike
