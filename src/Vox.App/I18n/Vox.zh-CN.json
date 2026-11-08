@@ -319,6 +319,7 @@
   "Vox.Write.List.Toggle": "收起 / 展开文件列表",
   "Vox.Write.Mode.Map": "导图",
   "Vox.Write.Panel.OutlineEmpty": "选择一篇文章后查看大纲",
+  "Vox.Write.Outline.Filter": "筛选当前标题…",
   "Vox.Write.Panel.Toggle": "收起 / 展开文章面板",
   "Vox.Write.Panel.Meta": "元数据",
   "Vox.Write.Meta.ModeForm": "表单",

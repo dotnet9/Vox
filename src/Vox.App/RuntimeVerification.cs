@@ -33,8 +33,12 @@ internal static class RuntimeVerification
             Title = "NativeAOT 博文", Slug = "native-blog", Date = new DateTime(2026, 11, 8),
             LastMod = null, Banner = null, Categories = ["Avalonia UI"], Tags = ["CSharp", "Markdown"]
         };
-        File.WriteAllText(article, "# NativeAOT\n\n文章正文保持不变。\n");
+        var outlineSource = string.Join("\n", Enumerable.Range(1, 50).Select(index =>
+            $"{(index == 1 ? "#" : "##")} {(index is 35 or 40 ? "同名章节" : "章节 " + index)}\n\n" +
+            string.Concat(Enumerable.Range(1, 8).Select(paragraph => $"正文 {index}.{paragraph}，验证阅读位置。\n\n"))));
+        File.WriteAllText(article, outlineSource);
         YamlSidecar.SaveToMarkdown(article, metadata);
+        YamlSidecar.TrySplitFrontMatter(File.ReadAllText(article), out _, out outlineSource);
         var restored = YamlSidecar.LoadFromMarkdown(article);
         if (restored.Title != metadata.Title || restored.LastMod is not null || restored.Banner is not null
             || !restored.Tags.SequenceEqual(metadata.Tags))
@@ -66,8 +70,12 @@ internal static class RuntimeVerification
                 .Where(list => list.Classes.Contains("files-list"))
                 .Any(list => list.GetVisualDescendants().OfType<TextBlock>()
                     .Any(text => text.Text == metadata.Title && text.Bounds.Width > 0)));
-            var list = writer.GetVisualDescendants().OfType<ListBox>().Single(control => control.Classes.Contains("files-list"));
+            var list = writer.GetVisualDescendants().OfType<ListBox>().Single(control => control.Classes.Contains("files-list") && control.Name != "ArticleOutline");
             VerifyNavigation();
+            var reopening = writer.OpenArticleAsync(scannedArticle);
+            WaitUntil(() => reopening.IsCompleted);
+            reopening.GetAwaiter().GetResult();
+            VerifyOutline();
             foreach (var culture in new[] { "zh-CN", "en-US", "zh-TW", "ja-JP" })
             {
                 I18nManager.Instance.Culture = CultureInfo.GetCultureInfo(culture);
@@ -102,13 +110,81 @@ internal static class RuntimeVerification
                 }
             }
             var runtime = RuntimeFeature.IsDynamicCodeSupported ? "JIT" : "NativeAOT";
-            var result = $"{runtime} runtime verification passed; version={typeof(Program).Assembly.GetName().Version}; languages=4; pages=7; renders={renders}; nullableSettings=passed; yamlRoundTrip=passed; articleList=visible; navigationArticles=1001; treeKeyboard=passed; virtualization=passed; preferences=isolated";
+            var result = $"{runtime} runtime verification passed; version={typeof(Program).Assembly.GetName().Version}; languages=4; pages=7; renders={renders}; nullableSettings=passed; yamlRoundTrip=passed; articleList=visible; navigationArticles=1001; treeKeyboard=passed; virtualization=passed; outlineNavigation=passed; readingChapter=passed; preferences=isolated";
             File.WriteAllText(Path.Combine(root, "runtime-verification.txt"), result);
             Console.WriteLine(result);
 
             void SwitchNavigation(bool tree) => writer.GetVisualDescendants().OfType<Button>()
                 .Single(button => button.Name == (tree ? "ArticleTreeMode" : "ArticleListMode"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+            void VerifyOutline()
+            {
+                var mode = writer.GetVisualDescendants().OfType<TKCode.Arc.SegmentedControl>().Single(control => control.Name == "WriteMode");
+                mode.SelectedValue = 2;
+                writer.GetVisualDescendants().OfType<Button>().Single(control => control.Name == "OutlinePanelToggle")
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                WaitUntil(() => writer.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownViewer>().Any(control => control.Name == "ArticlePreview"));
+                var preview = writer.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownViewer>().Single(control => control.Name == "ArticlePreview");
+                var scroll = writer.GetVisualDescendants().OfType<ScrollViewer>().Single(control => control.Name == "ArticlePreviewScroll");
+                WaitUntil(() => preview.CurrentModel.Source == outlineSource);
+                var headings = preview.GetOutline();
+                var outline = writer.GetVisualDescendants().OfType<ListBox>().Single(control => control.Name == "ArticleOutline");
+                var rows = outline.Items.Cast<OutlineNavigationRow>().ToArray();
+                if (rows.Length != 50) throw new InvalidOperationException("Outline rows are missing.");
+                outline.SelectedItem = rows[0];
+                outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Left });
+                WaitUntil(() => outline.ItemCount == 1);
+                var filter = writer.GetVisualDescendants().OfType<TextBox>().Single(control => control.Name == "OutlineFilter");
+                filter.Text = "同名章节"; WaitUntil(() => outline.ItemCount == 3);
+                filter.Text = string.Empty; WaitUntil(() => outline.ItemCount == 1);
+                outline.SelectedItem = rows[0];
+                outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Right });
+                WaitUntil(() => outline.ItemCount == 50);
+                var target = headings[39];
+                var initialOffset = scroll.Offset;
+                outline.SelectedItem = rows[39]; Settle();
+                if (Math.Abs(initialOffset.Y - scroll.Offset.Y) > 1) throw new InvalidOperationException("Outline selection unexpectedly navigated.");
+                Activate(39);
+                WaitUntil(() => scroll.Offset.Y > 5000);
+                WaitUntil(() => Landed(target.Line));
+                Settle();
+                scroll.Offset = default;
+                Activate(39);
+                WaitUntil(() => Landed(target.Line));
+                Settle();
+                if (!rows[39].IsCurrent) throw new InvalidOperationException("Duplicate outline headings lost source identity.");
+                WaitUntil(() => outline.GetVisualDescendants().OfType<Border>().Count(border => border.Classes.Contains("outline-row") && border.Classes.Contains("current")) == 1);
+                if (outline.GetVisualDescendants().OfType<ListBoxItem>().Count() >= rows.Length)
+                    throw new InvalidOperationException("Outline list did not virtualize its rows.");
+                scroll.Focus();
+                var focused = window.FocusManager?.GetFocusedElement();
+                var earlier = headings[10];
+                if (!preview.TryGetSourceLineBounds(earlier.Line, out var bounds)) throw new InvalidOperationException("Missing reading source bounds.");
+                var point = preview.TranslatePoint(new Point(0, bounds.Top), scroll)!.Value;
+                scroll.Offset = new Vector(0, Math.Max(0, scroll.Offset.Y + point.Y - 14));
+                WaitUntil(() => rows[10].IsCurrent);
+                if (!ReferenceEquals(focused, window.FocusManager?.GetFocusedElement()) || rows.Count(row => row.IsCurrent) != 1)
+                    throw new InvalidOperationException("Reading highlight steals focus or activates multiple chapters.");
+                var held = scroll.Offset;
+                Settle();
+                if (Math.Abs(held.Y - scroll.Offset.Y) > 1) throw new InvalidOperationException("Reading highlight navigated the document.");
+                using var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
+                bitmap.Render(window); bitmap.Save(Path.Combine(root, "outline-reading.png"));
+                Console.WriteLine("Outline hierarchy, filter/collapse restoration, explicit activation, virtualization and reading follow passed.");
+                mode.SelectedValue = 0;
+
+                void Activate(int index)
+                {
+                    outline.SelectedItem = rows[index];
+                    outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                }
+
+                bool Landed(int line) => preview.TryGetSourceLineBounds(line, out var sourceBounds)
+                    && preview.TranslatePoint(new Point(0, sourceBounds.Top), scroll) is { } targetPoint
+                    && Math.Abs(targetPoint.Y - 14) < 2;
+                void Settle() { var until = Environment.TickCount64 + 300; WaitUntil(() => Environment.TickCount64 >= until); }
+            }
 
             void VerifyNavigation()
             {

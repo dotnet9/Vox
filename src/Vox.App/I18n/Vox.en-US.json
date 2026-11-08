@@ -319,6 +319,7 @@
   "Vox.Write.List.Toggle": "Collapse / expand list",
   "Vox.Write.Mode.Map": "Map",
   "Vox.Write.Panel.OutlineEmpty": "Pick an article to see its outline",
+  "Vox.Write.Outline.Filter": "Filter headings…",
   "Vox.Write.Panel.Toggle": "Collapse / expand panel",
   "Vox.Write.Panel.Meta": "Metadata",
   "Vox.Write.Meta.ModeForm": "Form",

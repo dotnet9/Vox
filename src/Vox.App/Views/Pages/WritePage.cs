@@ -76,8 +76,8 @@ public sealed class WritePage : UserControl
     private readonly MarkdownEditorView _editorView = new();
     private readonly ThemeVariantScope _editorScope = new();
     private TextEditor Editor => _editorView.Editor;
-    private readonly MarkdownViewer _preview = new();
-    private readonly ScrollViewer _previewScroll = new();
+    private readonly MarkdownViewer _preview = new() { Name = "ArticlePreview" };
+    private readonly ScrollViewer _previewScroll = new() { Name = "ArticlePreviewScroll" };
     private readonly MarkdownMindMapView _mapView = new();
     /// <summary>导图点阵画刷的圆点 Drawing：主题切换时只换 Brush，瓦片几何复用。
     /// EllipseGeometry 用 Rect 构造（Center/Radius 三参构造是 Avalonia 12.1.5 新增，固定候选库的 12.1.4 没有）。</summary>
@@ -104,6 +104,15 @@ public sealed class WritePage : UserControl
     private Panel _outlineTab = null!;
     private StackPanel _outlineHost = null!;
     private TextBlock _outlineEmpty = null!;
+    private readonly List<OutlineNavigationRow> _outlineRows = [];
+    private readonly ObservableCollection<OutlineNavigationRow> _visibleOutlineRows = [];
+    private readonly HashSet<int> _collapsedOutlineLines = [];
+    private ListBox _outlineList = null!;
+    private TextBox _outlineFilter = null!;
+    private OutlineNavigationRow? _currentOutlineRow;
+    private IDisposable? _outlineNavigation;
+    private IDisposable? _outlineReadingSample;
+    private int _outlineNavigationVersion;
     private TKCode.Arc.SegmentedControl _metaModeSeg = null!;
     private ScrollViewer _metaScroll = null!;
     private StackPanel _metaHost = null!;   // 表单容器（renderMetaTab 口径：切文章/切页签整体重建）
@@ -122,7 +131,7 @@ public sealed class WritePage : UserControl
     // 模式条（源码/分屏/预览/导图）
     private int _mode;
     private bool _restoringMapZoom = true;
-    private readonly TKCode.Arc.SegmentedControl _modeSeg = new();
+    private readonly TKCode.Arc.SegmentedControl _modeSeg = new() { Name = "WriteMode" };
 
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(450) };
 
@@ -269,6 +278,17 @@ public sealed class WritePage : UserControl
             UpdateSaveState();
         };
         Editor.KeyDown += OnEditorKey;
+        Editor.TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            if (!_loading && (_mode == 0 || _mode == 1 && Editor.IsKeyboardFocusWithin))
+                UpdateCurrentOutline(Editor.TextArea.Caret.Line);
+        };
+        _previewScroll.ScrollChanged += (_, _) => QueueOutlineReadingSample();
+        DetachedFromVisualTree += (_, _) =>
+        {
+            CancelOutlineNavigation();
+            _outlineReadingSample?.Dispose(); _outlineReadingSample = null;
+        };
         // 预览里的任务勾选回写源码（库返回新 Markdown 与变更区间，整串应用即可）。
         _preview.TaskWriteBackRequested += (_, e) =>
         {
@@ -1488,9 +1508,42 @@ public sealed class WritePage : UserControl
         _panel.ClipToBounds = true;
         _panel.KeyDown += OnPanelKey; // 面板内编辑元数据时 Ctrl+S 也能落盘（编辑器热键只覆盖源码卡）
 
-        // 大纲页签：原面板内容原样（大纲链接 + 正文任务徽标）。
-        _outlineHost = new StackPanel();
-        var outlineScroll = new ScrollViewer { Padding = new Thickness(14), Content = _outlineHost };
+        // 与 Vex 相同的列表交互：选择不导航，鼠标释放或 Enter / Space 才显式激活。
+        _outlineHost = new StackPanel { Margin = new Thickness(14, 6) };
+        _outlineList = new ListBox { Name = "ArticleOutline", Classes = { "files-list", "outline-list" }, ItemsSource = _visibleOutlineRows };
+        _outlineList.ItemTemplate = new FuncDataTemplate<OutlineNavigationRow>((row, _) =>
+        {
+            if (row is null) return new Border();
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,30,*"), ColumnSpacing = 7, Margin = row.Indent };
+            var marker = new Border { Classes = { "outline-marker" }, Width = row.IsTopLevel ? 3 : 8, Height = row.IsTopLevel ? 11 : 2,
+                Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, CornerRadius = new CornerRadius(2) };
+            var number = new TextBlock { Classes = { "outline-number" }, Text = row.Number, VerticalAlignment = VerticalAlignment.Center };
+            var title = new TextBlock { Classes = { "outline-title" }, Text = row.Title, TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(number, 1); Grid.SetColumn(title, 2);
+            grid.Children.Add(marker); grid.Children.Add(number); grid.Children.Add(title);
+            var border = new Border { Classes = { "outline-row" }, Child = grid, MinHeight = 28 };
+            // 直接订阅当前状态，避免 NativeAOT 中的反射 Binding；回收行时解除订阅。
+            void CurrentChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            { if (e.PropertyName == nameof(OutlineNavigationRow.IsCurrent)) border.Classes.Set("current", row.IsCurrent); }
+            border.AttachedToVisualTree += (_, _) => { border.Classes.Set("current", row.IsCurrent); row.PropertyChanged += CurrentChanged; };
+            border.DetachedFromVisualTree += (_, _) => row.PropertyChanged -= CurrentChanged;
+            ToolTip.SetTip(border, row.Title);
+            return border;
+        });
+        _outlineList.AddHandler(PointerReleasedEvent, (_, e) =>
+        {
+            if (e.InitialPressMouseButton != MouseButton.Left) return;
+            var container = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+            if (container?.DataContext is OutlineNavigationRow row) JumpToOutline(row.Item);
+        }, RoutingStrategies.Bubble, true);
+        _outlineList.AddHandler(KeyDownEvent, OutlineKeyDown, RoutingStrategies.Tunnel, true);
+        _outlineFilter = new TextBox { Name = "OutlineFilter", Classes = { "vinput" }, Margin = new Thickness(12, 10, 12, 8), MinHeight = 30 };
+        _outlineFilter[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Write.Outline.Filter");
+        _outlineFilter.TextChanged += (_, _) => RefreshOutlineRows();
+        var outlineGrid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
+        Grid.SetRow(_outlineList, 1); Grid.SetRow(_outlineHost, 2);
+        outlineGrid.Children.Add(_outlineFilter); outlineGrid.Children.Add(_outlineList); outlineGrid.Children.Add(_outlineHost);
         // 无文章 / 无标题时的占位提示（居中，主题跟随，文案接 I18n 绑定）。
         _outlineEmpty = new TextBlock
         {
@@ -1504,7 +1557,7 @@ public sealed class WritePage : UserControl
         };
         _outlineEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Panel.OutlineEmpty");
         Res(_outlineEmpty, TextBlock.ForegroundProperty, "VoxMuted");
-        _outlineTab = new Panel { Children = { outlineScroll, _outlineEmpty } };
+        _outlineTab = new Panel { Children = { outlineGrid, _outlineEmpty } };
 
         // 元数据页签：表单 | YAML 双模式（原型 #metaTab：wp-metabar + yamlWarn + metaBody + yamlBody + 弹层入口）。
         // SelectedValue 在 BuildPanel 末尾赋初值：此时全部子控件已就位，SelectionChanged 触发 SetMetaMode 才安全。
@@ -2443,6 +2496,7 @@ public sealed class WritePage : UserControl
     {
         _panelHandle = new Button
         {
+            Name = "OutlinePanelToggle",
             Classes = { "edge-btn" },
             Content = new Viewbox
             {
@@ -2529,6 +2583,7 @@ public sealed class WritePage : UserControl
 
     private void SetMode(int mode)
     {
+        CancelOutlineNavigation();
         _mode = mode;
         UpdatePreviewGeometry();
         var map = mode == 3;
@@ -2550,6 +2605,8 @@ public sealed class WritePage : UserControl
             _editorCol.Width = mode == 2 ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
             _previewCol.Width = mode == 0 ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
         }
+        if (mode is 1 or 2) QueueOutlineReadingSample();
+        else UpdateCurrentOutline(Editor.TextArea.Caret.Line);
     }
 
     /// <summary>分屏比例约束（原型 L2108：Math.max(20, Math.min(80, …))）：源码列星号占比拖出
@@ -2591,6 +2648,8 @@ public sealed class WritePage : UserControl
             _current = null;
             _preview.Markdown = null;
             _outlineHost.Children.Clear();
+            _outlineRows.Clear(); _visibleOutlineRows.Clear(); _collapsedOutlineLines.Clear();
+            _currentOutlineRow = null;
             _outlineEmpty.IsVisible = true;
             _mapView.Root = null;
             RefreshMetaTab();
@@ -2615,6 +2674,7 @@ public sealed class WritePage : UserControl
             var file = LinkStrategy.ToLocalFile(_repoRoot, article.MarkdownPath);
             if (!File.Exists(file)) return;
 
+            if (_current?.MarkdownPath != article.MarkdownPath) _collapsedOutlineLines.Clear();
             _current = article;
             using var reader = new StreamReader(file, System.Text.Encoding.UTF8, true);
             var text = await reader.ReadToEndAsync();
@@ -3461,6 +3521,9 @@ public sealed class WritePage : UserControl
 
     private void RebuildOutline()
     {
+        CancelOutlineNavigation();
+        _outlineRows.Clear();
+        _currentOutlineRow = null;
         var host = _outlineHost;
         host.Children.Clear();
         var text = _editorView.Text ?? string.Empty;
@@ -3480,21 +3543,18 @@ public sealed class WritePage : UserControl
             items.AddRange(ExtractHeadingsFallback(text));
         }
 
-        var added = 0;
+        var counters = new int[6];
+        var parents = new Stack<int>();
         foreach (var item in items)
         {
-            var prefix = item.Level >= 3 ? string.Empty : "· ";
-            var button = new Button
-            {
-                Classes = { "outl", item.Level >= 3 ? "l3" : string.Empty },
-                Content = new TextBlock { Text = $"{prefix}{item.Title}" },
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-            };
-            var captured = item;
-            button.Click += (_, _) => JumpToOutline(captured);
-            host.Children.Add(button);
-            added++;
+            while (parents.Count > 0 && parents.Peek() >= item.Level) parents.Pop();
+            var depth = parents.Count;
+            counters[depth]++;
+            Array.Clear(counters, depth + 1, counters.Length - depth - 1);
+            _outlineRows.Add(new OutlineNavigationRow(item, string.Join(".", counters.Take(depth + 1)), depth));
+            parents.Push(item.Level);
         }
+        RefreshOutlineRows();
 
         try
         {
@@ -3518,7 +3578,9 @@ public sealed class WritePage : UserControl
         }
 
         // 无文章 / 无标题时显示占位提示。
-        _outlineEmpty.IsVisible = added == 0;
+        _outlineEmpty.IsVisible = _visibleOutlineRows.Count == 0;
+        if (_mode is 1 or 2) QueueOutlineReadingSample();
+        else UpdateCurrentOutline(Editor.TextArea.Caret.Line);
     }
 
     /// <summary>正则退化解析：逐行匹配 ^#{1,3}\s 标题行（跳过围栏代码块），行号 1 起与编辑器行号一致。</summary>
@@ -3560,12 +3622,117 @@ public sealed class WritePage : UserControl
         var line = Math.Clamp(item.Line, 1, Math.Max(1, Editor.Document.LineCount));
         Editor.ScrollToLine(line); // AvaloniaEdit 行号 1 起
         Editor.TextArea.Caret.Line = line;
-        // 预览可见时同步滚动到对应渲染块。
-        if (_mode is 1 or 2 && _preview.TryGetSourceLineBounds(line, out var bounds)
-            && _preview.TranslatePoint(new Point(0, bounds.Top), _previewScroll) is { } point)
+        UpdateCurrentOutline(line);
+        CancelOutlineNavigation();
+        _outlineReadingSample?.Dispose(); _outlineReadingSample = null;
+        if (_mode is not (1 or 2)) return;
+        var version = _outlineNavigationVersion;
+        var source = _editorView.Text;
+        var attempts = 0;
+        var stable = 0;
+        _outlineNavigation = DispatcherTimer.Run(() =>
         {
-            _previewScroll.Offset = new Vector(_previewScroll.Offset.X, Math.Max(0, _previewScroll.Offset.Y + point.Y - 14));
+            if (version != _outlineNavigationVersion || source != _editorView.Text
+                || _mode is not (1 or 2) || !IsEffectivelyVisible || ++attempts > 100)
+            {
+                _outlineNavigation = null;
+                return false;
+            }
+            if (_preview.CurrentModel.Source == source && _preview.TryGetSourceLineBounds(line, out var bounds)
+                && _preview.TranslatePoint(new Point(0, bounds.Top), _previewScroll) is { } point)
+            {
+                var limit = Math.Max(0, _previewScroll.Extent.Height - _previewScroll.Viewport.Height);
+                var offset = Math.Clamp(_previewScroll.Offset.Y + point.Y - 14, 0, limit);
+                stable = Math.Abs(offset - _previewScroll.Offset.Y) < 1 ? stable + 1 : 0;
+                _previewScroll.Offset = new Vector(_previewScroll.Offset.X, offset);
+                if (stable >= 3) { _outlineNavigation = null; return false; }
+            }
+            return true;
+        }, TimeSpan.FromMilliseconds(50));
+    }
+
+    private void CancelOutlineNavigation()
+    {
+        _outlineNavigationVersion++;
+        _outlineNavigation?.Dispose();
+        _outlineNavigation = null;
+    }
+
+    private void UpdateCurrentOutline(int line)
+    {
+        var current = _outlineRows.LastOrDefault(row => row.Item.Line <= line);
+        if (ReferenceEquals(current, _currentOutlineRow)) return;
+        if (_currentOutlineRow is not null) _currentOutlineRow.IsCurrent = false;
+        _currentOutlineRow = current;
+        if (current is null) return;
+        current.IsCurrent = true;
+        if (!_outlineList.IsPointerOver && !_outlineList.IsKeyboardFocusWithin)
+        {
+            var visible = _visibleOutlineRows.LastOrDefault(row => row.Item.Line <= current.Item.Line);
+            if (visible is not null) _outlineList.ScrollIntoView(visible);
         }
+    }
+
+    private void RefreshOutlineRows()
+    {
+        var selected = _outlineList.SelectedItem;
+        _visibleOutlineRows.Clear();
+        var query = _outlineFilter?.Text?.Trim() ?? string.Empty;
+        HashSet<OutlineNavigationRow>? matches = null;
+        if (query.Length > 0)
+        {
+            matches = [];
+            var parents = new List<OutlineNavigationRow>();
+            foreach (var row in _outlineRows)
+            {
+                while (parents.Count > 0 && parents[^1].Item.Level >= row.Item.Level) parents.RemoveAt(parents.Count - 1);
+                if (row.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase))
+                { matches.Add(row); foreach (var parent in parents) matches.Add(parent); }
+                parents.Add(row);
+            }
+        }
+        var hiddenBelowLevel = int.MaxValue;
+        foreach (var row in _outlineRows)
+        {
+            if (matches is not null) { if (matches.Contains(row)) _visibleOutlineRows.Add(row); continue; }
+            if (row.Item.Level > hiddenBelowLevel) continue;
+            hiddenBelowLevel = _collapsedOutlineLines.Contains(row.Item.Line) ? row.Item.Level : int.MaxValue;
+            _visibleOutlineRows.Add(row);
+        }
+        if (selected is OutlineNavigationRow item && _visibleOutlineRows.Contains(item)) _outlineList.SelectedItem = item;
+        if (_outlineEmpty is not null) _outlineEmpty.IsVisible = _visibleOutlineRows.Count == 0;
+    }
+
+    private void OutlineKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_outlineList.SelectedItem is not OutlineNavigationRow row) return;
+        if (e.Key is Key.Enter or Key.Space) { JumpToOutline(row.Item); e.Handled = true; return; }
+        if (e.Key is not (Key.Left or Key.Right)) return;
+        if (e.Key == Key.Left) _collapsedOutlineLines.Add(row.Item.Line);
+        else _collapsedOutlineLines.Remove(row.Item.Line);
+        RefreshOutlineRows(); e.Handled = true;
+    }
+
+    private void QueueOutlineReadingSample()
+    {
+        if (_outlineNavigation is not null || _mode is not (1 or 2)) return;
+        _outlineReadingSample ??= DispatcherTimer.RunOnce(() =>
+        {
+            _outlineReadingSample = null;
+            if (!IsEffectivelyVisible || _outlineNavigation is not null || _mode is not (1 or 2)
+                || _preview.CurrentModel.Source != _editorView.Text) return;
+            for (var y = 16d; y <= Math.Min(_previewScroll.Viewport.Height, 128); y += 16)
+            {
+                if (_previewScroll.TranslatePoint(new Point(_previewScroll.Viewport.Width / 2, y), _preview) is { } probe
+                    && _preview.TryGetBlockAt(probe, out var hit))
+                {
+                    UpdateCurrentOutline(hit.SourceLine);
+                    return;
+                }
+            }
+            if (_preview.SaveReadingPosition() is { } anchor && anchor.BlockIndex < _preview.CurrentModel.Blocks.Count)
+                UpdateCurrentOutline(_preview.CurrentModel.Blocks[anchor.BlockIndex].SyntaxBlock.Line + 1);
+        }, TimeSpan.FromMilliseconds(80));
     }
 
     public void UpdateBadges()

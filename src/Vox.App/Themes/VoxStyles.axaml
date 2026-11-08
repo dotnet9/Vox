@@ -861,28 +861,40 @@
     <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
   </Style>
 
-  <Style Selector="Button.outl">
+  <!-- 大纲沿用 Vex 的层级角标、编号列、单行标题和当前章节状态；颜色使用 Vox 令牌。 -->
+  <Style Selector="ListBox.outline-list">
+    <Setter Property="Padding" Value="10,6,10,12"/>
+  </Style>
+  <Style Selector="ListBox.outline-list ListBoxItem">
+    <Setter Property="Padding" Value="2,2"/>
+    <Setter Property="MinHeight" Value="32"/>
+  </Style>
+  <Style Selector="ListBox.outline-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.outline-list ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
-    <Setter Property="Padding" Value="4,2"/>
-    <!-- 原型 .outl a：2px 4px 内距、6px 圆角 -->
-    <Setter Property="CornerRadius" Value="6"/>
-    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-    <Setter Property="Cursor" Value="Hand"/>
-    <Setter Property="Transitions">
-      <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.14"/>
-      </Transitions>
-    </Setter>
   </Style>
-  <Style Selector="Button.outl:pointerover">
+  <Style Selector="Border.outline-row">
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+  <Style Selector="Border.outline-row.current">
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
-    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
   </Style>
-  <Style Selector="Button.outl.l3">
-    <Setter Property="Padding" Value="16,2"/>
-    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeSm}"/>
+  <Style Selector="Border.outline-marker">
+    <Setter Property="Background" Value="{DynamicResource VoxLineStrong}"/>
+  </Style>
+  <Style Selector="TextBlock.outline-number">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+  </Style>
+  <Style Selector="TextBlock.outline-title">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Border.outline-row.current Border.outline-marker">
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Border.outline-row.current TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 
   <Style Selector="Border.drop">
