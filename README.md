@@ -6,7 +6,7 @@
 
 Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与多平台分发工作台**，第一目标是服务自建站点 [CodeWF](https://codewf.com) 的内容源仓库 [Assets.Dotnet9](https://github.com/dotnet9/Assets.Dotnet9)：写作、文章/图片管理、站点数据、Git 同步、多平台发布与状态追踪在一个应用内闭环。
 
-作者：沙漠尽头的狼 · 出品：[码坊 CodeWF](https://codewf.com) · 姊妹产品：[Vex · 维刻](https://github.com/dotnet9/Vex)（独立维护）· 已发布版本：**0.2.0-preview.2**
+作者：沙漠尽头的狼 · 出品：[码坊 CodeWF](https://codewf.com) · 姊妹产品：[Vex · 维刻](https://github.com/dotnet9/Vex)（独立维护）· 当前版本：**0.2.0-preview.3**
 
 > 代码不是护城河，闭环才是。
 
@@ -22,7 +22,7 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 
 ## 当前产品基线
 
-当前为桌面预览版，已有真实的七工作区实现。下面的 PNG / GIF 采集于 2026-11-08 本地验收构建（版本元数据仍为 0.2.0-preview.2）；本次阅读大纲修复尚未发布。界面使用隔离演示仓库，不连接平台凭据，也不执行远程发布。
+当前为桌面预览版，已有真实的七工作区实现。下面的 PNG / GIF 采集于 2026-11-08 本地验收构建（采集时版本元数据为 0.2.0-preview.2）；所示阅读大纲修复纳入 0.2.0-preview.3，安装包及发布状态以对应 GitHub Release 为准。界面使用隔离演示仓库，不连接平台凭据，也不执行远程发布。
 
 ![Vox 写作与预览工作台](docs/images/runtime-write-light.png)
 

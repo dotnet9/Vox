@@ -4,6 +4,6 @@
     <TargetFramework>$(RepositoryTargetFramework)</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Version>0.2.0-preview.2</Version>
+    <Version>0.2.0-preview.3</Version>
   </PropertyGroup>
 </Project>
