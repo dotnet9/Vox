@@ -24,10 +24,12 @@ $cleanVersion = $Version.Trim().TrimStart('v', 'V').Split('+')[0]
 if ($cleanVersion -notmatch '^\d+(\.\d+){1,3}([-+][A-Za-z0-9.-]+)?$') {
     throw "Version must look like 0.1.0 or 0.1.0-preview.2: $Version"
 }
+$packageVersion = $cleanVersion
 $cleanVersion = $cleanVersion.Replace('-', '~')
 
 $architecture = if ($RuntimeIdentifier -eq "linux-arm64") { "arm64" } else { "amd64" }
-$packageName = "Vox-v$cleanVersion-$RuntimeIdentifier.deb"
+# GitHub 会改写文件名中的 ~；仅 Debian 元数据使用 ~，分发文件保留原版本号。
+$packageName = "Vox-v$packageVersion-$RuntimeIdentifier.deb"
 $packagePath = Join-Path $outputPath $packageName
 $stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("Vox-deb-" + [Guid]::NewGuid().ToString("N"))
 $appPath = Join-Path $stageRoot "usr/lib/vox"
