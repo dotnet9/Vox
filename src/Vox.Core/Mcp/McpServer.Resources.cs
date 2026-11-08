@@ -20,7 +20,7 @@ public sealed partial class McpServer
         var scan = Scan();
         foreach (var article in scan.Articles.OrderByDescending(a => a.Meta.Date))
         {
-            resources.Add(new JsonObject
+            resources.Add((JsonNode)new JsonObject
             {
                 ["uri"] = ArticlePrefix + EncodePath(article.MarkdownPath),
                 ["name"] = $"article:{article.MarkdownPath}",
@@ -34,7 +34,7 @@ public sealed partial class McpServer
         {
             foreach (var image in scan.Images.Where(i => i.Bytes >= 0).OrderBy(i => i.RelativePath, StringComparer.Ordinal))
             {
-                resources.Add(new JsonObject
+                resources.Add((JsonNode)new JsonObject
                 {
                     ["uri"] = ImagePrefix + EncodePath(image.RelativePath),
                     ["name"] = $"image:{image.RelativePath}",
@@ -48,7 +48,7 @@ public sealed partial class McpServer
                 var sitePath = site.RelativePath.StartsWith("site/", StringComparison.OrdinalIgnoreCase)
                     ? site.RelativePath[5..]
                     : site.RelativePath;
-                resources.Add(new JsonObject
+                resources.Add((JsonNode)new JsonObject
                 {
                     ["uri"] = SitePrefix + EncodePath(sitePath),
                     ["name"] = $"site:{sitePath}",

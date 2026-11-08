@@ -1,8 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
+using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
 namespace Vox.Core;
@@ -16,27 +15,6 @@ namespace Vox.Core;
 public static partial class YamlSidecar
 {
     public static readonly string Date_format = "yyyy-MM-dd HH:mm:ss";
-
-    /// <summary>已知键集合：映射进 ArticleMeta 类型化属性；albums 虽已废弃仍按已知键处理（走类型化列表）。</summary>
-    private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
-    {
-        "title", "slug", "description", "date", "lastmod", "cover",
-        "categories", "tags", "albums", "author", "draft", "banner", "copyright",
-    };
-
-    // lastmod 键名显式钉死：CamelCase 约定会把 LastMod 变成 lastMod，与仓库实际键「lastmod」不符（历史缺陷）。
-    private static readonly IDeserializer Deserializer = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .WithAttributeOverride<ArticleMeta>(m => m.LastMod, new YamlDotNet.Serialization.YamlMemberAttribute { Alias = "lastmod" })
-        .WithTypeConverter(new ScalarOrListStringConverter())
-        .IgnoreUnmatchedProperties()
-        .Build();
-
-    private static readonly ISerializer Serializer = new SerializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .WithAttributeOverride<SidecarFields>(f => (object)f.LastMod!, new YamlDotNet.Serialization.YamlMemberAttribute { Alias = "lastmod" })
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitEmptyCollections)
-        .Build();
 
     // 闭合 --- 允许位于文件尾（后无换行）与尾随空白；前置空行仍按严格口径拒绝（Hugo/Jekyll 同款边界）。
     private static readonly Regex FrontMatterRegex = new("(?s)^---[ \\t]*\\r?\\n(.*?)\\r?\\n---[ \\t]*(?:\\r?\\n|$)", RegexOptions.Compiled);
@@ -133,33 +111,34 @@ public static partial class YamlSidecar
         $"---\n{Serialize(meta).TrimEnd()}\n---\n\n{body.TrimStart('\r', '\n')}";
 
     /// <summary>
-    /// 序列化元数据为 YAML 文本（无 front matter 包裹）。已知键经 ISerializer 产出（引号/转义口径与历史一致），
+    /// 序列化元数据为 YAML 文本（无 front matter 包裹）。已知键显式构造节点，避免 NativeAOT 反射激活，
     /// 未知键按原节点（含原引号风格）追加在尾部，往返保真。
     /// </summary>
     public static string Serialize(ArticleMeta meta)
     {
         meta.Normalize();
-        var known = Serializer.Serialize(new SidecarFields(meta)).TrimEnd();
-        var stream = new YamlStream();
-        stream.Load(new StringReader(known));
-        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root
-            || meta.Extra.Count == 0)
-        {
-            return known + Environment.NewLine;
-        }
-        var children = new List<KeyValuePair<YamlNode, YamlNode>>();
-        foreach (var pair in root.Children)
-        {
-            children.Add(pair);
-        }
+        var root = new YamlMappingNode();
+        AddString("title", meta.Title);
+        AddString("slug", meta.Slug);
+        AddString("description", meta.Description);
+        root.Add("date", (meta.Date == default ? DateTime.Now : meta.Date).ToString(Date_format, CultureInfo.InvariantCulture));
+        if (meta.LastMod is { } lastMod) root.Add("lastmod", lastMod.ToString(Date_format, CultureInfo.InvariantCulture));
+        AddString("cover", meta.Cover ?? string.Empty);
+        AddList("categories", meta.Categories);
+        AddList("albums", meta.Albums);
+        AddList("tags", meta.Tags);
+        AddString("author", meta.Author);
+        root.Add("draft", meta.Draft ? "true" : "false");
+        if (meta.Banner is { } banner) root.Add("banner", banner ? "true" : "false");
+        AddString("copyright", meta.Copyright);
         foreach (var extra in meta.Extra)
         {
             if (extra.Node is { } node && !string.IsNullOrWhiteSpace(extra.Key))
             {
-                children.Add(new KeyValuePair<YamlNode, YamlNode>(new YamlScalarNode(extra.Key), node));
+                root.Add(new YamlScalarNode(extra.Key), node);
             }
         }
-        var merged = new YamlStream(new YamlDocument(new YamlMappingNode(children)));
+        var merged = new YamlStream(new YamlDocument(root));
         using var writer = new StringWriter();
         // assignAnchors:false —— RepresentationModel 默认在保存阶段给「值相等」的节点（如 date/lastmod 同值、
         // banner/draft 同为 false）分配进程随机锚 id，每次保存都变 → 全文件 diff 噪音，违背「往返保真」。
@@ -168,7 +147,26 @@ public static partial class YamlSidecar
         var text = writer.ToString();
         text = DocumentEndRegex().Replace(text, string.Empty);
         return text.TrimEnd() + Environment.NewLine;
+
+        void AddString(string key, string? value)
+        {
+            if (value is not null) root.Add(new YamlScalarNode(key), StringNode(value));
+        }
+
+        void AddList(string key, List<string> values)
+        {
+            if (values.Count > 0) root.Add(new YamlScalarNode(key), new YamlSequenceNode(values.Select(StringNode)));
+        }
     }
+
+    private static YamlScalarNode StringNode(string value) => new(value)
+    {
+        // 这些文本不能被其他 YAML 消费者误读为 null、布尔值、数字或日期。
+        Style = value.Length == 0 || value is "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase)
+            || IsBooleanText(value) || double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+            || DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
+            ? ScalarStyle.DoubleQuoted : ScalarStyle.Any
+    };
 
     /// <summary>
     /// 解析 front matter YAML：已知键映射类型化字段，未知键收进 Extra；解析失败返回 false（error 含原因），
@@ -185,16 +183,31 @@ public static partial class YamlSidecar
         }
         try
         {
-            meta = Deserializer.Deserialize<ArticleMeta>(yaml) ?? new ArticleMeta { Title = string.Empty, Slug = string.Empty };
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-            return false;
-        }
-        try
-        {
-            meta.Extra = CollectExtra(yaml);
+            var stream = new YamlStream();
+            stream.Load(new StringReader(yaml));
+            if (stream.Documents.Count != 1 || stream.Documents[0].RootNode is not YamlMappingNode root)
+                throw new FormatException("Front matter must contain one YAML mapping.");
+            foreach (var (keyNode, node) in root.Children)
+            {
+                var key = keyNode is YamlScalarNode scalar ? scalar.Value ?? string.Empty : keyNode.ToString();
+                switch (key)
+                {
+                    case "title": meta.Title = ReadScalar(node, key) ?? string.Empty; break;
+                    case "slug": meta.Slug = ReadScalar(node, key) ?? string.Empty; break;
+                    case "description": meta.Description = ReadScalar(node, key); break;
+                    case "date": meta.Date = ReadDate(node, key) ?? default; break;
+                    case "lastmod": meta.LastMod = ReadDate(node, key); break;
+                    case "cover": meta.Cover = ReadScalar(node, key); break;
+                    case "categories": meta.Categories = ReadList(node, key); break;
+                    case "albums": meta.Albums = ReadList(node, key); break;
+                    case "tags": meta.Tags = ReadList(node, key); break;
+                    case "author": meta.Author = ReadScalar(node, key) ?? string.Empty; break;
+                    case "draft": meta.Draft = ReadBoolean(node, key) ?? false; break;
+                    case "banner": meta.Banner = ReadBoolean(node, key); break;
+                    case "copyright": meta.Copyright = ReadScalar(node, key); break;
+                    default: meta.Extra.Add(new MetaExtraField(key, node)); break;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -236,30 +249,36 @@ public static partial class YamlSidecar
         return true;
     }
 
-    /// <summary>抽取未知键（albums 是已废弃的已知键，走类型化属性，不进 Extra）：YamlStream 深度解析，节点原样保留。</summary>
-    private static List<MetaExtraField> CollectExtra(string yaml)
+    private static string? ReadScalar(YamlNode node, string key)
     {
-        var extras = new List<MetaExtraField>();
-        var stream = new YamlStream();
-        stream.Load(new StringReader(yaml));
-        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
-        {
-            return extras;
-        }
-        foreach (var pair in root.Children)
-        {
-            var key = pair.Key is YamlScalarNode scalar ? scalar.Value ?? string.Empty : pair.Key.ToString();
-            if (!KnownKeys.Contains(key))
-            {
-                extras.Add(new MetaExtraField(key, pair.Value));
-            }
-        }
-        return extras;
+        if (node is not YamlScalarNode scalar) throw new FormatException($"{key} must be a scalar.");
+        var value = scalar.Value;
+        return scalar.Style is ScalarStyle.Plain or ScalarStyle.Any
+            && (string.IsNullOrEmpty(value) || value == "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase))
+            ? null : value;
     }
 
-    /// <summary>解析失败时抛出（供 TryLoadFromMarkdown 捕获入扫描 Errors），成功则含 Extra。
-    /// 不设「再 Deserialize 一次」的回退：事件反序列化容忍重复键（后者胜）而 YamlStream 抛 Duplicate key，
-    /// 回退会绕过 CollectExtra 静默丢弃全部自定义键——重复键必须显式进扫描错误而非无声丢数据。</summary>
+    private static DateTime? ReadDate(YamlNode node, string key) => ReadScalar(node, key) is { } value
+        ? DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) : null;
+
+    private static bool IsBooleanText(string value) => value.ToLowerInvariant() is "true" or "false" or "yes" or "no" or "on" or "off";
+
+    private static bool? ReadBoolean(YamlNode node, string key) => ReadScalar(node, key)?.ToLowerInvariant() switch
+    {
+        null => null,
+        "true" or "yes" or "on" => true,
+        "false" or "no" or "off" => false,
+        _ => throw new FormatException($"{key} must be a boolean.")
+    };
+
+    private static List<string> ReadList(YamlNode node, string key)
+    {
+        IEnumerable<YamlNode> nodes = node is YamlSequenceNode sequence ? sequence.Children : [node];
+        return nodes.Select(item => ReadScalar(item, key)?.Trim()).Where(value => !string.IsNullOrEmpty(value))
+            .Select(value => value!).ToList();
+    }
+
+    /// <summary>解析失败时抛出（供扫描报告错误）；重复键与非法字段不得被回退解析静默吞掉。</summary>
     private static ArticleMeta ParseOrThrow(string yaml)
     {
         if (yaml.Length == 0)
@@ -311,44 +330,6 @@ public static partial class YamlSidecar
         return (yaml, body);
     }
 
-    /// <summary>与 yml 字段一一对应的投影：日期按固定格式输出，空 cover 输出空串而非省略；
-    /// banner/copyright 仅在有意值时输出（copyright 留空 = 原创，键可缺席）。</summary>
-    private sealed class SidecarFields
-    {
-        public string Title { get; }
-        public string Slug { get; }
-        public string? Description { get; }
-        public string Date { get; }
-        public string? LastMod { get; }
-        public string Cover { get; }
-        public List<string> Categories { get; }
-        public List<string> Albums { get; }
-        public List<string> Tags { get; }
-        public string Author { get; }
-        public bool Draft { get; }
-        public bool? Banner { get; }
-        public string? Copyright { get; }
-
-        public SidecarFields(ArticleMeta meta)
-        {
-            Title = meta.Title;
-            Slug = meta.Slug;
-            Description = meta.Description;
-            // InvariantCulture：非公历文化（如 ar-SA）下 CurrentCulture 会输出回历年份，解析侧本就是不变文化
-            Date = meta.Date == default
-                ? DateTime.Now.ToString(Date_format, CultureInfo.InvariantCulture)
-                : meta.Date.ToString(Date_format, CultureInfo.InvariantCulture);
-            LastMod = meta.LastMod?.ToString(Date_format, CultureInfo.InvariantCulture);
-            Cover = meta.Cover ?? string.Empty;
-            Categories = meta.Categories;
-            Albums = meta.Albums;
-            Tags = meta.Tags;
-            Author = meta.Author;
-            Draft = meta.Draft;
-            Banner = meta.Banner;
-            Copyright = string.IsNullOrWhiteSpace(meta.Copyright) ? null : meta.Copyright!.Trim();
-        }
-    }
 }
 
 public static class ArticleMetaExtensions
@@ -367,42 +348,4 @@ public static class ArticleMetaExtensions
         meta.Tags ??= [];
         meta.Extra ??= [];
     }
-}
-
-/// <summary>categories/tags/albums 的标量形态容错：Hugo 合法写法 categories: .NET（单元素），
-/// YamlDotNet 默认标量→List 抛异常会拖垮整篇 front matter，按语义收为单元素列表。</summary>
-file sealed class ScalarOrListStringConverter : YamlDotNet.Serialization.IYamlTypeConverter
-{
-    public bool Accepts(Type type) => type == typeof(List<string>);
-
-    public object ReadYaml(YamlDotNet.Core.IParser parser, Type desiredType, ObjectDeserializer rootSerializer)
-    {
-        if (parser.Current is YamlDotNet.Core.Events.Scalar scalar)
-        {
-            var single = scalar.Value?.Trim();
-            List<string> list = string.IsNullOrEmpty(single) ? [] : [single];
-            parser.MoveNext(); // 标量已消费（默认节点解析不会替我们前进）
-            return list;
-        }
-        // 序列形态（块列表/行内数组）手动遍历事件流：
-        // rootSerializer(typeof(List<string>)) 会再次分发回本转换器（Accepts 恒真）→ 无限递归栈溢出。
-        var result = new List<string>();
-        if (parser.Current is YamlDotNet.Core.Events.SequenceStart)
-        {
-            parser.MoveNext();
-            while (parser.Current is not YamlDotNet.Core.Events.SequenceEnd)
-            {
-                if (parser.Current is YamlDotNet.Core.Events.Scalar item && !string.IsNullOrWhiteSpace(item.Value))
-                {
-                    result.Add(item.Value!.Trim());
-                }
-                parser.MoveNext();
-            }
-            parser.MoveNext(); // SequenceEnd
-        }
-        return result;
-    }
-
-    public void WriteYaml(YamlDotNet.Core.IEmitter emitter, object? value, Type type, ObjectSerializer serializer) =>
-        serializer(value, type);
 }

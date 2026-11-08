@@ -139,7 +139,7 @@ public sealed partial class McpServer
         var items = new JsonArray();
         foreach (var article in matches.Take(limit))
         {
-            items.Add(new JsonObject
+            items.Add((JsonNode)new JsonObject
             {
                 ["path"] = article.MarkdownPath,
                 ["title"] = article.Title,
@@ -440,7 +440,7 @@ public sealed partial class McpServer
         var items = new JsonArray();
         foreach (var image in matches.Take(limit))
         {
-            items.Add(ImageJson(image, includeReferences: false));
+            items.Add((JsonNode)ImageJson(image, includeReferences: false));
         }
 
         var json = new JsonObject
@@ -701,7 +701,7 @@ public sealed partial class McpServer
             if (inFence) continue;
             var match = Regex.Match(line, @"^(#{1,6})\s+(.+?)\s*#*\s*$");
             if (!match.Success) continue;
-            headings.Add(new JsonObject
+            headings.Add((JsonNode)new JsonObject
             {
                 ["level"] = match.Groups[1].Value.Length,
                 ["text"] = match.Groups[2].Value.Trim(),

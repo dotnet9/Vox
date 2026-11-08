@@ -393,7 +393,7 @@ public sealed partial class McpServer : IDisposable
         var tools = new JsonArray();
         foreach (var tool in McpCatalog.VisibleTools(_options))
         {
-            tools.Add(new JsonObject
+            tools.Add((JsonNode)new JsonObject
             {
                 ["name"] = tool.Name,
                 ["description"] = tool.Description,
@@ -416,14 +416,14 @@ public sealed partial class McpServer : IDisposable
             var args = new JsonArray();
             foreach (var argument in prompt.Arguments)
             {
-                args.Add(new JsonObject
+                args.Add((JsonNode)new JsonObject
                 {
                     ["name"] = argument,
                     ["description"] = argument == "article" ? "文章仓库相对路径" : "附加指令（可选）",
                     ["required"] = argument == "article",
                 });
             }
-            prompts.Add(new JsonObject
+            prompts.Add((JsonNode)new JsonObject
             {
                 ["name"] = prompt.Name,
                 ["title"] = prompt.Title,

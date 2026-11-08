@@ -29,3 +29,38 @@ jobs:
           node-version: 22
       - name: 原型校验（视图清单 / 资产存在性 / 离线自治）
         run: node design/scripts/check-prototype.cjs
+
+  native-smoke:
+    name: Windows NativeAOT 发布与运行
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 发布正式 NativeAOT 程序
+        shell: pwsh
+        run: ./scripts/publish-aot.ps1 -RID win-x64
+      - name: 验证原生窗口、页面、语言与可空设置
+        shell: pwsh
+        run: |
+          $directory = Join-Path $env:RUNNER_TEMP 'vox-native-verification'
+          $start = [Diagnostics.ProcessStartInfo]::new((Resolve-Path './publish/aot/win-x64/Vox.exe').Path)
+          $start.UseShellExecute = $false
+          $start.ArgumentList.Add('--verify-runtime')
+          $start.ArgumentList.Add($directory)
+          $process = [Diagnostics.Process]::Start($start)
+          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Native runtime verification timed out.' }
+          if ($process.ExitCode -ne 0) { throw "Native runtime verification failed: $($process.ExitCode)" }
+          $result = Get-Content -LiteralPath (Join-Path $directory 'runtime-verification.txt') -Raw
+          if ($result -notmatch '^NativeAOT runtime verification passed;') { throw 'Native runtime evidence is missing.' }
+          Write-Output $result
+      - name: 保存原生界面与运行证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vox-native-verification
+          path: |
+            ${{ runner.temp }}/vox-native-verification/*.txt
+            ${{ runner.temp }}/vox-native-verification/*.png
+          if-no-files-found: warn

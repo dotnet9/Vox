@@ -316,4 +316,45 @@ pinned:
         Assert.Equal([".NET"], meta.Categories);
         Assert.Equal(["A", "B"], meta.Tags); // 列表形态不受影响
     }
+
+    [Fact]
+    public void Nullable_fields_and_nested_extras_roundtrip_without_reflection()
+    {
+        const string yaml = "title: NativeAOT\nslug: native\ndate: 2026-11-08 12:00:00\nlastmod: null\nbanner: ~\ncategories: null\ntags: [CSharp, Markdown]\ncustom:\n  nested: [one, two]\n";
+        Assert.True(YamlSidecar.TryParseFrontMatter(yaml, out var meta, out var error), error);
+        Assert.Null(meta.LastMod);
+        Assert.Null(meta.Banner);
+        Assert.Empty(meta.Categories);
+        var saved = YamlSidecar.Serialize(meta);
+        Assert.True(YamlSidecar.TryParseFrontMatter(saved, out var restored, out error), error);
+        Assert.True(YamlSidecar.MetadataEquals(meta, restored));
+        Assert.Null(restored.LastMod);
+        Assert.Null(restored.Banner);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("true")]
+    [InlineData("2026")]
+    [InlineData("2026-11-08")]
+    public void String_values_that_resemble_yaml_types_remain_strings(string value)
+    {
+        var meta = new ArticleMeta { Title = value, Slug = value, Tags = [value] };
+        var yaml = YamlSidecar.Serialize(meta);
+        Assert.Contains($"title: \"{value}\"", yaml);
+        Assert.True(YamlSidecar.TryParseFrontMatter(yaml, out var restored, out var error), error);
+        Assert.Equal(value, restored.Title);
+        Assert.Equal([value], restored.Tags);
+    }
+
+    [Theory]
+    [InlineData("date: not-a-date")]
+    [InlineData("banner: maybe")]
+    [InlineData("tags: [{invalid: nested}]")]
+    [InlineData("- not-a-mapping")]
+    public void Invalid_known_fields_are_reported_without_data_loss(string yaml)
+    {
+        Assert.False(YamlSidecar.TryParseFrontMatter(yaml, out _, out var error));
+        Assert.False(string.IsNullOrWhiteSpace(error));
+    }
 }

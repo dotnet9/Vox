@@ -49,7 +49,7 @@ public sealed class WindowsCredentialStore : ICredentialStore
         try
         {
             var cred = Marshal.PtrToStructure<CREDENTIAL>(credPtr);
-            if (cred.CredentialBlob == IntPtr.Zero || cred.CredentialBlobSize == 0) return null;
+            if (cred is null || cred.CredentialBlob == IntPtr.Zero || cred.CredentialBlobSize == 0) return null;
             var bytes = new byte[cred.CredentialBlobSize];
             Marshal.Copy(cred.CredentialBlob, bytes, 0, bytes.Length);
             return Encoding.UTF8.GetString(bytes);

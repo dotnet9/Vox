@@ -83,27 +83,31 @@ public static class Modal
         Text = text, Classes = { "flabel" }, Margin = new Thickness(0, 10, 0, 5),
     };
 
-    public static TextBox Input(string? value = null, bool mono = false, string? watermark = null) => new()
+    public static TextBox Input(string? value = null, bool mono = false, string? watermark = null)
     {
-        Classes = { "vinput" },
-        Text = value ?? string.Empty,
-        Watermark = watermark,
-        FontFamily = mono
-            ? Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace")
-            : null,
-        FontSize = mono ? 11 : 12.5,
-    };
+        var input = new TextBox
+        {
+            Classes = { "vinput" },
+            Text = value ?? string.Empty,
+            Watermark = watermark,
+            FontSize = mono ? 11 : 12.5,
+        };
+        if (mono) input.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        return input;
+    }
 
-    public static TextBox Area(string? value = null, int rows = 3, bool mono = false) => new()
+    public static TextBox Area(string? value = null, int rows = 3, bool mono = false)
     {
-        Classes = { "vinput" },
-        Text = value ?? string.Empty,
-        AcceptsReturn = true,
-        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-        MinHeight = 26 + rows * 18,
-        FontFamily = mono
-            ? Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace")
-            : null,
-        FontSize = mono ? 11.5 : 12.5,
-    };
+        var input = new TextBox
+        {
+            Classes = { "vinput" },
+            Text = value ?? string.Empty,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 26 + rows * 18,
+            FontSize = mono ? 11.5 : 12.5,
+        };
+        if (mono) input.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        return input;
+    }
 }

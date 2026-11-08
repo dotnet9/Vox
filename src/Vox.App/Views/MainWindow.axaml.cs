@@ -190,7 +190,7 @@ public partial class MainWindow : Window
                 ThemeService.ChangeAccent(captured);
                 foreach (var child in swatches.Children.OfType<Border>())
                 {
-                    var on = (string)child.Tag == captured;
+                    var on = child.Tag is string key && key == captured;
                     child.BorderThickness = new Thickness(on ? 2 : 0);
                     child.BorderBrush = on ? TryBrush("VoxFg") : null;
                 }

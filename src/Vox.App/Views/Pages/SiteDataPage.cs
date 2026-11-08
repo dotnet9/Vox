@@ -340,7 +340,7 @@ public sealed class SiteDataPage : UserControl
             {
                 entry[prop] = JsonValue.Create(string.Empty);
             }
-            array.Add(entry);
+            array.Add((JsonNode)entry);
             Select(_selectedFile!);
         };
         addRow.Children.Add(add);
@@ -421,6 +421,7 @@ public sealed class SiteDataPage : UserControl
             var names = main.OfType<JsonObject>()
                 .Select(o => o["Name"]?.ToString()?.Trim())
                 .Where(n => !string.IsNullOrEmpty(n))
+                .OfType<string>()
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (scan != null && names.Count > 0)
             {

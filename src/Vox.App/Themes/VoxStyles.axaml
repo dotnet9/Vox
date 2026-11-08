@@ -757,28 +757,67 @@
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
   </Style>
 
-  <!-- 写作页文章列表（ListBox.files-list）：密度口径对齐 Button.wit——10,4 内距、6px 圆角、1px 行距、透明底。
-       虚拟化列表（学 Vex ShellFilesView 的 files-list 模式），行底色绘制在行模板 PART_ContentPresenter 上。 -->
+  <!-- 参照 Vex files-list：紧凑单行、6px 圆角、1px 行距；树形只展平可见层级，两种模式均虚拟化。 -->
   <Style Selector="ListBox.files-list">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Padding" Value="6,0,16,0"/>
     <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+    <!-- Arc 没有基础 ListBox 模板；沿用 Avalonia 标准宿主保留虚拟化与键盘选择。 -->
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}">
+          <ScrollViewer Name="PART_ScrollViewer"
+                        Background="{TemplateBinding Background}"
+                        AllowAutoHide="{TemplateBinding (ScrollViewer.AllowAutoHide)}"
+                        BringIntoViewOnFocusChange="{TemplateBinding (ScrollViewer.BringIntoViewOnFocusChange)}"
+                        HorizontalScrollBarVisibility="{TemplateBinding (ScrollViewer.HorizontalScrollBarVisibility)}"
+                        VerticalScrollBarVisibility="{TemplateBinding (ScrollViewer.VerticalScrollBarVisibility)}"
+                        IsScrollChainingEnabled="{TemplateBinding (ScrollViewer.IsScrollChainingEnabled)}"
+                        IsDeferredScrollingEnabled="{TemplateBinding (ScrollViewer.IsDeferredScrollingEnabled)}">
+            <ItemsPresenter Name="PART_ItemsPresenter" Margin="{TemplateBinding Padding}"
+                            ItemsPanel="{TemplateBinding ItemsPanel}"/>
+          </ScrollViewer>
+        </Border>
+      </ControlTemplate>
+    </Setter>
   </Style>
   <Style Selector="ListBox.files-list ListBoxItem">
-    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="Padding" Value="8,4"/>
     <Setter Property="Margin" Value="0,0,0,1"/>
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinHeight" Value="28"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
     <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <ContentPresenter Name="PART_ContentPresenter" Padding="{TemplateBinding Padding}"
+                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                          Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                          BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                          Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+      </ControlTemplate>
+    </Setter>
   </Style>
   <Style Selector="ListBox.files-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
   </Style>
   <Style Selector="ListBox.files-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.files-list ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+  </Style>
+  <Style Selector="ListBox.files-list Border.article-selection-marker">
+    <Setter Property="IsVisible" Value="False"/>
+  </Style>
+  <Style Selector="ListBox.files-list ListBoxItem:selected Border.article-selection-marker">
+    <Setter Property="IsVisible" Value="True"/>
+  </Style>
+  <Style Selector="ListBox.files-list ListBoxItem:selected TextBlock.article-navigation-title, Grid.article-navigation-row.group TextBlock.article-navigation-title">
+    <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 
   <Style Selector="Border.viewseg">

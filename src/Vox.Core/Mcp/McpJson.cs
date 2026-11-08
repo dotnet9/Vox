@@ -39,7 +39,7 @@ internal static class McpJson
     public static JsonArray Array(IEnumerable<string> values)
     {
         var array = new JsonArray();
-        foreach (var value in values) array.Add(value);
+        foreach (var value in values) array.Add((JsonNode?)JsonValue.Create(value));
         return array;
     }
 

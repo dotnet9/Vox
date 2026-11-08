@@ -102,6 +102,8 @@ public static class SettingsStore
 
     public static string DefaultPath()
     {
+        if (AppContext.GetData("Vox.SettingsFile") is string { Length: > 0 } overridePath)
+            return Path.GetFullPath(overridePath);
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Vox");
         return Path.Combine(dir, "settings.json");
     }

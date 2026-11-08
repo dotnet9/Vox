@@ -217,7 +217,7 @@ public sealed class NewArticleModal : Border
                 _confirmPreview.Text =
                     $"{month}/{Slug}.md\n" +
                     "---\n" +
-                    $"title: {_titleInput.Text.Trim()}\n" +
+                    $"title: {_titleInput.Text?.Trim() ?? string.Empty}\n" +
                     $"slug: {Slug}\n" +
                     $"description: {(string.IsNullOrWhiteSpace(_descInput.Text) ? T("Vox.Wizard.New.DescEmpty") : _descInput.Text.Trim())}\n" +
                     $"date: {date:yyyy-MM-dd HH:mm:ss}\n" +

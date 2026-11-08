@@ -67,7 +67,7 @@ public sealed class McpHostBridge : IMcpHost
             var items = new JsonArray();
             foreach (var change in changes)
             {
-                items.Add(new JsonObject
+                items.Add((JsonNode)new JsonObject
                 {
                     ["path"] = change.Path,
                     ["kind"] = change.Kind.ToString(),
@@ -110,7 +110,7 @@ public sealed class McpHostBridge : IMcpHost
             }
 
             var array = new JsonArray();
-            foreach (var row in rows) array.Add(RowJson(row));
+            foreach (var row in rows) array.Add((JsonNode)RowJson(row));
             return (string?)new JsonObject
             {
                 ["total"] = rows.Count,
@@ -134,7 +134,7 @@ public sealed class McpHostBridge : IMcpHost
             var items = new JsonArray();
             foreach (var (ok, label) in checks)
             {
-                items.Add(new JsonObject { ["ok"] = ok, ["label"] = label });
+                items.Add((JsonNode)new JsonObject { ["ok"] = ok, ["label"] = label });
             }
             return (string?)new JsonObject
             {

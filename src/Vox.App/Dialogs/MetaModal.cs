@@ -85,7 +85,7 @@ public sealed class MetaModal : Border
                 {
                     m.Title = meta.Title; m.Slug = meta.Slug; m.Description = meta.Description;
                     m.Date = meta.Date; m.LastMod = DateTime.Now; m.Cover = meta.Cover;
-                    m.Categories = meta.Categories; m.Tags = meta.Tags; m.Author = meta.Author; m.Draft = meta.Draft;
+                    m.Categories = meta.Categories; m.Tags = meta.Tags; m.Author = meta.Author ?? string.Empty; m.Draft = meta.Draft;
                     m.Banner = meta.Banner; m.Copyright = meta.Copyright; m.Extra = meta.Extra;
                     return m;
                 });

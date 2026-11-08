@@ -167,6 +167,7 @@ public sealed class UpdatePill : Panel
         head.Children.Add(title);
         head.Children.Add(date);
 
+        var bodyContent = new StackPanel();
         var body = new Border
         {
             Classes = { "upd-pop-body" },
@@ -175,7 +176,7 @@ public sealed class UpdatePill : Panel
                 MaxHeight = 300,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = new StackPanel(), // RenderBubble 填充
+                Content = bodyContent, // RenderBubble 填充
             },
         };
 
@@ -196,7 +197,7 @@ public sealed class UpdatePill : Panel
 
         Title = title;
         Date = date;
-        Body = (StackPanel)((ScrollViewer)body.Child).Content;
+        Body = bodyContent;
         var shell = new Border { Classes = { "upd-pop" } };
         shell.Child = new Grid
         {

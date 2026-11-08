@@ -2,15 +2,23 @@
 # usage: powershell -File scripts/publish-aot.ps1 [-RID win-x64] [-Clean]
 # Params follow the verified Vex publish.ps1:
 #   ILC single-threaded + workstation GC (avoids local .NET10 ilc crash),
-#   full reflection metadata preservation (YamlDotNet), non-single-file layout.
+#   full metadata preservation for UI dependencies, non-single-file layout.
 param(
     [string]$RID = "win-x64",
-    [switch]$Clean
+    [switch]$Clean,
+    [string]$ArtifactsRoot = "",
+    [string]$PublishRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
-$out = Join-Path $root (Join-Path "publish/aot" $RID)
+$out = if ($PublishRoot) { [IO.Path]::GetFullPath($PublishRoot) }
+    else { Join-Path $root (Join-Path "publish/aot" $RID) }
+$buildArgs = @()
+if ($ArtifactsRoot) {
+    $buildArgs += "-p:ArtifactsPath=$([IO.Path]::GetFullPath($ArtifactsRoot))"
+    $buildArgs += "-p:UseArtifactsOutput=true"
+}
 
 if ($Clean -and (Test-Path $out)) { Remove-Item $out -Recurse -Force }
 
@@ -21,7 +29,7 @@ dotnet publish (Join-Path $root "src/Vox.App/Vox.App.csproj") -m:1 `
     -p:IlcGenerateCompleteTypeMetadata=true -p:IlcTrimMetadata=false `
     -p:IlcSingleThreaded=true -p:IlcUseServerGc=false `
     -p:StripSymbols=true `
-    -o $out
+    @buildArgs -o $out
 if ($LASTEXITCODE -ne 0) { throw "AOT publish failed (exit $LASTEXITCODE)" }
 
 Write-Host "==> done: $out" -ForegroundColor Green

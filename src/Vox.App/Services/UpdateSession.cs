@@ -215,7 +215,7 @@ public sealed class UpdateSession
         token.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(_downloadPath) || !File.Exists(_downloadPath))
         {
-            throw new InvalidOperationException(TF("Vox.Update.Toast.InstallFailed", _downloadPath));
+            throw new InvalidOperationException(TF("Vox.Update.Toast.InstallFailed", _downloadPath ?? string.Empty));
         }
         var ext = Path.GetExtension(_downloadPath).ToLowerInvariant();
         if (ext is not (".exe" or ".msi" or ".dmg" or ".pkg" or ".deb" or ".appimage"))

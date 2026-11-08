@@ -122,11 +122,9 @@ public sealed class McpConfirmModal : Border
         {
             Text = value,
             FontSize = mono ? 11 : 12,
-            FontFamily = mono
-                ? FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace")
-                : null,
             TextWrapping = TextWrapping.Wrap,
         };
+        if (mono) text.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         grid.Children.Add(text);
         Grid.SetColumn(text, 1);
         return grid;
