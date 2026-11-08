@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using CodeWF.Avalonia.Markdown.Controls;
 using CodeWF.Avalonia.Markdown.Rendering;
 using Vox.App.Infrastructure;
@@ -16,6 +17,37 @@ namespace Vox.App.Views;
 internal static class MarkdownRendering
 {
     private static bool _registered;
+
+    public static TKCode.Arc.ContextMenu CreatePreviewMenu(MarkdownViewer viewer)
+    {
+        // Arc 提供自己的菜单；默认 Avalonia ContextMenu 在该主题下没有模板。
+        viewer.IsDefaultContextMenuEnabled = false;
+        viewer.Classes.Add("vox-reading");
+        var selected = new TKCode.Arc.MenuEntry { Name = "CopyPreviewSelection", InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.C, global::Avalonia.Input.KeyModifiers.Control) };
+        var all = new TKCode.Arc.MenuEntry { Name = "CopyPreviewDocument" };
+        selected[!TKCode.Arc.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Preview.CopySelection");
+        all[!TKCode.Arc.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Preview.CopyDocument");
+        var menu = new TKCode.Arc.ContextMenu { Name = "PreviewCopyMenu", Content = viewer, OpensOnClick = false };
+        menu.Items.Add(selected); menu.Items.Add(all);
+        string selection = string.Empty;
+        viewer.AddHandler(Control.ContextRequestedEvent, (_, e) =>
+        {
+            var text = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<SelectableTextBlock>().FirstOrDefault();
+            selection = viewer.HasSelection ? viewer.SelectedText : text?.SelectedText ?? string.Empty;
+            selected.IsEnabled = !string.IsNullOrEmpty(selection);
+        }, global::Avalonia.Interactivity.RoutingStrategies.Tunnel, true);
+        selected.Command = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(async () =>
+        {
+            if (TopLevel.GetTopLevel(viewer)?.Clipboard is { } clipboard && !string.IsNullOrEmpty(selection))
+                await clipboard.SetTextAsync(selection);
+        });
+        all.Command = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(async () =>
+        {
+            if (TopLevel.GetTopLevel(viewer)?.Clipboard is { } clipboard)
+                await clipboard.SetTextAsync(viewer.GetRenderedText());
+        });
+        return menu;
+    }
 
     public static void Register()
     {

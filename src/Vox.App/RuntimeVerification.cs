@@ -18,7 +18,7 @@ namespace Vox.App;
 /// <summary>运行正式原生产物的窗口和页面验证，设置与证据仅写入指定目录。</summary>
 internal static class RuntimeVerification
 {
-    public static void Run(string directory, bool requireNative = true, bool captureDocs = false)
+    public static void Run(string directory, bool requireNative = true, bool captureDocs = false, string? articlePath = null)
     {
         if (requireNative && RuntimeFeature.IsDynamicCodeSupported)
             throw new InvalidOperationException("Runtime verification requires a NativeAOT executable.");
@@ -76,6 +76,7 @@ internal static class RuntimeVerification
             WaitUntil(() => reopening.IsCompleted);
             reopening.GetAwaiter().GetResult();
             VerifyOutline();
+            VerifyPreviewInteractions();
             if (captureDocs) CaptureDocs();
             foreach (var culture in new[] { "zh-CN", "en-US", "zh-TW", "ja-JP" })
             {
@@ -182,6 +183,112 @@ internal static class RuntimeVerification
                 }
             }
 
+            void VerifyPreviewInteractions()
+            {
+                File.WriteAllText(Path.Combine(articleDirectory, "table-preview.svg"),
+                    "<svg xmlns='http://www.w3.org/2000/svg' width='240' height='120'><rect width='240' height='120' fill='#7747ff'/></svg>");
+                const string source = "# 阅读交互\n\n这段文字可以选择和复制。\n\n| 浅色工作区 | 深色工作区 |\n| --- | --- |\n| ![浅色](table-preview.svg) | ![深色](table-preview.svg) |\n";
+                File.WriteAllText(article, source);
+                var opening = writer.OpenArticleAsync(scannedArticle);
+                WaitUntil(() => opening.IsCompleted); opening.GetAwaiter().GetResult();
+                var mode = writer.GetVisualDescendants().OfType<TKCode.Arc.SegmentedControl>().Single(control => control.Name == "WriteMode");
+                mode.SelectedValue = 2;
+                var preview = writer.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownViewer>().Single(control => control.Name == "ArticlePreview");
+                WaitUntil(() => preview.CurrentModel.Source == source);
+                var settle = Environment.TickCount64 + 600;
+                WaitUntil(() => Environment.TickCount64 >= settle);
+                var text = preview.GetVisualDescendants().OfType<SelectableTextBlock>().Single(control => control.Inlines?.Text == "这段文字可以选择和复制。");
+                if (text.SelectionBrush is null || text.SelectionForegroundBrush is null)
+                    throw new InvalidOperationException("Preview text selection has no visible highlight.");
+                var clipboard = window.Clipboard ?? throw new InvalidOperationException("Preview clipboard is missing.");
+                string? ReadClipboard()
+                { var read = Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(clipboard); WaitUntil(() => read.IsCompleted); return read.GetAwaiter().GetResult(); }
+                void WriteClipboard(string? value)
+                { var write = value is null ? clipboard.ClearAsync() : clipboard.SetTextAsync(value); WaitUntil(() => write.IsCompleted); write.GetAwaiter().GetResult(); }
+                var previous = ReadClipboard();
+                var menu = writer.GetVisualDescendants().OfType<TKCode.Arc.ContextMenu>().Single(control => control.Name == "PreviewCopyMenu");
+                try
+                {
+                    text.Focus(); text.SelectionStart = 0; text.SelectionEnd = 6;
+                    var expected = text.SelectedText;
+                    WriteClipboard("keyboard copy sentinel");
+                    text.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.C, KeyModifiers = KeyModifiers.Control });
+                    WaitUntil(() => ReadClipboard() == expected);
+                    text.RaiseEvent(new ContextRequestedEventArgs { RoutedEvent = Control.ContextRequestedEvent });
+                    WaitUntil(() => menu.IsOpen && menu.Menu is { Bounds.Width: > 0, Bounds.Height: > 0 });
+                    var entries = menu.Items.OfType<TKCode.Arc.MenuEntry>().ToArray();
+                    WriteClipboard("selection copy sentinel");
+                    entries.Single(entry => entry.Name == "CopyPreviewSelection").Command!.Execute(null);
+                    WaitUntil(() => ReadClipboard() == expected);
+                    WriteClipboard("document copy sentinel");
+                    entries.Single(entry => entry.Name == "CopyPreviewDocument").Command!.Execute(null);
+                    WaitUntil(() => ReadClipboard() == preview.GetRenderedText());
+                }
+                finally { WriteClipboard(previous); }
+                var menuReady = menu.Menu is { Bounds.Width: > 0, Bounds.Height: > 0 };
+                using (var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820)))
+                { bitmap.Render(window); bitmap.Save(Path.Combine(root, "preview-copy-menu.png")); }
+                menu.Close();
+                var images = preview.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownImage>().ToArray();
+                var diagnostics = $"copyShortcut=passed; copySelection=passed; copyDocument=passed; copyMenuReady={menuReady}; textFocusable={text.Focusable}; selectionBrush={text.SelectionBrush}; selectionForeground={text.SelectionForegroundBrush}; tableImages={images.Length}\n" +
+                    string.Join("\n", images.Select(image => $"image={image.Bounds}; desired={image.DesiredSize}; bitmap={image.GetVisualDescendants().OfType<Avalonia.Controls.Image>().FirstOrDefault()?.Bounds}"));
+                File.WriteAllText(Path.Combine(root, "preview-interactions.txt"), diagnostics);
+                using (var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820)))
+                { bitmap.Render(window); bitmap.Save(Path.Combine(root, "preview-interactions.png")); }
+                if (!menuReady) throw new InvalidOperationException("Preview copy menu has no usable layout.");
+                if (images.Length != 2 || images.Any(image => image.Bounds.Width < 30 || image.Bounds.Height < 30
+                    || !image.GetVisualDescendants().OfType<Avalonia.Controls.Image>().Any(bitmap => bitmap.Source is not null && bitmap.Bounds.Height > 20)))
+                    throw new InvalidOperationException("Table-cell images were not rendered at a usable size.");
+                if (articlePath is not null)
+                {
+                    mode.SelectedValue = 0;
+                    var original = File.ReadAllText(articlePath);
+                    var sourceDirectory = Path.GetDirectoryName(Path.GetFullPath(articlePath))!;
+                    foreach (var relative in RepoScanner.ExtractMarkdownImages(RepoScanner.StripFencedCode(original), LinkOptions.Default, sourceDirectory, string.Empty).Distinct(StringComparer.OrdinalIgnoreCase))
+                    {
+                        var sourceFile = LinkStrategy.ToLocalFile(sourceDirectory, relative);
+                        if (!File.Exists(sourceFile)) continue;
+                        var targetFile = LinkStrategy.ToLocalFile(articleDirectory, relative);
+                        Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
+                        File.Copy(sourceFile, targetFile, overwrite: true);
+                    }
+                    File.WriteAllText(article, original);
+                    opening = writer.OpenArticleAsync(scannedArticle);
+                    WaitUntil(() => opening.IsCompleted); opening.GetAwaiter().GetResult();
+                    _ = YamlSidecar.TrySplitFrontMatter(original, out _, out var body);
+                    if (!string.Equals(preview.ImageBasePath, articleDirectory, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Opening an article did not set its relative image directory.");
+                    WaitUntil(() => preview.CurrentModel.Source == body);
+                    var scroll = writer.GetVisualDescendants().OfType<ScrollViewer>().Single(control => control.Name == "ArticlePreviewScroll");
+                    foreach (var previewMode in new[] { 1, 2 })
+                    {
+                        mode.SelectedValue = previewMode;
+                        WaitUntil(() =>
+                        {
+                            scroll.ScrollToEnd();
+                            return preview.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownImage>()
+                                .Count(IsTableImage) >= 2;
+                        });
+                        images = preview.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownImage>().Where(IsTableImage).ToArray();
+                        WaitUntil(() => images.All(image => image.Bounds.Height > 30 && image.GetVisualDescendants().OfType<Avalonia.Controls.Image>()
+                            .Any(bitmap => bitmap.Source is not null && bitmap.Bounds.Height > 20)));
+                        var point = images[0].TranslatePoint(default, scroll)!.Value;
+                        scroll.Offset = new Vector(0, Math.Max(0, scroll.Offset.Y + point.Y - 90));
+                        var until = Environment.TickCount64 + 300; WaitUntil(() => Environment.TickCount64 >= until);
+                        using var articleBitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
+                        articleBitmap.Render(window); articleBitmap.Save(Path.Combine(root, $"article-table-images-{previewMode}.png"));
+                        Console.WriteLine($"Article table images passed: mode={previewMode}; count={images.Length}; {string.Join("; ", images.Select(image => image.Bounds.Size))}");
+                    }
+                }
+                File.WriteAllText(article, outlineSource);
+                opening = writer.OpenArticleAsync(scannedArticle);
+                WaitUntil(() => opening.IsCompleted); opening.GetAwaiter().GetResult();
+                mode.SelectedValue = 0;
+
+                static bool IsTableImage(CodeWF.Avalonia.Markdown.Controls.MarkdownImage image) =>
+                    image.GetVisualAncestors().OfType<Control>().Any(control => control.Classes.Contains("MdTableCell") || control.Classes.Contains("MdTableHeaderCell"));
+            }
+
             void VerifyOutline()
             {
                 var mode = writer.GetVisualDescendants().OfType<TKCode.Arc.SegmentedControl>().Single(control => control.Name == "WriteMode");
@@ -201,7 +308,9 @@ internal static class RuntimeVerification
                 WaitUntil(() => outline.ItemCount == 1);
                 var filter = writer.GetVisualDescendants().OfType<TextBox>().Single(control => control.Name == "OutlineFilter");
                 filter.Text = "同名章节"; WaitUntil(() => outline.ItemCount == 3);
-                filter.Text = string.Empty; WaitUntil(() => outline.ItemCount == 1);
+                writer.GetVisualDescendants().OfType<Button>().Single(control => control.Name == "ClearOutlineFilter")
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                WaitUntil(() => filter.Text == string.Empty && outline.ItemCount == 1);
                 outline.SelectedItem = rows[0];
                 outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Right });
                 WaitUntil(() => outline.ItemCount == 50);

@@ -20,6 +20,16 @@ internal static class Program
             RuntimeVerification.Run(uiDirectory, requireNative: false);
             return;
         }
+        if (args is ["--verify-ui", var sampleDirectory, var sampleArticle])
+        {
+            RuntimeVerification.Run(sampleDirectory, requireNative: false, articlePath: sampleArticle);
+            return;
+        }
+        if (args is ["--verify-runtime", var nativeDirectory, var nativeArticle])
+        {
+            RuntimeVerification.Run(nativeDirectory, articlePath: nativeArticle);
+            return;
+        }
         if (args is ["--capture-docs", var docsDirectory])
         {
             RuntimeVerification.Run(docsDirectory, requireNative: false, captureDocs: true);

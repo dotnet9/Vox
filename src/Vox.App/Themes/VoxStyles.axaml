@@ -7,6 +7,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ap="clr-namespace:Avalonia.Controls.Presenters;assembly=Avalonia.Controls"
+        xmlns:md="using:CodeWF.Avalonia.Markdown.Controls"
         xmlns:conv="using:Avalonia.Data.Converters">
 
   <Styles.Resources>
@@ -862,18 +863,43 @@
   </Style>
 
   <!-- 大纲沿用 Vex 的层级角标、编号列、单行标题和当前章节状态；颜色使用 Vox 令牌。 -->
+  <Style Selector="md|MarkdownViewer.vox-reading SelectableTextBlock">
+    <Setter Property="SelectionBrush" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource VoxFg}"/>
+  </Style>
+  <Style Selector="Border.outline-search">
+    <Setter Property="Margin" Value="12,14,12,10"/>
+    <Setter Property="Padding" Value="12,5"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusControl}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+  </Style>
+  <Style Selector="Border.outline-search:focus-within">
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
   <Style Selector="ListBox.outline-list">
-    <Setter Property="Padding" Value="10,6,10,12"/>
+    <Setter Property="Padding" Value="10,0,10,18"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
   </Style>
   <Style Selector="ListBox.outline-list ListBoxItem">
-    <Setter Property="Padding" Value="2,2"/>
-    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0,0,0,1"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
   </Style>
-  <Style Selector="ListBox.outline-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.outline-list ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="ListBox.outline-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBox.outline-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.outline-list ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="Transparent"/>
   </Style>
   <Style Selector="Border.outline-row">
     <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="0,6,6,6"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="Border.outline-row:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
   </Style>
   <Style Selector="Border.outline-row.current">
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
@@ -883,17 +909,25 @@
   </Style>
   <Style Selector="TextBlock.outline-number">
     <Setter Property="FontSize" Value="11"/>
+    <Setter Property="LineHeight" Value="17.6"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+  </Style>
+  <Style Selector="Border.outline-row.top TextBlock.outline-number">
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
   <Style Selector="TextBlock.outline-title">
     <Setter Property="FontSize" Value="12"/>
+    <Setter Property="LineHeight" Value="19.2"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
   </Style>
   <Style Selector="Border.outline-row.current Border.outline-marker">
     <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
   </Style>
-  <Style Selector="Border.outline-row.current TextBlock">
+  <Style Selector="Border.outline-row.current TextBlock.outline-number, Border.outline-row.current TextBlock.outline-title">
     <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Border.outline-row.current TextBlock.outline-title">
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 

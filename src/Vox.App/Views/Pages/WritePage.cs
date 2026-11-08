@@ -759,7 +759,7 @@ public sealed class WritePage : UserControl
         _previewScroll.Content = new Border
         {
             HorizontalAlignment = HorizontalAlignment.Center,
-            Child = _preview,
+            Child = MarkdownRendering.CreatePreviewMenu(_preview),
         };
         // 阅读留白与正文宽度按 Vex 最新组合预览规则动态计算，不能固定 780px。
         _previewScroll.Padding = new Thickness(0);
@@ -1514,7 +1514,7 @@ public sealed class WritePage : UserControl
         _outlineList.ItemTemplate = new FuncDataTemplate<OutlineNavigationRow>((row, _) =>
         {
             if (row is null) return new Border();
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,30,*"), ColumnSpacing = 7, Margin = row.Indent };
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,30,*"), ColumnSpacing = row.IsTopLevel ? 8 : 7, Margin = row.Indent };
             var marker = new Border { Classes = { "outline-marker" }, Width = row.IsTopLevel ? 3 : 8, Height = row.IsTopLevel ? 11 : 2,
                 Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, CornerRadius = new CornerRadius(2) };
             var number = new TextBlock { Classes = { "outline-number" }, Text = row.Number, VerticalAlignment = VerticalAlignment.Center };
@@ -1522,7 +1522,8 @@ public sealed class WritePage : UserControl
                 TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(number, 1); Grid.SetColumn(title, 2);
             grid.Children.Add(marker); grid.Children.Add(number); grid.Children.Add(title);
-            var border = new Border { Classes = { "outline-row" }, Child = grid, MinHeight = 28 };
+            var border = new Border { Classes = { "outline-row" }, Child = grid };
+            border.Classes.Set("top", row.IsTopLevel);
             // 直接订阅当前状态，避免 NativeAOT 中的反射 Binding；回收行时解除订阅。
             void CurrentChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
             { if (e.PropertyName == nameof(OutlineNavigationRow.IsCurrent)) border.Classes.Set("current", row.IsCurrent); }
@@ -1538,12 +1539,26 @@ public sealed class WritePage : UserControl
             if (container?.DataContext is OutlineNavigationRow row) JumpToOutline(row.Item);
         }, RoutingStrategies.Bubble, true);
         _outlineList.AddHandler(KeyDownEvent, OutlineKeyDown, RoutingStrategies.Tunnel, true);
-        _outlineFilter = new TextBox { Name = "OutlineFilter", Classes = { "vinput" }, Margin = new Thickness(12, 10, 12, 8), MinHeight = 30 };
+        _outlineFilter = new TextBox { Name = "OutlineFilter", Classes = { "vinput" }, Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0), Padding = new Thickness(0), MinHeight = 0, FontSize = 12,
+            VerticalContentAlignment = VerticalAlignment.Center };
         _outlineFilter[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Write.Outline.Filter");
         _outlineFilter.TextChanged += (_, _) => RefreshOutlineRows();
+        var searchIcon = new LucideIcon { Kind = LucideIconKind.Search, Width = 13, Height = 13, VerticalAlignment = VerticalAlignment.Center };
+        Res(searchIcon, ForegroundProperty, "VoxMuted");
+        var clearFilter = new Button { Name = "ClearOutlineFilter", Classes = { "btn", "ghost" },
+            Width = 18, Height = 18, MinWidth = 0, MinHeight = 0, Padding = new Thickness(0),
+            Content = new LucideIcon { Kind = LucideIconKind.X, Width = 13, Height = 13 } };
+        clearFilter[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.Outline.ClearFilter");
+        clearFilter[!global::Avalonia.Automation.AutomationProperties.NameProperty] = I18n.Bind("Vox.Write.Outline.ClearFilter");
+        clearFilter.Click += (_, _) => { _outlineFilter.Text = string.Empty; _outlineFilter.Focus(); };
+        var searchGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("13,*,20"), ColumnSpacing = 7 };
+        Grid.SetColumn(_outlineFilter, 1); Grid.SetColumn(clearFilter, 2);
+        searchGrid.Children.Add(searchIcon); searchGrid.Children.Add(_outlineFilter); searchGrid.Children.Add(clearFilter);
+        var outlineSearch = new Border { Classes = { "outline-search" }, Child = searchGrid };
         var outlineGrid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
         Grid.SetRow(_outlineList, 1); Grid.SetRow(_outlineHost, 2);
-        outlineGrid.Children.Add(_outlineFilter); outlineGrid.Children.Add(_outlineList); outlineGrid.Children.Add(_outlineHost);
+        outlineGrid.Children.Add(outlineSearch); outlineGrid.Children.Add(_outlineList); outlineGrid.Children.Add(_outlineHost);
         // 无文章 / 无标题时的占位提示（居中，主题跟随，文案接 I18n 绑定）。
         _outlineEmpty = new TextBlock
         {
@@ -3544,15 +3559,12 @@ public sealed class WritePage : UserControl
         }
 
         var counters = new int[6];
-        var parents = new Stack<int>();
         foreach (var item in items)
         {
-            while (parents.Count > 0 && parents.Peek() >= item.Level) parents.Pop();
-            var depth = parents.Count;
-            counters[depth]++;
-            Array.Clear(counters, depth + 1, counters.Length - depth - 1);
-            _outlineRows.Add(new OutlineNavigationRow(item, string.Join(".", counters.Take(depth + 1)), depth));
-            parents.Push(item.Level);
+            var level = Math.Clamp(item.Level, 1, 6);
+            counters[level - 1]++;
+            Array.Clear(counters, level, counters.Length - level);
+            _outlineRows.Add(new OutlineNavigationRow(item, string.Join(".", counters.Take(level))));
         }
         RefreshOutlineRows();
 
