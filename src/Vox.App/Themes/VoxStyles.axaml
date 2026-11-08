@@ -366,6 +366,64 @@
     <Setter Property="Background" Value="{DynamicResource VoxSurface3}"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
   </Style>
+  <!-- 标题栏语言菜单沿用 Vex 的布局，颜色接入 Vox 当前主题。 -->
+  <Style Selector="FlyoutPresenter.title-language-picker">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="6"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="LayoutRoot" Margin="32,20,32,44" VerticalAlignment="Top"
+                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                BoxShadow="0 12 32 0 #1E000000, 0 2 8 0 #0F000000" UseLayoutRounding="False" ClipToBounds="False">
+          <ScrollViewer HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                        VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">
+            <ContentPresenter Margin="{TemplateBinding Padding}" Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+          </ScrollViewer>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.title-language-item">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Height" Value="{DynamicResource VoxLanguageRowHeight}"/>
+    <Setter Property="Padding" Value="{DynamicResource VoxLanguagePadding}"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="Button.title-language-item:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="Button.title-language-item.active, Button.title-language-item.active:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Button.title-language-item Border.language-chip">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+  </Style>
+  <Style Selector="Button.title-language-item TextBlock.language-chip-text">
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Button.title-language-item.active Border.language-chip">
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Button.title-language-item.active TextBlock.language-chip-text">
+    <Setter Property="Foreground" Value="{DynamicResource VoxOnAccent}"/>
+  </Style>
+  <Style Selector="Button.title-language-item TextBlock.language-check">
+    <Setter Property="IsVisible" Value="False"/>
+  </Style>
+  <Style Selector="Button.title-language-item.active TextBlock.language-check">
+    <Setter Property="IsVisible" Value="True"/>
+  </Style>
   <Style Selector="Button.tb-txt">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>

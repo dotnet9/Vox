@@ -139,6 +139,9 @@ public static class VoxTheme
         var deep = _isDark ? preset.DarkDeep : preset.LightDeep;
 
         var resources = new Avalonia.Controls.ResourceDictionary();
+        var languageDensity = _density switch { DensityCompact => -1, DensityRoomy => 1, _ => 0 };
+        resources["VoxLanguageRowHeight"] = 36d + languageDensity * 4;
+        resources["VoxLanguagePadding"] = new Avalonia.Thickness(Math.Round(10 * (1 + languageDensity * .2), 1), Math.Round(6 * (1 + languageDensity * .2), 1));
         // ---------- 基础色板（tokens.css 明暗两套） ----------
         resources["VoxBg"] = Brush(p.Bg);
         resources["VoxSurface"] = Brush(p.Surface);

@@ -88,6 +88,7 @@ internal static class RuntimeVerification
                 {
                     AppState.Instance.Settings.IsDark = dark;
                     ThemeService.Apply(AppState.Instance.Settings);
+                    VerifyLanguageMenu(culture, dark);
                     foreach (var page in new[] { "write", "library", "images", "publish", "site", "mcp", "settings" })
                     {
                         window.ShowPage(page);
@@ -119,6 +120,46 @@ internal static class RuntimeVerification
             void SwitchNavigation(bool tree) => writer.GetVisualDescendants().OfType<Button>()
                 .Single(button => button.Name == (tree ? "ArticleTreeMode" : "ArticleListMode"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+            void VerifyLanguageMenu(string culture, bool dark)
+            {
+                if (window.FindControl<Button>("BtnTbMcp") is not null)
+                    throw new InvalidOperationException("The duplicate titlebar MCP entry is still present.");
+                foreach (var name in new[] { "BtnTbLook", "BtnTbLang" })
+                    if (window.FindControl<Button>(name)?.Content is not Avalonia.Controls.Shapes.Path { Width: 14, Height: 14 })
+                        throw new InvalidOperationException("The Vex titlebar glyph is missing: " + name);
+                var trigger = window.FindControl<Button>("BtnTbLang")!;
+                var flyout = (Flyout)trigger.Flyout!;
+                var options = (StackPanel)flyout.Content!;
+                var rows = options.Children.OfType<Button>().ToArray();
+                if (rows.Length != 4) throw new InvalidOperationException("The language menu needs four languages.");
+                flyout.ShowAt(trigger);
+                WaitUntil(() => options.Bounds.Width > 0 && options.GetVisualAncestors().OfType<FlyoutPresenter>().Any());
+                var selected = rows.Single(row => (string?)row.Tag == culture);
+                if (!selected.Classes.Contains("active") || rows.Count(row => row.Classes.Contains("active")) != 1
+                    || !selected.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Classes.Contains("language-check")).IsVisible)
+                    throw new InvalidOperationException("The current language lacks its selected style and check.");
+                selected.Focus();
+                selected.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Down });
+                if (!rows[Math.Min(Array.IndexOf(rows, selected) + 1, rows.Length - 1)].IsFocused)
+                    throw new InvalidOperationException("Language menu arrow navigation failed.");
+                var presenter = options.GetVisualAncestors().OfType<FlyoutPresenter>().First();
+                using (var bitmap = new RenderTargetBitmap(new PixelSize((int)Math.Ceiling(presenter.Bounds.Width), (int)Math.Ceiling(presenter.Bounds.Height))))
+                {
+                    bitmap.Render(presenter);
+                    bitmap.Save(Path.Combine(root, $"language-menu-{culture}-{(dark ? "dark" : "light")}.png"));
+                }
+                var alternate = rows[(Array.IndexOf(rows, selected) + 1) % rows.Length];
+                alternate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                WaitUntil(() => !flyout.IsOpen && I18nManager.Instance.Culture?.Name == (string?)alternate.Tag);
+                if (SettingsStore.Load().Language != (string?)alternate.Tag)
+                    throw new InvalidOperationException("Language selection was not persisted.");
+                flyout.ShowAt(trigger);
+                WaitUntil(() => flyout.IsOpen && alternate.Classes.Contains("active"));
+                selected.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                WaitUntil(() => !flyout.IsOpen && I18nManager.Instance.Culture?.Name == culture);
+                Console.WriteLine($"Language menu passed: culture={culture}; dark={dark}; switch=passed; saved=passed; keyboard=passed; MCP=sidebar-only");
+            }
 
             void CaptureDocs()
             {

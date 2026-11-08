@@ -8,6 +8,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using CodeWF.Toolkit.Lang;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Infrastructure;
 using static Vox.App.Infrastructure.I18n;
@@ -87,7 +89,7 @@ public partial class MainWindow : Window
         Services.McpService.CallAudited += _ => UpdateMcpBadge();
         UpdateNavCounts();
         ApplyChrome(); // 标题栏/菜单/搜索浮层固定文案接 I18n 动态绑定（含初始值）
-        UpdateMcpBadge(); // MCP 按钮 tooltip 动态文案初始化（无仓库不 AutoStart 时也要给出停止态文案）
+        UpdateMcpBadge(); // MCP 在线客户端数仅显示在左侧导航入口。
 
         // 界面密度切换：令牌经 VoxTheme 整档字典单次通知，全树 DynamicResource 自动刷新（导航/标题栏零重建）；
         // 仅写作页仍构造期取 Fs() 显式字号，由 OnDensityChanged 单独作废重建（见该方法说明）。
@@ -211,11 +213,18 @@ public partial class MainWindow : Window
         pop.Children.Add(swatches);
         BtnTbLook.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(pop) };
 
-        var lang = new StackPanel();
-        foreach (var (label, code) in new[] { ("简体中文", "zh-CN"), ("English", "en-US"), ("繁體中文", "zh-TW"), ("日本語", "ja-JP") })
+        // 与 Vex 相同的 248px 菜单：6px 内距、24px 语言徽标、名称及选中勾。
+        var lang = new StackPanel { Name = "TitleLanguageOptions", Width = 234, Spacing = 2 };
+        foreach (var (label, code, abbreviation) in new[] { ("简体中文", "zh-CN", "中"), ("繁體中文", "zh-TW", "繁"), ("English", "en-US", "EN"), ("日本語", "ja-JP", "日") })
         {
-            var item = new Button { Classes = { "mnuitem" }, Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, Tag = code };
-            item.Classes.Set("active", AppState.Instance.Settings.Language == code);
+            var chipText = new TextBlock { Text = abbreviation, Classes = { "language-chip-text" }, FontSize = 11, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var chip = new Border { Classes = { "language-chip" }, Width = 24, Height = 24, CornerRadius = new CornerRadius(7), Child = chipText };
+            var name = new TextBlock { Text = label, FontSize = 13, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var check = new TextBlock { Text = "✓", Classes = { "language-check" }, FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), Children = { chip, name, check } };
+            Grid.SetColumn(name, 1); Grid.SetColumn(check, 2);
+            var item = new Button { Classes = { "title-language-item" }, Content = row, HorizontalAlignment = HorizontalAlignment.Stretch, Tag = code };
+            Avalonia.Automation.AutomationProperties.SetName(item, label);
             var captured = (label, code);
             item.Click += (_, _) =>
             {
@@ -224,17 +233,34 @@ public partial class MainWindow : Window
                 settings.Language = captured.code;
                 AppState.Instance.SaveSettings();
                 CodeWF.Toolkit.Lang.I18nManager.Instance.Culture = System.Globalization.CultureInfo.GetCultureInfo(captured.code);
-                // 语言切换不再整页重建：菜单项 active 态自行维护。
-                foreach (var child in lang.Children.OfType<Button>())
-                {
-                    child.Classes.Set("active", (string?)child.Tag == captured.code);
-                }
+                UpdateLanguageSelection();
                 ShowToast(TF("Vox.Shell.Toast.LanguageSet", captured.label));
                 BtnTbLang.Flyout?.Hide();
             };
             lang.Children.Add(item);
         }
-        BtnTbLang.Flyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.Bottom, ShowMode = FlyoutShowMode.Standard, Content = WrapPop(lang) };
+        lang.AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key is not (Key.Up or Key.Down or Key.Left or Key.Right or Key.Home or Key.End)) return;
+            var buttons = lang.Children.OfType<Button>().ToArray();
+            var focused = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Button>().FirstOrDefault();
+            var current = Array.IndexOf(buttons, focused);
+            if (current < 0) return;
+            var next = e.Key switch { Key.Home => 0, Key.End => buttons.Length - 1, Key.Up or Key.Left => current - 1, _ => current + 1 };
+            buttons[Math.Clamp(next, 0, buttons.Length - 1)].Focus();
+            e.Handled = true;
+        });
+        var languageFlyout = new Flyout { Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedRight, HorizontalOffset = 32, VerticalOffset = -16, ShowMode = FlyoutShowMode.Standard, Content = lang };
+        languageFlyout.FlyoutPresenterClasses.Add("title-language-picker");
+        languageFlyout.Opening += (_, _) => UpdateLanguageSelection();
+        BtnTbLang.Flyout = languageFlyout;
+        UpdateLanguageSelection();
+
+        void UpdateLanguageSelection()
+        {
+            foreach (var item in lang.Children.OfType<Button>())
+                item.Classes.Set("active", string.Equals((string?)item.Tag, I18nManager.Instance.Culture?.Name, StringComparison.OrdinalIgnoreCase));
+        }
         // 搜索浮层/热键等固定控件事件在 WireChromeCommands 一次性挂接；本方法构造期只执行一次
         //（密度切换不再重建标题栏，弹层内控件字号走令牌 DynamicResource 随整档通知自动刷新）。
     }
@@ -687,7 +713,6 @@ public partial class MainWindow : Window
             }
         };
 
-        BtnTbMcp.Click += (_, _) => ShowPage("mcp");
         BtnTbSearch.Click += (_, _) => OpenSearch();
         // 标题栏发布状态徽标可点击直达发布对话框（原型 pub-badges onclick 口径）。
         FileBadges.Cursor = new Cursor(StandardCursorType.Hand);
@@ -883,17 +908,6 @@ public partial class MainWindow : Window
     {
         var clients = Services.McpService.Clients.Count;
         SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
-        McpTopbarDot.Fill = TryBrush(Services.McpService.IsRunning ? "VoxOk" : "VoxFaint");
-        // 标题栏 MCP tooltip 动态文案（原型 L20 口径）：运行中带在线客户端数，停止态单独文案。
-        // 三元混型赋值在固定候选库（Avalonia 12.1.4，索引器收 BindingBase）下编译失败——分型赋值：
-        if (Services.McpService.IsRunning)
-        {
-            BtnTbMcp[!ToolTip.TipProperty] = TFBind("Vox.Shell.Tooltip.McpRunningFmt", clients);
-        }
-        else
-        {
-            ToolTip.SetTip(BtnTbMcp, T("Vox.Shell.Tooltip.McpStopped"));
-        }
     });
 
     /// <summary>带占位参数的动态文案绑定（同 WritePage.TFBind：参数为运行时值，语言切换按当前语言重新格式化）。</summary>
