@@ -6,7 +6,7 @@
 
 Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与多平台分发工作台**，第一目标是服务自建站点 [CodeWF](https://codewf.com) 的内容源仓库 [Assets.Dotnet9](https://github.com/dotnet9/Assets.Dotnet9)：写作、文章/图片管理、站点数据、Git 同步、多平台发布与状态追踪在一个应用内闭环。
 
-作者：沙漠尽头的狼 · 出品：[码坊 CodeWF](https://codewf.com) · 姊妹产品：[Vex · 维刻](https://github.com/dotnet9/Vex)（独立维护）· 当前版本：**0.2.0-preview.3**
+作者：沙漠尽头的狼 · 出品：[码坊 CodeWF](https://codewf.com) · 姊妹产品：[Vex · 维刻](https://github.com/dotnet9/Vex)（独立维护）· 当前版本：**0.2.0-preview.4**
 
 > 代码不是护城河，闭环才是。
 
@@ -102,7 +102,15 @@ dotnet test Vox.slnx -c Release --no-build "-p:ArtifactsPath=$work/artifacts"
 dotnet run --project src/Vox.App -c Release --no-build "-p:ArtifactsPath=$work/artifacts"
 ```
 
-跨平台：目标 **win-x64、linux-x64、linux-arm64、osx-x64、osx-arm64** 五个 RID；分发通过 [GitHub Releases](https://github.com/dotnet9/Vox/releases/latest)，Windows 为安装器、macOS 为 DMG、Linux 为 DEB。macOS 当前脚本使用 ad-hoc 签名，未宣称 Developer ID 签名或公证完成。品牌资产在仓库根目录维护。
+跨平台：目标 **win-x64、linux-x64、linux-arm64、osx-x64、osx-arm64** 五个 RID。正式发布与本机验证共用 NativeAOT 配方，每个平台同时提供安装包、便携压缩包及 SHA256：
+
+| 系统 | 安装包 | 便携压缩包 |
+| --- | --- | --- |
+| Windows x64 | EXE | ZIP |
+| Linux x64 / arm64 | DEB | tar.gz |
+| macOS x64 / arm64 | DMG | ZIP（包含带图标的 `Vox.app`） |
+
+版本和资产以 [GitHub Releases](https://github.com/dotnet9/Vox/releases) 为准，预览版本请在发布列表中选择。Windows 安装会创建开始菜单入口，桌面快捷方式与 Markdown 打开候选按所选选项生成。macOS 使用 ad-hoc 签名，未宣称 Developer ID 签名或公证完成。制作方式、原生验证与安装回归见[安装与发布](docs/安装与发布.md)。
 
 2026-11-08 两种构建验证已通过：JIT 实际窗口覆盖四语言、七页、明暗主题、1001 篇文章虚拟化和树键盘操作；win-x64 NativeAOT 发布产物运行退出码 0，YAML / nullable 往返、大纲导航与阅读跟随均通过。其他平台的人工体验与外部平台真实发布仍需独立验收。
 
@@ -114,11 +122,12 @@ dotnet run --project src/Vox.App -c Release --no-build "-p:ArtifactsPath=$work/a
 - [架构与技术选型](docs/架构.md) —— 解决方案结构、依赖锁版、git 分层、链接策略
 - [信息架构](docs/信息架构.md) —— 页面结构与旧原型处置
 - [软件操作手册](docs/软件操作手册.md) —— 当前应用操作、真实 PNG / GIF 与采集流程
+- [安装与发布](docs/安装与发布.md) —— 五平台 NativeAOT、安装包和便携包、SHA256 与安装回归
 - [历史原型操作手册](docs/原型操作手册.md) —— 早期设计参考，不代表当前功能状态
 - [决策记录](docs/决策记录.md) —— 为什么这么定（ADR-lite）
 - [Assets.Dotnet9 体检基线](docs/Assets.Dotnet9体检基线.md) —— 2026-10-23 存量快照，体检规则的验收基准
 - [技术验证清单](docs/技术验证Spike.md) —— 动工前必须跑通的 4 个 spike
-- [设计原型](design/index.html) —— 旧版（Vex 风格），仅信息架构参考，视觉由 Arc 主题接管
+- [设计原型](design/Vox.html) —— 旧版（Vex 风格），仅信息架构参考，视觉由 Arc 主题接管
 
 ## 安全与隐私
 

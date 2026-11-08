@@ -1,39 +1,49 @@
-# 构建 Windows 安装包：发布 win-x64 + Inno Setup 编译。
-# 用法：scripts/package_windows.ps1 [-Version x.y.z]（缺省读 Directory.Build.props 的 Version）
+#requires -Version 7.0
+# 构建 Windows NativeAOT 安装包与便携版，支持复用同一份已验证发布产物。
 [CmdletBinding()]
 param(
-    [string] $Version = ""
+    [string]$Version = '',
+    [string]$SourceDirectory = '',
+    [string]$OutputDirectory = '',
+    [string]$WorkRoot = '',
+    [string]$InnoSetupCompiler = ''
 )
-
-$ErrorActionPreference = "Stop"
-$repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
-
-if ([string]::IsNullOrWhiteSpace($Version)) {
-    $props = Join-Path $repositoryRoot "Directory.Build.props"
-    $match = Select-String -LiteralPath $props -Pattern '<Version>([^<]+)</Version>' | Select-Object -First 1
-    if ($match) { $Version = $match.Matches[0].Groups[1].Value }
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $PSScriptRoot
+if (-not $Version) {
+    [xml]$props = Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props') -Raw
+    $Version = [string]$props.Project.PropertyGroup.Version
 }
-if ([string]::IsNullOrWhiteSpace($Version)) { throw "Version not found (pass -Version or set <Version> in Directory.Build.props)." }
-Write-Host "打包 win-x64 (Version=$Version)"
-
-& (Join-Path $PSScriptRoot "publish.ps1") -Rid win-x64
-if ($LASTEXITCODE -ne 0) { throw "publish failed" }
-
-$iscc = @(
-    (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6/ISCC.exe"),
-    (Join-Path $env:ProgramFiles "Inno Setup 6/ISCC.exe"),
-    (Join-Path $env:LOCALAPPDATA "Programs/Inno Setup 6/ISCC.exe")
-) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
-if (-not $iscc) { throw "Inno Setup 6 (ISCC.exe) not found; install from https://jrsoftware.org/isinfo.php" }
-
-$setup = Join-Path $PSScriptRoot "installer/Vox.Setup.iss"
-$sourceDir = Join-Path $repositoryRoot "artifacts/publish/Vox.App-win-x64"
-$outputDir = Join-Path $repositoryRoot "artifacts/release"
-& $iscc "/DAppVersion=$Version" "/DSourceDir=$sourceDir" "/DOutputDir=$outputDir" $setup
-if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-
-$installer = Join-Path $outputDir "Vox-v$Version-win-x64-setup.exe"
-if (-not (Test-Path $installer)) { throw "Installer missing: $installer" }
-$sha = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-"$sha  Vox-v$Version-win-x64-setup.exe" | Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
-Write-Host "安装包 -> $installer"
+if (-not $InnoSetupCompiler) {
+    $candidates = @(
+        if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe' }
+        if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 6/ISCC.exe' }
+        if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs/Inno Setup 6/ISCC.exe' }
+    )
+    $InnoSetupCompiler = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+}
+if (-not $InnoSetupCompiler) { throw 'Inno Setup 6 is required; pass -InnoSetupCompiler if installed elsewhere.' }
+if (-not $WorkRoot) { $WorkRoot = Join-Path $root '../../temp_files/vox-windows' }
+$runRoot = Join-Path ([IO.Path]::GetFullPath($WorkRoot)) ('builds/' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $root 'artifacts/release' }
+$OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
+New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+if (-not $SourceDirectory) {
+    $SourceDirectory = Join-Path $runRoot 'publish'
+    & (Join-Path $PSScriptRoot 'publish.ps1') -Rid win-x64 -Version $Version -ArtifactsRoot (Join-Path $runRoot 'artifacts') -PublishRoot $SourceDirectory
+}
+$SourceDirectory = (Resolve-Path -LiteralPath $SourceDirectory).Path
+& (Join-Path $PSScriptRoot 'verify_native_publish.ps1') -Rid win-x64 -SourceDirectory $SourceDirectory -VerificationDirectory (Join-Path $runRoot 'runtime-verification')
+& $InnoSetupCompiler '/Q' "/DAppVersion=$Version" "/DSourceDir=$SourceDirectory" "/DOutputDir=$OutputDirectory" (Join-Path $PSScriptRoot 'Vox.iss')
+if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+$installer = Join-Path $OutputDirectory "Vox-v$Version-win-x64-setup.exe"
+if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw "Installer missing: $installer" }
+$zip = Join-Path $OutputDirectory "Vox-v$Version-win-x64.zip"
+$payload = @(Get-ChildItem -LiteralPath $SourceDirectory -Force | Where-Object { $_.Extension -notin '.pdb', '.dbg' })
+Compress-Archive -LiteralPath $payload.FullName -DestinationPath $zip -Force
+foreach ($path in @($installer, $zip)) {
+    $sha = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$sha  $([IO.Path]::GetFileName($path))" | Set-Content -LiteralPath "$path.sha256" -Encoding ascii
+    Write-Host "Package: $path"
+}

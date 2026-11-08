@@ -1,4 +1,5 @@
 # 打包 Vox Linux .deb 安装包（移植自 Vex 同名脚本的精简版）。
+#requires -Version 7.0
 # 用法：scripts/package_linux_deb.ps1 -RuntimeIdentifier linux-x64 -Version 0.1.0-preview.2
 [CmdletBinding()]
 param(
@@ -7,15 +8,18 @@ param(
     [string] $RuntimeIdentifier,
 
     [Parameter(Mandatory = $true)]
-    [string] $Version
+    [string] $Version,
+    [string] $SourceDirectory = '',
+    [string] $OutputDirectory = ''
 )
 
 $ErrorActionPreference = "Stop"
 $scriptRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $scriptRoot "..")).Path
 
-$SourceDirectory = Join-Path $repositoryRoot "artifacts/publish/Vox.App-$RuntimeIdentifier"
-$OutputDirectory = Join-Path $repositoryRoot "artifacts/release"
+if (-not $SourceDirectory) { $SourceDirectory = Join-Path $repositoryRoot "artifacts/publish/Vox.App-$RuntimeIdentifier" }
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repositoryRoot "artifacts/release" }
+& (Join-Path $scriptRoot 'verify_native_publish.ps1') -Rid $RuntimeIdentifier -SourceDirectory $SourceDirectory
 
 $sourcePath = (Resolve-Path -LiteralPath $SourceDirectory).Path
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
@@ -47,7 +51,7 @@ try {
     # 调试符号不进入安装器；其余发布产物（含 I18n 资源）全部入库。
     Get-ChildItem -LiteralPath $sourcePath -Recurse -File -Force | ForEach-Object {
         $relative = [IO.Path]::GetRelativePath($sourcePath, $_.FullName)
-        if ($_.Extension -in '.pdb', '.dbg') { return }
+        if ($_.Extension -in '.pdb', '.dbg' -or $relative -match '(^|[\\/])[^\\/]+\.dSYM([\\/]|$)') { return }
         $destination = Join-Path $appPath $relative
         New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
         Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
@@ -96,6 +100,8 @@ try {
     }
     & dpkg-deb --build --root-owner-group $stageRoot $packagePath
     if ($LASTEXITCODE -ne 0) { throw "dpkg-deb failed" }
+    $sha = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$sha  $packageName" | Set-Content -LiteralPath "$packagePath.sha256" -Encoding ascii
     Write-Host "deb -> $packagePath"
 }
 finally {

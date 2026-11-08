@@ -19,6 +19,12 @@ jobs:
       - name: 构建 + 单元测试（build.ps1 -Test）
         shell: pwsh
         run: ./scripts/build.ps1 -Test
+      - name: 安装器与发布清单回归
+        shell: pwsh
+        run: |
+          python scripts/installer/embed_changelog.py
+          ./scripts/tests/windows_setup_test.ps1 -WorkRoot '${{ runner.temp }}/vox-setup-contract'
+          ./scripts/tests/release_assets_test.ps1 -WorkRoot '${{ runner.temp }}/vox-assets-contract'
   prototype-gate:
     name: 原型门禁
     runs-on: ubuntu-latest
@@ -38,23 +44,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: 还原固定自研依赖
+        shell: pwsh
+        run: ./scripts/restore_library_candidate.ps1 -OutputRoot '${{ runner.temp }}/vox-library-candidate'
       - name: 发布正式 NativeAOT 程序
         shell: pwsh
-        run: ./scripts/publish-aot.ps1 -RID win-x64
+        run: ./scripts/publish.ps1 -Rid win-x64
       - name: 验证原生窗口、页面、语言与可空设置
         shell: pwsh
-        run: |
-          $directory = Join-Path $env:RUNNER_TEMP 'vox-native-verification'
-          $start = [Diagnostics.ProcessStartInfo]::new((Resolve-Path './publish/aot/win-x64/Vox.exe').Path)
-          $start.UseShellExecute = $false
-          $start.ArgumentList.Add('--verify-runtime')
-          $start.ArgumentList.Add($directory)
-          $process = [Diagnostics.Process]::Start($start)
-          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Native runtime verification timed out.' }
-          if ($process.ExitCode -ne 0) { throw "Native runtime verification failed: $($process.ExitCode)" }
-          $result = Get-Content -LiteralPath (Join-Path $directory 'runtime-verification.txt') -Raw
-          if ($result -notmatch '^NativeAOT runtime verification passed;') { throw 'Native runtime evidence is missing.' }
-          Write-Output $result
+        run: ./scripts/verify_native_publish.ps1 -Rid win-x64 -SourceDirectory './artifacts/publish/Vox.App-win-x64' -VerificationDirectory '${{ runner.temp }}/vox-native-verification'
       - name: 保存原生界面与运行证据
         if: always()
         uses: actions/upload-artifact@v4

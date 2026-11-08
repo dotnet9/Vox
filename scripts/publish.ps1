@@ -1,29 +1,20 @@
-# 发布 Vox.App：默认 win-x64 自包含；-Aot 启用 NativeAOT（待全量 spike 通过后默认开启）
+#requires -Version 7.0
+# 正式发布入口：五个平台均采用与本机验证相同的 NativeAOT 配方。
 [CmdletBinding()]
 param(
-    [string]$Rid = "win-x64",
-    [switch]$Aot
+    [ValidateSet('win-x64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
+    [string]$Rid = 'win-x64',
+    [string]$Version = '',
+    [string]$ArtifactsRoot = '',
+    [string]$PublishRoot = ''
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$out = Join-Path $root "artifacts/publish/Vox.App-$Rid"
-
-$args = @(
-    "publish", "src/Vox.App/Vox.App.csproj",
-    "-c", "Release",
-    "-r", $Rid,
-    "--self-contained", "true",
-    "-o", $out
-)
-if ($Aot) { $args += "-p:PublishAot=true" }
-
-Push-Location $root
-try {
-    dotnet @args
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Write-Host "Published -> $out"
+if (-not $Version) {
+    [xml]$props = Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props') -Raw
+    $Version = [string]$props.Project.PropertyGroup.Version
 }
-finally {
-    Pop-Location
-}
+if (-not $PublishRoot) { $PublishRoot = Join-Path $root "artifacts/publish/Vox.App-$Rid" }
+& (Join-Path $PSScriptRoot 'publish-aot.ps1') -RID $Rid -Version $Version -ArtifactsRoot $ArtifactsRoot -PublishRoot $PublishRoot -Clean
+& (Join-Path $PSScriptRoot 'verify_native_publish.ps1') -Rid $Rid -SourceDirectory $PublishRoot

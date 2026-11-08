@@ -1,91 +1,43 @@
 name: release
 
-# 推送 v* 标签发布 Vox 全平台产物（决策 D11：分发只走 GitHub Releases）：
-# win-x64 用 Inno Setup 生成 setup.exe（自包含），
-# linux-x64 / linux-arm64 / osx-x64 / osx-arm64 生成 tar.gz；全部附 SHA-256。
-# 版本号必须与 Directory.Build.props 的 <Version> 一致。
-
+# 五个平台统一 NativeAOT；安装包与便携压缩包取自同一次发布产物。
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（不含 v），例如 0.1.0-preview.1'
+        description: '版本号（不含 v），例如 0.2.0-preview.4'
         required: true
         type: string
-
 permissions:
   contents: write
 
 jobs:
-  windows:
-    name: win-x64（安装包）
+  installer-contract:
+    name: Windows 安装行为预检
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: 安装 .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: 还原自研候选包
+      - name: 检查安装器日志与本仓更新记录一致
         shell: pwsh
-        run: ./scripts/restore_library_candidate.ps1 -OutputRoot '${{ runner.temp }}/vox-library-candidate'
-
-      - name: 计算版本号
-        id: version
+        run: python scripts/installer/embed_changelog.py
+      - name: 独立编译并验证快捷方式、打开候选与卸载
         shell: pwsh
-        run: |
-          $raw = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
-          $version = $raw.TrimStart('v', 'V')
-          [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
-          $defined = $props.Project.PropertyGroup.Version
-          if ($version -ne $defined) { throw "tag 版本 $version 与 Directory.Build.props 的 $defined 不一致。" }
-          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: 发布 win-x64
+        run: ./scripts/tests/windows_setup_test.ps1 -WorkRoot '${{ runner.temp }}/vox-setup-contract'
+      - name: 发布清单与校验门禁回归
         shell: pwsh
-        run: ./scripts/publish.ps1 -Rid win-x64
+        run: ./scripts/tests/release_assets_test.ps1 -WorkRoot '${{ runner.temp }}/vox-assets-contract'
 
-      - name: 构建 Windows 安装包
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
-        with:
-          path: scripts/installer/Vox.Setup.iss
-          options: >-
-            /DAppVersion=${{ env.APP_VERSION }}
-            /DSourceDir=${{ github.workspace }}\artifacts\publish\Vox.App-win-x64
-            /DOutputDir=${{ github.workspace }}\artifacts\release
-
-      - name: 打包便携版 zip
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "artifacts/publish/Vox.App-win-x64/*" -DestinationPath "artifacts/release/Vox-v$env:APP_VERSION-win-x64.zip" -Force
-
-      - name: 生成 SHA-256
-        shell: pwsh
-        run: |
-          Get-ChildItem artifacts/release -File | ForEach-Object {
-            $sha = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$sha  $($_.Name)" | Set-Content -LiteralPath "$($_.FullName).sha256" -Encoding ascii
-          }
-
-      - name: 上传产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-win-x64
-          path: artifacts/release/*
-          if-no-files-found: error
-
-  unix:
-    name: ${{ matrix.rid }}
-    runs-on: ${{ matrix.os }}
+  publish:
+    name: NativeAOT ${{ matrix.rid }}
+    needs: installer-contract
     strategy:
       fail-fast: false
       matrix:
         include:
+          - rid: win-x64
+            os: windows-latest
           - rid: linux-x64
             os: ubuntu-latest
           - rid: linux-arm64
@@ -93,95 +45,114 @@ jobs:
           - rid: osx-x64
             os: macos-15-intel
           - rid: osx-arm64
-            os: macos-15-intel  # macos-14 标签已从托管池退役（排队即取消、无日志）；与 Vex 同口径：intel 交叉编译 arm64
+            # 与 Vex 使用同一 macOS 工具链，Intel 主机交叉编译 arm64。
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: 安装 .NET SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-
-      - name: 还原自研候选包
+      - name: 还原固定自研依赖
         shell: pwsh
         run: ./scripts/restore_library_candidate.ps1 -OutputRoot '${{ runner.temp }}/vox-library-candidate'
-
-      - name: 计算版本号
+      - name: 校验标签与源码版本
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
         run: |
-          $raw = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
-          $version = $raw.TrimStart('v', 'V')
-          [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
-          $defined = $props.Project.PropertyGroup.Version
-          if ($version -ne $defined) { throw "tag 版本 $version 与 Directory.Build.props 的 $defined 不一致。" }
+          $version = $env:RELEASE_VERSION.TrimStart('v', 'V')
+          [xml]$props = Get-Content -LiteralPath Directory.Build.props -Raw
+          if ($version -ne [string]$props.Project.PropertyGroup.Version) { throw 'Release version must match Directory.Build.props.' }
           "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: 发布
+      - name: 安装 Linux NativeAOT 工具链
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+      - name: 发布并检查 NativeAOT 架构与载荷
         shell: pwsh
-        run: ./scripts/publish.ps1 -Rid '${{ matrix.rid }}'
-
-      - name: 打包 tar.gz（便携版）
+        run: ./scripts/publish.ps1 -Rid '${{ matrix.rid }}' -Version $env:APP_VERSION
+      - name: 构建 Windows 安装包、便携 ZIP 与 SHA256
+        if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          $dir = "artifacts/publish/Vox.App-${{ matrix.rid }}"
-          if (-not (Test-Path $dir)) { throw "发布目录缺失：$dir" }
-          New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
-          $name = "Vox-v$env:APP_VERSION-${{ matrix.rid }}"
-          tar -czf "artifacts/release/$name.tar.gz" -C $dir .
-
-      - name: 打包 Linux deb（安装包）
-        if: startsWith(matrix.rid, 'linux-')
+        run: ./scripts/package_windows.ps1 -Version $env:APP_VERSION -SourceDirectory './artifacts/publish/Vox.App-win-x64' -WorkRoot '${{ runner.temp }}/vox-windows-package'
+      - name: 构建 Linux DEB
+        if: runner.os == 'Linux'
         shell: pwsh
         run: ./scripts/package_linux_deb.ps1 -RuntimeIdentifier '${{ matrix.rid }}' -Version $env:APP_VERSION
-
-      - name: 打包 macOS dmg（安装包）
-        if: startsWith(matrix.rid, 'osx-')
+      - name: 构建 Linux 便携 tar.gz
+        if: runner.os == 'Linux'
         shell: bash
+        env:
+          RELEASE_RID: ${{ matrix.rid }}
         run: |
-          chmod +x scripts/package_macos.sh
-          ./scripts/package_macos.sh '${{ matrix.rid }}'
-
-      - name: 生成 SHA-256
+          mkdir -p artifacts/release
+          tar --exclude='*.pdb' --exclude='*.dbg' --exclude='*.dSYM' -czf "artifacts/release/Vox-v$APP_VERSION-$RELEASE_RID.tar.gz" -C "artifacts/publish/Vox.App-$RELEASE_RID" .
+      - name: 构建 macOS DMG、带图标的 .app ZIP 与 SHA256
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash ./scripts/package_macos.sh '${{ matrix.rid }}'
+      - name: 生成分发文件 SHA256
         shell: pwsh
         run: |
-          Get-ChildItem artifacts/release -File | ForEach-Object {
+          Get-ChildItem artifacts/release -File | Where-Object { $_.Extension -ne '.sha256' } | ForEach-Object {
             $sha = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             "$sha  $($_.Name)" | Set-Content -LiteralPath "$($_.FullName).sha256" -Encoding ascii
           }
-
-      - name: 上传产物
+      - name: 上传安装包与便携包
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.rid }}
+          name: Vox-${{ matrix.rid }}
           path: artifacts/release/*
           if-no-files-found: error
+      - name: 保存 Windows 原生验证证据
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vox-native-verification
+          path: ${{ runner.temp }}/vox-windows-package/builds/*/runtime-verification/*
+          if-no-files-found: warn
 
   release:
-    name: 发布 Release
-    needs: [windows, unix]
+    name: 验证并发布 GitHub Release
+    needs: publish
     runs-on: ubuntu-latest
     steps:
-      - name: 计算版本号
-        shell: pwsh
-        run: |
-          $raw = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
-          "VERSION=$($raw.TrimStart('v', 'V'))" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: 整理发布文件
+          pattern: Vox-*
+          # 原生运行证据另存为 Artifact，不混入分发目录。
+          path: downloaded
+      - name: 整理五平台分发文件
+        shell: pwsh
         run: |
-          mkdir -p staging
-          find artifacts -type f -print0 | xargs -0 -I{} cp {} staging/
-          ls -la staging
-
+          New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
+          foreach ($rid in @('win-x64','linux-x64','linux-arm64','osx-x64','osx-arm64')) {
+            $source = Join-Path downloaded "Vox-$rid"
+            if (-not (Test-Path -LiteralPath $source)) { throw "Missing platform artifact: $rid" }
+            Copy-Item -Path "$source/*" -Destination artifacts/release
+          }
+      - name: 校验完整发布清单
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+        run: |
+          $version = $env:RELEASE_VERSION.TrimStart('v', 'V')
+          ./scripts/verify_release_assets.ps1 -Version $version
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: Vox v${{ env.VERSION }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Vox v${{ steps.version.outputs.version }}
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
           generate_release_notes: true
-          files: staging/*
+          files: |
+            artifacts/release/*.exe
+            artifacts/release/*.deb
+            artifacts/release/*.dmg
+            artifacts/release/*.zip
+            artifacts/release/*.tar.gz
+            artifacts/release/*.sha256
           fail_on_unmatched_files: true
