@@ -363,6 +363,9 @@ html[data-kbd] button:focus, html[data-kbd] a:focus, html[data-kbd] select:focus
 html[data-kbd] [role="button"]:focus, html[data-kbd] [role="switch"]:focus, html[data-kbd] [tabindex]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .nav .it:focus-visible, html[data-kbd] .nav .it:focus { outline-offset: -2px; }
 #spList .sp-it.kb-active { background: var(--accent-soft); border-color: var(--accent); }
+/* 评审修订：确认对话框的破坏性主钮（危险动作用红色描边填充，与 primary 区分） */
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger:hover { filter: brightness(.92); }
 
 /* ---------- 边栏折叠 ---------- */
 .nav { transition: margin var(--t-med) var(--motion); }

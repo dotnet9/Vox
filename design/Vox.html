@@ -755,6 +755,11 @@ draft: true
   </div>
 </section>
 
+<div class="mask" id="mConfirm"><div class="modal" style="width:440px">
+  <div class="mh"><h3 id="cfTitle">确认操作</h3><span class="x" onclick="cfClose(false)">×</span></div>
+  <div class="mb"><p id="cfMsg" style="margin:2px 0 6px;font-size:.9231rem;line-height:1.75"></p></div>
+  <div class="mf"><button class="btn" onclick="cfClose(false)">取消</button><button class="btn danger" id="cfYes" onclick="cfClose(true)">确认</button></div>
+</div></div>
 <div class="mask" id="mAbout"><div class="modal" style="width:420px">
   <div class="mh"><h3>关于 Vox</h3><span class="x" onclick="closeModal('mAbout')">×</span></div>
   <div class="mb" style="text-align:center">
@@ -1428,10 +1433,13 @@ function openCtxMenu(e,item){
   ctxMenu.innerHTML='';
   const ext=(item.path.split('.').pop()||'').toLowerCase();
   ctxMenu.appendChild(ctxItem('放弃更改…',()=>{
-    if(!confirm('放弃对「'+item.name+'」的更改？此操作不经 git 历史，无法撤销。'))return;
-    CHANGES.forEach(g=>{g.items=g.items.filter(x=>x.id!==item.id);});
-    CHANGES=CHANGES.filter(g=>g.items.length>0);
-    selId=null;renderSync();toast('已放弃更改：'+item.name);
+    /* 评审修订：破坏性操作改走自绘确认对话框（原生 confirm 与全站弹层风格割裂） */
+    uiConfirm('放弃更改','放弃对「'+item.name+'」的更改？此操作不经 git 历史，无法撤销。','放弃更改').then(ok=>{
+      if(!ok)return;
+      CHANGES.forEach(g=>{g.items=g.items.filter(x=>x.id!==item.id);});
+      CHANGES=CHANGES.filter(g=>g.items.length>0);
+      selId=null;renderSync();toast('已放弃更改：'+item.name);
+    });
   },true));
   ctxMenu.appendChild(ctxSep());
   ctxMenu.appendChild(ctxItem('忽略此文件（加入 .gitignore）',()=>toast('已加入 .gitignore：'+item.path)));
@@ -2358,8 +2366,10 @@ function renderMcpAudit(){
   $('mcpAuditSub').textContent='共 '+MCP_AUDIT.length+' 条 · 今日 '+MCP.calls+' 次调用';
 }
 function mcpAuditClear(){
-  if(!confirm('清空全部审计记录？此操作不可撤销。'))return;
-  MCP_AUDIT=[];MCP.calls=0;renderMcpAudit();renderMcpState();toast('审计记录已清空');
+  uiConfirm('清空审计记录','清空全部审计记录？此操作不可撤销。','清空').then(ok=>{
+    if(!ok)return;
+    MCP_AUDIT=[];MCP.calls=0;renderMcpAudit();renderMcpState();toast('审计记录已清空');
+  });
 }
 function renderMcpTools(q){
   q=(q||'').toLowerCase();
@@ -2630,15 +2640,19 @@ function renderImgPanel(){
 }
 function imgDelete(id){
   var im=IMAGES.find(function(x){return x.id===id;});if(!im)return;
-  if(!confirm('删除「'+im.name+'」？文件经 git 提交删除，历史中可回滚。'))return;
-  IMAGES.splice(IMAGES.indexOf(im),1);imgSel=null;renderImages();toast('已删除（git 待提交）：'+im.name);
+  uiConfirm('删除图片','删除「'+im.name+'」？文件经 git 提交删除，历史中可回滚。','删除（可回滚）').then(ok=>{
+    if(!ok)return;
+    IMAGES.splice(IMAGES.indexOf(im),1);imgSel=null;renderImages();toast('已删除（git 待提交）：'+im.name);
+  });
 }
 $('btnOrphanClean').onclick=function(){
   var n=IMAGES.filter(function(im){return im.orphan;}).length;
   if(!n){toast('没有未引用图片，工作区很干净');return;}
-  if(!confirm('清理 '+n+' 张未引用图片？文件经 git 提交删除，推送前可在同步视图「删除（可回滚）」分组撤回。'))return;
-  for(var i=IMAGES.length-1;i>=0;i--)if(IMAGES[i].orphan)IMAGES.splice(i,1);
-  imgSel=null;renderImages();toast('已清理 '+n+' 张未引用图片 · 变更已进 git 同步视图');
+  uiConfirm('清理未引用图片','清理 '+n+' 张未引用图片？文件经 git 提交删除，推送前可在同步视图「删除（可回滚）」分组撤回。','清理 '+n+' 张').then(ok=>{
+    if(!ok)return;
+    for(var i=IMAGES.length-1;i>=0;i--)if(IMAGES[i].orphan)IMAGES.splice(i,1);
+    imgSel=null;renderImages();toast('已清理 '+n+' 张未引用图片 · 变更已进 git 同步视图');
+  });
 };
 ['imgFYear','imgFRef','imgFFmt'].forEach(function(id){$(id).onchange=renderImages;});
 $('imgSearch').oninput=function(){renderImages();};
@@ -2818,6 +2832,22 @@ $('llmProv').onchange=function(){
     }
   });
 })();
+
+/* ---------- 评审修订：统一自绘确认对话框（替代 4 处原生 confirm），返回 Promise<boolean>；Esc / 遮罩点击视为取消 ---------- */
+let cfResolve=null;
+function uiConfirm(title,msg,confirmText){
+  $('cfTitle').textContent=title;$('cfMsg').textContent=msg;
+  $('cfYes').textContent=confirmText||'确认';
+  openModal('mConfirm');
+  return new Promise(res=>{cfResolve=res;});
+}
+function cfClose(v){
+  if(!cfResolve)return;
+  const r=cfResolve;cfResolve=null;
+  closeModal('mConfirm');r(!!v);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cfResolve)cfClose(false);});
+$('mConfirm').addEventListener('click',e=>{if(e.target===e.currentTarget)cfClose(false);});
 
 
 </script>
