@@ -39,6 +39,14 @@ public sealed class ImagesPage : UserControl
     private readonly Button _intake = new() { Classes = { "btn" } };
     private Border? _detailPanel;
     private string? _selectedPath;
+    // 评审修订（原型 D7）：批量选择集（相对路径），配悬停勾选与批量操作栏。
+    private readonly HashSet<string> _pickedPaths = new(StringComparer.Ordinal);
+    private readonly Border _batchBar = new()
+    {
+        Classes = { "batchbar" },
+        IsVisible = false,
+        Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 },
+    };
     private readonly Dictionary<string, Bitmap?> _thumbCache = new();
     private int _thumbGeneration;
 
@@ -102,6 +110,9 @@ public sealed class ImagesPage : UserControl
             if (e.Property == TextBox.TextProperty) Rebuild();
         };
         host.Children.Add(filters);
+
+        // 评审修订（原型 D7）：批量操作栏——选中 N 张后浮出（复制路径 / 批量删除走确认流）。
+        host.Children.Add(_batchBar);
 
         // 主体：左缩略图墙 + 右详情面板
         _grid.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -235,6 +246,9 @@ public sealed class ImagesPage : UserControl
         _grid.Children.Clear();
         var selectionAlive = false;
 
+        var all = (AppState.Instance.Scan?.Images ?? []).Select(i => i.RelativePath).ToHashSet(StringComparer.Ordinal);
+        _pickedPaths.RemoveWhere(p => !all.Contains(p)); // 已删除/重命名后清理失效勾选
+
         var items = Filtered().ToList();
         foreach (var image in items)
         {
@@ -242,6 +256,7 @@ public sealed class ImagesPage : UserControl
             _grid.Children.Add(BuildCard(image));
         }
         _footer.Text = TF("Vox.Images.Stats.Footer", items.Count, AppState.Instance.Scan?.Images.Count ?? 0);
+        RenderBatchBar();
 
         if (_thumbCache.Count > 600) _thumbCache.Clear(); // 粗略上限：防止长会话内存膨胀
         _ = DecodeThumbsAsync(_thumbGeneration);
@@ -309,6 +324,30 @@ public sealed class ImagesPage : UserControl
             thumb.Child = new Panel { Children = { content, flag } };
         }
 
+        // 评审修订（原型 D7）：悬停勾选加入批量选择（不打开放大详情）；勾选态描边。
+        var picked = _pickedPaths.Contains(image.RelativePath);
+        Border? cardRef = null; // 点击发生在卡片构建完成后，延迟取用
+        var pick = new Button
+        {
+            Classes = { "pick" },
+            Content = picked ? "✓" : string.Empty,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(6),
+        };
+        ToolTip.SetTip(pick, T("Vox.Images.Batch.Pick"));
+        var thumbPanel = new Panel { Children = { thumb.Child!, pick } };
+        thumb.Child = thumbPanel;
+        pick.Click += (_, _) =>
+        {
+            if (!_pickedPaths.Remove(image.RelativePath)) _pickedPaths.Add(image.RelativePath);
+            var now = _pickedPaths.Contains(image.RelativePath);
+            pick.Content = now ? "✓" : string.Empty;
+            pick.Classes.Set("checked", now);
+            if (cardRef is { } c) Res(c, Border.BorderBrushProperty, now || selected ? "VoxAccent" : "VoxLine");
+            RenderBatchBar();
+        };
+
         var refsLabel = image.ReferencedBy.Count > 0 ? TF("Vox.Images.Label.Refs", image.ReferencedBy.Count) : T("Vox.Images.Pick.Orphan");
         var metaLine = image.IsMissing
             ? T("Vox.Images.Badge.Missing")
@@ -338,18 +377,19 @@ public sealed class ImagesPage : UserControl
             Cursor = new Cursor(StandardCursorType.Hand),
         };
         Res(card, Border.BackgroundProperty, "VoxSurface");
-        Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
+        Res(card, Border.BorderBrushProperty, selected || picked ? "VoxAccent" : "VoxLine");
+        cardRef = card;
         card.BorderThickness = new Thickness(1);
         card.PointerEntered += (_, _) =>
         {
-            if (selected) return;
+            if (selected || picked) return;
             Res(card, Border.BorderBrushProperty, "VoxLineStrong");
             card.RenderTransform = new TranslateTransform(0, -1);
         };
         card.PointerExited += (_, _) =>
         {
             card.RenderTransform = null;
-            Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
+            Res(card, Border.BorderBrushProperty, selected || picked ? "VoxAccent" : "VoxLine");
         };
         card.PointerReleased += (_, _) =>
         {
@@ -380,6 +420,69 @@ public sealed class ImagesPage : UserControl
     }
 
     private readonly Dictionary<string, Avalonia.Controls.Image> _thumbRequests = new();
+
+    /// <summary>批量操作栏（原型 #imgBatch）：选中 N 张后浮出；复制路径 / 批量删除（确认流）/ 取消选择。</summary>
+    private void RenderBatchBar()
+    {
+        var host = (StackPanel)_batchBar.Child!;
+        host.Children.Clear();
+        if (_pickedPaths.Count == 0)
+        {
+            _batchBar.IsVisible = false;
+            return;
+        }
+        _batchBar.IsVisible = true;
+        var label = new TextBlock { Text = TF("Vox.Images.Batch.Selected", _pickedPaths.Count), FontSize = 11, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        Res(label, TextBlock.ForegroundProperty, "VoxFg");
+        var copy = new Button { Classes = { "btn", "sm" }, Content = T("Vox.Images.Batch.Copy") };
+        copy.Click += async (_, _) =>
+        {
+            var text = string.Join("\n", (AppState.Instance.Scan?.Images ?? [])
+                .Where(i => _pickedPaths.Contains(i.RelativePath))
+                .Select(i => i.RelativePath));
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null && text.Length > 0) await clipboard.SetTextAsync(text);
+            _shell.ShowToast(TF("Vox.Images.Batch.Copied", _pickedPaths.Count));
+        };
+        var delete = new Button { Classes = { "btn", "sm", "danger" }, Content = T("Vox.Images.Batch.Delete") };
+        delete.Click += async (_, _) => await DeletePickedAsync();
+        var clear = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Images.Batch.Clear") };
+        clear.Click += (_, _) =>
+        {
+            _pickedPaths.Clear();
+            RebuildGrid();
+        };
+        _batchBar.Child = host;
+        host.Children.Add(label);
+        host.Children.Add(copy);
+        host.Children.Add(delete);
+        host.Children.Add(clear);
+    }
+
+    /// <summary>批量删除：统一确认对话框（破坏性红色主钮）→ 逐个删除（git 工作区删除，推送前可在同步视图撤回）。</summary>
+    private async Task DeletePickedAsync()
+    {
+        var root = AppState.Instance.CurrentRepoRoot;
+        var picked = (AppState.Instance.Scan?.Images ?? []).Where(i => _pickedPaths.Contains(i.RelativePath)).ToList();
+        if (root == null || picked.Count == 0) return;
+        var ok = await ConfirmDialog.Show(_shell, T("Vox.Images.Batch.DeleteTitle"),
+            TF("Vox.Images.Batch.DeleteBody", picked.Count), T("Vox.Images.Action.Delete"));
+        if (!ok) return;
+        var deleted = 0;
+        foreach (var image in picked)
+        {
+            try
+            {
+                File.Delete(Path.Combine(root, image.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
+                if (_selectedPath == image.RelativePath) _selectedPath = null;
+                deleted++;
+            }
+            catch { /* 只读/占用：跳过，重扫后仍在 */ }
+        }
+        _pickedPaths.Clear();
+        _shell.ShowToast(TF("Vox.Images.Batch.Deleted", deleted));
+        AppState.Instance.NotifyRepoChanged();
+    }
 
     private Control BuildThumbVisual(ImageAsset image)
     {

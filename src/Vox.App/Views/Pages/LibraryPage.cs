@@ -36,7 +36,10 @@ public sealed class LibraryPage : UserControl
     private readonly ArcInput _search = new() { Width = 220, IsLabelVisible = false };
     private readonly TextBlock _footInfo = new();
     private readonly StackPanel _pagerHost = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
-    private const int PageSize = 15;
+    private readonly StackPanel _chipsHost = new() { Orientation = Orientation.Horizontal, Spacing = 8, IsVisible = false };
+    private readonly Controls.MiniSelect _pageSizeFilter = new();
+    // 评审修订（原型 D5）：页大小可选（原型 5/20/50 档），默认 5 与原型一致。
+    private int _pageSize = 5;
 
     /// <summary>全文搜索防抖窗口：键入停止该时长后才执行匹配（含正文有界读），键击期间不读盘。</summary>
     private const int SearchDebounceMs = 300;
@@ -87,22 +90,36 @@ public sealed class LibraryPage : UserControl
         _statsHost.SizeChanged += (_, _) => LayoutStatsCards();
         host.Children.Add(_statsHost);
 
-        // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）
+        // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）；评审修订（原型 D6）：下拉前置字段名 + 每页条数。
         var filters = new DockPanel();
         _search.Dock(Dock.Right);
         filters.Children.Add(_search);
         var selects = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left };
-        foreach (var (select, allLabel) in new[]
+        foreach (var (select, allLabel, labelKey) in new[]
                  {
-                     (_yearFilter, T("Vox.Library.Filter.Year")), (_categoryFilter, T("Vox.Library.Filter.Category")),
-                     (_statusFilter, T("Vox.Library.Filter.Status")), (_platformFilter, T("Vox.Library.Filter.Platform")),
+                     (_yearFilter, T("Vox.Library.Filter.Year"), "Vox.Library.Column.Year"),
+                     (_categoryFilter, T("Vox.Library.Filter.Category"), "Vox.Library.Column.Category"),
+                     (_statusFilter, T("Vox.Library.Filter.Status"), "Vox.Library.Column.Status"),
+                     (_platformFilter, T("Vox.Library.Filter.Platform"), "Vox.Library.Column.Platform"),
                  })
         {
             select.Items = new[] { allLabel };
             select.Selected = allLabel;
             select.SelectionChanged += _ => { _page = 0; RebuildTable(); };
-            selects.Children.Add(select);
+            selects.Children.Add(WithFieldLabel(select, labelKey));
         }
+        _pageSizeFilter.Items = new[] { "5", "20", "50" };
+        _pageSizeFilter.Selected = "5";
+        _pageSizeFilter.SelectionChanged += _ =>
+        {
+            if (int.TryParse(_pageSizeFilter.Selected, out var size) && size > 0)
+            {
+                _pageSize = size;
+                _page = 0;
+                RebuildTable();
+            }
+        };
+        selects.Children.Add(WithFieldLabel(_pageSizeFilter, "Vox.Library.Filter.PageSize"));
         filters.Children.Add(selects);
         _search.PropertyChanged += (_, e) =>
         {
@@ -113,6 +130,8 @@ public sealed class LibraryPage : UserControl
             }
         };
         host.Children.Add(filters);
+        // 评审修订（原型 D6）：生效筛选 chips（可单删/全清）+ 匹配计数。
+        host.Children.Add(_chipsHost);
 
         // 表格 + 分页脚（同一圆角容器，原型 .tblwrap 口径）
         var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
@@ -174,13 +193,52 @@ public sealed class LibraryPage : UserControl
         var images = scan?.Images.Count ?? 0;
         var pending = scan is null ? 0 : PublishHub.Rows().Sum(r => r.Channels.Count(c => c.Status is PublishStatus.Stale or PublishStatus.Off or PublishStatus.Error));
 
-        _statsHost.Children.Add(StatCard($"{articles}", TF("Vox.Library.Stats.ArticlesSpan", years)));
+        // 评审修订（原型 D6）：统计卡可点快捷筛选——文章卡清除全部筛选，待发布卡切平台筛选。
+        var articlesCard = StatCard($"{articles}", TF("Vox.Library.Stats.ArticlesSpan", years));
+        MakeClickable(articlesCard, T("Vox.Library.Stats.ResetTip"), ResetFilters);
+        _statsHost.Children.Add(articlesCard);
         _statsHost.Children.Add(StatCard(FormatWords(words), T("Vox.Library.Stats.WordsEngine")));
         var imagesCard = StatCard($"{images}", T("Vox.Library.Stats.Images"));
         ToolTip.SetTip(imagesCard, T("Vox.Library.Stats.ImagesTip"));
         _statsHost.Children.Add(imagesCard);
-        _statsHost.Children.Add(StatCard($"{pending}", T("Vox.Library.Stats.PendingAll")));
+        var pendingCard = StatCard($"{pending}", T("Vox.Library.Stats.PendingAll"));
+        MakeClickable(pendingCard, T("Vox.Library.Stats.PendingTip"), () =>
+        {
+            _platformFilter.Selected = T("Vox.Library.Filter.Pending");
+            _page = 0;
+            RebuildTable();
+        });
+        _statsHost.Children.Add(pendingCard);
         LayoutStatsCards();
+    }
+
+    /// <summary>统计卡快捷筛选：可点、悬停描边提示（原型 .stat-link）。</summary>
+    private void MakeClickable(Border card, string tip, Action action)
+    {
+        ToolTip.SetTip(card, tip);
+        card.Cursor = new Cursor(StandardCursorType.Hand);
+        card.PointerReleased += (_, e) => { e.Handled = true; action(); };
+        card.Classes.Add("stat-link");
+    }
+
+    private void ResetFilters()
+    {
+        _yearFilter.Selected = _yearFilter.Items[0];
+        _categoryFilter.Selected = _categoryFilter.Items[0];
+        _statusFilter.Selected = _statusFilter.Items[0];
+        _platformFilter.Selected = _platformFilter.Items[0];
+        _search.Text = string.Empty;
+        _page = 0;
+        RebuildTable();
+    }
+
+    /// <summary>筛选下拉的前置字段名（原型 .filters .fld > label；MiniSelect 自身只渲染占位）。</summary>
+    private static StackPanel WithFieldLabel(Controls.MiniSelect select, string labelKey)
+    {
+        var label = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 10.5 };
+        label[!TextBlock.TextProperty] = I18n.Bind(labelKey);
+        Res(label, TextBlock.ForegroundProperty, "VoxMuted");
+        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { label, select } };
     }
 
     /// <summary>桌面四列、窄窗口两列；避免固定最小宽度造成横向溢出。</summary>
@@ -376,17 +434,11 @@ public sealed class LibraryPage : UserControl
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Date"), new DataGridLength(84), row => Cell(row.YearMonth, false)));
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Category"), new DataGridLength(110), row => Cell(string.Join("、", row.Article.Meta.Categories), true)));
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Tags"), new DataGridLength(150), row => Cell(string.Join(" · ", row.Article.Meta.Tags), true)));
-        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Words"), new DataGridLength(72), row => Cell(row.Article.WordCount.ToString("N0"), false)));
-        foreach (var (header, channel) in new[]
-                 {
-                     (T("Vox.Library.Column.Site"), PublishChannel.Site),
-                     (T("Vox.Library.Column.Wx"), PublishChannel.WeChat),
-                     (T("Vox.Library.Column.Cnb"), PublishChannel.Cnblogs),
-                     ("CSDN", PublishChannel.Csdn),
-                 })
-        {
-            _libGrid.Columns.Add(Column(header, new DataGridLength(70), row => StatusCell(row, channel)));
-        }
+        // 评审修订（原型 D5）：字数右对齐（tabular-nums 由字体等宽口径承担）。
+        var wordsCell = Column(T("Vox.Library.Column.Words"), new DataGridLength(72), row => Cell(row.Article.WordCount.ToString("N0"), false));
+        _libGrid.Columns.Add(wordsCell);
+        // 评审修订（原型 D5）：四个平台状态点列合并为单列「分发」，逐点 tooltip 带平台名与说明。
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Distribution"), new DataGridLength(112), DistributionCell));
         _libGrid.Columns.Add(Column(string.Empty, new DataGridLength(148), ActionCell));
 
         _libGrid.EnableDefaults(enableSorting: false);
@@ -423,6 +475,61 @@ public sealed class LibraryPage : UserControl
         return block;
     }
 
+    /// <summary>分发单列（原型 .plat-cell）：四平台状态点并排，各自 tooltip 带平台名/状态/备注，点击打开发布对话框。</summary>
+    private Control DistributionCell(LibRowModel row)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        foreach (var (channel, nameKey) in new (PublishChannel, string?)[]
+                 {
+                     (PublishChannel.Site, "Vox.Library.Column.Site"),
+                     (PublishChannel.WeChat, "Vox.Library.Column.Wx"),
+                     (PublishChannel.Cnblogs, "Vox.Library.Column.Cnb"),
+                     (PublishChannel.Csdn, null), // 原表格即用字面量「CSDN」，无资源键
+                 })
+        {
+            var channelName = nameKey is null ? "CSDN" : T(nameKey);
+            var glyph = new TextBlock
+            {
+                Text = "—",
+                Classes = { "pm-st" },
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(glyph, TextBlock.ForegroundProperty, "VoxFaint");
+            if (row.Row is { } publish)
+            {
+                var (status, note) = publish.Channels[(int)channel];
+                glyph.Text = StatusGlyph(status);
+                glyph.Classes.Add(status switch
+                {
+                    PublishStatus.Ok => "ok",
+                    PublishStatus.Stale => "stale",
+                    PublishStatus.Error => "err",
+                    _ => "off",
+                });
+                glyph.Opacity = 1;
+                ToolTip.SetTip(glyph, TF("Vox.Library.Tip.ChannelStatus", channelName, StatusText(status), note));
+            }
+            else
+            {
+                ToolTip.SetTip(glyph, TF("Vox.Library.Tip.ChannelStatus", channelName, StatusText(PublishStatus.Off), string.Empty));
+            }
+            var captured = channel;
+            glyph.PointerReleased += (_, e) =>
+            {
+                e.Handled = true;
+                _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
+            };
+            panel.Children.Add(glyph);
+        }
+        return panel;
+    }
+
     private static Control TitleCell(LibRowModel row)
     {
         var title = new TextBlock
@@ -443,7 +550,7 @@ public sealed class LibraryPage : UserControl
 
         var badge = new Border
         {
-            Classes = { "badge", "accent" },
+            Classes = { "badge", "warn" }, // 评审修订（原型 D10）：草稿=警示色，不再占用品牌强调色
             VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock { Text = T("Vox.Library.Badge.Draft"), FontSize = 10 },
         };
@@ -455,36 +562,6 @@ public sealed class LibraryPage : UserControl
             Margin = new Thickness(14, 4, 12, 4),
             Children = { title, badge },
         };
-    }
-
-    private Control StatusCell(LibRowModel row, PublishChannel channel)
-    {
-        var cell = new TextBlock
-        {
-            Text = "—",
-            Classes = { "pm-st" },
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Res(cell, TextBlock.ForegroundProperty, "VoxFaint");
-        if (row.Row is not { } publish) return cell;
-
-        var (status, note) = publish.Channels[(int)channel];
-        cell.Text = StatusGlyph(status);
-        cell.Classes.Add(status switch
-        {
-            PublishStatus.Ok => "ok",
-            PublishStatus.Stale => "stale",
-            PublishStatus.Error => "err",
-            _ => "off",
-        });
-        ToolTip.SetTip(cell, TF("Vox.Library.Tip.ChannelStatus", ChannelName(channel), StatusText(status), note));
-        cell.PointerReleased += (_, e) =>
-        {
-            e.Handled = true;
-            _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
-        };
-        return cell;
     }
 
     private Control ActionCell(LibRowModel row)
@@ -507,9 +584,9 @@ public sealed class LibraryPage : UserControl
     private void RebuildTable()
     {
         var all = Filtered();
-        var totalPages = Math.Max(1, (int)Math.Ceiling(all.Count / (double)PageSize));
+        var totalPages = Math.Max(1, (int)Math.Ceiling(all.Count / (double)_pageSize));
         _page = Math.Clamp(_page, 0, totalPages - 1);
-        var pageItems = all.Skip(_page * PageSize).Take(PageSize).ToList();
+        var pageItems = all.Skip(_page * _pageSize).Take(_pageSize).ToList();
 
         var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
         _libGrid.ItemsSource = pageItems.Select(a => new LibRowModel(a, rows.GetValueOrDefault(a.MarkdownPath))).ToList();
@@ -518,19 +595,70 @@ public sealed class LibraryPage : UserControl
         // 分页
         _footInfo.Text = all.Count == 0
             ? TF("Vox.Library.Stats.Total", 0)
-            : TF("Vox.Library.Stats.PageInfo", _page * PageSize + 1, _page * PageSize + pageItems.Count, all.Count);
+            : TF("Vox.Library.Stats.PageInfo", _page * _pageSize + 1, _page * _pageSize + pageItems.Count, all.Count);
+        RenderChips(all.Count);
         _pagerHost.Children.Clear();
-        _pagerHost.Children.Add(PagerButton("‹", () => { if (_page > 0) { _page--; RebuildTable(); } }));
-        for (var i = 0; i < totalPages && i < 8; i++)
+        _pagerHost.Children.Add(PagerButton("‹", () => { if (_page > 0) { _page--; RebuildTable(); } }, disabled: _page == 0));
+        // 评审修订（原型 D5）：窗口式页码（1 … p-1 p p+1 … 末页），中间页可达。
+        var pages = new List<object>();
+        for (var i = 0; i < totalPages; i++)
         {
-            var index = i;
-            _pagerHost.Children.Add(PagerButton($"{i + 1}", () => { _page = index; RebuildTable(); }, current: i == _page));
+            if (i == 0 || i == totalPages - 1 || Math.Abs(i - _page) <= 1) pages.Add(i);
+            else if (pages[^1] is not string) pages.Add("…");
         }
-        if (totalPages > 8) _pagerHost.Children.Add(PagerButton("…", () => { }));
-        _pagerHost.Children.Add(PagerButton("›", () => { if (_page < totalPages - 1) { _page++; RebuildTable(); } }));
+        foreach (var item in pages)
+        {
+            if (item is string ellipsis) _pagerHost.Children.Add(PagerButton(ellipsis, () => { }, disabled: true));
+            else
+            {
+                var index = (int)item;
+                _pagerHost.Children.Add(PagerButton($"{index + 1}", () => { _page = index; RebuildTable(); }, current: index == _page));
+            }
+        }
+        _pagerHost.Children.Add(PagerButton("›", () => { if (_page < totalPages - 1) { _page++; RebuildTable(); } }, disabled: _page == totalPages - 1));
     }
 
-    private Button PagerButton(string label, Action action, bool current = false)
+    /// <summary>生效筛选 chips（原型 #libChips）：逐项可移除、一键全清、实时匹配计数。</summary>
+    private void RenderChips(int matchCount)
+    {
+        _chipsHost.Children.Clear();
+        var chips = new List<(string Label, Action Remove)>();
+        if (_yearFilter.Selected is { Length: > 0 } y && y != T("Vox.Library.Filter.Year"))
+            chips.Add((string.Format(T("Vox.Library.Chips.Field"), T("Vox.Library.Column.Year"), y), () => _yearFilter.Selected = _yearFilter.Items[0]));
+        if (_categoryFilter.Selected is { Length: > 0 } c && c != T("Vox.Library.Filter.Category"))
+            chips.Add((string.Format(T("Vox.Library.Chips.Field"), T("Vox.Library.Column.Category"), c), () => _categoryFilter.Selected = _categoryFilter.Items[0]));
+        if (_statusFilter.Selected is { Length: > 0 } s && s != T("Vox.Library.Filter.Status"))
+            chips.Add((string.Format(T("Vox.Library.Chips.Field"), T("Vox.Library.Column.Status"), s), () => _statusFilter.Selected = _statusFilter.Items[0]));
+        if (_platformFilter.Selected is { Length: > 0 } p && p != T("Vox.Library.Filter.Platform"))
+            chips.Add((string.Format(T("Vox.Library.Chips.Field"), T("Vox.Library.Column.Platform"), p), () => _platformFilter.Selected = _platformFilter.Items[0]));
+        var term = _search.Text?.Trim();
+        if (!string.IsNullOrEmpty(term))
+            chips.Add((string.Format(T("Vox.Library.Chips.Field"), T("Vox.Library.Column.Title"), term), () => _search.Text = string.Empty));
+
+        if (chips.Count == 0)
+        {
+            _chipsHost.IsVisible = false;
+            return;
+        }
+        _chipsHost.IsVisible = true;
+        var sum = new TextBlock { Text = TF("Vox.Library.Chips.Count", matchCount), FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
+        Res(sum, TextBlock.ForegroundProperty, "VoxMuted");
+        _chipsHost.Children.Add(sum);
+        foreach (var (label, remove) in chips)
+        {
+            var chip = new Button { Classes = { "chip-x" } };
+            var chipText = new TextBlock { Text = label + "  ×", FontSize = 10.5 };
+            Res(chipText, TextBlock.ForegroundProperty, "VoxMuted");
+            chip.Content = chipText;
+            chip.Click += (_, _) => { remove(); _page = 0; RebuildTable(); };
+            _chipsHost.Children.Add(chip);
+        }
+        var clear = new Button { Classes = { "chip-x", "chip-clear" }, Content = T("Vox.Library.Chips.Clear") };
+        clear.Click += (_, _) => ResetFilters();
+        _chipsHost.Children.Add(clear);
+    }
+
+    private Button PagerButton(string label, Action action, bool current = false, bool disabled = false)
     {
         var button = new Button
         {
@@ -538,6 +666,7 @@ public sealed class LibraryPage : UserControl
             Content = label,
             MinWidth = 26, Height = 24, Padding = new Thickness(6, 0),
             FontSize = 11,
+            IsEnabled = !disabled,
         };
         button.Click += (_, _) => action();
         return button;
