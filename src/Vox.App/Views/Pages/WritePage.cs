@@ -138,6 +138,7 @@ public sealed class WritePage : UserControl
     // 模式条（源码/分屏/预览/导图）
     private int _mode;
     private bool _restoringMapZoom = true;
+    private TextBlock _mapZoomPct = null!; // 导图缩放读数（缩放坞），随 ZoomChanged 同步
     private readonly TKCode.Arc.SegmentedControl _modeSeg = new() { Name = "WriteMode" };
 
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(450) };
@@ -258,6 +259,7 @@ public sealed class WritePage : UserControl
         BuildLayout();
         _mapView.ZoomChanged += (_, _) =>
         {
+            SyncMapZoomReadout();
             if (_restoringMapZoom) return;
             AppState.Instance.Settings.MapZoomPercent = Math.Clamp(_mapView.Zoom * 100, 1, 200);
             AppState.Instance.SaveSettings();
@@ -790,7 +792,7 @@ public sealed class WritePage : UserControl
 
         // 导图卡：MarkdownMindMapView 全宽画布（第四态），底层点阵 + 右上角导图样式钮。
         BindMapBrushes();
-        _mapCard = Card(new Panel { Children = { BuildMapDotgrid(), _mapView, BuildMapLegend(), BuildMapStyleButton(), BuildMapHint() } }, new Thickness(10, 10, 10, 10));
+        _mapCard = Card(new Panel { Children = { BuildMapDotgrid(), _mapView, BuildMapLegend(), BuildMapStyleButton(), BuildMapHint(), BuildMapZoomDock() } }, new Thickness(10, 10, 10, 10));
         Grid.SetColumnSpan(_mapCard, 3);
 
         // 源码 | 分隔条 | 预览（分屏态专用分隔条）
@@ -1301,6 +1303,66 @@ public sealed class WritePage : UserControl
         hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Map.Hint");
         Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
         return hint;
+    }
+
+    /// <summary>导图缩放坞（与 Vex / 原型同口径）：步进 ±、百分比读数、⤢ 复位适配；令牌化配色。</summary>
+    private Control BuildMapZoomDock()
+    {
+        _mapZoomPct = new TextBlock
+        {
+            MinWidth = 42,
+            TextAlignment = TextAlignment.Center,
+            FontSize = 11,
+        };
+        Res(_mapZoomPct, TextBlock.ForegroundProperty, "VoxMuted");
+
+        Button Step(string glyph, string tipKey, Action onClick)
+        {
+            var button = new Button
+            {
+                Width = 26,
+                Height = 26,
+                MinWidth = 0,
+                MinHeight = 0,
+                Padding = new Thickness(0),
+                Classes = { "dock-btn" },
+                Content = glyph,
+                FontSize = 14,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+            };
+            button[!ToolTip.TipProperty] = I18n.Bind(tipKey);
+            button.Click += (_, _) => onClick();
+            return button;
+        }
+
+        var dock = new Border
+        {
+            Classes = { "map-dock" },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 14, 12),
+            ZIndex = 6,
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 2,
+                Children =
+                {
+                    Step("−", "Vox.Write.Map.ZoomOut", _mapView.ZoomOut),
+                    _mapZoomPct,
+                    Step("+", "Vox.Write.Map.ZoomIn", _mapView.ZoomIn),
+                    Step("⤢", "Vox.Write.Map.ZoomFit", () => _mapView.Fit()),
+                },
+            },
+        };
+        SyncMapZoomReadout();
+        return dock;
+    }
+
+    private void SyncMapZoomReadout()
+    {
+        if (_mapZoomPct is null) return; // 坞未建（构造期 ZoomChanged 先到）
+        _mapZoomPct.Text = Math.Round(_mapView.Zoom * 100) + "%";
     }
 
     private Button BuildMapStyleButton()

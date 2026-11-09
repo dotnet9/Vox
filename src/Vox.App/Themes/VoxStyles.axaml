@@ -1130,4 +1130,24 @@
   <Style Selector="Border.find-float Button:pointerover">
     <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
   </Style>
+
+  <!-- 导图缩放坞（与 Vex / 原型同口径）：读数 + 步进 + 复位，令牌化配色。 -->
+  <Style Selector="Border.map-dock">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLineStrong}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="4,4"/>
+    <Setter Property="BoxShadow" Value="0 3 12 0 #14000000"/>
+  </Style>
+  <Style Selector="Border.map-dock Button.dock-btn">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+  </Style>
+  <Style Selector="Border.map-dock Button.dock-btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
 </Styles>
