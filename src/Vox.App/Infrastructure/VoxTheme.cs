@@ -152,6 +152,14 @@ public static class VoxTheme
         resources["VoxFaint"] = Brush(p.Faint);
         resources["VoxLine"] = Brush(p.Line);
         resources["VoxLineStrong"] = Brush(p.LineStrong);
+        // 大纲面板（库 MarkdownOutlinePanel）视觉契约键：随明暗/密度主题一起换肤。
+        resources["OutlinePanelValueBrush"] = Brush(p.Fg);
+        resources["OutlinePanelMutedBrush"] = Brush(p.Muted);
+        resources["OutlinePanelHoverBrush"] = Brush(p.Surface2);
+        resources["OutlinePanelCurrentBrush"] = Brush(HexSoft(accent));
+        resources["OutlinePanelAccentBrush"] = Brush(accent);
+        resources["OutlinePanelSearchBackgroundBrush"] = Brush(p.Surface);
+        resources["OutlinePanelSearchBorderBrush"] = Brush(p.LineStrong);
         resources["VoxCodeBg"] = Brush(p.CodeBg);
         resources["VoxOk"] = Brush(p.Ok);
         resources["VoxOkSoft"] = Brush(p.OkSoft);

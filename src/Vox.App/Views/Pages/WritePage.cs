@@ -17,6 +17,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using CodeWF.Avalonia.Markdown.Controls;
 using CodeWF.Avalonia.Markdown.Editor.Controls;
+using CodeWF.Avalonia.Markdown.Editor.Services;
 using CodeWF.Avalonia.Markdown.Shared.Rendering;
 using CodeWF.Avalonia.MindView;
 using CodeWF.Avalonia.MindView.Controls;
@@ -103,13 +104,19 @@ public sealed class WritePage : UserControl
     private readonly TKCode.Arc.SegmentedControl _panelSeg = new();
     private Panel _outlineTab = null!;
     private StackPanel _outlineHost = null!;
-    private TextBlock _outlineEmpty = null!;
-    private readonly List<OutlineNavigationRow> _outlineRows = [];
-    private readonly ObservableCollection<OutlineNavigationRow> _visibleOutlineRows = [];
-    private readonly HashSet<int> _collapsedOutlineLines = [];
-    private ListBox _outlineList = null!;
-    private TextBox _outlineFilter = null!;
-    private OutlineNavigationRow? _currentOutlineRow;
+    private MarkdownOutlinePanel _outlinePanel = null!;
+    private IReadOnlyList<string> _outlineOutlineKeys = [];
+
+    // ---------- 查找栏（Typora 口径：紧凑浮条 + 当前/总数 + 三视图同源高亮） ----------
+    private Border _findBar = null!;
+    private TextBox _findInput = null!;
+    private TextBlock _findCount = null!;
+    private ToggleButton _findCaseToggle = null!;
+    private ToggleButton _findWordToggle = null!;
+    private ToggleButton _findRegexToggle = null!;
+    private bool _findMatchCase;
+    private bool _findWholeWord;
+    private bool _findRegex;
     private IDisposable? _outlineNavigation;
     private IDisposable? _outlineReadingSample;
     private int _outlineNavigationVersion;
@@ -203,8 +210,12 @@ public sealed class WritePage : UserControl
     public WritePage(MainWindow shell)
     {
         _shell = shell;
+        // 文章列表默认树形（VoxSettings.ArticleTreeMode，切换即记忆），早于 ListCard() 构建赋值。
+        _treeMode = AppState.Instance.Settings.ArticleTreeMode;
+        _articleList.Classes.Set("tree-mode", _treeMode);
         // 源码编辑器与 Vex 固定基线一致：同一 CodeWF MarkdownEditorView 控件，
         // 沿用控件默认 Cascadia Mono 字体栈、15px 字号与默认行高，仅覆盖 24/22/24/60 编辑区内边距。
+        _editorView.SearchResultProduced += (_, e) => UpdateFindCount(e.CurrentIndex, e.TotalCount);
         _editorView.EditorPadding = new Thickness(24, 22, 24, 60);
         // 配色键保留控件内置 CodeWFMarkdownEditor* 默认值，由 VoxTheme 的 MarkdownEditorPalette
         // 同名资源统一供给，避免在此重复定义一套可能与语义调色板脱节的键。
@@ -222,6 +233,7 @@ public sealed class WritePage : UserControl
             ApplyAiChrome();
             ApplyEditorTheme();
             RefreshMapDotgridBrush();
+            ApplyOutlineNumbersMode();
         });
         AttachedToVisualTree += (_, _) =>
         {
@@ -320,7 +332,7 @@ public sealed class WritePage : UserControl
             RefreshMetaTab(); // 保存/弹层保存后索引重建：元数据页签（含发布状态点）随新索引刷新
         });
 
-        SetPanelVisible(false); // 构造器末尾统一收起：面板隐藏 + 列宽/MinWidth 归零 + 把手骑视图区右缘
+        SetPanelVisible(AppState.Instance.Settings.IsOutlineVisible); // 默认展开（配置持久化）：列宽按状态归零或恢复 + 把手骑视图区右缘
     }
 
     // ---------- 布局 ----------
@@ -438,7 +450,7 @@ public sealed class WritePage : UserControl
             var button = new Button
             {
                 Name = tree ? "ArticleTreeMode" : "ArticleListMode",
-                Classes = { "vsegbtn", tree ? string.Empty : "active" },
+                Classes = { "vsegbtn", tree == _treeMode ? "active" : string.Empty },
                 Content = new LucideIcon { Kind = icon, Width = 13, Height = 13, StrokeThickness = 2 },
             };
             button[!ToolTip.TipProperty] = I18n.Bind(tooltipKey);
@@ -449,6 +461,12 @@ public sealed class WritePage : UserControl
                 foreach (var child in segButtons.Children.OfType<Button>())
                 {
                     child.Classes.Set("active", ReferenceEquals(child, button));
+                }
+                // 视图切换即记忆（VoxSettings.ArticleTreeMode），下次启动按此打开。
+                if (AppState.Instance.Settings.ArticleTreeMode != tree)
+                {
+                    AppState.Instance.Settings.ArticleTreeMode = tree;
+                    AppState.Instance.SaveSettings();
                 }
                 ReloadArticles();
             };
@@ -813,8 +831,19 @@ public sealed class WritePage : UserControl
         floatHost.Children.Add(_modeSeg);
 
         BuildPanelHandle();
+        BuildFindBar();
         _viewWrap.Children.Add(center);
         _viewWrap.Children.Add(floatHost);
+        _viewWrap.Children.Add(_findBar);
+        // Ctrl+F 打开查找条并拦截 AvaloniaEdit 自带搜索面板（高亮与紧凑度都不达标）。
+        _viewWrap.AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key is Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control) && !_findBar.IsVisible)
+            {
+                OpenFindBar();
+                e.Handled = true;
+            }
+        }, RoutingStrategies.Tunnel);
         MovePanelHandle(intoPanel: false); // 默认收起：把手骑视图区右缘垂直居中（最后加入保证置顶）
 
         BuildPanel();
@@ -1508,71 +1537,35 @@ public sealed class WritePage : UserControl
         _panel.ClipToBounds = true;
         _panel.KeyDown += OnPanelKey; // 面板内编辑元数据时 Ctrl+S 也能落盘（编辑器热键只覆盖源码卡）
 
-        // 与 Vex 相同的列表交互：选择不导航，鼠标释放或 Enter / Space 才显式激活。
+        // 大纲 UI 已下沉到库 MarkdownOutlinePanel（筛选框/行模板/空态/键盘折叠内置），
+        // Vox 只接数据、跳转动画、任务徽标与阅读态联动；视觉经 OutlinePanel* 资源键映射 Vox 令牌。
         _outlineHost = new StackPanel { Margin = new Thickness(14, 6) };
-        _outlineList = new ListBox { Name = "ArticleOutline", Classes = { "files-list", "outline-list" }, ItemsSource = _visibleOutlineRows };
-        _outlineList.ItemTemplate = new FuncDataTemplate<OutlineNavigationRow>((row, _) =>
+        _outlinePanel = new MarkdownOutlinePanel { Name = "ArticleOutlinePanel" };
+        _outlinePanel.ShowNumbers = AppState.Instance.Settings.ShowOutlineNumbers;
+        _outlinePanel[!MarkdownOutlinePanel.FilterWatermarkProperty] = I18n.Bind("Vox.Write.Outline.Filter");
+        _outlinePanel[!MarkdownOutlinePanel.EmptyTextProperty] = I18n.Bind("Vox.Write.Panel.OutlineEmpty");
+        _outlinePanel[!MarkdownOutlinePanel.NoMatchTextProperty] = I18n.Bind("Vox.Write.Outline.NoMatch");
+        _outlinePanel.NavigateRequested += (_, row) => JumpToOutline(row.Item);
+        _outlinePanel.ExpandedChanged += (_, row) =>
         {
-            if (row is null) return new Border();
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,30,*"), ColumnSpacing = row.IsTopLevel ? 8 : 7, Margin = row.Indent };
-            var marker = new Border { Classes = { "outline-marker" }, Width = row.IsTopLevel ? 3 : 8, Height = row.IsTopLevel ? 11 : 2,
-                Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, CornerRadius = new CornerRadius(2) };
-            var number = new TextBlock { Classes = { "outline-number" }, Text = row.Number, VerticalAlignment = VerticalAlignment.Center };
-            var title = new TextBlock { Classes = { "outline-title" }, Text = row.Title, TextTrimming = TextTrimming.CharacterEllipsis,
-                TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(number, 1); Grid.SetColumn(title, 2);
-            grid.Children.Add(marker); grid.Children.Add(number); grid.Children.Add(title);
-            var border = new Border { Classes = { "outline-row" }, Child = grid };
-            border.Classes.Set("top", row.IsTopLevel);
-            // 直接订阅当前状态，避免 NativeAOT 中的反射 Binding；回收行时解除订阅。
-            void CurrentChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-            { if (e.PropertyName == nameof(OutlineNavigationRow.IsCurrent)) border.Classes.Set("current", row.IsCurrent); }
-            border.AttachedToVisualTree += (_, _) => { border.Classes.Set("current", row.IsCurrent); row.PropertyChanged += CurrentChanged; };
-            border.DetachedFromVisualTree += (_, _) => row.PropertyChanged -= CurrentChanged;
-            ToolTip.SetTip(border, row.Title);
-            return border;
-        });
-        _outlineList.AddHandler(PointerReleasedEvent, (_, e) =>
-        {
-            if (e.InitialPressMouseButton != MouseButton.Left) return;
-            var container = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
-            if (container?.DataContext is OutlineNavigationRow row) JumpToOutline(row.Item);
-        }, RoutingStrategies.Bubble, true);
-        _outlineList.AddHandler(KeyDownEvent, OutlineKeyDown, RoutingStrategies.Tunnel, true);
-        _outlineFilter = new TextBox { Name = "OutlineFilter", Classes = { "vinput" }, Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0), Padding = new Thickness(0), MinHeight = 0, FontSize = 12,
-            VerticalContentAlignment = VerticalAlignment.Center };
-        _outlineFilter[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Write.Outline.Filter");
-        _outlineFilter.TextChanged += (_, _) => RefreshOutlineRows();
-        var searchIcon = new LucideIcon { Kind = LucideIconKind.Search, Width = 13, Height = 13, VerticalAlignment = VerticalAlignment.Center };
-        Res(searchIcon, ForegroundProperty, "VoxMuted");
-        var clearFilter = new Button { Name = "ClearOutlineFilter", Classes = { "btn", "ghost" },
-            Width = 18, Height = 18, MinWidth = 0, MinHeight = 0, Padding = new Thickness(0),
-            Content = new LucideIcon { Kind = LucideIconKind.X, Width = 13, Height = 13 } };
-        clearFilter[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.Outline.ClearFilter");
-        clearFilter[!global::Avalonia.Automation.AutomationProperties.NameProperty] = I18n.Bind("Vox.Write.Outline.ClearFilter");
-        clearFilter.Click += (_, _) => { _outlineFilter.Text = string.Empty; _outlineFilter.Focus(); };
-        var searchGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("13,*,20"), ColumnSpacing = 7 };
-        Grid.SetColumn(_outlineFilter, 1); Grid.SetColumn(clearFilter, 2);
-        searchGrid.Children.Add(searchIcon); searchGrid.Children.Add(_outlineFilter); searchGrid.Children.Add(clearFilter);
-        var outlineSearch = new Border { Classes = { "outline-search" }, Child = searchGrid };
-        var outlineGrid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
-        Grid.SetRow(_outlineList, 1); Grid.SetRow(_outlineHost, 2);
-        outlineGrid.Children.Add(outlineSearch); outlineGrid.Children.Add(_outlineList); outlineGrid.Children.Add(_outlineHost);
-        // 无文章 / 无标题时的占位提示（居中，主题跟随，文案接 I18n 绑定）。
-        _outlineEmpty = new TextBlock
-        {
-            FontSize = 12,
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            IsVisible = false,
-            Margin = new Thickness(14),
+            // 折叠/展开即落盘（OutlineExpansionKey 键，与 Vex 同口径）。
+            var rows = _outlinePanel.Rows;
+            var index = -1;
+            for (var i = 0; i < rows.Count; i++)
+            {
+                if (ReferenceEquals(rows[i], row)) { index = i; break; }
+            }
+
+            if (index < 0 || index >= _outlineOutlineKeys.Count) return;
+            var collapsed = CodeWF.Avalonia.Markdown.Controls.OutlineExpansionState.Set(
+                AppState.Instance.Settings.CollapsedOutlineSections, _outlineOutlineKeys[index], !row.IsExpanded);
+            AppState.Instance.Settings.CollapsedOutlineSections = collapsed;
+            AppState.Instance.SaveSettings();
         };
-        _outlineEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Write.Panel.OutlineEmpty");
-        Res(_outlineEmpty, TextBlock.ForegroundProperty, "VoxMuted");
-        _outlineTab = new Panel { Children = { outlineGrid, _outlineEmpty } };
+        var outlineGrid = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
+        outlineGrid.Children.Add(_outlinePanel); Grid.SetRow(_outlineHost, 1);
+        outlineGrid.Children.Add(_outlineHost);
+        _outlineTab = new Panel { Children = { outlineGrid } };
 
         // 元数据页签：表单 | YAML 双模式（原型 #metaTab：wp-metabar + yamlWarn + metaBody + yamlBody + 弹层入口）。
         // SelectedValue 在 BuildPanel 末尾赋初值：此时全部子控件已就位，SelectionChanged 触发 SetMetaMode 才安全。
@@ -1674,6 +1667,8 @@ public sealed class WritePage : UserControl
         _panel.Child = root;
         SetPanelTab(0, force: true);
         _metaModeSeg.SelectedValue = 0; // 初值放最后：全部子控件就位后 SelectionChanged 才触发 SetMetaMode
+        // 面板就位后补一次重建：构造期文章装载早于 BuildPanel 时被跳过的大纲在这里补齐。
+        RebuildOutline();
     }
 
     /// <summary>页签切换：大纲页签内容不动，进元数据按当前文章重渲染（原型 panelSeg 口径）。</summary>
@@ -2524,7 +2519,13 @@ public sealed class WritePage : UserControl
             ZIndex = 40,
         };
         _panelHandle[!ToolTip.TipProperty] = I18n.Bind("Vox.Write.Panel.Toggle");
-        _panelHandle.Click += (_, _) => SetPanelVisible(!_panel.IsVisible);
+        _panelHandle.Click += (_, _) =>
+        {
+            SetPanelVisible(!_panel.IsVisible);
+            // 显隐写入配置（默认展开），下次启动按上次状态打开。
+            AppState.Instance.Settings.IsOutlineVisible = _panel.IsVisible;
+            AppState.Instance.SaveSettings();
+        };
     }
 
     private void MovePanelHandle(bool intoPanel)
@@ -2622,6 +2623,7 @@ public sealed class WritePage : UserControl
         }
         if (mode is 1 or 2) QueueOutlineReadingSample();
         else UpdateCurrentOutline(Editor.TextArea.Caret.Line);
+        RetargetFindBar();
     }
 
     /// <summary>分屏比例约束（原型 L2108：Math.max(20, Math.min(80, …))）：源码列星号占比拖出
@@ -2663,9 +2665,7 @@ public sealed class WritePage : UserControl
             _current = null;
             _preview.Markdown = null;
             _outlineHost.Children.Clear();
-            _outlineRows.Clear(); _visibleOutlineRows.Clear(); _collapsedOutlineLines.Clear();
-            _currentOutlineRow = null;
-            _outlineEmpty.IsVisible = true;
+            _outlinePanel.SetItems([]);
             _mapView.Root = null;
             RefreshMetaTab();
             UpdateBadges();
@@ -2689,7 +2689,6 @@ public sealed class WritePage : UserControl
             var file = LinkStrategy.ToLocalFile(_repoRoot, article.MarkdownPath);
             if (!File.Exists(file)) return;
 
-            if (_current?.MarkdownPath != article.MarkdownPath) _collapsedOutlineLines.Clear();
             _current = article;
             using var reader = new StreamReader(file, System.Text.Encoding.UTF8, true);
             var text = await reader.ReadToEndAsync();
@@ -3534,39 +3533,191 @@ public sealed class WritePage : UserControl
             string.Equals(row.Article?.MarkdownPath, currentPath, StringComparison.OrdinalIgnoreCase));
     }
 
+    // ---------- 查找栏（源码/即时走编辑器选区高亮，阅读走预览内联琥珀高亮；Enter 下一个、Shift+Enter 上一个、Esc 关闭） ----------
+
+    private void BuildFindBar()
+    {
+        _findInput = new TextBox
+        {
+            Name = "ArticleFindInput",
+            Width = 180,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            BorderThickness = new Thickness(0),
+            Background = Brushes.Transparent,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        _findInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Write.Find.Placeholder");
+        _findInput.TextChanged += (_, _) => RunFind(CountAction: true);
+        _findInput.KeyDown += (_, e) =>
+        {
+            switch (e.Key)
+            {
+                case Key.Enter:
+                    RunFind(backward: e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                    e.Handled = true;
+                    break;
+                case Key.Escape:
+                    CloseFindBar();
+                    e.Handled = true;
+                    break;
+            }
+        };
+
+        _findCount = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 11 };
+        Res(_findCount, TextBlock.ForegroundProperty, "VoxMuted");
+
+        _findCaseToggle = MakeFindToggle("Aa", "Vox.Write.Find.Case", () => { _findMatchCase = _findCaseToggle.IsChecked == true; RunFind(CountAction: true); });
+        _findWordToggle = MakeFindToggle("W", "Vox.Write.Find.Word", () => { _findWholeWord = _findWordToggle.IsChecked == true; RunFind(CountAction: true); });
+        _findRegexToggle = MakeFindToggle(".*", "Vox.Write.Find.Regex", () => { _findRegex = _findRegexToggle.IsChecked == true; RunFind(CountAction: true); });
+
+        var prev = MakeFindIcon("Vox.Write.Find.Prev", LucideIconKind.ChevronUp, () => RunFind(backward: true));
+        var next = MakeFindIcon("Vox.Write.Find.Next", LucideIconKind.ChevronDown, () => RunFind());
+        var close = MakeFindIcon("Vox.Write.Find.Close", LucideIconKind.X, CloseFindBar);
+
+        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+        bar.Children.Add(_findInput);
+        bar.Children.Add(_findCount);
+        bar.Children.Add(_findCaseToggle);
+        bar.Children.Add(_findWordToggle);
+        bar.Children.Add(_findRegexToggle);
+        bar.Children.Add(prev);
+        bar.Children.Add(next);
+        bar.Children.Add(close);
+
+        _findBar = new Border
+        {
+            Name = "ArticleFindBar",
+            Classes = { "find-float" },
+            Child = bar,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 12, 16, 0),
+            ZIndex = 40,
+            IsVisible = false,
+        };
+        _findBar.KeyDown += (_, e) =>
+        {
+            if (e.Key is Key.Escape) CloseFindBar();
+        };
+    }
+
+    private ToggleButton MakeFindToggle(string glyph, string tooltipKey, Action onToggle)
+    {
+        var toggle = new ToggleButton
+        {
+            Content = glyph,
+            FontSize = 11,
+            Width = 26,
+            Height = 24,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        toggle[!ToolTip.TipProperty] = I18n.Bind(tooltipKey);
+        toggle.Click += (_, _) => onToggle();
+        return toggle;
+    }
+
+    private Button MakeFindIcon(string tooltipKey, LucideIconKind kind, Action onClick)
+    {
+        var button = new Button
+        {
+            Width = 24,
+            Height = 24,
+            MinWidth = 0,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Content = new LucideIcon { Kind = kind, Width = 14, Height = 14, StrokeThickness = 2 },
+        };
+        button[!ToolTip.TipProperty] = I18n.Bind(tooltipKey);
+        button.Click += (_, _) => onClick();
+        return button;
+    }
+
+    public void OpenFindBar()
+    {
+        _findBar.IsVisible = true;
+        _findInput.Focus();
+        _findInput.SelectAll();
+        RunFind(CountAction: true);
+    }
+
+    private void CloseFindBar()
+    {
+        _findBar.IsVisible = false;
+        if (_mode is 2) _preview.ClearSearch();
+        Editor.TextArea.Caret.BringCaretToView();
+        Editor.Focus();
+    }
+
+    /// <summary>按当前模式路由查找：源码/即时走编辑器选区（跳转后焦点交还编辑器保证选区可见），
+    /// 阅读走预览内联高亮（库端琥珀色全部命中 + 当前命中加深）。</summary>
+    private void RunFind(bool backward = false, bool CountAction = false)
+    {
+        // 构造期 SetMode 会先于 BuildFindBar 触发重挂，查找栏未建时跳过。
+        if (_findBar is null || _findInput is null) return;
+        var text = _findInput.Text ?? string.Empty;
+        if (_mode is 0 or 1)
+        {
+            var action = CountAction
+                ? MarkdownEditorSearchAction.Count
+                : backward ? MarkdownEditorSearchAction.FindPrevious : MarkdownEditorSearchAction.FindNext;
+            _editorView.Search(new MarkdownEditorSearchCommand(action, text, null, _findMatchCase, _findWholeWord, _findRegex));
+            if (!CountAction) Editor.Focus();
+        }
+        else if (_mode is 2)
+        {
+            if (text.Length == 0) { _preview.ClearSearch(); UpdateFindCount(0, 0); return; }
+            var total = _preview.Find(text, _findMatchCase, _findWholeWord);
+            if (!CountAction && total > 0) _preview.FindNext();
+            UpdateFindCount(total, _preview.CurrentMatchIndex + 1);
+        }
+    }
+
+    private void UpdateFindCount(int current, int total)
+    {
+        _findCount.Text = total > 0 ? $"{Math.Max(1, current)}/{total}" : "0/0";
+    }
+
+    /// <summary>模式切换后查找目标随之切换：离开阅读清预览高亮，进入阅读按当前词重挂。</summary>
+    private void RetargetFindBar()
+    {
+        // 构造期 SetMode 初值会先于 BuildFindBar 触发；查找栏未建时无需重挂。
+        if (_findBar is null || !_findBar.IsVisible) return;
+        if (_mode is not 2) _preview.ClearSearch();
+        RunFind(CountAction: true);
+    }
+
+    /// <summary>设置页切换「大纲显示章节序号」后热应用：面板样式即时切换，不需要重建大纲。</summary>
+    private void ApplyOutlineNumbersMode()
+    {
+        _outlinePanel.ShowNumbers = AppState.Instance.Settings.ShowOutlineNumbers;
+    }
+
     private void RebuildOutline()
     {
+        // 构造期文章装载可能早于 BuildPanel：面板未建时跳过（BuildPanel 末尾会补一次重建）。
+        if (_outlinePanel is null) return;
         CancelOutlineNavigation();
-        _outlineRows.Clear();
-        _currentOutlineRow = null;
         var host = _outlineHost;
         host.Children.Clear();
         var text = _editorView.Text ?? string.Empty;
 
-        // 库管线（Markdig AST）优先；空/异常时退化为正则扫描标题行，保证打开文章后大纲必有内容。
-        var items = new List<MarkdownOutlineItem>();
-        try
+        // 提取 + 退化扫描 + 行 UI 全部下沉到库面板：灌入条目（面板内统一算序号），
+        // 折叠状态按文档路径持久化（OutlineExpansionKey 生成键，与 Vex 同口径）。
+        var rows = _outlinePanel.SetItems(MarkdownOutlineExtractor.ExtractFromText(text, OutlinePipeline));
+        var documentKey = CodeWF.Avalonia.Markdown.Controls.OutlineExpansionState.PathKey(
+            _current?.MarkdownPath is { Length: > 0 } articlePath ? articlePath : "untitled");
+        _outlineOutlineKeys = CodeWF.Avalonia.Markdown.Controls.OutlineExpansionKey.BuildSequence(
+            rows.Select(row => (row.Level, row.Title)), documentKey);
+        var collapsed = CodeWF.Avalonia.Markdown.Controls.OutlineExpansionState.Read(AppState.Instance.Settings.CollapsedOutlineSections);
+        for (var i = 0; i < rows.Count; i++)
         {
-            items.AddRange(MarkdownOutlineExtractor.Extract(MarkdownParser.Parse(text, OutlinePipeline)));
+            rows[i].IsExpanded = !collapsed.Contains(_outlineOutlineKeys[i]);
         }
-        catch
-        {
-            // 大纲提取失败不影响编辑。
-        }
-        if (items.Count == 0 && text.Length > 0)
-        {
-            items.AddRange(ExtractHeadingsFallback(text));
-        }
-
-        var counters = new int[6];
-        foreach (var item in items)
-        {
-            var level = Math.Clamp(item.Level, 1, 6);
-            counters[level - 1]++;
-            Array.Clear(counters, level, counters.Length - level);
-            _outlineRows.Add(new OutlineNavigationRow(item, string.Join(".", counters.Take(level))));
-        }
-        RefreshOutlineRows();
+        _outlinePanel.RefreshRows();
 
         try
         {
@@ -3589,38 +3740,8 @@ public sealed class WritePage : UserControl
             // 任务徽标失败不影响大纲。
         }
 
-        // 无文章 / 无标题时显示占位提示。
-        _outlineEmpty.IsVisible = _visibleOutlineRows.Count == 0;
         if (_mode is 1 or 2) QueueOutlineReadingSample();
         else UpdateCurrentOutline(Editor.TextArea.Caret.Line);
-    }
-
-    /// <summary>正则退化解析：逐行匹配 ^#{1,3}\s 标题行（跳过围栏代码块），行号 1 起与编辑器行号一致。</summary>
-    private static List<MarkdownOutlineItem> ExtractHeadingsFallback(string text)
-    {
-        var items = new List<MarkdownOutlineItem>();
-        var inFence = false;
-        var normalized = text.Replace("\r\n", "\n");
-        var lines = normalized.Split('\n');
-        var offset = 0; // 行首在整篇中的字符偏移，供 SourceOffset（与库 GetOutline 同口径）
-        for (var i = 0; i < lines.Length; i++)
-        {
-            var line = lines[i];
-            var lineOffset = offset;
-            offset += line.Length + 1; // +1 = 换行符
-            if (line.TrimStart().StartsWith("```") || line.TrimStart().StartsWith("~~~"))
-            {
-                inFence = !inFence;
-                continue;
-            }
-            if (inFence) continue;
-            var match = System.Text.RegularExpressions.Regex.Match(line, @"^(#{1,3})\s+(.+?)\s*#*\s*$");
-            if (!match.Success) continue;
-            var title = match.Groups[2].Value.Trim();
-            if (title.Length == 0) continue;
-            items.Add(new MarkdownOutlineItem(match.Groups[1].Value.Length, title, i + 1, lineOffset));
-        }
-        return items;
     }
 
     private void JumpToOutline(MarkdownOutlineItem item)
@@ -3672,57 +3793,10 @@ public sealed class WritePage : UserControl
 
     private void UpdateCurrentOutline(int line)
     {
-        var current = _outlineRows.LastOrDefault(row => row.Item.Line <= line);
-        if (ReferenceEquals(current, _currentOutlineRow)) return;
-        if (_currentOutlineRow is not null) _currentOutlineRow.IsCurrent = false;
-        _currentOutlineRow = current;
-        if (current is null) return;
-        current.IsCurrent = true;
-        if (!_outlineList.IsPointerOver && !_outlineList.IsKeyboardFocusWithin)
-        {
-            var visible = _visibleOutlineRows.LastOrDefault(row => row.Item.Line <= current.Item.Line);
-            if (visible is not null) _outlineList.ScrollIntoView(visible);
-        }
-    }
-
-    private void RefreshOutlineRows()
-    {
-        var selected = _outlineList.SelectedItem;
-        _visibleOutlineRows.Clear();
-        var query = _outlineFilter?.Text?.Trim() ?? string.Empty;
-        HashSet<OutlineNavigationRow>? matches = null;
-        if (query.Length > 0)
-        {
-            matches = [];
-            var parents = new List<OutlineNavigationRow>();
-            foreach (var row in _outlineRows)
-            {
-                while (parents.Count > 0 && parents[^1].Item.Level >= row.Item.Level) parents.RemoveAt(parents.Count - 1);
-                if (row.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase))
-                { matches.Add(row); foreach (var parent in parents) matches.Add(parent); }
-                parents.Add(row);
-            }
-        }
-        var hiddenBelowLevel = int.MaxValue;
-        foreach (var row in _outlineRows)
-        {
-            if (matches is not null) { if (matches.Contains(row)) _visibleOutlineRows.Add(row); continue; }
-            if (row.Item.Level > hiddenBelowLevel) continue;
-            hiddenBelowLevel = _collapsedOutlineLines.Contains(row.Item.Line) ? row.Item.Level : int.MaxValue;
-            _visibleOutlineRows.Add(row);
-        }
-        if (selected is OutlineNavigationRow item && _visibleOutlineRows.Contains(item)) _outlineList.SelectedItem = item;
-        if (_outlineEmpty is not null) _outlineEmpty.IsVisible = _visibleOutlineRows.Count == 0;
-    }
-
-    private void OutlineKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (_outlineList.SelectedItem is not OutlineNavigationRow row) return;
-        if (e.Key is Key.Enter or Key.Space) { JumpToOutline(row.Item); e.Handled = true; return; }
-        if (e.Key is not (Key.Left or Key.Right)) return;
-        if (e.Key == Key.Left) _collapsedOutlineLines.Add(row.Item.Line);
-        else _collapsedOutlineLines.Remove(row.Item.Line);
-        RefreshOutlineRows(); e.Handled = true;
+        // 构造期 SetMode 会先于 BuildPanel 调到这里，面板未建时无行可盖章。
+        if (_outlinePanel is null) return;
+        // 当前章盖章 + 滚动跟随（指针悬停/键盘聚焦不挪动）都在面板内处理。
+        _outlinePanel.CurrentRow = _outlinePanel.Rows.LastOrDefault(row => row.Line <= line);
     }
 
     private void QueueOutlineReadingSample()

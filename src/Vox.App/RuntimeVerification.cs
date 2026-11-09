@@ -192,15 +192,14 @@ internal static class RuntimeVerification
                 mode.SelectedValue = 2;
                 WaitUntil(() => writer.GetVisualDescendants().OfType<ScrollViewer>().Any(control => control.Name == "ArticlePreviewScroll"));
                 var scroll = writer.GetVisualDescendants().OfType<ScrollViewer>().Single(control => control.Name == "ArticlePreviewScroll");
-                var outline = writer.GetVisualDescendants().OfType<ListBox>().Single(control => control.Name == "ArticleOutline");
-                var rows = outline.Items.Cast<OutlineNavigationRow>().ToArray();
+                var outline = writer.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownOutlinePanel>().Single(control => control.Name == "ArticleOutlinePanel");
+                var rows = outline.Rows.ToArray();
                 if (rows.Length != 8) throw new InvalidOperationException("Documentation article outline did not rebuild.");
                 Record("大纲与阅读", frame =>
                 {
                     if (frame is 5 or 20)
                     {
-                        outline.SelectedItem = rows[frame == 5 ? 2 : 5];
-                        outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                        outline.Navigate(rows[frame == 5 ? 2 : 5]);
                     }
                     if (frame is >= 35 and < 55) scroll.Offset = new Vector(0, Math.Max(0, scroll.Offset.Y - 40));
                 });
@@ -341,23 +340,25 @@ internal static class RuntimeVerification
                 var scroll = writer.GetVisualDescendants().OfType<ScrollViewer>().Single(control => control.Name == "ArticlePreviewScroll");
                 WaitUntil(() => preview.CurrentModel.Source == outlineSource);
                 var headings = preview.GetOutline();
-                var outline = writer.GetVisualDescendants().OfType<ListBox>().Single(control => control.Name == "ArticleOutline");
-                var rows = outline.Items.Cast<OutlineNavigationRow>().ToArray();
+                var outline = writer.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownOutlinePanel>().Single(control => control.Name == "ArticleOutlinePanel");
+                var rows = outline.Rows.ToArray();
                 if (rows.Length != 50) throw new InvalidOperationException("Outline rows are missing.");
-                outline.SelectedItem = rows[0];
-                outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Left });
-                WaitUntil(() => outline.ItemCount == 1);
-                var filter = writer.GetVisualDescendants().OfType<TextBox>().Single(control => control.Name == "OutlineFilter");
-                filter.Text = "同名章节"; WaitUntil(() => outline.ItemCount == 3);
-                writer.GetVisualDescendants().OfType<Button>().Single(control => control.Name == "ClearOutlineFilter")
+                outline.Navigate(rows[0]);
+                // 左右键折叠走真实键盘路径：对面板内层列表注入按键（行 UI 已下沉到库面板）。
+                var outlineList = outline.GetVisualDescendants().OfType<ListBox>().Single();
+                outlineList.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Left });
+                WaitUntil(() => outline.VisibleRows.Count == 1);
+                var filter = outline.GetVisualDescendants().OfType<TextBox>().Single(control => control.Name == "PART_Filter");
+                filter.Text = "同名章节"; WaitUntil(() => outline.VisibleRows.Count == 3);
+                outline.GetVisualDescendants().OfType<Button>().Single(control => control.Name == "PART_ClearFilter")
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                WaitUntil(() => filter.Text == string.Empty && outline.ItemCount == 1);
-                outline.SelectedItem = rows[0];
-                outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Right });
-                WaitUntil(() => outline.ItemCount == 50);
+                WaitUntil(() => filter.Text == string.Empty && outline.VisibleRows.Count == 1);
+                outline.Navigate(rows[0]);
+                outlineList.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Right });
+                WaitUntil(() => outline.VisibleRows.Count == 50);
                 var target = headings[39];
                 var initialOffset = scroll.Offset;
-                outline.SelectedItem = rows[39]; Settle();
+                outline.Navigate(rows[39]); Settle();
                 if (Math.Abs(initialOffset.Y - scroll.Offset.Y) > 1) throw new InvalidOperationException("Outline selection unexpectedly navigated.");
                 Activate(39);
                 WaitUntil(() => scroll.Offset.Y > 5000);
@@ -368,7 +369,7 @@ internal static class RuntimeVerification
                 WaitUntil(() => Landed(target.Line));
                 Settle();
                 if (!rows[39].IsCurrent) throw new InvalidOperationException("Duplicate outline headings lost source identity.");
-                WaitUntil(() => outline.GetVisualDescendants().OfType<Border>().Count(border => border.Classes.Contains("outline-row") && border.Classes.Contains("current")) == 1);
+                WaitUntil(() => outline.GetVisualDescendants().OfType<Border>().Count(border => border.Classes.Contains("op-row") && border.Classes.Contains("current")) == 1);
                 if (outline.GetVisualDescendants().OfType<ListBoxItem>().Count() >= rows.Length)
                     throw new InvalidOperationException("Outline list did not virtualize its rows.");
                 scroll.Focus();
@@ -390,8 +391,7 @@ internal static class RuntimeVerification
 
                 void Activate(int index)
                 {
-                    outline.SelectedItem = rows[index];
-                    outline.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                    outline.Navigate(rows[index]);
                 }
 
                 bool Landed(int line) => preview.TryGetSourceLineBounds(line, out var sourceBounds)

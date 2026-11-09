@@ -97,6 +97,17 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal, Spacing = 10,
             Children = { autoSaveSwitch, autoSaveDesc },
         }));
+        // 大纲章节序号（默认关）：设置键与 Vex 的 ShowOutlineNumbers 口径一致，
+        // 保存即广播 SettingsChanged，写作页大纲面板热应用。
+        var outlineNumbersSwitch = new ToggleButton { Classes = { "vswitch" } };
+        outlineNumbersSwitch.IsChecked = AppState.Instance.Settings.ShowOutlineNumbers;
+        outlineNumbersSwitch.IsCheckedChanged += (_, _) =>
+        {
+            var on = outlineNumbersSwitch.IsChecked == true;
+            SaveSetting(s => s.ShowOutlineNumbers = on);
+            _shell.ShowToast(T(on ? "Vox.Settings.Write.OutlineNumbersEnabled" : "Vox.Settings.Write.OutlineNumbersDisabled"));
+        };
+        writeCard.Add(Row("Vox.Settings.Write.OutlineNumbers", outlineNumbersSwitch));
         host.Children.Add(writeCard.Host);
 
         // ---------- 内容仓库 ----------

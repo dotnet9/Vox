@@ -56,6 +56,31 @@ public sealed class VoxSettings
     /// </summary>
     public bool AutoSave { get; set; }
 
+    /// <summary>
+    /// 大纲面板显示层级章节序号（2026-11-09 需求，设置键与 Vex 的 ShowOutlineNumbers 口径一致）：
+    /// 默认不显示——大纲与正文标题原文一致，文章自带序号时不重复；未手写序号的文章可开。
+    /// 序号由共享库 MarkdownOutlineNumbering 计算，此开关只控制显隐，写作页热应用。
+    /// </summary>
+    public bool ShowOutlineNumbers { get; set; }
+
+    /// <summary>
+    /// 文章列表视图（2026-11-09 需求）：true = 树形（默认），false = 列表；
+    /// 切换即记忆，与 Vex 的 FileListView 设置口径一致。
+    /// </summary>
+    public bool ArticleTreeMode { get; set; } = true;
+
+    /// <summary>
+    /// 大纲折叠状态（2026-11-09 随大纲 UI 下沉引入，与 Vex 的 CollapsedOutlineSections 口径一致）：
+    /// 转义独立行的键集合，键由共享库 OutlineExpansionKey 按文档路径 + 标题祖先链生成。
+    /// </summary>
+    public string? CollapsedOutlineSections { get; set; }
+
+    /// <summary>
+    /// 写作页右侧「大纲 | 元数据」面板显隐（2026-11-09 需求，设置键与 Vex 的 IsOutlineVisible 口径一致）：
+    /// 默认展开；面板把手切换后写入配置，下次启动按上次状态打开。
+    /// </summary>
+    public bool IsOutlineVisible { get; set; } = true;
+
     /// <summary>写作页 AI 助手开关（右下角指令条显隐）。</summary>
     public bool LlmEnabled { get; set; } = true;
 
