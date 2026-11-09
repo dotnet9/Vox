@@ -356,6 +356,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .toast-close { flex: none; border: 0; background: transparent; color: inherit; opacity: .6; font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer; border-radius: 6px; }
 .toast-close:hover { opacity: 1; }
 
+/* ---------- 评审修订：键盘可达性（全局键盘焦点环 + Tab 键盘模态兜底 + 搜索结果键盘选中态） ---------- */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible,
+[role="button"]:focus-visible, [role="switch"]:focus-visible, [role="menuitem"]:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html[data-kbd] button:focus, html[data-kbd] a:focus, html[data-kbd] select:focus,
+html[data-kbd] [role="button"]:focus, html[data-kbd] [role="switch"]:focus, html[data-kbd] [tabindex]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.nav .it:focus-visible, html[data-kbd] .nav .it:focus { outline-offset: -2px; }
+#spList .sp-it.kb-active { background: var(--accent-soft); border-color: var(--accent); }
+
 /* ---------- 边栏折叠 ---------- */
 .nav { transition: margin var(--t-med) var(--motion); }
 .nav.collapsed { width: 56px; padding-left: 8px; padding-right: 8px; }
