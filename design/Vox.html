@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <meta name="description" content="Vox 写作客户端设计蓝本：写作 / 文章库 / 图片库 / 发布中心 / 站点数据 / MCP 服务 / 设置七大视图交互原型">
-<link rel="icon" href="../logo.svg">
+<link rel="icon" href="assets/logo.svg">
 <link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=62">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
@@ -15,7 +15,7 @@
 </defs></svg>
 <div class="appwin">
 <header class="topbar">
-  <img class="tb-logo" src="../logo.svg" alt=""><span class="tb-name">Vox · 维声</span>
+  <img class="tb-logo" src="assets/logo.svg" alt=""><span class="tb-name">Vox · 维声</span>
   <span class="tb-menu"><button class="tb-txt" id="mFileBtn">文件</button><div class="mnu" id="mFile"><a id="miNew">新建文章</a><a id="miMeta">文章元数据…</a><a id="miImg">图片入库…</a></div></span>
 <span class="tb-menu"><button class="tb-txt" id="mHelpBtn">帮助</button><div class="mnu" id="mHelp"><a id="miUpdate">检查更新…</a><a id="miAbout">关于 Vox</a></div></span>
           <span class="tb-file"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span></span>
@@ -25,7 +25,7 @@
             <button class="tb-ico mcp-tb" id="btnTbMcp" title="MCP 服务（运行中 · 2 个客户端在线）"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></button>
             <button class="tb-ico" id="btnTbSearch" title="搜索（Ctrl K）"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
             <button class="tb-ico" id="btnTbLook" title="外观"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></button>
-            <button class="tb-ico" id="btnTbLang" title="语言 / Language"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></button>
+            <button class="tb-ico" id="btnTbLang" title="语言 / Language（演示：正式实现经 CodeWF.Lang 资源切换）"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></button>
             <div class="tb-pop" id="popLook">
               <div class="tp-title" style="margin-top:0">界面风格</div>
               <div class="seg" id="styleSeg"><button class="active" data-s="arc">Arc</button><button data-s="pixel">Pixel</button></div>
@@ -46,7 +46,7 @@
             </div>
             <!-- 更新日志气泡（与更新浮窗、关于弹层共用同一份 CHANGELOG 数据） -->
             <div class="tb-pop upd-pop" id="updPop">
-              <div class="up-head"><b id="upVer">v0.1.0-preview.2 更新日志</b><span id="upDate">2026年11月2日</span></div>
+              <div class="up-head"><b id="upVer">v0.2.0-preview.7 更新日志</b><span id="upDate">2026年11月9日</span></div>
               <div class="up-body" id="upBody"></div>
               <div class="up-foot">
                 <a class="up-loglink" onclick="toast('打开完整更新日志（GitHub Releases）')">完整日志 ↗</a>
@@ -55,9 +55,9 @@
             </div>
           </span>
   <div class="wbtns">
-    <button class="wbtn" title="最小化"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></button>
-    <button class="wbtn" title="最大化"><svg aria-hidden="true" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></button>
-    <button class="wbtn close" title="关闭"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></button>
+    <button class="wbtn" title="最小化（演示：正式实现为系统窗口控制）"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></button>
+    <button class="wbtn" title="最大化（演示：正式实现为系统窗口控制）"><svg aria-hidden="true" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor"/></svg></button>
+    <button class="wbtn close" title="关闭（演示：正式实现为系统窗口控制）"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></button>
   </div>
 </header>
 <div class="app-body">
@@ -70,7 +70,7 @@
     <div class="it" data-view="images" title="图片库"><span class="ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></span><span class="lb">图片库</span></div>
     <div class="it" data-view="publish" title="发布中心"><span class="ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="lb">发布中心</span><span class="cnt">2</span></div>
     <div class="it" data-view="site" title="站点数据"><span class="ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></span><span class="lb">站点数据</span></div>
-      <div class="it" data-view="mcp" title="MCP 服务"><span class="ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></span><span class="lb">MCP 服务</span><span class="cnt live" id="mcpNavCnt" title="在线 AI 客户端">2</span></div>
+      <div class="it" data-view="mcp" title="MCP 服务（Model Context Protocol · AI 客户端接入）"><span class="ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></span><span class="lb">MCP 服务</span><span class="cnt live" id="mcpNavCnt" title="在线 AI 客户端">2</span></div>
       <div class="it" data-view="settings" title="设置"><span class="ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="lb">设置</span></div>
   </div>
   <button class="edge-btn" id="btnNav" title="收起 / 展开边栏"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -679,7 +679,7 @@ draft: true
     <div class="row" style="gap:8px"><input class="input mono" placeholder="AppID" style="flex:1"><input class="input mono" placeholder="AppSecret" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge ok">已连接</span></div>
     <div class="f-label">博客园（MetaWeblog API）</div>
     <div class="row" style="gap:8px"><input class="input mono" placeholder="https://rpc.cnblogs.com/metaweblog/…" style="flex:1.4"><input class="input mono" placeholder="访问令牌" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge">未配置</span></div>
-    <div class="f-label">CSDN（OpenAPI）</div>
+    <div class="f-label">CSDN（平台接口）</div>
     <div class="row" style="gap:8px"><input class="input mono" placeholder="API Token" type="password" style="flex:1"><button class="btn sm">保存</button><span class="badge">未配置</span></div>
     <div class="f-label">发布默认项</div>
     <label class="opt" style="border:0"><input type="checkbox" checked><span>公众号仅写入草稿箱（不直接群发）</span></label>
@@ -748,7 +748,7 @@ draft: true
   </header>
   <div class="uw-body">
     <div class="uw-hero">
-      <img class="uw-logo" src="../logo.svg" alt="">
+      <img class="uw-logo" src="assets/logo.svg" alt="">
       <div class="uw-copy"><b id="uwTitle">正在检查更新…</b><span id="uwSub">正在查询 GitHub Releases（dotnet9/Vox）…</span></div>
     </div>
     <div class="uw-progress" id="uwProg" hidden>
@@ -757,7 +757,7 @@ draft: true
     </div>
     <div class="uw-changes" id="uwChanges" hidden></div>
     <div class="uw-actions" id="uwActions"></div>
-    <div class="uw-foot">当前 <span class="mono" id="uwCur">0.1.0-preview.1</span> · 发布通道：GitHub Releases · 不走应用商店</div>
+    <div class="uw-foot">当前 <span class="mono" id="uwCur">0.2.0-preview.6</span> · 发布通道：GitHub Releases · 不走应用商店</div>
   </div>
 </section>
 
@@ -769,7 +769,7 @@ draft: true
 <div class="mask" id="mAbout"><div class="modal" style="width:420px">
   <div class="mh"><h3>关于 Vox</h3><span class="x" onclick="closeModal('mAbout')">×</span></div>
   <div class="mb" style="text-align:center">
-    <img src="../logo.svg" style="width:64px;height:64px;border-radius:16px;margin:6px auto 10px;display:block">
+    <img src="assets/logo.svg" style="width:64px;height:64px;border-radius:16px;margin:6px auto 10px;display:block">
     <b style="font-size:15px">Vox · 维声</b>
     <p style="color:var(--muted);margin:6px 0 0">一处落笔，处处有声。<br><span class="vlink" data-vox-ver onclick="toast('打开 GitHub Releases · dotnet9/Vox')">0.1.0-preview.1</span> · MIT © 沙漠尽头的狼 (codewf.com)</p>
   </div>
@@ -1236,14 +1236,17 @@ $('miAbout').onclick=()=>{closeModal2();openModal('mAbout');};
    口径：CHANGELOG 是唯一事实源，日志气泡（updPop）、更新浮窗（updWin）、关于弹层三处同源渲染。
    状态机：checking → available → downloading → downloaded → installing（交接安装器）；
    旁路：current（已是最新）/ canceled / failed（可重试）。最小化只藏窗，下载不中断，进度转标题栏药丸。 */
-const VOX_VER='0.1.0-preview.1';
+/* 评审修订：版本口径与仓库一致（README / Directory.Build.props = 0.2.0-preview.6），更新演示用假想的 preview.7 */
+const VOX_VER='0.2.0-preview.6';
 const CHANGELOG=[ // 倒序，实现中由 GitHub Releases 解析（此处为离线演示内置）
-  {ver:'0.1.0-preview.2',date:'2026年11月2日',sizeMB:96.4,
+  {ver:'0.2.0-preview.7',date:'2026年11月9日',sizeMB:96.4,
    quote:'[系统要求] 本版本起 Windows 最低要求为 Windows 8（Skia 原生依赖不再支持 Win7）；macOS 最低 12（Monterey）。',
    items:[['新增','标题栏更新提醒：发现新版本时标题栏出现「更新」按钮，点击即看更新日志'],
           ['新增','下载支持最小化：进度显示在标题栏按钮上，下载不打断写作'],
           ['优化','写作页大纲跳转更顺滑'],
           ['修复','安装包在部分系统的关联注册']]},
+  {ver:'0.2.0-preview.6',date:'2026年11月6日',
+   items:[['优化','大纲共享面板与紧凑查找栏']]},
   {ver:'0.1.0-preview.1',date:'2026年10月20日',
    items:[['新增','首个预览版：写作 / 文章库 / 图片库 / 发布中心 / 站点数据 / MCP 服务 / 设置']]}];
 const UPD_TAGCLS={'新增':'new','优化':'opt','修复':'fix','删除':'rm'};
@@ -1352,7 +1355,7 @@ setTimeout(()=>{const id=++updTickGen;
   setTimeout(()=>{if(id!==updTickGen||updState!=='idle')return;
     if(updScenario==='current'){updState='current';updPillSync();return;}
     updFound=true;updState='available';updRenderChanges();updPillSync();
-    toast('发现新版本 0.1.0-preview.2 · 点击标题栏「更新」查看日志');},0);},1400);
+    toast('发现新版本 0.2.0-preview.7 · 点击标题栏「更新」查看日志');},0);},1400);
 /* 版本号单源同步：凡标 data-vox-ver 的文本节点统一取 VOX_VER（关于弹层 / 设置页） */
 document.querySelectorAll('[data-vox-ver]').forEach(el=>{el.textContent=el.textContent.replace(/[\d]+\.[\d]+\.[\d]+-preview\.\d+/,VOX_VER);});
 window.VoxUpdate={setScenario(v){updScenario=v;updFailedOnce=false;}}; // 演示开关：'download-failed' 首次下载失败 / 'current' 已是最新
@@ -1638,7 +1641,7 @@ function renderSync(){
   $('chkAll').checked=total>0&&checkedN===total;
   if(total===0){
     const empty=document.createElement('div'); empty.className='sync-empty';
-    empty.innerHTML='<img src="../logo.svg" alt=""><b>一切已同步</b><p>没有未提交的变更。继续写作，或拉取远端更新。</p>';
+    empty.innerHTML='<img src="assets/logo.svg" alt=""><b>一切已同步</b><p>没有未提交的变更。继续写作，或拉取远端更新。</p>';
     list.appendChild(empty);
   }
   $('syncState').textContent=total===0?'工作区干净':(checkedN===total?total+' 处未提交变更':checkedN+' / '+total+' 处已勾选');
@@ -1697,7 +1700,7 @@ const PLATFORMS=[
  {id:'site', name:'网站',   mode:'git',  note:'git push 即发布，站内相对路径自动拼 CDN 域名'},
  {id:'wx',   name:'公众号', mode:'api',  note:'官方草稿箱 API · HTML+内联样式 · 图片转素材库域名'},
  {id:'cnb',  name:'博客园', mode:'api',  note:'MetaWeblog API · Markdown 直发'},
- {id:'csdn', name:'CSDN',  mode:'api',  note:'OpenAPI · 平台自动转存外链图'},
+ {id:'csdn', name:'CSDN',  mode:'api',  note:'平台接口 · 平台自动转存外链图'},
  {id:'zh',   name:'知乎',   mode:'copy', note:'无公开 API · 复制助手（富文本粘贴）'},
 ];
 const PUB_ARTICLES=[

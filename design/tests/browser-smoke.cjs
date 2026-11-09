@@ -24,8 +24,9 @@ function t(name, cond) { if (!cond) throw new Error('FAIL: ' + name); ok++; cons
   }
 
   // 2) 图片库：渲染 / 筛选 / 面板 / 孤儿清理
+  await page.click('.nav .it[data-view="images"]'); // 修复：上一步循环结束停在设置页，需切回图片库
   t('图片卡渲染', (await page.$$('#agrid .acard')).length >= 10);
-  await page.selectOption('#imgFRef', '孤儿');
+  await page.selectOption('#imgFRef', '未被引用');
   t('孤儿筛选', (await page.$$('#agrid .acard')).length === 3);
   await page.selectOption('#imgFRef', '全部引用状态');
   await page.click('#agrid .acard');
@@ -33,11 +34,14 @@ function t(name, cond) { if (!cond) throw new Error('FAIL: ' + name); ok++; cons
   t('面板含操作按钮', (await page.$$('#apanel .ops .btn')).length >= 4);
   page.on('dialog', d => d.accept());
   await page.click('#btnOrphanClean');
+  await page.waitForSelector('#mConfirm.open', { timeout: 3000 }); // 评审修订：清理走自绘确认流
+  await page.click('#cfYes');
   await page.waitForTimeout(100);
   t('孤儿清理后归零', (await page.textContent('#orphanN')).trim() === '0');
 
-  // 3) 文章库编辑按钮 → 写作页
+  // 3) 文章库编辑按钮 → 写作页（评审修订后表格分页，用搜索定位目标行）
   await page.click('.nav .it[data-view="library"]');
+  await page.fill('#libSearch', 'C#百万');
   await page.click('text=C#百万对象序列化深度剖析 >> xpath=ancestor::tr >> text=编辑');
   t('编辑跳写作页', await page.$eval('#view-write', el => el.classList.contains('active')));
   t('加载对应文章', (await page.textContent('#elines')).includes('C#百万对象序列化'));

@@ -807,7 +807,7 @@ html[data-kbd] [role="button"]:focus, html[data-kbd] [role="switch"]:focus, html
 .map-stage .map-node { position: absolute; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   padding: 8px 16px; font-size: 12.5px; font-weight: 600; color: var(--fg); white-space: nowrap;
-  transition: transform 260ms var(--motion), border-color 160ms; }
+  transition: transform var(--t-med) var(--motion), border-color var(--t-fast); /* 评审修订：260/160ms 收编动效令牌 */ }
 .map-stage .map-node-label { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* 导图缩放坞：与 Vex .map-controls 同口径（读数 + 步进 + 复位），令牌化配色随明暗 × 强调色联动。 */
 .map-dock { position: absolute; right: 16px; bottom: 12px; display: flex; align-items: center; gap: 2px;
@@ -900,7 +900,7 @@ html[data-kbd] [role="button"]:focus, html[data-kbd] [role="switch"]:focus, html
   border-radius: 7px;
   background: var(--surface);
   box-shadow: 0 1px 4px rgba(0,0,0,.16);
-  transition: transform .3s cubic-bezier(.3,1.25,.36,1);
+  transition: transform var(--t-med) cubic-bezier(.3,1.25,.36,1); /* 评审修订：.3s 收编 --t-med */
   pointer-events: none; z-index: 0;
 }
 .seg.has-thumb > button { position: relative; z-index: 1; }
@@ -924,6 +924,7 @@ html[data-kbd] [role="button"]:focus, html[data-kbd] [role="switch"]:focus, html
 #view-mcp .setting { max-width: none; }
 .mcp-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; align-items: start; }
 .mcp-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); display: inline-block; flex: none; }
+/* 2.2s 呼吸脉冲为环境动效（非交互过渡），不进 --t-* 三档 ladder，保留独立周期 */
 .mcp-dot.run { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); animation: mcp-pulse 2.2s var(--motion) infinite; }
 .mcp-dot.off { background: var(--faint); }
 .mcp-dot.err { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
