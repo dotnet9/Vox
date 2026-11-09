@@ -2824,22 +2824,40 @@ renderPubHist();
 
 /* ---------- 写作页 AI 助手（与 MCP 共用工具层与审计） ---------- */
 var aiPending='';
+/* 评审修订：diff 用绿加/红删语义色（紫色只留给品牌），头标注写入位置与 ±行数，生成中可停止，采纳按钮带影响面 */
+var AI_DEMO_DIFF=['@@ ## 排查过程 @@','- 前次排查停在 Win7 缺失提示，未继续向下追。','+ 重扫依赖树后，问题收敛到 libSkiaSharp.dll 的 VC 运行库依赖。','+ 用 Dependencies 确认该 DLL 为 Release 编译、VC 运行库静态缺失。','+ 结论：Win7 侧补装 VC++ 2015-2022 运行库（x86 / x64 各一）后可正常启动。'];
+function aiDiffHTML(lines){
+  return lines.map(function(l){
+    if(l.indexOf('@@')===0)return '<span class="dl-hunk">'+esc(l)+'</span>';
+    if(l.charAt(0)==='+')return '<span class="dl-add">'+esc(l)+'</span>';
+    if(l.charAt(0)==='-')return '<span class="dl-del">'+esc(l)+'</span>';
+    return '<span class="dl-ctx">'+esc(l)+'</span>';
+  }).join('');
+}
 function aiRun(label){
   var out=$('aiResult');
   var inst=($('aiInput').value||'').trim();
   var name=label==='custom'?'自定义指令'+(inst?'：'+inst:''):label;
-  out.innerHTML='<div class="ai-gen">⏳ 正在生成…</div>';
   var gen='gen-'+Date.now();aiPending=gen;
+  out.innerHTML='<div class="ai-gen"><span>⏳ 正在生成…（'+esc(name)+'）</span><button type="button" class="btn sm" id="aiStop">停止</button></div>';
+  $('aiStop').onclick=function(){
+    if(aiPending!==gen)return;
+    aiPending='';
+    out.innerHTML='<div class="desc" style="color:var(--muted);margin-top:8px">已停止生成</div>';
+  };
   setTimeout(function(){
     if(aiPending!==gen)return;
+    var add=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='+';}).length;
+    var del=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='-';}).length;
     out.innerHTML='<div class="ai-res"><div class="ai-res-h">✦ '+esc(name)+' · <span class="mono">'+$('llmModel').value+'</span></div>'
-      +'<pre>'+esc('@@ ## 排查过程 @@\n+ （AI 生成 · 约 120 字）\n+ 重扫依赖树后，问题收敛到 libSkiaSharp.dll 的 VC 运行库依赖……')+'</pre>'
-      +'<div class="ops"><button class="btn sm primary" onclick="aiAccept()">采纳写入正文</button><button class="btn sm ghost" onclick="aiDiscard()">放弃</button></div>'
-      +'<div class="desc" style="color:var(--faint);margin-top:8px">经工具层 article_write 写入 · 计入 MCP 调用审计</div></div>';
+      +'<div class="ai-loc">写入位置：第 11 行之后（「现象」小节末尾）· <span class="dl-add-chip">＋'+add+' 行</span><span class="dl-del-chip">−'+del+' 行</span></div>'
+      +'<pre class="ai-diff">'+aiDiffHTML(AI_DEMO_DIFF)+'</pre>'
+      +'<div class="ops"><button class="btn sm primary" onclick="aiAccept('+add+')">采纳写入正文（＋'+add+' 行）</button><button class="btn sm" onclick="aiDiscard()">放弃</button></div>'
+      +'<div class="desc" style="color:var(--muted);margin-top:8px">经工具层 article_write 写入 · 计入 MCP 调用审计</div></div>';
   },600);
 }
-function aiAccept(){
-  $('aiResult').innerHTML='<div class="note">已写入正文 · Ctrl+Z 可撤销</div>';
+function aiAccept(addLines){
+  $('aiResult').innerHTML='<div class="note">已写入正文（＋'+(addLines||0)+' 行） · Ctrl+Z 可撤销</div>';
   mcpAuditAdd('内置 AI','article_write','当前文章 · §排查过程 · AI 续写','okc','已采纳 · 写入完成','1.4s');
 }
 function aiDiscard(){$('aiResult').innerHTML='<div class="desc" style="color:var(--faint);margin-top:8px">已放弃本次生成</div>';}

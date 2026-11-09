@@ -374,6 +374,18 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .stat-link:active { transform: scale(.98); }
 .badge.warn { color: var(--warn); background: var(--warn-soft); }
 
+/* ---------- 评审修订（AI 助手）：diff 绿加/红删语义色，位置与行数标注，生成中停止态 ---------- */
+.ai-diff { margin: 8px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); overflow-x: auto; white-space: nowrap; font: 500 0.8077rem/1.9 var(--font-mono); }
+.ai-diff span { display: block; border-radius: 4px; padding: 0 6px; }
+.ai-diff .dl-add { color: var(--ok); background: var(--ok-soft); }
+.ai-diff .dl-del { color: var(--danger); background: var(--danger-soft); }
+.ai-diff .dl-hunk { color: var(--accent); font-weight: 600; }
+.ai-diff .dl-ctx { color: var(--muted); }
+.ai-loc { font-size: 0.8077rem; color: var(--muted); margin-top: 6px; }
+.ai-loc .dl-add-chip { color: var(--ok); font-weight: 700; margin-left: 4px; }
+.ai-loc .dl-del-chip { color: var(--danger); font-weight: 700; margin-left: 6px; }
+.ai-gen { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; color: var(--muted); font-size: 0.8462rem; }
+
 /* ---------- 评审修订（图片库）：悬停勾选 + 批量操作栏 + 渐变底上的角标实底化 ---------- */
 .acard { position: relative; }
 .acard .pick { position: absolute; top: 8px; left: 8px; z-index: 2; width: 24px; height: 24px; display: grid; place-items: center;
