@@ -66,8 +66,10 @@ body.stage {
 .nav .it:hover { background: var(--surface-2); color: var(--fg); }
 .nav .it.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
 .nav .it .ico { width: 17px; text-align: center; font-size: 1.0769rem; }
-.nav .it .cnt { margin-left: auto; font-size: 0.7692rem; color: var(--faint); background: var(--surface-3); border-radius: 99px; padding: 0 7px; line-height: 17px; }
+.nav .it .cnt { margin-left: auto; font-size: 0.7692rem; color: var(--muted); background: var(--surface-3); border-radius: 99px; padding: 0 7px; line-height: 17px; }
 .nav .it.active .cnt { background: transparent; color: var(--accent); }
+/* 评审修订：徽标色语义规则——计数默认中性，仅“在线状态”类亮绿（#mcpNavCnt.live） */
+.nav .it .cnt.live { color: var(--ok); background: var(--ok-soft); }
 .nav .foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 6px; }
 .nav .repo { font-size: 0.8077rem; color: var(--faint); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 9px; }
 .nav .repo b { display: block; color: var(--muted); font-size: 0.8462rem; }
