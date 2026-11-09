@@ -444,7 +444,7 @@
           <div class="setting">
             <h3>安全</h3>
             <div class="srow"><label>写操作确认</label><div class="val"><div class="row"><span class="switch on" data-switch id="swMcpConfirm"></span><span class="desc">article_write / git_push 等写入工具调用时在应用内确认</span></div></div></div>
-            <div class="srow"><label>允许 git 操作</label><div class="val"><div class="row"><span class="switch" data-switch id="swMcpGit"></span><span class="desc">默认关闭 · 开放 git_commit / git_push 两个写入工具</span></div></div></div>
+            <div class="srow"><label>允许 git 操作</label><div class="val"><div class="row"><span class="switch" data-switch id="swMcpGit"></span><span class="desc" id="mcpGitDesc">已关闭 · git_commit / git_push 对客户端不可见</span></div></div></div>
           </div>
         </div>
       </div>
@@ -2436,7 +2436,13 @@ $('swMcp').addEventListener('click',function(){
   renderMcpState();renderMcpClients();
   toast(MCP.running?'MCP 服务已启动：'+mcpEndpoint():'MCP 服务已停止，客户端连接已断开');
 });
-$('btnMcpStop').onclick=function(){if(MCP.running)$('swMcp').click();};
+/* 评审修订：停止服务前确认影响面（断开在线客户端、拒绝写入中调用） */
+$('btnMcpStop').onclick=function(){
+  if(!MCP.running)return;
+  uiConfirm('停止服务','停止后将断开全部在线客户端（当前 '+MCP.clients.length+' 个），进行中的写入调用会被拒绝。确定停止？','停止服务').then(function(ok){
+    if(ok)$('swMcp').click();
+  });
+};
 $('btnMcpRestart').onclick=function(){
   var p=parseInt($('mcpPort').value,10);
   if(!(p>=1024&&p<=65535)){$('mcpPortHint').textContent='端口须为 1024–65535 的整数';$('mcpPortHint').style.color='var(--danger)';toast('端口无效，未重启');return;}
@@ -2448,27 +2454,37 @@ $('btnMcpRestart').onclick=function(){
     renderMcpState();renderMcpClient();toast('服务已重启：'+mcpEndpoint());},600);
 };
 /* 令牌与端点 */
+/* 评审修订：生成新令牌是破坏性操作（旧令牌立即失效、客户端断连），先确认影响面 */
 $('btnMcpTokenGen').onclick=function(){
-  MCP.token='vox_'+((window.crypto&&crypto.randomUUID)?crypto.randomUUID().replace(/-/g,''):Math.random().toString(16).slice(2)+Date.now().toString(16));
-  $('mcpToken').value=MCP.token;renderMcpClient();
-  toast('已生成新令牌 · 重启服务后生效，旧令牌随即失效');
+  uiConfirm('生成新令牌','重新生成访问令牌？旧令牌立即失效，已连接的 '+MCP.clients.length+' 个客户端需更新配置后重连。','生成新令牌').then(function(ok){
+    if(!ok)return;
+    MCP.token='vox_'+((window.crypto&&crypto.randomUUID)?crypto.randomUUID().replace(/-/g,''):Math.random().toString(16).slice(2)+Date.now().toString(16));
+    $('mcpToken').value=MCP.token;renderMcpClient();
+    toast('已生成新令牌 · 重启服务后生效，旧令牌随即失效');
+  });
 };
 $('btnMcpTokenShow').onclick=function(){var i=$('mcpToken');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'显示':'隐藏';};
 $('btnMcpTokenCopy').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText($('mcpToken').value);toast('已复制访问令牌');};
 $('btnMcpEpCopy').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(mcpEndpoint());toast('已复制端点地址');};
 /* 授权范围与安全开关 */
+/* 评审修订：单选大卡片补选中态（边框+底色），JS 兜底同步（:has 之外的引擎） */
+function syncScopeCards(){document.querySelectorAll('input[name="mcpScope"]').forEach(function(r){r.closest('.opt').classList.toggle('on',r.checked);});}
 document.querySelectorAll('input[name="mcpScope"]').forEach(function(r){r.onchange=function(){
   MCP.scope=this.value;
   var txt={repo:'整个内容仓库',articles:'仅文章与元数据（图片 / git 组工具已下线）',status:'仅状态查询（只保留只读工具）'}[this.value];
   toast('授权范围：'+txt+' · 立即生效');
+  syncScopeCards();
   renderMcpState();
 };});
+syncScopeCards();
 $('swMcpConfirm').addEventListener('click',function(){
   MCP.confirm=this.classList.contains('on');
   toast(MCP.confirm?'写操作确认已开启':'写操作确认已关闭 · 写入工具将直接执行（谨慎）');
 });
 $('swMcpGit').addEventListener('click',function(){
   MCP.gitOk=this.classList.contains('on');
+  /* 评审修订：说明文案状态化——关闭态不再描述开启后的行为 */
+  $('mcpGitDesc').textContent=MCP.gitOk?'已开放 · git_commit / git_push 写入仍逐次确认':'已关闭 · git_commit / git_push 对客户端不可见';
   toast(MCP.gitOk?'已开放 git_commit / git_push（仍逐次确认）':'git 写入工具已对客户端下线');
   renderMcpTools($('mcpToolSearch').value);renderMcpState();
 });

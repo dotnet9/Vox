@@ -391,6 +391,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .acard .flag .badge.accent { background: var(--accent); color: var(--on-accent); }
 .acard .flag .badge { border: 0; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
 
+/* ---------- 评审修订（MCP）：授权范围单选大卡片选中态 ---------- */
+.opt:has(input:checked), .opt.on { border-color: var(--accent); background: var(--accent-soft); }
+.opt:has(input:checked) b, .opt.on b { color: var(--accent); }
+
 /* ---------- 评审修订：键盘可达性（全局键盘焦点环 + Tab 键盘模态兜底 + 搜索结果键盘选中态） ---------- */
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible,
 [role="button"]:focus-visible, [role="switch"]:focus-visible, [role="menuitem"]:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
