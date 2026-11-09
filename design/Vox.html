@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="light" data-accent="green">
+<html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <meta name="description" content="Vox 写作客户端设计蓝本：写作 / 文章库 / 图片库 / 发布中心 / 站点数据 / MCP 服务 / 设置七大视图交互原型">
 <link rel="icon" href="../logo.svg">
@@ -36,7 +36,7 @@
               <div class="tp-title">动效 <span class="tp-sub">ArcMotionLevel</span></div>
               <div class="seg" id="motionSeg"><button class="active" data-m="full">完整</button><button data-m="reduced">减弱</button><button data-m="off">关闭</button></div>
               <div class="tp-title">界面配色 <span class="tp-sub">Arc 预设</span></div>
-              <div class="swatches" id="arcSwatches"><i class="sw" data-c="neutral" style="--sw:#353535" title="Neutral"></i><i class="sw" data-c="violet" style="--sw:#7747FF" title="Violet"></i><i class="sw" data-c="blue" style="--sw:#0562EF" title="Blue"></i><i class="sw active" data-c="green" style="--sw:#0DB879" title="Green"></i><i class="sw" data-c="amber" style="--sw:#F3AD20" title="Amber"></i><i class="sw" data-c="orange" style="--sw:#F48120" title="Orange"></i><i class="sw" data-c="coral" style="--sw:#F15F55" title="Coral"></i><i class="sw" data-c="rose" style="--sw:#ED4E9D" title="Rose"></i></div>
+              <div class="swatches" id="arcSwatches"><i class="sw" data-c="neutral" style="--sw:#353535" title="Neutral"></i><i class="sw active" data-c="violet" style="--sw:#7747FF" title="Violet"></i><i class="sw" data-c="blue" style="--sw:#0562EF" title="Blue"></i><i class="sw" data-c="green" style="--sw:#0DB879" title="Green"></i><i class="sw" data-c="amber" style="--sw:#F3AD20" title="Amber"></i><i class="sw" data-c="orange" style="--sw:#F48120" title="Orange"></i><i class="sw" data-c="coral" style="--sw:#F15F55" title="Coral"></i><i class="sw" data-c="rose" style="--sw:#ED4E9D" title="Rose"></i></div>
             </div>
             <div class="tb-pop" id="popLang">
               <a class="lang-it active">简体中文</a>
@@ -164,10 +164,13 @@
             <span><i class="lg-leaf"></i>内容节点</span>
           </div>
           <button class="btn sm ghost map-style-trigger" id="btnMapStyle" title="导图样式" aria-expanded="false"><span>导图样式</span><span class="caret">▾</span></button>
-          <div class="map-hint">拖动画布 · 双击节点定位源码 · 滚轮缩放</div>
+          <div class="map-hint">拖动画布 · 滚轮缩放 · 双击复位</div>
           <div class="map-stage" id="mapStage" data-layout="right">
           <svg class="map-links" id="mapLinks" aria-hidden="true"></svg>
           <div class="map-nodes" id="mapNodes"></div>
+        </div>
+        <div class="map-dock" id="mapDock" role="toolbar" aria-label="导图缩放">
+          <button data-z="out" title="缩小">−</button><span class="pct" id="mapZoomPct">100%</span><button data-z="in" title="放大">+</button><button data-z="fit" title="复位视图">⤢</button>
         </div>
       </div>
       <div class="wpanel off" id="wpanel">
@@ -1858,11 +1861,12 @@ $('pmFSearch').oninput=function(){renderMatrix();};
         { id: 'n32', kind: 'list', text: 'LLM 蔓不准移除场景', branch: 2, leaf: true } ] },
     ],
   };
-  var branchColors = ['var(--accent)', 'color-mix(in srgb, var(--accent) 60%, var(--success))',
-    'color-mix(in srgb, var(--accent) 55%, var(--warning))', 'var(--muted)'];
+  var branchColors = ['var(--accent)', 'var(--branch-secondary)', 'var(--branch-tertiary)', 'var(--muted)'];
   var settings = { layout: 'right', style: 'quiet', scheme: 'indigo' };
   var stage = document.getElementById('mapStage');
+  var view = document.getElementById('paneMap');
   var elements = new Map();
+  var lastGeometry = null, zoom = 1, panX = 0, panY = 0;
 
   function nodeText(node) { return node.text; }
 
@@ -1871,6 +1875,7 @@ $('pmFSearch').oninput=function(){renderMatrix();};
       mode: settings.layout,
       measure: function (node) { node.width = node.isRoot ? 214 : 224; node.height = node.leaf ? 40 : 44; }
     });
+    lastGeometry = geometry;
     stage.dataset.layout = settings.layout;
     document.getElementById('paneMap').dataset.mapStyle = settings.style;
     var nodesHost = document.getElementById('mapNodes');
@@ -1888,13 +1893,77 @@ $('pmFSearch').oninput=function(){renderMatrix();};
       element.style.width = node.width + 'px';
       element.style.minHeight = node.height + 'px';
       element.style.setProperty('--branch-color', branchColors[(node.branch || 0) % branchColors.length]);
-      element.textContent = nodeText(node);
+      var label = element.firstElementChild;
+      if (!label) { label = document.createElement('span'); label.className = 'map-node-label'; element.appendChild(label); }
+      label.textContent = nodeText(node);
       if (isNew) nodesHost.appendChild(element);
     });
     document.getElementById('mapLinks').innerHTML = geometry.links.map(function (link) {
       return '<path style="--branch-color:' + branchColors[(link.node.branch || 0) % branchColors.length] + '" d="' + link.path + '"/>';
     }).join('');
+    fitMap();
   }
+
+  // 画布变换：fit 居中自适应 + 指针平移 + 滚轮围绕光标缩放 + 双击复位（兑现 map-hint）
+  function applyTransform() {
+    stage.style.transformOrigin = '0 0';
+    stage.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+    updateZoomReadout();
+  }
+  function updateZoomReadout() {
+    var pct = document.getElementById('mapZoomPct');
+    if (pct) pct.textContent = Math.round(zoom * 100) + '%';
+  }
+  function fitMap() {
+    if (!lastGeometry) return;
+    var cw = view.clientWidth, ch = view.clientHeight;
+    if (cw < 40 || ch < 40) return; // 隐藏或尚未布局时跳过，待 voxmode→map 再 fit
+    var pad = 28;
+    var s = Math.min((cw - pad * 2) / lastGeometry.width, (ch - pad * 2) / lastGeometry.height, 1.35);
+    zoom = Math.max(0.15, s);
+    panX = (cw - lastGeometry.width * zoom) / 2;
+    panY = (ch - lastGeometry.height * zoom) / 2;
+    applyTransform();
+  }
+  var dragging = false, sx = 0, sy = 0, px0 = 0, py0 = 0;
+  view.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('button')) return;
+    dragging = true; sx = e.clientX; sy = e.clientY; px0 = panX; py0 = panY;
+    view.setPointerCapture(e.pointerId); view.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  view.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    panX = px0 + (e.clientX - sx); panY = py0 + (e.clientY - sy);
+    applyTransform();
+  });
+  function endPan() { if (!dragging) return; dragging = false; view.style.cursor = ''; }
+  view.addEventListener('pointerup', endPan);
+  view.addEventListener('pointercancel', endPan);
+  view.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = view.getBoundingClientRect();
+    var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    var nz = Math.max(0.15, Math.min(3.5, zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+    panX = mx - (mx - panX) * (nz / zoom);
+    panY = my - (my - panY) * (nz / zoom);
+    zoom = nz; applyTransform();
+  }, { passive: false });
+  view.addEventListener('dblclick', function (e) { if (!e.target.closest('button')) fitMap(); });
+
+  // 缩放坞（与 Vex .map-controls 同口径）：步进 ± / 复位 + 百分比读数，读数随 fit/滚轮/复位同步。
+  function zoomAt(factor, cx, cy) {
+    var nz = Math.max(0.15, Math.min(3.5, zoom * factor));
+    panX = cx - (cx - panX) * (nz / zoom);
+    panY = cy - (cy - panY) * (nz / zoom);
+    zoom = nz; applyTransform();
+  }
+  document.getElementById('mapDock').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-z]');
+    if (!btn) return;
+    if (btn.dataset.z === 'fit') { fitMap(); return; }
+    zoomAt(btn.dataset.z === 'in' ? 1.2 : 1 / 1.2, (view.clientWidth || 1) / 2, (view.clientHeight || 1) / 2);
+  });
 
   // 结构/风格选择接线（弹层选择 → settings → 重渲染）
   // 风格 = 配色方案：迷你图 = 当前所选结构 × 各配色（结构切换时由 renderSchemeMinis 重新生成）
@@ -1947,7 +2016,10 @@ $('pmFSearch').oninput=function(){renderMatrix();};
   });
   renderMap();
   renderSchemeMinis();
+  window.addEventListener('voxmode', function (e) { if (e.detail === 'map') fitMap(); });
+  window.addEventListener('resize', function () { if (view.clientWidth) fitMap(); });
   window.__renderMap = renderMap;
+  window.__fitMap = fitMap;
 })();
 
 /* ---------- 排版弹层（Vex typography 规格） ---------- */

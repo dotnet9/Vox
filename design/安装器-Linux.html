@@ -9,11 +9,11 @@ body.stage {
   min-height: 100vh; display: flex; flex-direction: column; align-items: center;
   padding: 34px 20px 26px;
   background:
-    radial-gradient(1000px 480px at 25% -10%, rgba(124,92,255,.18), transparent 55%),
-    radial-gradient(900px 460px at 80% 0%, rgba(20,160,106,.10), transparent 55%),
-    #e6e4ec;
+    radial-gradient(1000px 480px at 25% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+    radial-gradient(900px 460px at 80% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 55%),
+    var(--bg);
 }
-html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 25% -10%, rgba(124,92,255,.14), transparent 55%), radial-gradient(900px 460px at 80% 0%, rgba(20,160,106,.08), transparent 55%), #0d0d12; }
+html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 25% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%), radial-gradient(900px 460px at 80% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%), var(--bg); }
 
 .proto-bar { width: min(580px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
 .proto-bar .tools { display:flex; align-items:center; gap:8px; }

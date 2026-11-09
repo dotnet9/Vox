@@ -9,12 +9,11 @@ body.stage {
   min-height: 100vh; display: flex; flex-direction: column; align-items: center;
   padding: 34px 20px 26px;
   background:
-    radial-gradient(1000px 480px at 20% -10%, rgba(124,92,255,.20), transparent 55%),
-    radial-gradient(900px 460px at 85% 0%, rgba(62,123,250,.14), transparent 55%),
-    #e8e6ee;
+    radial-gradient(1000px 480px at 20% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+    radial-gradient(900px 460px at 85% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 55%),
+    var(--bg);
 }
-[data-theme="dark"] body.stage, body.stage:has(html[data-theme="dark"]) { }
-html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 20% -10%, rgba(124,92,255,.16), transparent 55%), radial-gradient(900px 460px at 85% 0%, rgba(62,123,250,.10), transparent 55%), #0d0d12; }
+html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at 20% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%), radial-gradient(900px 460px at 85% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%), var(--bg); }
 
 .proto-bar { width: min(620px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
 .proto-bar .tools { display:flex; align-items:center; gap:8px; }
