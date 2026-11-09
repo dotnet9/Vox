@@ -465,23 +465,38 @@
   </Style>
 
   <!-- ══════════ 软件更新：标题栏药丸 + 日志气泡（原型 upd-pill/upd-pop/chg-*） ══════════ -->
-  <!-- 药丸：22px 全圆角胶囊 accent 底；前景钉 on-accent 语义令牌（防标题栏继承前景污染，深强调色下保持可读）。 -->
+  <!-- 评审修订（原型 D2）：药丸幽灵化——accent 12% 软底 + 32% 描边 + accent 文字 + 前置圆点；
+       下载中切回实底 accent（进度渐变与 on-accent 读数不受影响）。 -->
   <Style Selector="Border.upd-pill">
     <Setter Property="Height" Value="22"/>
     <Setter Property="CornerRadius" Value="11"/>
-    <!-- 原型 .upd-pill：padding 0 11px 水平内距 -->
-    <Setter Property="Padding" Value="11,0"/>
-    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Background" Value="{DynamicResource VoxAccentGhost}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccentGhostBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Transitions">
       <Transitions>
         <BrushTransition Property="Background" Duration="0:0:0.14"/>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14"/>
       </Transitions>
     </Setter>
   </Style>
-  <!-- 悬停加档一阶；下载中不换底，进度读数不被悬停态打乱。 -->
   <Style Selector="Border.upd-pill:pointerover:not(.downloading)">
-    <Setter Property="Background" Value="{DynamicResource VoxAccentDeep}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxAccentGhostHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Border.upd-pill.downloading">
+    <Setter Property="Background" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Ellipse.upd-pill-dot">
+    <Setter Property="Width" Value="6"/>
+    <Setter Property="Height" Value="6"/>
+    <Setter Property="Fill" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <Style Selector="Border.upd-pill.downloading Ellipse.upd-pill-dot">
+    <Setter Property="IsVisible" Value="False"/>
   </Style>
   <!-- 下载进度左段：accent-deep 掺 30% accent 提亮的混色（VoxAccentProgress 令牌随主题重算）。 -->
   <Style Selector="Border.upd-pill-fill">
@@ -489,10 +504,14 @@
     <Setter Property="Background" Value="{DynamicResource VoxAccentProgress}"/>
   </Style>
   <Style Selector="TextBlock.upd-pill-text">
-    <Setter Property="Foreground" Value="{DynamicResource VoxOnAccent}"/>
+    <!-- 幽灵态用 accent 文字；下载中切 on-accent（实底上） -->
+    <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
     <!-- 原型 .upd-pill 字号 0.7692rem（10px）→ Xxs 令牌（原误挂 Xs 10.5） -->
     <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeXxs}"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Border.upd-pill.downloading TextBlock.upd-pill-text">
+    <Setter Property="Foreground" Value="{DynamicResource VoxOnAccent}"/>
   </Style>
   <!-- 就绪后脉冲环：accent-soft 淡环呼吸三次，提示「重启以更新」。 -->
   <Style Selector="Border.upd-pill-pulse">
@@ -737,19 +756,45 @@
     <Setter Property="MaxHeight" Value="700"/>
   </Style>
 
-  <!-- ══════════ .toast ══════════ -->
-  <Style Selector="Border.toast">
-    <Setter Property="Background" Value="{DynamicResource VoxFg}"/>
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxBg}"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusPill}"/>
-    <Setter Property="Padding" Value="18,9"/>
+  <!-- ══════════ toast 通知栈（评审修订：右下主题化卡片，多条排队、可关闭、淡入淡出） ══════════ -->
+  <Style Selector="ItemsControl#ToastHost">
+    <Setter Property="VerticalAlignment" Value="Bottom"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="Margin" Value="0,0,16,64"/>
+  </Style>
+  <Style Selector="Border.toast-item">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource VoxLine}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="14,9,10,9"/>
+    <Setter Property="MaxWidth" Value="420"/>
+    <Setter Property="Margin" Value="0,0,0,8"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxFg}"/>
     <Setter Property="TextElement.FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
     <Setter Property="TextElement.FontWeight" Value="Medium"/>
-    <Setter Property="ZIndex" Value="99"/>
-    <Setter Property="IsVisible" Value="False"/>
-    <Setter Property="VerticalAlignment" Value="Bottom"/>
-    <Setter Property="HorizontalAlignment" Value="Center"/>
-    <Setter Property="Margin" Value="0,0,0,26"/>
+    <Setter Property="Opacity" Value="1"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.22" Easing="CubicEaseOut"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.toast-close">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="4,2"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Opacity" Value="0.6"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.toast-close:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="CornerRadius" Value="6"/>
+  </Style>
+  <Style Selector="Button.toast-close:pointerover">
+    <Setter Property="Opacity" Value="1"/>
   </Style>
 
   <!-- ══════════ 平台状态点 .pm-st ══════════ -->

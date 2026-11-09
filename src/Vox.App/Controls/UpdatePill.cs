@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Layout;
@@ -27,12 +28,13 @@ public sealed class UpdatePill : Panel
     private readonly Grid _fillTrack = new();
     private readonly Border _fillLeft = new() { Classes = { "upd-pill-fill" } };
     private readonly Border _pulse = new() { Classes = { "upd-pill-pulse" } };
+    private readonly Ellipse _dot = new() { Classes = { "upd-pill-dot" } };
     private readonly TextBlock _text = new()
     {
         Classes = { "upd-pill-text" },
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Center,
-        Margin = new Thickness(11, 0),
+        Margin = new Thickness(7, 0),
     };
     private readonly Popup _pop = new()
     {
@@ -49,9 +51,18 @@ public sealed class UpdatePill : Panel
         //（原型 linear-gradient(90deg, mix(accent-deep, accent 30%) pct%, accent pct%) 的两段式实现）。
         _fillTrack.IsVisible = false;
         _fillTrack.Children.Add(_fillLeft);
+        // 评审修订（原型 D2）：幽灵药丸的前置圆点（::before 同款），下载中隐藏（样式选择器兜底）。
+        var pillRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Spacing = 5,
+            Children = { _dot, _text },
+        };
         _pill.Child = new Panel
         {
-            Children = { _fillTrack, _text },
+            Children = { _fillTrack, pillRow },
         };
         _pill.PointerReleased += OnPillReleased;
         // 药丸点击不触发气泡的轻 dismissing（否则按下先关、抬起又开）：让遮罩层把落在药丸上的按压穿透回主树。

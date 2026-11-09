@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data;
@@ -32,7 +33,6 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, Control> _pages = new();
     private readonly List<(Button Btn, string Key)> _navButtons = new();
     private bool _navCollapsed = false; // 与 design/Vox.html 一致：首次启动默认展开导航
-    private DispatcherTimer? _toastTimer;
 
     public MainWindow()
     {
@@ -1041,19 +1041,37 @@ public partial class MainWindow : Window
         }
     }
 
-    // ---------- Toast ----------
+    // ---------- Toast（评审修订：通知栈——多条排队、可手动关闭、aria 通告；文案 API 不变） ----------
 
     public void ShowToast(string message)
     {
-        ToastText.Text = message;
-        Toast.IsVisible = true;
-        _toastTimer?.Stop();
-        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2200) }; // 与原型 2200ms 对齐
-        _toastTimer.Tick += (_, _) =>
+        var text = new TextBlock
         {
-            Toast.IsVisible = false;
-            _toastTimer.Stop();
+            Text = message,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
         };
-        _toastTimer.Start();
+        var close = new Button { Content = "×", Classes = { "toast-close" } };
+        ToolTip.SetTip(close, "关闭提示");
+        AutomationProperties.SetName(close, "关闭提示");
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { text, close } };
+        var item = new Border { Classes = { "toast-item" }, Child = row };
+        AutomationProperties.SetName(item, message);
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2600) };
+        var dismissed = false;
+        void Dismiss()
+        {
+            if (dismissed) return;
+            dismissed = true;
+            timer.Stop();
+            item.Opacity = 0; // 样式里的 Opacity 过渡做淡出
+            DispatcherTimer.RunOnce(() => ToastHost.Items.Remove(item), TimeSpan.FromMilliseconds(240));
+        }
+        timer.Tick += (_, _) => Dismiss();
+        close.Click += (_, _) => Dismiss();
+        ToastHost.Items.Add(item);
+        item.Opacity = 0;
+        DispatcherTimer.RunOnce(() => item.Opacity = 1, TimeSpan.FromMilliseconds(16));
+        timer.Start();
     }
 }

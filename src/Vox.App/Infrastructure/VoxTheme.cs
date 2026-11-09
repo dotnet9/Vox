@@ -197,6 +197,10 @@ public static class VoxTheme
         // accent-deep 上的 on-accent 文字对比不足，原型 color-mix 同款）；Color 版供渐变 Stop 动态引用。
         resources["VoxAccentProgress"] = Brush(MixHex(deep, accent, 0.30));
         resources["VoxAccentDeepColor"] = Color.Parse(deep);
+        // 评审修订（原型 D2）：更新药丸幽灵化——实底 accent 过于抢主操作焦点，降级为幽灵样式带圆点
+        resources["VoxAccentGhost"] = Brush(MixHex(accent, p.Surface, 0.88));   // 12% accent 落 surface
+        resources["VoxAccentGhostHover"] = Brush(MixHex(accent, p.Surface, 0.82)); // 18% accent 落 surface
+        resources["VoxAccentGhostBorder"] = Brush(MixHex(accent, p.Surface, 0.68)); // 32% accent 落 surface
         resources["VoxOnAccent"] = Brush(_isDark ? preset.DarkOn : preset.LightOn);
         resources["VoxMaskBg"] = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
         resources["VoxTransparent"] = Brushes.Transparent;
@@ -237,14 +241,15 @@ public static class VoxTheme
         string Fg, string Muted, string Faint, string Line, string LineStrong, string CodeBg,
         string Ok, string OkSoft, string Warn, string WarnSoft, string Danger, string DangerSoft);
 
+    // 评审修订（原型 D15）：faint 对比度 2.5:1 → 4.75:1（亮）/ 5.1:1（暗），muted 加深保持 faint < muted < fg 层级
     private static readonly Palette Light = new(
         "#FAFAFA", "#FFFFFF", "#F4F4F5", "#ECECEE",
-        "#18181B", "#71717A", "#A1A1AA", "#E4E4E7", "#D4D4D8", "#F4F4F5",
+        "#18181B", "#52525B", "#71717A", "#E4E4E7", "#D4D4D8", "#F4F4F5",
         "#16A34A", "#1F16A34A", "#D97706", "#1FD97706", "#DC2626", "#1CDC2626");
 
     private static readonly Palette Dark = new(
         "#09090B", "#111113", "#1B1B1F", "#26262B",
-        "#ECECEE", "#9D9DA7", "#62626C", "#26262B", "#3A3A41", "#1B1B1F",
+        "#ECECEE", "#9D9DA7", "#85858F", "#26262B", "#3A3A41", "#1B1B1F",
         "#34C477", "#2434C477", "#EDA23A", "#24EDA23A", "#F05B5B", "#24F05B5B");
 
     private static string HexSoft(string hex)

@@ -170,9 +170,14 @@
                 IsVisible="False" IsHitTestVisible="False">
           <ContentControl x:Name="ModalHost" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
-        <Border x:Name="Toast" Classes="toast">
-          <TextBlock x:Name="ToastText"/>
-        </Border>
+        <!-- 评审修订（原型 D2/D11）：单例 toast → 右下通知栈（多条排队、可关闭），避让 AI 助手按钮 -->
+        <ItemsControl x:Name="ToastHost" ZIndex="99">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Vertical" VerticalAlignment="Bottom" HorizontalAlignment="Right"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
       </Panel>
     </Grid>
   </Grid>

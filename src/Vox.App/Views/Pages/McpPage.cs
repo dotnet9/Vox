@@ -298,7 +298,7 @@ public sealed class McpPage : UserControl
 
         _stopButton[!Button.ContentProperty] = I18n.Bind("Vox.Mcp.Action.Stop");
         _restartButton.Click += (_, _) => RestartService();
-        _stopButton.Click += (_, _) => StopService();
+        _stopButton.Click += (_, _) => _ = StopServiceWithConfirmAsync();
 
         var status = new Border
         {
@@ -351,7 +351,7 @@ public sealed class McpPage : UserControl
         _tokenInput.Text = settings.McpToken;
         var tokenGen = new Button { Classes = { "btn", "sm" } };
         tokenGen[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Config.TokenGen");
-        tokenGen.Click += (_, _) => GenerateToken();
+        tokenGen.Click += (_, _) => _ = GenerateTokenWithConfirmAsync();
         _tokenShow[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Config.TokenShow");
         _tokenShow.Click += (_, _) => ToggleTokenVisibility();
         var tokenCopy = new Button { Classes = { "btn", "sm", "ghost" } };
@@ -406,7 +406,7 @@ public sealed class McpPage : UserControl
 
         var security = Card("Vox.Mcp.Security.Title", "Vox.Mcp.Security.Desc");
         security.Add(Row("Vox.Mcp.Security.Confirm", SwitchRow(_confirmSwitch, "Vox.Mcp.Security.ConfirmDesc", ToggleConfirm)));
-        security.Add(Row("Vox.Mcp.Security.Git", SwitchRow(_gitSwitch, "Vox.Mcp.Security.GitDesc", ToggleGit)));
+        security.Add(Row("Vox.Mcp.Security.Git", BuildGitRow()));
         right.Children.Add(security.Host);
         cols.Children.Add(right);
         Grid.SetColumn(right, 1);
@@ -1652,6 +1652,16 @@ public sealed class McpPage : UserControl
         RefreshAll();
     }
 
+    // 评审修订（原型 D8）：停止服务前确认影响面（断开在线客户端、拒绝写入中调用）。
+    private async Task StopServiceWithConfirmAsync()
+    {
+        var clients = McpService.Server?.Clients().Count ?? 0;
+        var ok = await ConfirmDialog.Show(_shell, T("Vox.Mcp.Confirm.StopTitle"),
+            TF("Vox.Mcp.Confirm.StopBody", clients), T("Vox.Mcp.Confirm.StopYes"));
+        if (!ok) return;
+        StopService();
+    }
+
     private void StopService()
     {
         SaveSetting(s => s.McpEnabled = false);
@@ -1702,6 +1712,16 @@ public sealed class McpPage : UserControl
         RefreshAll();
     }
 
+    // 评审修订（原型 D8）：生成新令牌是破坏性操作（旧令牌立即失效、客户端断连），先确认影响面。
+    private async Task GenerateTokenWithConfirmAsync()
+    {
+        var clients = McpService.Server?.Clients().Count ?? 0;
+        var ok = await ConfirmDialog.Show(_shell, T("Vox.Mcp.Confirm.TokenTitle"),
+            TF("Vox.Mcp.Confirm.TokenBody", clients), T("Vox.Mcp.Confirm.TokenYes"));
+        if (!ok) return;
+        GenerateToken();
+    }
+
     private void GenerateToken()
     {
         var token = McpTokens.New();
@@ -1729,6 +1749,18 @@ public sealed class McpPage : UserControl
         _shell.ShowToast(T(on ? "Vox.Mcp.Security.ConfirmOn" : "Vox.Mcp.Security.ConfirmOff"));
     }
 
+    // 评审修订（原型 D8）：git 开关说明状态化——关闭态不再描述开启后的行为（SwitchRow 的静态绑定换状态文本）。
+    private TextBlock? _gitDesc;
+
+    private StackPanel BuildGitRow()
+    {
+        var row = SwitchRow(_gitSwitch, "Vox.Mcp.Security.GitDesc", ToggleGit);
+        _gitDesc = (TextBlock)row.Children[1];
+        _gitDesc.ClearValue(TextBlock.TextProperty);
+        _gitDesc.Text = T(_gitSwitch.IsChecked == true ? "Vox.Mcp.Security.GitOn" : "Vox.Mcp.Security.GitOff");
+        return row;
+    }
+
     private void ToggleGit(bool on)
     {
         if (_syncing) return;
@@ -1736,6 +1768,7 @@ public sealed class McpPage : UserControl
         McpService.UpdateHot();
         RefreshTools();
         RefreshHead();
+        if (_gitDesc is { } desc) desc.Text = T(on ? "Vox.Mcp.Security.GitOn" : "Vox.Mcp.Security.GitOff");
         _shell.ShowToast(T(on ? "Vox.Mcp.Security.GitOn" : "Vox.Mcp.Security.GitOff"));
     }
 

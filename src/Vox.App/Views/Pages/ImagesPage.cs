@@ -590,7 +590,7 @@ public sealed class ImagesPage : UserControl
             body.Children.Add(new TextBlock { Text = $"… +{orphans.Count - 8}", FontSize = 10.5 });
 
         var cancel = new Button { Classes = { "btn" }, Content = T("Vox.Common.Action.Cancel") };
-        var ok = new Button { Classes = { "btn", "primary" }, Content = T("Vox.Images.Action.CleanOrphans") };
+        var ok = new Button { Classes = { "btn", "danger" }, Content = T("Vox.Images.Action.CleanOrphans") }; // 评审修订：清理是破坏性操作，主钮用危险样式
         footer.Children.Add(cancel);
         footer.Children.Add(ok);
         cancel.Click += (_, _) => _shell.CloseModal();
