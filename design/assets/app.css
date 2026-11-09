@@ -374,6 +374,23 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .stat-link:active { transform: scale(.98); }
 .badge.warn { color: var(--warn); background: var(--warn-soft); }
 
+/* ---------- 评审修订（图片库）：悬停勾选 + 批量操作栏 + 渐变底上的角标实底化 ---------- */
+.acard { position: relative; }
+.acard .pick { position: absolute; top: 8px; left: 8px; z-index: 2; width: 24px; height: 24px; display: grid; place-items: center;
+  padding: 0; border: 1px solid rgba(255,255,255,.55); border-radius: 7px; background: rgba(20,20,24,.42); color: #fff;
+  font: 600 13px var(--font-ui); cursor: pointer; opacity: 0; transition: opacity var(--t-fast) var(--motion), background var(--t-fast) var(--motion); backdrop-filter: blur(2px); }
+.acard:hover .pick, .acard.picked .pick, .acard .pick:focus-visible { opacity: 1; }
+.acard.picked { outline: 2px solid var(--accent); outline-offset: -2px; }
+.acard.picked .pick { background: var(--accent); border-color: var(--accent); }
+.batchbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; padding: 9px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10px; background: var(--accent-soft); }
+.batchbar b { font-size: 0.8462rem; }
+.batchbar[hidden] { display: none; }
+/* 「未被引用 / 封面」角标落在渐变占位图上，改实底芯片保证任意底色可读 */
+.acard .flag .badge.warn { background: var(--warn); color: #fff; }
+.acard .flag .badge.accent { background: var(--accent); color: var(--on-accent); }
+.acard .flag .badge { border: 0; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+
 /* ---------- 评审修订：键盘可达性（全局键盘焦点环 + Tab 键盘模态兜底 + 搜索结果键盘选中态） ---------- */
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible,
 [role="button"]:focus-visible, [role="switch"]:focus-visible, [role="menuitem"]:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

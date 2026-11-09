@@ -246,6 +246,8 @@
       <span style="flex:1"></span>
       <input class="input" id="imgSearch" style="width:220px" placeholder="文件名搜索…">
     </div>
+    <!-- 评审修订：批量选择操作栏（选中后浮出），配 .acard 悬停勾选 -->
+    <div class="batchbar" id="imgBatch" hidden></div>
     <div class="assets-body">
       <div class="agrid" id="agrid"></div>
       <aside class="apanel" id="apanel" style="display:none"></aside>
@@ -2656,11 +2658,19 @@ function renderImages(){
     return true;});
   var grid=$('agrid');grid.innerHTML='';
   list.forEach(function(im){
-    var d=document.createElement('div');d.className='acard'+(imgSel===im.id?' sel':'');
+    /* 评审修订：悬停勾选加入批量选择（不打开面板），点击卡片本体仍是查看详情 */
+    var picked=imgSelIds.has(im.id);
+    var d=document.createElement('div');d.className='acard'+(imgSel===im.id?' sel':'')+(picked?' picked':'');
     var flag=im.orphan?'<span class="badge warn">未被引用</span>':im.cover?'<span class="badge accent">封面</span>':'';
-    d.innerHTML='<div class="ph '+im.g+'"><span class="flag">'+flag+'</span></div>'
+    d.innerHTML='<button type="button" class="pick" title="加入批量选择" aria-pressed="'+picked+'" aria-label="选择 '+esc(im.name)+'">'+(picked?'✓':'')+'</button>'
+      +'<div class="ph '+im.g+'"><span class="flag">'+flag+'</span></div>'
       +'<div class="info"><b>'+esc(im.name)+'</b><span>'+im.path.slice(0,-1)+' · '+im.size+' · '+(im.refs.length?('被引用 '+im.refs.length+' 篇'):'未被引用')+'</span></div>';
     d.onclick=function(){imgSel=im.id;renderImages();};
+    d.querySelector('.pick').onclick=function(e){
+      e.stopPropagation();
+      if(imgSelIds.has(im.id))imgSelIds.delete(im.id);else imgSelIds.add(im.id);
+      renderImages();
+    };
     grid.appendChild(d);
   });
   $('imgShown').textContent=list.length;
@@ -2668,7 +2678,35 @@ function renderImages(){
   $('orphanN').textContent=orphans.length;
   $('imgStatOrphan').textContent=orphans.length;
   $('imgStatUsed').textContent=259-orphans.length;
+  renderImgBatch();
   renderImgPanel();
+}
+/* 批量操作栏：选中 N 张后浮出（复制路径 / 批量删除走 uiConfirm） */
+var imgSelIds=new Set();
+function renderImgBatch(){
+  var b=$('imgBatch');
+  if(!imgSelIds.size){b.hidden=true;b.innerHTML='';return;}
+  b.hidden=false;
+  b.innerHTML='<b>已选 '+imgSelIds.size+' 张</b>'
+    +'<button class="btn sm" onclick="batchCopyPath()">复制相对路径</button>'
+    +'<button class="btn sm danger" onclick="batchDelete()">删除所选（可回滚）</button>'
+    +'<button class="btn sm ghost" onclick="imgSelIds.clear();renderImages()">取消选择</button>';
+}
+function batchCopyPath(){
+  var n=imgSelIds.size;
+  if(navigator.clipboard)navigator.clipboard.writeText(IMAGES.filter(function(im){return imgSelIds.has(im.id);}).map(function(im){return im.path+im.name;}).join('\n')).catch(function(){});
+  toast('已复制 '+n+' 个相对路径');
+}
+function batchDelete(){
+  var picked=IMAGES.filter(function(im){return imgSelIds.has(im.id);});
+  if(!picked.length)return;
+  uiConfirm('删除所选图片','删除 '+picked.length+' 张所选图片？文件经 git 提交删除，推送前可在同步视图「删除（可回滚）」分组撤回。','删除（可回滚）').then(function(ok){
+    if(!ok)return;
+    for(var i=IMAGES.length-1;i>=0;i--)if(imgSelIds.has(IMAGES[i].id))IMAGES.splice(i,1);
+    var n=picked.length;
+    imgSelIds.clear();imgSel=null;renderImages();
+    toast('已删除 '+n+' 张（git 待提交）');
+  });
 }
 function renderImgPanel(){
   var p=$('apanel');
