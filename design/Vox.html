@@ -305,10 +305,11 @@
       </div>
       <style>
         .vox-pub-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:4px 0 16px}
-        .vox-pub-stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 15px;min-width:0}
+        /* 评审修订：--panel 未定义导致卡片背景失效，收敛到全站卡片统一的 --surface。 */
+        .vox-pub-stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px 15px;min-width:0}
         .vox-pub-stat .n{font-size:1.45rem;font-weight:650;line-height:1.3;font-variant-numeric:tabular-nums}
         .vox-pub-stat .k{font-size:.8rem;color:var(--muted);margin-top:3px}
-        .vox-pub-queue{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:16px;overflow:hidden}
+        .vox-pub-queue{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:16px;overflow:hidden}
         .vox-pub-queue-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
         .vox-pub-queue-h b{font-size:.92rem}.vox-pub-queue-h span{color:var(--muted);font-size:.8rem}
         .vox-pub-task{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
