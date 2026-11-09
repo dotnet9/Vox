@@ -765,7 +765,7 @@ draft: true
   <div class="mf"><button class="btn" onclick="closeModal('mAbout')">关闭</button><button class="btn primary" onclick="closeModal('mAbout');openUpdateCheck()">检查更新…</button></div>
 </div></div>
 
-<div id="toast"></div>
+<div id="toastWrap" class="toast-wrap" role="status" aria-live="polite"></div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -1237,7 +1237,7 @@ const CHANGELOG=[ // 倒序，实现中由 GitHub Releases 解析（此处为离
    items:[['新增','首个预览版：写作 / 文章库 / 图片库 / 发布中心 / 站点数据 / MCP 服务 / 设置']]}];
 const UPD_TAGCLS={'新增':'new','优化':'opt','修复':'fix','删除':'rm'};
 let updState='idle',updFound=false,updMinimized=false,updTimer=null,updTick=0,updTickGen=0;
-let updScenario=null,updFailedOnce=false; // 演示开关（不进产品界面）：控制台 VoxUpdate.setScenario('download-failed'|'current')
+let updScenario=new URLSearchParams(location.search).get('update'),updFailedOnce=false; // 演示开关（不进产品界面）：URL ?update=current 静默 / 控制台 VoxUpdate.setScenario('download-failed'|'current')
 const UPD_TICKS=26; // 演示：约 3.1 秒走完下载
 function updNewer(){return CHANGELOG.filter(v=>v.ver!==VOX_VER);}
 function updChangelogHTML(list){ // 类型化条目：[系统要求] 引用块 + 按标签分组的列表（气泡与浮窗共用）
@@ -1390,8 +1390,15 @@ document.querySelectorAll('.seg').forEach(enhanceSeg);
 bindSwitches();loadArt('aot');
 function newSlug(t){const s=(t||'新文章').toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g,'-').replace(/^-+|-+$/g,'')||'new-article-slug';
   return '2026/10/'+s+'.md · 元数据内嵌（front matter）';}
-let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);}
+/* 评审修订：toast 单例互覆盖 → 右下通知栈（多条排队、可关闭、aria-live），文案 API 不变。 */
+function toast(msg){const wrap=document.getElementById('toastWrap');if(!wrap)return;
+  const t=document.createElement('div');t.className='toast-item';
+  const s=document.createElement('span');s.className='toast-text';s.textContent=msg;
+  const c=document.createElement('button');c.type='button';c.className='toast-close';c.setAttribute('aria-label','关闭提示');c.textContent='×';
+  let done=false;const dismiss=()=>{if(done)return;done=true;t.classList.remove('show');setTimeout(()=>t.remove(),240);};
+  c.addEventListener('click',dismiss);
+  t.append(s,c);wrap.appendChild(t);requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(dismiss,2600);}
 /* ---------- 需求 A：自动保存开关 → 写作视图保存状态 pill 联动（原型演示） ---------- */
 (function(){
   var sw=document.getElementById('swAutoSave'),pill=document.getElementById('saveState'),desc=document.getElementById('autoSaveDesc');

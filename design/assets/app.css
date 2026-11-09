@@ -348,8 +348,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .mpage { display: none; } .mpage.active { display: block; }
 .slugprev { font: 500 0.8846rem var(--font-mono); color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
 
-#toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--fg); color: var(--bg); padding: 9px 18px; border-radius: 99px; font-size: 0.9231rem; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity var(--t-med) var(--motion), transform var(--t-med) var(--motion); z-index: 99; }
-#toast.show { opacity: 1; transform: translateX(-50%); }
+/* 评审修订：toast 从底部居中深色胶囊改为右下主题化通知栈（避让 AI 助手按钮），多条排队、可关闭。 */
+.toast-wrap { position: fixed; right: 16px; bottom: 64px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+.toast-item { display: flex; align-items: flex-start; gap: 8px; max-width: min(420px, calc(100vw - 32px)); background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px 9px 14px; font-size: 0.8462rem; font-weight: 500; box-shadow: var(--shadow-pop); opacity: 0; transform: translateY(8px); transition: opacity var(--t-med) var(--motion), transform var(--t-med) var(--motion); pointer-events: auto; }
+.toast-item.show { opacity: 1; transform: none; }
+.toast-text { flex: 1 1 auto; min-width: 0; }
+.toast-close { flex: none; border: 0; background: transparent; color: inherit; opacity: .6; font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer; border-radius: 6px; }
+.toast-close:hover { opacity: 1; }
 
 /* ---------- 边栏折叠 ---------- */
 .nav { transition: margin var(--t-med) var(--motion); }
@@ -1194,12 +1199,14 @@ h1,h2,h3 { letter-spacing: -.025em; }
 }
 
 /* ---------- 软件更新：标题栏药丸 + 日志气泡 + 可最小化浮窗（ZCode 式三段体验） ---------- */
-/* 药丸：发现新版常驻标题栏；下载中显示进度渐变；就绪后轻脉冲提示重启 */
-.upd-pill { height: 22px; padding: 0 11px; border: 0; border-radius: 11px; background: var(--accent);
-  color: var(--on-accent); font: 600 0.7692rem var(--font-ui); cursor: pointer; display: inline-flex;
-  align-items: center; gap: 5px; margin-right: 4px; transition: background var(--t-fast) var(--motion);
+/* 药丸（评审修订：实底强调过于抢焦点，降级为幽灵样式带圆点；下载中的内联进度渐变仍由脚本覆写） */
+.upd-pill { height: 22px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent); border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent);
+  font: 600 0.7692rem var(--font-ui); cursor: pointer; display: inline-flex;
+  align-items: center; gap: 5px; margin-right: 4px; transition: background var(--t-fast) var(--motion), border-color var(--t-fast) var(--motion);
   animation: upill-in var(--t-med) var(--motion); }
-.upd-pill:hover { background: var(--accent-deep); }
+.upd-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.upd-pill:hover { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 48%, transparent); }
 .upd-pill[hidden] { display: none; }
 .upd-pill.ready { animation: upill-pulse 1.5s var(--motion) 3; }
 @keyframes upill-in { from { opacity: 0; transform: translateY(-7px) scale(.92); } }
