@@ -356,6 +356,24 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .toast-close { flex: none; border: 0; background: transparent; color: inherit; opacity: .6; font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer; border-radius: 6px; }
 .toast-close:hover { opacity: 1; }
 
+/* ---------- 评审修订（文章库）：筛选字段名、生效筛选 chips、分发单列、数值右对齐、统计卡可点、草稿徽标走警示色 ---------- */
+.filters .fld { display: inline-flex; align-items: center; gap: 6px; }
+.filters .fld > label { font-size: 0.8077rem; color: var(--muted); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; }
+.chips[hidden] { display: none; }
+.chip-sum { font-size: 0.8077rem; color: var(--muted); }
+.chip-x, .chip-clear { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 3px 10px; font: 500 0.7692rem var(--font-ui); color: var(--muted); cursor: pointer; }
+.chip-x:hover { color: var(--fg); border-color: var(--line-strong); }
+.chip-clear { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.plat-cell { white-space: nowrap; text-align: center; }
+.plat-cell .pm-st { margin: 0 2px; }
+.tbl td.num, .tbl th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.t-actions .btn { white-space: nowrap; }
+.stat-link { cursor: pointer; transition: border-color var(--t-fast) var(--motion), transform var(--t-fast) var(--motion); }
+.stat-link:hover { border-color: var(--accent); }
+.stat-link:active { transform: scale(.98); }
+.badge.warn { color: var(--warn); background: var(--warn-soft); }
+
 /* ---------- 评审修订：键盘可达性（全局键盘焦点环 + Tab 键盘模态兜底 + 搜索结果键盘选中态） ---------- */
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible,
 [role="button"]:focus-visible, [role="switch"]:focus-visible, [role="menuitem"]:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -363,9 +381,6 @@ html[data-kbd] button:focus, html[data-kbd] a:focus, html[data-kbd] select:focus
 html[data-kbd] [role="button"]:focus, html[data-kbd] [role="switch"]:focus, html[data-kbd] [tabindex]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .nav .it:focus-visible, html[data-kbd] .nav .it:focus { outline-offset: -2px; }
 #spList .sp-it.kb-active { background: var(--accent-soft); border-color: var(--accent); }
-/* 评审修订：确认对话框的破坏性主钮（危险动作用红色描边填充，与 primary 区分） */
-.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn.danger:hover { filter: brightness(.92); }
 
 /* ---------- 边栏折叠 ---------- */
 .nav { transition: margin var(--t-med) var(--motion); }

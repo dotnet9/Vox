@@ -203,24 +203,28 @@
   <section class="view" id="view-library">
     <div class="pagehead editorial-head"><div><h2>文章库</h2><span class="sub">统一管理内容资产、分类与多平台发布状态</span></div><span class="spacer"></span><span class="editorial-chip">CONTENT LIBRARY</span><button class="btn primary" onclick="document.getElementById('btnNew')?.click()">＋ 新建文章</button></div>
     <div class="stats">
-      <div class="stat"><b>37</b><span>篇文章 · 跨 2019–2026</span></div>
+      <div class="stat stat-link" id="statAll" title="点击清除全部筛选"><b>37</b><span>篇文章 · 跨 2019–2026</span></div>
       <div class="stat"><b>14.7 万</b><span>总字数（引擎口径）</span></div>
       <div class="stat"><b>259</b><span>张图片</span></div>
-      <div class="stat"><b>12</b><span>待发布 / 需更新（全平台）</span></div>
+      <div class="stat stat-link" id="statPending" title="点击筛选「待发布」"><b>12</b><span>待发布 / 需更新（全平台）</span></div>
     </div>
+    <!-- 评审修订：筛选前置字段名 + 每页条数；生效筛选以 chips 呈现可单删可全清 -->
     <div class="filters">
-      <select class="select" id="libFYear"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
-      <select class="select" id="libFCat"><option>全部分类</option><option>.NET</option><option>C#开源项目</option><option>Avalonia</option><option>AI</option><option>工具</option><option>数据库</option></select>
-      <select class="select" id="libFStatus"><option>全部状态</option><option>已发布</option><option>草稿</option></select>
-      <select class="select" id="libFPlat"><option>全平台状态</option><option>待发布</option><option>需更新</option><option>失败</option></select>
+      <span class="fld"><label for="libFYear">年份</label><select class="select" id="libFYear"><option>全部年份</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select></span>
+      <span class="fld"><label for="libFCat">分类</label><select class="select" id="libFCat"><option>全部分类</option><option>.NET</option><option>C#开源项目</option><option>Avalonia</option><option>AI</option><option>工具</option><option>数据库</option></select></span>
+      <span class="fld"><label for="libFStatus">状态</label><select class="select" id="libFStatus"><option>全部状态</option><option>已发布</option><option>草稿</option></select></span>
+      <span class="fld"><label for="libFPlat">平台</label><select class="select" id="libFPlat"><option>全平台状态</option><option>待发布</option><option>需更新</option><option>失败</option></select></span>
+      <span class="fld"><label for="libPSize">每页</label><select class="select" id="libPSize"><option value="5">5 篇</option><option value="20">20 篇</option><option value="50">50 篇</option></select></span>
       <span style="flex:1"></span>
       <input class="input" id="libSearch" style="width:220px" placeholder="标题 / slug / 正文全文…">
     </div>
+    <div class="chips" id="libChips" hidden></div>
     <div class="tblwrap">
       <table class="tbl" id="libTable">
-        <tr><th>标题</th><th>年月</th><th>分类</th><th>标签</th><th>字数</th><th>网站</th><th>公众号</th><th>博客园</th><th>CSDN</th><th></th></tr>
+        <!-- 评审修订：四个平台状态点合并为单列「分发」（hover 看平台名与说明），释放宽度给标题列 -->
+        <tr><th>标题</th><th>年月</th><th>分类</th><th>标签</th><th class="num">字数</th><th>分发</th><th></th></tr>
       </table>
-      <div class="tblfoot">显示 <span id="libShown">0</span> 篇 · 共 37 篇<span class="spacer"></span><div class="pager"><button>‹</button><button class="cur">1</button><button>2</button><button>…</button><button>8</button><button>›</button></div></div>
+      <div class="tblfoot">显示 <span id="libShown">0</span> 篇 · 共 37 篇<span class="spacer"></span><div class="pager" id="libPager"></div></div>
     </div>
   </section>
 
@@ -2527,9 +2531,52 @@ const LIB_ROWS=[
  {key:'di',t:'自己动手写依赖注入框架',ym:'2025/03',cat:'.NET',tags:'DI · 源码',wc:'1,842',pub:'2025/03/write-your-own-di-container.md',draft:true,st:{site:'off',wx:'off',cnb:'off',csdn:'off'}},
  {key:'sq',t:'SQLite 在桌面应用中的 12 个最佳实践',ym:'2024/12',cat:'数据库',tags:'SQLite',wc:'5,167',pub:'2024/12/sqlite-desktop-12-best-practices.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
  {key:'av',t:'Avalonia 自绘控件的渲染管线剖析',ym:'2024/06',cat:'Avalonia',tags:'Avalonia · 渲染',wc:'8,332',pub:'2024/06/avalonia-render-pipeline.md',draft:false,st:{site:'ok',wx:'ok',cnb:'off',csdn:'off'}},
- {key:'ser',t:'C#百万对象序列化深度剖析',ym:'2023/12',cat:'.NET',tags:'序列化 · 性能',wc:'7,4xx',pub:'2023/12/deep-analysis-…-serialization.md',draft:false,st:{site:'stale',wx:'ok',cnb:'ok',csdn:'ok'},tips:{site:'本地修改未提交'}},
+ {key:'ser',t:'C#百万对象序列化深度剖析',ym:'2023/12',cat:'.NET',tags:'序列化 · 性能',wc:'7,421',pub:'2023/12/deep-analysis-…-serialization.md',draft:false,st:{site:'stale',wx:'ok',cnb:'ok',csdn:'ok'},tips:{site:'本地修改未提交'}},
 ];
 const LIB_GLYPH={ok:['ok','●'],stale:['stale','◐'],off:['off','○'],err:['err','✕']};
+const LIB_PLAT={site:'网站',wx:'公众号',cnb:'博客园',csdn:'CSDN'};
+/* 评审修订：真分页（页码窗口式 + 每页条数）、生效筛选 chips、平台状态合并单列、字数右对齐 */
+let libPage=1,libPageSize=5;
+function libResetFilters(){
+  ['libFYear','libFCat','libFStatus','libFPlat'].forEach(id=>$(id).selectedIndex=0);
+  $('libSearch').value='';libPage=1;renderLibrary();
+}
+$('statAll').onclick=libResetFilters;
+$('statPending').onclick=()=>{$('libFPlat').value='待发布';libPage=1;renderLibrary();};
+$('libChips').onclick=e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.f==='*')return libResetFilters();
+  if(b.dataset.f==='libSearch')$('libSearch').value='';
+  else $(b.dataset.f).value=b.dataset.v;
+  libPage=1;renderLibrary();
+};
+function libChipsRender(total){
+  const fy=$('libFYear').value,fc=$('libFCat').value,fs=$('libFStatus').value,fp=$('libFPlat').value,q=($('libSearch').value||'').trim();
+  const chips=[];
+  if(fy!=='全部年份')chips.push(['年份：'+fy,'libFYear','全部年份']);
+  if(fc!=='全部分类')chips.push(['分类：'+fc,'libFCat','全部分类']);
+  if(fs!=='全部状态')chips.push(['状态：'+fs,'libFStatus','全部状态']);
+  if(fp!=='全平台状态')chips.push(['平台：'+fp,'libFPlat','全平台状态']);
+  if(q)chips.push(['搜索：'+q,'libSearch','']);
+  const host=$('libChips');
+  if(!chips.length){host.hidden=true;host.innerHTML='';return;}
+  host.hidden=false;
+  host.innerHTML='<span class="chip-sum">共 '+total+' 篇符合当前筛选</span>'
+    +chips.map(c=>'<button class="chip-x" data-f="'+c[1]+'" data-v="'+esc(c[2])+'" title="移除该筛选">'+esc(c[0])+' ×</button>').join('')
+    +'<button class="chip-clear" data-f="*">清除全部</button>';
+}
+function libPagerRender(totalPages){
+  const host=$('libPager');host.innerHTML='';
+  const mk=(label,page,dis,cur)=>{const b=document.createElement('button');b.textContent=label;if(cur)b.className='cur';if(dis)b.disabled=true;b.onclick=()=>{libPage=page;renderLibrary();};host.appendChild(b);};
+  mk('‹',Math.max(1,libPage-1),libPage===1);
+  const pages=[];
+  for(let p=1;p<=totalPages;p++){
+    if(p===1||p===totalPages||Math.abs(p-libPage)<=1)pages.push(p);
+    else if(pages[pages.length-1]!=='…')pages.push('…');
+  }
+  pages.forEach(p=>p==='…'?mk('…',libPage,true):mk(String(p),p,false,p===libPage));
+  mk('›',Math.min(totalPages,libPage+1),libPage===totalPages);
+}
 function renderLibrary(){
   const fy=$('libFYear').value,fc=$('libFCat').value,fs=$('libFStatus').value,fp=$('libFPlat').value;
   const q=($('libSearch').value||'').toLowerCase();
@@ -2541,24 +2588,32 @@ function renderLibrary(){
     if(fp!=='全平台状态'&&!Object.values(r.st).some(s=>s===({待发布:'off',需更新:'stale',失败:'err'})[fp]))return false;
     if(q&&!(r.t+' '+(r.tags||'')+' '+(r.cat||'')).toLowerCase().includes(q))return false;
     return true;});
+  libChipsRender(rows.length);
+  const totalPages=Math.max(1,Math.ceil(rows.length/libPageSize));
+  if(libPage>totalPages)libPage=totalPages;
+  const pageRows=rows.slice((libPage-1)*libPageSize,libPage*libPageSize);
   const tb=$('libTable');
   tb.querySelectorAll('tr').forEach((r,i)=>{if(i>0)r.remove();});
-  rows.forEach(r=>{
+  pageRows.forEach(r=>{
     const tr=document.createElement('tr');
-    const flag=r.draft?'<span class="badge accent" style="margin-left:6px">草稿</span>':'';
-    const cells=['site','wx','cnb','csdn'].map(p=>{
+    const flag=r.draft?'<span class="badge warn" style="margin-left:6px">草稿</span>':'';
+    /* 分发单列：四平台状态点并排，title 带平台名与说明 */
+    const cells='<td class="plat-cell">'+['site','wx','cnb','csdn'].map(p=>{
       const g=LIB_GLYPH[r.st[p]];
-      return '<td style="text-align:center"><span class="pm-st '+g[0]+'" title="'+esc(r.tips&&r.tips[p]||'')+'">'+g[1]+'</span></td>';
-    }).join('');
-    tr.innerHTML='<td class="title">'+esc(r.t)+flag+'</td><td>'+r.ym+'</td><td>'+esc(r.cat)+'</td><td>'+esc(r.tags)+'</td><td>'+r.wc+'</td>'+cells
+      const tip=LIB_PLAT[p]+'：'+({ok:'已发布',stale:'需更新',off:'未发布',err:'失败'}[r.st[p]])+(r.tips&&r.tips[p]?' · '+r.tips[p]:'');
+      return '<span class="pm-st '+g[0]+'" title="'+esc(tip)+'">'+g[1]+'</span>';
+    }).join('')+'</td>';
+    tr.innerHTML='<td class="title">'+esc(r.t)+flag+'</td><td>'+r.ym+'</td><td>'+esc(r.cat)+'</td><td>'+esc(r.tags)+'</td><td class="num">'+r.wc+'</td>'+cells
       +'<td><div class="t-actions"><button class="btn sm ghost" onclick="editArticle(\''+r.key+'\')">编辑</button><button class="btn sm primary" onclick="openPublishDlg(\''+r.pub+'\')">发布…</button></div></td>';
     tb.appendChild(tr);
   });
-  if(!rows.length){const tr=document.createElement('tr');tr.innerHTML='<td colspan="10" style="text-align:center;color:var(--faint);padding:22px">没有匹配的文章 · 调整筛选或搜索词</td>';tb.appendChild(tr);}
-  $('libShown').textContent=rows.length;
+  if(!rows.length){const tr=document.createElement('tr');tr.innerHTML='<td colspan="7" style="text-align:center;color:var(--faint);padding:22px">没有匹配的文章 · 调整筛选或搜索词</td>';tb.appendChild(tr);}
+  $('libShown').textContent=pageRows.length;
+  libPagerRender(totalPages);
 }
-['libFYear','libFCat','libFStatus','libFPlat'].forEach(id=>$(id).onchange=renderLibrary);
-$('libSearch').oninput=function(){renderLibrary();};
+['libFYear','libFCat','libFStatus','libFPlat'].forEach(id=>$(id).onchange=()=>{libPage=1;renderLibrary();});
+$('libPSize').onchange=function(){libPageSize=+this.value;libPage=1;renderLibrary();};
+$('libSearch').oninput=function(){libPage=1;renderLibrary();};
 renderLibrary();
 
 /* ---------- MCP：实时调用尾随（与审计同源） ---------- */
