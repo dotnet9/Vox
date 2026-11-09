@@ -3364,10 +3364,23 @@ public sealed class WritePage : UserControl
         _aiCts = new CancellationTokenSource();
         _aiOffer = null;
         _aiResult.Children.Clear();
-        var generating = new TextBlock { FontSize = Fs(11), Margin = new Thickness(0, 10, 0, 0) };
+        // 评审修订（原型 D9）：生成中显示可点的「停止」，取消令牌并作废本次结果，不再只能干等。
+        var genRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
+        var generating = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
         generating[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Generating");
         Res(generating, TextBlock.ForegroundProperty, "VoxFaint");
-        _aiResult.Children.Add(generating);
+        genRow.Children.Add(generating);
+        var stop = new Button { Classes = { "btn", "sm" } };
+        stop[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Stop");
+        stop.Click += (_, _) =>
+        {
+            if (generation != _aiGeneration) return;
+            _aiGeneration++;
+            _aiCts?.Cancel();
+            ShowAiMessage(T("Vox.Ai.Stopped"));
+        };
+        genRow.Children.Add(stop);
+        _aiResult.Children.Add(genRow);
 
         var prompt = AiPrompts.Build(presetKey, body, caret, selection, custom);
         var result = await LlmService.CompleteAsync(
@@ -3409,13 +3422,25 @@ public sealed class WritePage : UserControl
         header.Children.Add(modelTag);
         cardBody.Children.Add(header);
 
+        // 评审修订（原型 D9）：写入位置标注 + 采纳按钮带影响面（＋N 行）。
+        var added = 0;
+        if (offer.Writes)
+        {
+            foreach (var line in AiDiff.Build(offer.Source, text))
+                if (line.Kind == '+') added++;
+            var loc = new TextBlock { Text = TF("Vox.Ai.Location", offer.Section), FontSize = Fs(10), Margin = new Thickness(0, 4, 0, 0) };
+            Res(loc, TextBlock.ForegroundProperty, "VoxMuted");
+            cardBody.Children.Add(loc);
+        }
+
         cardBody.Children.Add(offer.Writes
             ? BuildAiDiffView(offer.Source, text, offer.Section)
             : BuildAiPlainView(text));
 
         var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
         var accept = new Button { Classes = { "btn", "sm", "primary" } };
-        accept[!Button.ContentProperty] = I18n.Bind(offer.Writes ? "Vox.Ai.Accept" : "Vox.Ai.Copy");
+        if (offer.Writes) accept.Content = TF("Vox.Ai.AcceptN", added); // 影响面：＋N 行
+        else accept[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Copy");
         accept.Click += async (_, _) => await AcceptAiAsync();
         var discard = new Button { Classes = { "btn", "sm", "ghost" } };
         discard[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Discard");
@@ -3491,7 +3516,8 @@ public sealed class WritePage : UserControl
             };
             Res(row, TextBlock.ForegroundProperty, line.Kind switch
             {
-                '+' => "VoxAccent",
+                // 评审修订（原型 D9）：diff 绿加红删语义色，品牌紫回归强调态专用。
+                '+' => "VoxOk",
                 '-' => "VoxDanger",
                 _ => "VoxMuted",
             });

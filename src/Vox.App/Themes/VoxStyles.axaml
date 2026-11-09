@@ -8,7 +8,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ap="clr-namespace:Avalonia.Controls.Presenters;assembly=Avalonia.Controls"
         xmlns:md="using:CodeWF.Avalonia.Markdown.Controls"
-        xmlns:conv="using:Avalonia.Data.Converters">
+        xmlns:conv="using:Avalonia.Data.Converters"
+        xmlns:vc="using:Vox.App.Controls">
 
   <Styles.Resources>
     <FontFamily x:Key="VoxFontUi">Geist, Inter, $Default, Segoe UI, Microsoft YaHei UI</FontFamily>
@@ -319,6 +320,11 @@
   <Style Selector="Button.navit.active Border.navcnt">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+  <!-- 评审修订（原型 D10）：仅“在线状态”类徽标亮绿（MCP 在线客户端），其余计数保持中性 -->
+  <Style Selector="Button.navit Border.navcnt.live">
+    <Setter Property="Background" Value="{DynamicResource VoxOkSoft}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxOk}"/>
   </Style>
 
   <!-- ══════════ 标题栏按钮（wbtn / tb-ico / tb-txt / edge-btn） ══════════ -->
@@ -1194,5 +1200,23 @@
   <Style Selector="Border.map-dock Button.dock-btn:pointerover">
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
     <Setter Property="Foreground" Value="{DynamicResource VoxAccent}"/>
+  </Style>
+
+  <!-- ══════════ 键盘焦点环（评审修订，原型 D3；与 Vex FocusAdorner 同款） ══════════
+       环画在控件盒外、只在键盘焦点（:focus-visible 语义）出现，鼠标点击不画；
+       必须用 FocusRingBorder：AdornerLayer 默认把 adorner 裁进被饰盒内，负 margin 环会被裁剪。 -->
+  <Style Selector="Button, ToggleButton, CheckBox, RadioButton, TabItem, ListBoxItem, ComboBox, Slider">
+    <Setter Property="FocusAdorner">
+      <Template>
+        <vc:FocusRingBorder Margin="-4" BorderThickness="2" CornerRadius="8" IsHitTestVisible="False"/>
+      </Template>
+    </Setter>
+  </Style>
+  <Style Selector="TextBox">
+    <Setter Property="FocusAdorner">
+      <Template>
+        <vc:FocusRingBorder Margin="-3" BorderThickness="2" CornerRadius="8" IsHitTestVisible="False"/>
+      </Template>
+    </Setter>
   </Style>
 </Styles>

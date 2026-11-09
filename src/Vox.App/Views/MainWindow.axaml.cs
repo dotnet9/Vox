@@ -302,6 +302,31 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.K && (e.KeyModifiers & KeyModifiers.Control) != 0) { OpenSearch(); e.Handled = true; }
         else if (e.Key == Key.Escape && SearchOverlay.IsVisible) { CloseSearch(); e.Handled = true; }
+        // 评审修订（原型 D3）：Esc 关最上层模态；Tab 在模态内圈焦（焦点陷阱）。
+        else if (e.Key == Key.Escape && ModalMask.IsVisible) { CloseModal(); e.Handled = true; }
+        else if (e.Key == Key.Tab && ModalMask.IsVisible && ModalHost.Content is Control modal)
+        {
+            var cycle = CycleModalFocus(modal, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+            if (cycle) e.Handled = true;
+        }
+    }
+
+    /// <summary>模态焦点陷阱：Tab/Shift+Tab 在弹层内可视可聚焦控件间循环，焦点不在弹层内时拉回首个控件。</summary>
+    private static bool CycleModalFocus(Control modal, bool reverse)
+    {
+        var focusables = modal.GetVisualDescendants().OfType<Control>()
+            .Where(c => c.IsVisible && c.IsEnabled && c.Focusable).ToList();
+        if (focusables.Count == 0) return false;
+        var current = TopLevel.GetTopLevel(modal)?.FocusManager?.GetFocusedElement() as Control;
+        if (current is not Control focused || !focusables.Contains(focused))
+        {
+            (reverse ? focusables[^1] : focusables[0]).Focus();
+            return true;
+        }
+        var index = focusables.IndexOf(focused);
+        var next = reverse ? focusables[(index - 1 + focusables.Count) % focusables.Count] : focusables[(index + 1) % focusables.Count];
+        next.Focus();
+        return true;
     }
 
     private static string CurrentDarkKey() => AppState.Instance.Settings.IsDark switch { true => "dark", null => "auto", _ => "light" };
@@ -907,7 +932,7 @@ public partial class MainWindow : Window
     private void UpdateMcpBadge() => Dispatcher.UIThread.Post(() =>
     {
         var clients = Services.McpService.Clients.Count;
-        SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
+        SetNavCount("mcp", clients > 0 ? clients.ToString() : null, live: true);
     });
 
     /// <summary>带占位参数的动态文案绑定（同 WritePage.TFBind：参数为运行时值，语言切换按当前语言重新格式化）。</summary>
@@ -932,12 +957,12 @@ public partial class MainWindow : Window
         SetNavCount("library", scan?.Articles.Count.ToString());
         // 发布中心角标 = 待推送提交 + 待发布/需更新/失败的平台格子。
         SetNavCount("publish", pending > 0 ? pending.ToString() : null);
-        // MCP 角标 = 在线 AI 客户端数（服务未启动/无客户端时隐藏）。
+        // MCP 角标 = 在线 AI 客户端数（服务未启动/无客户端时隐藏；在线为绿色 live 态）。
         var clients = Services.McpService.Clients.Count;
-        SetNavCount("mcp", clients > 0 ? clients.ToString() : null);
+        SetNavCount("mcp", clients > 0 ? clients.ToString() : null, live: true);
     }
 
-    private void SetNavCount(string key, string? text)
+    private void SetNavCount(string key, string? text, bool live = false)
     {
         foreach (var (btn, k) in _navButtons)
         {
@@ -948,6 +973,8 @@ public partial class MainWindow : Window
                 {
                     if (cnt.Child is TextBlock tb) tb.Text = text ?? string.Empty;
                     cnt.IsVisible = !string.IsNullOrEmpty(text);
+                    // 评审修订（原型 D10）：徽标色语义——计数默认中性，仅“在线状态”类亮绿。
+                    cnt.Classes.Set("live", live && !string.IsNullOrEmpty(text));
                 }
             }
         }
