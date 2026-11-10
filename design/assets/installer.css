@@ -81,7 +81,7 @@ body.stage {
 .rail .step-i.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .rail .step-i.active .n { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .rail .step-i.done { color: var(--muted); }
-.rail .step-i.done .n { border-color: var(--ok); background: var(--ok); color: #fff; }
+.rail .step-i.done .n { border-color: var(--ok); background: var(--ok); color: var(--on-ok); }
 .rail .foot-note { display: none; }
 
 /* 内容区与步骤 */

@@ -94,29 +94,32 @@ html[data-motion="reduced"] * {
 
 /* ---------- 强调色（ArcAccentPreset） ---------- */
 /* Arc 八色预设（ArcPalette 源码口径）；emerald 为 green 的旧名别名 */
-[data-accent="neutral"] { --accent: #353535; --accent-deep: #1F1F1F; --accent-soft: rgba(53,53,53,.12);    --on-accent: #fff; }
-[data-accent="violet"]  { --accent: #7747FF; --accent-deep: #5528CE; --accent-soft: rgba(119,71,255,.14);  --on-accent: #fff; }
-[data-accent="blue"]    { --accent: #0562EF; --accent-deep: #074DB7; --accent-soft: rgba(5,98,239,.12);    --on-accent: #fff; }
-[data-accent="green"]   { --accent: #0DB879; --accent-deep: #087C54; --accent-soft: rgba(13,184,121,.13);  --on-accent: #102016; }
-[data-accent="amber"]   { --accent: #F3AD20; --accent-deep: #9C6300; --accent-soft: rgba(243,173,32,.18);  --on-accent: #20190D; }
-[data-accent="orange"]  { --accent: #F48120; --accent-deep: #AA4700; --accent-soft: rgba(244,129,32,.14);  --on-accent: #fff; }
-[data-accent="coral"]   { --accent: #F15F55; --accent-deep: #B92C27; --accent-soft: rgba(241,95,85,.14);   --on-accent: #fff; }
-[data-accent="rose"]    { --accent: #ED4E9D; --accent-deep: #AE2570; --accent-soft: rgba(237,78,157,.14);  --on-accent: #fff; }
-[data-accent="emerald"] { --accent: #0DB879; --accent-deep: #087C54; --accent-soft: rgba(13,184,121,.13);  --on-accent: #102016; }
+[data-accent="neutral"] { --accent: #353535; --accent-deep: #1F1F1F; --accent-soft: rgba(53,53,53,.12);    --on-accent: #fff; --on-accent-hover: #fff; }
+[data-accent="violet"]  { --accent: #7747FF; --accent-deep: #4720B4; --accent-soft: rgba(119,71,255,.14);  --on-accent: #fff; --on-accent-hover: #fff; }
+[data-accent="blue"]    { --accent: #0562EF; --accent-deep: #06409A; --accent-soft: rgba(5,98,239,.12);    --on-accent: #fff; --on-accent-hover: #fff; }
+[data-accent="green"]   { --accent: #0DB879; --accent-deep: #087C54; --accent-soft: rgba(13,184,121,.13);  --on-accent: #102016; --on-accent-hover: #fff; }
+[data-accent="amber"]   { --accent: #F3AD20; --accent-deep: #7F5000; --accent-soft: rgba(243,173,32,.18);  --on-accent: #20190D; --on-accent-hover: #fff; }
+[data-accent="orange"]  { --accent: #F48120; --accent-deep: #AA4700; --accent-soft: rgba(244,129,32,.14);  --on-accent: #2B1602; --on-accent-hover: #fff; }
+[data-accent="coral"]   { --accent: #F15F55; --accent-deep: #B92C27; --accent-soft: rgba(241,95,85,.14);   --on-accent: #2E0E0B; --on-accent-hover: #fff; }
+[data-accent="rose"]    { --accent: #ED4E9D; --accent-deep: #AE2570; --accent-soft: rgba(237,78,157,.14);  --on-accent: #2A0A20; --on-accent-hover: #fff; }
+[data-accent="emerald"] { --accent: #0DB879; --accent-deep: #087C54; --accent-soft: rgba(13,184,121,.13);  --on-accent: #102016; --on-accent-hover: #fff; }
 
 /* 暗色主题下的 Arc 预设（亮种子 → 暗种子，文字对比随之反转） */
-[data-theme="dark"][data-accent="neutral"] { --accent:#BEBEBE; --accent-deep:#E1E1E1; --on-accent:#141414; }
-[data-theme="dark"][data-accent="violet"]  { --accent:#A78BFF; --accent-deep:#C7B7FF; --on-accent:#141414; }
-[data-theme="dark"][data-accent="blue"]    { --accent:#6BA3FF; --accent-deep:#A4C7FF; --on-accent:#141414; }
-[data-theme="dark"][data-accent="green"]   { --accent:#53DCA6; --accent-deep:#93EFD0; --on-accent:#102016; }
-[data-theme="dark"][data-accent="amber"]   { --accent:#FFCB62; --accent-deep:#FFE0A1; --on-accent:#20190D; }
-[data-theme="dark"][data-accent="orange"]  { --accent:#FFAD5E; --accent-deep:#FFD0A0; --on-accent:#17130F; }
-[data-theme="dark"][data-accent="coral"]   { --accent:#FF9386; --accent-deep:#FFC1BA; --on-accent:#21110F; }
-[data-theme="dark"][data-accent="rose"]    { --accent:#FF8BC5; --accent-deep:#FFC0DF; --on-accent:#250F1B; }
+[data-theme="dark"][data-accent="neutral"] { --accent:#BEBEBE; --accent-deep:#E1E1E1; --on-accent:#141414; --on-accent-hover:#141414; }
+[data-theme="dark"][data-accent="violet"]  { --accent:#A78BFF; --accent-deep:#C7B7FF; --on-accent:#141414; --on-accent-hover:#141414; }
+[data-theme="dark"][data-accent="blue"]    { --accent:#6BA3FF; --accent-deep:#A4C7FF; --on-accent:#141414; --on-accent-hover:#141414; }
+[data-theme="dark"][data-accent="green"]   { --accent:#53DCA6; --accent-deep:#93EFD0; --on-accent:#102016; --on-accent-hover:#102016; }
+[data-theme="dark"][data-accent="amber"]   { --accent:#FFCB62; --accent-deep:#FFE0A1; --on-accent:#20190D; --on-accent-hover:#20190D; }
+[data-theme="dark"][data-accent="orange"]  { --accent:#FFAD5E; --accent-deep:#FFD0A0; --on-accent:#17130F; --on-accent-hover:#17130F; }
+[data-theme="dark"][data-accent="coral"]   { --accent:#FF9386; --accent-deep:#FFC1BA; --on-accent:#21110F; --on-accent-hover:#21110F; }
+[data-theme="dark"][data-accent="rose"]    { --accent:#FF8BC5; --accent-deep:#FFC0DF; --on-accent:#250F1B; --on-accent-hover:#250F1B; }
 
 /* ---------- 语义色 ---------- */
-[data-theme="light"] { --ok: #16a34a; --ok-soft: rgba(22,163,74,.12); --warn: #d97706; --warn-soft: rgba(217,119,6,.12); --danger: #dc2626; --danger-soft: rgba(220,38,38,.11); }
-[data-theme="dark"]  { --ok: #34c477; --ok-soft: rgba(52,196,119,.14); --warn: #eda23a; --warn-soft: rgba(237,162,58,.14); --danger: #f05b5b; --danger-soft: rgba(240,91,91,.14); }
+[data-theme="light"] { --ok: #16a34a; --ok-soft: rgba(22,163,74,.12); --warn: #d97706; --warn-soft: rgba(217,119,6,.12); --danger: #dc2626; --danger-soft: rgba(220,38,38,.11);
+  /* 徽章文字落在同色 soft 底上，语义色本身对比不足；ink 为可读深字变体 */
+  --ok-ink: #0f6d33; --warn-ink: #9a4708; --danger-ink: #b91c1c; --on-warn: #20190d; --on-ok: #04240f; }
+[data-theme="dark"]  { --ok: #34c477; --ok-soft: rgba(52,196,119,.14); --warn: #eda23a; --warn-soft: rgba(237,162,58,.14); --danger: #f05b5b; --danger-soft: rgba(240,91,91,.14);
+  --ok-ink: #7ce0a8; --warn-ink: #fbd38d; --danger-ink: #fca5a5; --on-warn: #20190d; --on-ok: #0b2416; }
 
 /* ---------- 基础 ---------- */
 * { box-sizing: border-box; }
@@ -130,6 +133,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 ::selection { background: var(--accent-soft); }
+::placeholder { color: var(--muted); opacity: 1; }
 a { color: var(--accent); text-decoration: none; }
 code, pre, .mono { font-family: var(--font-mono); }
 
@@ -139,14 +143,14 @@ code, pre, .mono { font-family: var(--font-mono); }
   padding: 7px 14px; border-radius: 9px;
   border: 1px solid var(--line-strong);
   background: var(--surface); color: var(--fg);
-  font: 500 12.5px var(--font-ui); cursor: pointer;
+  font: 500 12.5px var(--font-ui); cursor: pointer; white-space: nowrap;
   transition: background var(--t-fast) var(--motion), border-color var(--t-fast) var(--motion), transform var(--t-fast) var(--motion);
   user-select: none;
 }
 .btn:hover { background: var(--surface-2); }
 .btn:active { transform: scale(.98); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-.btn.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.btn.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); color: var(--on-accent-hover, var(--on-accent)); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
 .btn.ghost:hover { background: var(--surface-2); color: var(--fg); }
 .btn.danger { color: var(--danger); border-color: transparent; background: var(--danger-soft); font-weight: 600; }
@@ -167,10 +171,10 @@ code, pre, .mono { font-family: var(--font-mono); }
   font: 500 10.5px var(--font-ui);
   background: var(--surface-3); color: var(--muted);
 }
-.badge.accent { background: var(--accent-soft); color: var(--accent); }
-.badge.ok    { background: var(--ok-soft); color: var(--ok); }
-.badge.warn  { background: var(--warn-soft); color: var(--warn); }
-.badge.danger{ background: var(--danger-soft); color: var(--danger); }
+.badge.accent { background: var(--accent-soft); color: var(--accent-deep); }
+.badge.ok    { background: var(--ok-soft); color: var(--ok-ink); }
+.badge.warn  { background: var(--warn-soft); color: var(--warn-ink); }
+.badge.danger{ background: var(--danger-soft); color: var(--danger-ink); }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 

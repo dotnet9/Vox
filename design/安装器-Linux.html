@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="light" data-accent="violet">
 <head><meta charset="utf-8"><title>安装器 · Linux（软件中心） · Vox 原型</title>
-<link rel="icon" href="../logo.svg">
+<link rel="icon" href="assets/logo.svg">
 <link rel="stylesheet" href="assets/tokens.css">
 <style>
 html, body { overflow-x: clip; }
@@ -17,6 +17,7 @@ html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at
 
 .proto-bar { width: min(580px,100%); display:flex; justify-content:space-between; margin-bottom:16px; color:var(--muted); font-size:10.5px; }
 .proto-bar .tools { display:flex; align-items:center; gap:8px; }
+.proto-bar .tools button { white-space:nowrap; padding:4px 10px; border:1px solid var(--line-strong); border-radius:7px; background:var(--surface); color:var(--fg); cursor:pointer; font:500 11px var(--font-ui); }
 .proto-bar .dots { display:flex; gap:6px; }
 .proto-bar .dot { width:13px; height:13px; border-radius:50%; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
 .proto-bar .dot[data-c="violet"]{background:#7c5cff}.proto-bar .dot[data-c="blue"]{background:#3e7bfa}
@@ -89,7 +90,7 @@ html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at
   </div>
   <div class="gs-body">
     <div class="gapp">
-      <img src="../logo.svg" alt="">
+      <img src="assets/logo.svg" alt="">
       <div>
         <h2>Vox · 维声</h2>
         <div class="origin">CodeWF · (dotnet9/Vox · GitHub Releases .deb 源)</div>
@@ -97,7 +98,7 @@ html[data-theme="dark"] body.stage { background: radial-gradient(1000px 480px at
       </div>
     </div>
     <div class="banner">
-      <img src="../logo.svg" alt="">
+      <img src="assets/logo.svg" alt="">
       <div><b>一处落笔，处处有声</b><p>写作、配图、元数据、体检、同步——Markdown 内容仓库的桌面闭环</p></div>
     </div>
     <p class="gdesc">面向本地 Markdown 内容仓库（如 Assets.Dotnet9）的桌面应用：图片拖入即入库、元数据表单化、规范体检与批量修复、内置 git 一键提交推送。自带内置 git 组件，无需安装 git。</p>
