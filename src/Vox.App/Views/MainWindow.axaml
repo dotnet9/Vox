@@ -19,39 +19,27 @@
                Margin="4,0,4,0" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="1" Text="Vox · 维声" FontWeight="SemiBold" FontSize="{DynamicResource VoxFontSizeMd}"
                    VerticalAlignment="Center" Margin="0,0,2,0"/>
-        <Panel Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center">
-          <Button x:Name="BtnFileMenu" Classes="tb-txt" Content="文件">
-            <Button.Flyout>
-              <Flyout Placement="Bottom" ShowMode="Standard">
-                <Border Classes="mnu">
-                  <StackPanel>
-                    <Button x:Name="MiNewWindow" Classes="mnuitem" Content="新建窗口"/>
-                    <Button x:Name="MiOpenDir" Classes="mnuitem" Content="打开目录…"/>
-                    <Button x:Name="MiOpenFile" Classes="mnuitem" Content="打开文件…"/>
-                    <Border Height="1" Background="{DynamicResource VoxLine}" Margin="6,4"/>
-                    <Button x:Name="MiNew" Classes="mnuitem" Content="新建文章"/>
-                    <Button x:Name="MiMeta" Classes="mnuitem" Content="文章元数据…"/>
-                    <Button x:Name="MiImg" Classes="mnuitem" Content="图片入库…"/>
-                  </StackPanel>
-                </Border>
-              </Flyout>
-            </Button.Flyout>
-          </Button>
-        </Panel>
-        <Panel Grid.Column="3" Margin="4,0,0,0" VerticalAlignment="Center">
-          <Button x:Name="BtnHelpMenu" Classes="tb-txt" Content="帮助">
-            <Button.Flyout>
-              <Flyout Placement="Bottom" ShowMode="Standard">
-                <Border Classes="mnu">
-                  <StackPanel>
-                    <Button x:Name="MiUpdate" Classes="mnuitem" Content="检查更新…"/>
-                    <Button x:Name="MiAbout" Classes="mnuitem" Content="关于 Vox"/>
-                  </StackPanel>
-                </Border>
-              </Flyout>
-            </Button.Flyout>
-          </Button>
-        </Panel>
+        <!-- 标题栏原生菜单（Vex 同款机制）：Menu+MenuItem 天然支持打开态下悬停切换；模板见 VoxStyles -->
+        <Menu Grid.Column="2" Grid.ColumnSpan="2" Margin="4,0,0,0" VerticalAlignment="Center" Classes="titlebar-menu">
+          <Menu.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="2"/>
+            </ItemsPanelTemplate>
+          </Menu.ItemsPanel>
+          <MenuItem x:Name="FileMenuItem" Header="文件">
+            <MenuItem x:Name="MiNewWindow" Header="新建窗口"/>
+            <MenuItem x:Name="MiOpenDir" Header="打开目录…"/>
+            <MenuItem x:Name="MiOpenFile" Header="打开文件…"/>
+            <Separator/>
+            <MenuItem x:Name="MiNew" Header="新建文章"/>
+            <MenuItem x:Name="MiMeta" Header="文章元数据…"/>
+            <MenuItem x:Name="MiImg" Header="图片入库…"/>
+          </MenuItem>
+          <MenuItem x:Name="HelpMenuItem" Header="帮助">
+            <MenuItem x:Name="MiUpdate" Header="检查更新…"/>
+            <MenuItem x:Name="MiAbout" Header="关于 Vox"/>
+          </MenuItem>
+        </Menu>
         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" Margin="6,0,0,0" VerticalAlignment="Center">
           <Ellipse x:Name="FileDot" Width="7" Height="7" Fill="{DynamicResource VoxWarn}" IsVisible="False"/>
           <TextBlock x:Name="FileNameText" Classes="mono" FontSize="{DynamicResource VoxFontSizeXs}" IsVisible="False"

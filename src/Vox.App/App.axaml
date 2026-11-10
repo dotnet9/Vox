@@ -16,9 +16,11 @@
   </Application.Resources>
 
   <Application.Styles>
-    <!-- Avalonia 基础控件默认主题（ContentPresenter/ListBox/ListBoxItem 隐式模板）：Arc 基础主题检测到已有主题的类型即跳过注册，
-         两者互补不冲突；缺这层时 CodeWF MarkdownOutlinePanel 与文章列表的行 DataTemplate 无法实例化。 -->
-    <StyleInclude Source="avares://Avalonia.Themes.Simple/SimpleTheme.xaml"/>
+    <!-- 注意：不要在此全局引入 Avalonia.Themes.Simple——Simple 的 Button/ListBox/ListBoxItem 等隐式样式
+         会压过 Arc 的控件主题（导航变默认按钮、标题栏双标题、折叠钮错位，2026-11-10 实测复现）。
+         Arc 基础主题检测到已有主题的类型即跳过注册，全局 Simple 先注册会让 Arc 全量跳过。
+         大纲/列表行 DataTemplate 若出现不实例化，用局部作用域（控件级 Styles/显式 ControlTheme）解决，
+         不再回退全局 Simple。 -->
     <StyleInclude Source="/Themes/VoxStyles.axaml"/>
     <!-- AvaloniaEdit 完整控件主题（编辑器模板）；Base 资源由 MarkdownFullThemes 内引 -->
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Simple/AvaloniaEdit.xaml"/>

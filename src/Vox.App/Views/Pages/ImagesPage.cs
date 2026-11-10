@@ -336,7 +336,12 @@ public sealed class ImagesPage : UserControl
             Margin = new Thickness(6),
         };
         ToolTip.SetTip(pick, T("Vox.Images.Batch.Pick"));
-        var thumbPanel = new Panel { Children = { thumb.Child!, pick } };
+        // 修复重挂载崩溃：thumb.Child 尚挂在 thumb 上，先摘下再统一包进 thumbPanel（Arc 下 Avalonia 双亲抛错）。
+        var existing = thumb.Child;
+        thumb.Child = null;
+        var thumbPanel = new Panel();
+        if (existing != null) thumbPanel.Children.Add(existing);
+        thumbPanel.Children.Add(pick);
         thumb.Child = thumbPanel;
         pick.Click += (_, _) =>
         {

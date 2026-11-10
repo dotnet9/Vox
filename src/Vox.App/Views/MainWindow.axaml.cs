@@ -110,6 +110,14 @@ public partial class MainWindow : Window
         HookStartupTarget(); // 命令行目录/文件入口：首个索引完成后定位打开
         WireChromeCommands(); // XAML 固定控件事件一次性挂接（重建链路不重复挂接）
 
+        WireChromeCommandsRest();
+        // Arc 在 VoxStyles 之后追加 Menu 样式（竖排 ItemsPanel），本地值/加载后强制兜底：
+        Loaded += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            var presenter = this.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ItemsPresenter>().FirstOrDefault();
+            if (presenter?.Panel is StackPanel panel) panel.Orientation = Avalonia.Layout.Orientation.Horizontal;
+        }, DispatcherPriority.Loaded);
+
         BuildTitlebarExtras();
         BuildUpdateExperience(); // 标题栏「更新」药丸 + 更新会话接线 + 启动静默检查
     }
@@ -268,16 +276,17 @@ public partial class MainWindow : Window
     /// <summary>标题栏与搜索浮层固定文案：全部接 I18n 动态绑定（初始即取当前语言，切换自动跟随）。</summary>
     private void ApplyChrome()
     {
-        BtnFileMenu[!Button.ContentProperty] = I18n.Bind("Vox.Shell.Menu.File");
-        BtnHelpMenu[!Button.ContentProperty] = I18n.Bind("Vox.Shell.Menu.Help");
-        MiUpdate[!Button.ContentProperty] = I18n.Bind("Vox.Help.Menu.CheckUpdate");
-        MiAbout[!Button.ContentProperty] = I18n.Bind("Vox.Help.Menu.About");
-        MiNewWindow[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewWindow");
-        MiOpenDir[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
-        MiOpenFile[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
-        MiNew[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
-        MiMeta[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
-        MiImg[!Button.ContentProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
+        // 标题栏原生菜单（Vex 同款）：MenuItem 头部走 I18n 动态绑定；悬停切换由 Menu 交互层原生提供。
+        FileMenuItem[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Shell.Menu.File");
+        HelpMenuItem[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Shell.Menu.Help");
+        MiUpdate[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Help.Menu.CheckUpdate");
+        MiAbout[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Help.Menu.About");
+        MiNewWindow[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewWindow");
+        MiOpenDir[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
+        MiOpenFile[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
+        MiNew[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
+        MiMeta[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
+        MiImg[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
         // MCP 按钮 tooltip 走动态文案（UpdateMcpBadge 按服务现态重绑），这里不再静态绑定。
         BtnTbSearch[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Search");
         BtnTbLook[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Appearance");
@@ -297,6 +306,7 @@ public partial class MainWindow : Window
             button[!ToolTip.TipProperty] = I18n.Bind(key);
         }
     }
+
 
     private void OnHotkeys(object? sender, KeyEventArgs e)
     {
@@ -698,46 +708,57 @@ public partial class MainWindow : Window
     }
 
     /// <summary>XAML 固定控件的事件只挂一次（构造器调用）；重建链路只重建动态内容，避免命令重复执行。</summary>
+    /// <summary>MenuItem 不暴露 Click 事件：轻量命令包装，code-behind 直接给处理器。</summary>
+    internal sealed class DelegateCommand(Action<object?> execute) : System.Windows.Input.ICommand
+    {
+        public event EventHandler? CanExecuteChanged;
+        public bool CanExecute(object? parameter) => true;
+        public void Execute(object? parameter) => execute(parameter);
+    }
+
     private void WireChromeCommands()
     {
-        MiNew.Click += (_, _) => WriteCommand(p => p.OpenNewArticle());
-        MiMeta.Click += (_, _) => WriteCommand(p => p.OpenMeta());
-        MiImg.Click += (_, _) => WriteCommand(p => p.OpenImageIntake());
-        MiUpdate.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); Services.UpdateSession.Instance.OpenFromMenu(); };
-        MiAbout.Click += (_, _) => { if (BtnHelpMenu.Flyout is { } helpFlyout) helpFlyout.Hide(); ShowModal(new Dialogs.HelpDialogs.AboutModal(this)); };
+        MiNew.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenNewArticle()));
+        MiMeta.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenMeta()));
+        MiImg.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenImageIntake()));
+        MiUpdate.Command = new DelegateCommand(_ => Services.UpdateSession.Instance.OpenFromMenu());
+        MiAbout.Command = new DelegateCommand(_ => ShowModal(new Dialogs.HelpDialogs.AboutModal(this)));
 
         // 新窗口：拉起空白 Vox 进程；打开目录/文件在当前进程内切换仓库（不新开进程）。
-        MiNewWindow.Click += (_, _) =>
-        {
-            if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
-            LaunchVox("--empty");
-        };
-        MiOpenDir.Click += async (_, _) =>
-        {
-            if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
-            var dirs = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                AllowMultiple = false,
-                Title = T("Vox.Write.Menu.OpenDirectory"),
-            });
-            if (dirs.Count > 0) OpenRepoInCurrent(dirs[0].Path.LocalPath, null);
-        };
-        MiOpenFile.Click += async (_, _) =>
-        {
-            if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
-            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                AllowMultiple = false,
-                Title = T("Vox.Write.Menu.OpenFile"),
-                FileTypeFilter = new[] { new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } } },
-            });
-            if (files.Count > 0)
-            {
-                var file = files[0].Path.LocalPath;
-                OpenRepoInCurrent(Path.GetDirectoryName(file)!, file);
-            }
-        };
+        MiNewWindow.Command = new DelegateCommand(_ => LaunchVox("--empty"));
+        MiOpenDir.Command = new DelegateCommand(_ => _ = OpenDirectoryAsync());
+        MiOpenFile.Command = new DelegateCommand(_ => _ = OpenFileAsync());
+    }
 
+    /// <summary>打开目录选择器并在当前进程切换仓库。</summary>
+    private async Task OpenDirectoryAsync()
+    {
+        var dirs = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = T("Vox.Write.Menu.OpenDirectory"),
+        });
+        if (dirs.Count > 0) OpenRepoInCurrent(dirs[0].Path.LocalPath, null);
+    }
+
+    /// <summary>打开文件选择器并加载所选 Markdown 文件。</summary>
+    private async Task OpenFileAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = T("Vox.Write.Menu.OpenFile"),
+            FileTypeFilter = new[] { new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } } },
+        });
+        if (files.Count > 0)
+        {
+            var file = files[0].Path.LocalPath;
+            OpenRepoInCurrent(Path.GetDirectoryName(file)!, file);
+        }
+    }
+
+    private void WireChromeCommandsRest()
+    {
         BtnTbSearch.Click += (_, _) => OpenSearch();
         // 标题栏发布状态徽标可点击直达发布对话框（原型 pub-badges onclick 口径）。
         FileBadges.Cursor = new Cursor(StandardCursorType.Hand);
@@ -847,7 +868,6 @@ public partial class MainWindow : Window
 
     private void WriteCommand(Action<WritePage> action)
     {
-        if (BtnFileMenu.Flyout is { } flyout) flyout.Hide();
         ShowPage("write");
         if (PageHost.Content is WritePage page) action(page);
     }
