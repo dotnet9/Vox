@@ -16,6 +16,9 @@
   </Application.Resources>
 
   <Application.Styles>
+    <!-- Avalonia 基础控件默认主题（ContentPresenter/ListBox/ListBoxItem 隐式模板）：Arc 基础主题检测到已有主题的类型即跳过注册，
+         两者互补不冲突；缺这层时 CodeWF MarkdownOutlinePanel 与文章列表的行 DataTemplate 无法实例化。 -->
+    <StyleInclude Source="avares://Avalonia.Themes.Simple/SimpleTheme.xaml"/>
     <StyleInclude Source="/Themes/VoxStyles.axaml"/>
     <!-- AvaloniaEdit 完整控件主题（编辑器模板）；Base 资源由 MarkdownFullThemes 内引 -->
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Simple/AvaloniaEdit.xaml"/>

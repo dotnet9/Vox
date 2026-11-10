@@ -1287,4 +1287,9 @@
       </Template>
     </Setter>
   </Style>
-</Styles>
+
+  <!-- 评审修订：正文预览选区高亮（原型 selection 口径：accent-soft 底 + 正文前景），画刷由 VoxTheme 随主题注入。 -->
+  <Style Selector="SelectableTextBlock">
+    <Setter Property="SelectionBrush" Value="{DynamicResource TextBlockSelectionBackgroundBrush}"/>
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextBlockSelectionForegroundBrush}"/>
+  </Style></Styles>

@@ -193,6 +193,10 @@ public static class VoxTheme
         // ---------- 强调色派生 ----------
         resources["VoxAccentDeep"] = Brush(deep);
         resources["VoxAccentSoft"] = Brush(HexSoft(accent));
+        // 评审修订：SelectableTextBlock 的选区高亮资源随主题注入（原型 selection 口径：accent-soft 底 + 正文前景），
+        // 此前 Arc 组合下无来源，预览选区无可见高亮。
+        resources["TextBlockSelectionBackgroundBrush"] = Brush(MixHex(accent, p.Surface, 0.88));
+        resources["TextBlockSelectionForegroundBrush"] = Brush(p.Fg);
         // 更新进度专用派生令牌：药丸左段 = accent-deep 掺 30% accent 提亮（亮色 green/amber 下
         // accent-deep 上的 on-accent 文字对比不足，原型 color-mix 同款）；Color 版供渐变 Stop 动态引用。
         resources["VoxAccentProgress"] = Brush(MixHex(deep, accent, 0.30));
