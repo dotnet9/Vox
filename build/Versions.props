@@ -7,7 +7,7 @@
     <!-- Arc 仍精确依赖 Avalonia 12.1.4；保留 NU1608，并用本机/CI 原生验证覆盖 12.1.5。 -->
     <ArcVersion>1.0.0</ArcVersion>
     <CodeWFToolkitVersion>1.1.6</CodeWFToolkitVersion>
-    <CodeWFAvaloniaVersion>12.1.5.8</CodeWFAvaloniaVersion>
+    <CodeWFAvaloniaVersion>12.1.5.9</CodeWFAvaloniaVersion>
     <YamlDotNetVersion>18.1.0</YamlDotNetVersion>
     <LibGit2SharpVersion>0.32.0</LibGit2SharpVersion>
     <CommunityToolkitMvvmVersion>8.4.2</CommunityToolkitMvvmVersion>

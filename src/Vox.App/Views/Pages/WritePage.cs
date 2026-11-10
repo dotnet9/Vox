@@ -221,6 +221,8 @@ public sealed class WritePage : UserControl
         // 配色键保留控件内置 CodeWFMarkdownEditor* 默认值，由 VoxTheme 的 MarkdownEditorPalette
         // 同名资源统一供给，避免在此重复定义一套可能与语义调色板脱节的键。
         _editorView.ShowLineNumbers = true;
+        // 长行口径与原型分屏一致：源码默认横向滚动（关=横滚，控件 WordWrap 属性成对改写滚动条）。
+        _editorView.WordWrap = false;
         // placeholder 动态篇数（原型 L111「搜索 37 篇…」）：随索引重建重绑（TFBind 参数为运行时值，语言切换自动重排）。
         _search[!TextBox.WatermarkProperty] = TFBind("Vox.Write.List.SearchFmt", 0);
 

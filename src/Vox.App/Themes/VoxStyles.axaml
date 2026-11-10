@@ -135,6 +135,7 @@
   <Style Selector="Button.btn.primary:pointerover">
     <Setter Property="Background" Value="{DynamicResource VoxAccentDeep}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource VoxAccentDeep}"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxOnAccentHover}"/>
   </Style>
   <Style Selector="Button.btn.ghost">
     <Setter Property="Background" Value="Transparent"/>
@@ -202,19 +203,19 @@
   </Style>
   <Style Selector="Border.badge.accent">
     <Setter Property="Background" Value="{DynamicResource VoxAccentSoft}"/>
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxAccent}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxAccentDeep}"/>
   </Style>
   <Style Selector="Border.badge.ok">
     <Setter Property="Background" Value="{DynamicResource VoxOkSoft}"/>
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxOk}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxOkInk}"/>
   </Style>
   <Style Selector="Border.badge.warn">
     <Setter Property="Background" Value="{DynamicResource VoxWarnSoft}"/>
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxWarn}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxWarnInk}"/>
   </Style>
   <Style Selector="Border.badge.danger">
     <Setter Property="Background" Value="{DynamicResource VoxDangerSoft}"/>
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxDanger}"/>
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource VoxDangerInk}"/>
   </Style>
 
   <!-- ══════════ .chip ══════════ -->

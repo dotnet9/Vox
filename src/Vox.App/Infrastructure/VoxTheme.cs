@@ -31,13 +31,13 @@ public static class VoxTheme
     public static readonly AccentPreset[] Accents =
     [
         new(AccentNeutral, "#353535", "#1F1F1F", "#FFFFFF", "#BEBEBE", "#E1E1E1", "#141414"),
-        new(AccentViolet, "#7747FF", "#5528CE", "#FFFFFF", "#A78BFF", "#C7B7FF", "#141414"),
-        new(AccentBlue, "#0562EF", "#074DB7", "#FFFFFF", "#6BA3FF", "#A4C7FF", "#141414"),
+        new(AccentViolet, "#7747FF", "#4720B4", "#FFFFFF", "#A78BFF", "#C7B7FF", "#141414"),
+        new(AccentBlue, "#0562EF", "#06409A", "#FFFFFF", "#6BA3FF", "#A4C7FF", "#141414"),
         new(AccentGreen, "#0DB879", "#087C54", "#102016", "#53DCA6", "#93EFD0", "#102016"),
-        new(AccentAmber, "#F3AD20", "#9C6300", "#20190D", "#FFCB62", "#FFE0A1", "#20190D"),
-        new(AccentOrange, "#F48120", "#AA4700", "#FFFFFF", "#FFAD5E", "#FFD0A0", "#17130F"),
-        new(AccentCoral, "#F15F55", "#B92C27", "#FFFFFF", "#FF9386", "#FFC1BA", "#21110F"),
-        new(AccentRose, "#ED4E9D", "#AE2570", "#FFFFFF", "#FF8BC5", "#FFC0DF", "#250F1B"),
+        new(AccentAmber, "#F3AD20", "#7F5000", "#20190D", "#FFCB62", "#FFE0A1", "#20190D"),
+        new(AccentOrange, "#F48120", "#AA4700", "#2B1602", "#FFAD5E", "#FFD0A0", "#17130F"),
+        new(AccentCoral, "#F15F55", "#B92C27", "#2E0E0B", "#FF9386", "#FFC1BA", "#21110F"),
+        new(AccentRose, "#ED4E9D", "#AE2570", "#2A0A20", "#FF8BC5", "#FFC0DF", "#250F1B"),
     ];
 
     /// <summary>Vox 侧强调色名 → Arc AccentPreset（Arc 主题侧最近似预设）。</summary>
@@ -162,6 +162,11 @@ public static class VoxTheme
         resources["OutlinePanelSearchBorderBrush"] = Brush(p.LineStrong);
         resources["VoxCodeBg"] = Brush(p.CodeBg);
         resources["VoxOk"] = Brush(p.Ok);
+        // 评审修订（原型对比度定版）：徽章文字用 ink 变体（语义色原值落同色 soft 底 <4.5）；on-ok 用于语义填充上的文字。
+        resources["VoxOkInk"] = Brush(_isDark ? "#7CE0A8" : "#0F6D33");
+        resources["VoxWarnInk"] = Brush(_isDark ? "#FBD38D" : "#9A4708");
+        resources["VoxDangerInk"] = Brush(_isDark ? "#FCA5A5" : "#B91C1C");
+        resources["VoxOnOk"] = Brush(_isDark ? "#0B2416" : "#04240F");
         resources["VoxOkSoft"] = Brush(p.OkSoft);
         resources["VoxWarn"] = Brush(p.Warn);
         resources["VoxWarnSoft"] = Brush(p.WarnSoft);
@@ -206,6 +211,8 @@ public static class VoxTheme
         resources["VoxAccentGhostHover"] = Brush(MixHex(accent, p.Surface, 0.82)); // 18% accent 落 surface
         resources["VoxAccentGhostBorder"] = Brush(MixHex(accent, p.Surface, 0.68)); // 32% accent 落 surface
         resources["VoxOnAccent"] = Brush(_isDark ? preset.DarkOn : preset.LightOn);
+        // hover 底为 accent-deep（暗色为浅色 pastel），文字对比随明暗分别定：亮色统一白字（deep 加深后 ≥5.2），暗色沿用深字。
+        resources["VoxOnAccentHover"] = Brush(_isDark ? preset.DarkOn : "#FFFFFF");
         resources["VoxMaskBg"] = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
         resources["VoxTransparent"] = Brushes.Transparent;
         // ---------- DataGrid：Semi 主题默认蓝调接到 Vox 画刷 ----------
