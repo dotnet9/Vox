@@ -941,6 +941,8 @@ function renderList(){
           months[m].map(k=>artItem(k,ARTS[k],true)).join('')+'</div>').join('')+
         '</div></div>';}).join('');}
   el.querySelectorAll('.wit').forEach(w=>w.onclick=()=>loadArt(w.dataset.art));
+  /* 同步 v13：文章行右键「复制路径」（与实现写作页一致，仅文章行，分组行不响应） */
+  el.querySelectorAll('.wit').forEach(w=>w.oncontextmenu=e=>{e.preventDefault();const a=ARTS[w.dataset.art];if(!a)return;navigator.clipboard&&navigator.clipboard.writeText(a.path);toast('已复制路径：'+a.path);});
   el.querySelectorAll('.yhead,.mhead').forEach(hh=>hh.onclick=()=>hh.classList.toggle('closed'));
 }
 function renderOutline(a){
