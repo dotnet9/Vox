@@ -1,36 +1,24 @@
 using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using Vox.Core.Mcp;
 
 namespace Vox.Core.Mcp;
 
 /// <summary>
-/// 本机 MCP 服务：127.0.0.1 上的极简 HTTP/1.1 端点（JSON-RPC 2.0），
-/// 只接受 Bearer Token 鉴权的 POST，方法覆盖 initialize / tools / resources / prompts。
-/// 自建 TcpListener 而不走 HttpListener：免 URL ACL、免管理员权限，AOT 下零额外依赖。
+/// Vox 的 MCP 工具引擎：工具 / 资源 / 指令的全部业务逻辑与权限过滤（授权范围、工具上下线、
+/// git 开关、写前确认）。协议传输（Streamable HTTP + Bearer 鉴权）由 Vox.App 的
+/// ModelContextProtocol.AspNetCore 承载，引擎只产出协议结果对象，不关心传输形态。
 /// </summary>
-public sealed partial class McpServer : IDisposable
+public sealed partial class McpServer
 {
-    private const int MaxBodyBytes = 2 * 1024 * 1024;
-    private const int MaxHeaderBytes = 32 * 1024;
+    private const string ArticlePrefix = "vox://article/";
+    private const string ImagePrefix = "vox://image/";
+    private const string SitePrefix = "vox://site/";
 
-    private readonly object _gate = new();
-    private readonly object _sessionGate = new();
-    private readonly Dictionary<string, Session> _sessions = new(StringComparer.Ordinal);
-    private TcpListener? _listener;
-    private CancellationTokenSource? _cts;
     private McpOptions _options;
-    private int _port;
-
-    public McpServer(McpOptions options, IMcpHost? host = null, Func<RepoScan?>? scanProvider = null)
-    {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        Host = host;
-        ScanProvider = scanProvider;
-    }
 
     /// <summary>每次写入审计（含被拒绝与鉴权失败），界面「实时调用」与「调用审计」共用。</summary>
     public event Action<ToolAuditEntry>? CallAudited;
@@ -42,99 +30,23 @@ public sealed partial class McpServer : IDisposable
 
     public McpOptions Options => _options;
 
-    public bool IsRunning
-    {
-        get
-        {
-            lock (_gate) return _listener != null;
-        }
-    }
-
-    public int Port
-    {
-        get
-        {
-            lock (_gate) return _listener == null ? _options.Port : _port;
-        }
-    }
-
-    public string Endpoint => $"http://127.0.0.1:{Port}/mcp/";
-
     public int VisibleToolCount => McpCatalog.VisibleTools(_options).Count;
 
-    public void Start()
+    public McpServer(McpOptions options, IMcpHost? host = null, Func<RepoScan?>? scanProvider = null)
     {
-        lock (_gate)
-        {
-            if (_listener != null) return;
-            Validate(_options);
-            var listener = new TcpListener(IPAddress.Loopback, _options.Port);
-            listener.Start();
-            _listener = listener;
-            _port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            _cts = new CancellationTokenSource();
-            _ = Task.Run(() => AcceptLoopAsync(listener, _cts.Token));
-        }
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        Host = host;
+        ScanProvider = scanProvider;
     }
 
-    public void Stop()
+    /// <summary>热更新授权范围 / 开关 / 工具上下线。</summary>
+    public void UpdateOptions(McpOptions options)
     {
-        TcpListener? listener;
-        CancellationTokenSource? cts;
-        lock (_gate)
-        {
-            listener = _listener;
-            cts = _cts;
-            _listener = null;
-            _cts = null;
-        }
-        try
-        {
-            cts?.Cancel();
-        }
-        catch
-        {
-            // 已释放
-        }
-        try
-        {
-            listener?.Stop();
-        }
-        catch
-        {
-            // 已停止
-        }
-        cts?.Dispose();
-        lock (_sessionGate) _sessions.Clear();
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
-    public void Restart()
-    {
-        Stop();
-        Start();
-    }
-
-    /// <summary>热更新授权范围 / 开关 / 工具上下线；端口与令牌在下次 Restart 生效。</summary>
-    public void UpdateOptions(McpOptions options) => _options = options;
-
-    /// <summary>最近 30 分钟内有请求的已初始化客户端（导航角标与客户端页）。</summary>
-    public IReadOnlyList<McpClientSnapshot> Clients()
-    {
-        if (!IsRunning) return [];
-        var cutoff = DateTime.Now.AddMinutes(-30);
-        lock (_sessionGate)
-        {
-            return _sessions.Values
-                .Where(s => s.LastSeen >= cutoff)
-                .OrderBy(s => s.ConnectedAt)
-                .Select(s => new McpClientSnapshot(s.Name, s.ConnectedAt, s.LastSeen, s.Calls))
-                .ToList();
-        }
-    }
-
-    public void Dispose() => Stop();
-
-    private static void Validate(McpOptions options)
+    /// <summary>启动校验：仓库就绪、端口合法、令牌强度。失败抛 InvalidOperationException，由调用方转为界面错误。</summary>
+    public static void Validate(McpOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.RepoRoot) || !Directory.Exists(options.RepoRoot))
         {
@@ -150,298 +62,220 @@ public sealed partial class McpServer : IDisposable
         }
     }
 
-    private async Task AcceptLoopAsync(TcpListener listener, CancellationToken ct)
+    /// <summary>tools/list：可见工具清单（授权范围、git 开关与上下线三重过滤）。</summary>
+    public ListToolsResult ListTools()
     {
-        while (!ct.IsCancellationRequested)
+        var tools = new List<Tool>();
+        foreach (var tool in McpCatalog.VisibleTools(_options))
         {
-            TcpClient client;
-            try
+            tools.Add(new Tool
             {
-                client = await listener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (SocketException)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-            _ = Task.Run(() => HandleConnectionAsync(client, ct), CancellationToken.None);
+                Name = tool.Name,
+                Description = tool.Description,
+                InputSchema = JsonSerializer.SerializeToElement(JsonNode.Parse(tool.SchemaJson)),
+                Annotations = new ToolAnnotations { ReadOnlyHint = tool.ReadOnly },
+            });
         }
+        return new ListToolsResult { Tools = tools };
     }
 
-    private async Task HandleConnectionAsync(TcpClient client, CancellationToken ct)
+    /// <summary>tools/call：按名称分发到工具实现；写入工具先经 Vox 应用内确认，全程审计。</summary>
+    public async Task<CallToolResult> CallTool(JsonObject? parameters, string client, CancellationToken ct)
     {
-        using (client)
-        using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
-        {
-            timeout.CancelAfter(TimeSpan.FromSeconds(45));
-            try
-            {
-                client.NoDelay = true;
-                await using var stream = client.GetStream();
-                var request = await ReadRequestAsync(stream, timeout.Token).ConfigureAwait(false);
-                if (request == null) return;
-                var response = await ProcessAsync(request, timeout.Token).ConfigureAwait(false);
-                await WriteResponseAsync(stream, response, timeout.Token).ConfigureAwait(false);
-            }
-            catch (HttpError error)
-            {
-                try
-                {
-                    await WriteResponseAsync(client.GetStream(),
-                        new McpHttpResponse(error.Status, null, "text/plain"), CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    // 连接已断
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // 超时
-            }
-            catch (IOException)
-            {
-                // 客户端提前断开
-            }
-            catch (Exception)
-            {
-                // 单个连接失败不影响服务
-            }
-        }
-    }
-
-    private async Task<McpHttpResponse> ProcessAsync(HttpRequest request, CancellationToken ct)
-    {
-        if (request.Path is not ("/mcp" or "/mcp/"))
-        {
-            return new McpHttpResponse(404, null, "text/plain");
-        }
-        if (!string.Equals(request.Method, "POST", StringComparison.OrdinalIgnoreCase))
-        {
-            return new McpHttpResponse(405, null, "text/plain",
-                new Dictionary<string, string> { ["Allow"] = "POST" });
-        }
-        if (!IsAuthorized(request.Headers.GetValueOrDefault("authorization")))
-        {
-            Audit("未知客户端", "—", "Bearer 令牌无效", "error", "HTTP 401", 0);
-            return new McpHttpResponse(401, null, "text/plain",
-                new Dictionary<string, string> { ["WWW-Authenticate"] = "Bearer" });
-        }
-
-        JsonNode? node;
-        try
-        {
-            node = JsonNode.Parse(request.Body);
-        }
-        catch
-        {
-            return JsonRpcError(null, -32700, "Parse error");
-        }
-        if (node is not JsonObject message)
-        {
-            return JsonRpcError(null, -32600, "Invalid Request");
-        }
-
-        var method = McpJson.Str(message, "method");
-        if (string.IsNullOrWhiteSpace(method))
-        {
-            return JsonRpcError(message["id"], -32600, "Invalid Request");
-        }
-        var isNotification = !message.ContainsKey("id") || message["id"] is null;
-        var session = ResolveSession(request, message, method, out var newSessionId);
         var started = Stopwatch.GetTimestamp();
+        var call = new CallState();
+        CurrentCall.Value = call;
+        var name = McpJson.Str(parameters, "name") ?? string.Empty;
+        var args = parameters?["arguments"] as JsonObject ?? [];
+        var tool = McpCatalog.Find(name);
 
-        try
+        McpToolOutcome outcome;
+        if (tool == null)
         {
-            var result = await DispatchAsync(method, message["params"] as JsonObject, session, started, ct)
-                .ConfigureAwait(false);
-            if (isNotification)
+            outcome = Fail($"未知工具：{name}", name);
+        }
+        else if (!McpCatalog.IsVisible(tool, _options))
+        {
+            outcome = Deny("工具在当前授权范围或开关下不可见。", tool.Name);
+        }
+        else
+        {
+            try
             {
-                return new McpHttpResponse(202, null, null);
+                outcome = await ExecuteToolAsync(tool, args, client, ct).ConfigureAwait(false);
             }
-            var response = new JsonObject
+            catch (OperationCanceledException)
             {
-                ["jsonrpc"] = "2.0",
-                ["id"] = message["id"]?.DeepClone(),
-                ["result"] = result,
-            };
-            return JsonResponse(response, newSessionId);
-        }
-        catch (RpcException error)
-        {
-            return isNotification
-                ? new McpHttpResponse(202, null, null)
-                : JsonRpcError(message["id"], error.Code, error.Message, newSessionId);
-        }
-        catch (Exception error)
-        {
-            return isNotification
-                ? new McpHttpResponse(202, null, null)
-                : JsonRpcError(message["id"], -32603, error.Message, newSessionId);
-        }
-    }
-
-    private async Task<JsonObject> DispatchAsync(
-        string method, JsonObject? parameters, Session session, long started, CancellationToken ct)
-    {
-        switch (method)
-        {
-            case "initialize":
-                return Initialize(parameters, session, started);
-            case "notifications/initialized":
-            case "notifications/cancelled":
-                return [];
-            case "ping":
-                return [];
-            case "tools/list":
-                return ListTools();
-            case "tools/call":
-                return await CallToolAsync(parameters, session, ct).ConfigureAwait(false);
-            case "resources/list":
-                return ListResources();
-            case "resources/read":
-                return ReadResource(parameters);
-            case "prompts/list":
-                return ListPrompts();
-            case "prompts/get":
-                return GetPrompt(parameters);
-            default:
-                throw new RpcException(-32601, $"Method not found: {method}");
-        }
-    }
-
-    private JsonObject Initialize(JsonObject? parameters, Session session, long started)
-    {
-        var protocol = McpJson.Str(parameters, "protocolVersion") ?? "2024-11-05";
-        var clientName = McpJson.Str(parameters?["clientInfo"] as JsonObject, "name");
-        if (!string.IsNullOrWhiteSpace(clientName)) session.Name = clientName.Trim();
-        var version = McpJson.Str(parameters?["clientInfo"] as JsonObject, "version");
-
-        Audit(session.Name, "connect", "HTTP · 初始化握手", "ok",
-            $"协议 {protocol} · 工具 {VisibleToolCount} 个" + (string.IsNullOrWhiteSpace(version) ? "" : $" · 客户端 {version}"),
-            ElapsedMs(started));
-
-        return new JsonObject
-        {
-            ["protocolVersion"] = protocol,
-            ["capabilities"] = new JsonObject
+                throw;
+            }
+            catch (Exception error)
             {
-                ["tools"] = new JsonObject { ["listChanged"] = false },
-                ["resources"] = new JsonObject { ["subscribe"] = false, ["listChanged"] = false },
-                ["prompts"] = new JsonObject { ["listChanged"] = false },
-            },
-            ["serverInfo"] = new JsonObject
-            {
-                ["name"] = "vox",
-                ["title"] = "Vox·维声",
-                ["version"] = _options.Version,
-            },
-            ["instructions"] =
-                "Vox 内容仓库的本地 MCP 服务：只读工具直接放行，写入工具需在 Vox 应用内确认；" +
-                "授权范围与工具开关由 Vox 的 MCP 服务页面控制。",
+                outcome = Fail(error.Message, tool.Name);
+            }
+        }
+
+        var result = outcome.Denied ? "deny"
+            : !outcome.Ok ? "error"
+            : call.Confirmed ? "okc"
+            : "ok";
+        Audit(client, tool?.Name ?? name, string.IsNullOrWhiteSpace(outcome.Target) ? name : outcome.Target,
+            result, outcome.Detail, ElapsedMs(started));
+
+        return new CallToolResult
+        {
+            Content = [new TextContentBlock { Text = outcome.Text }],
+            IsError = !outcome.Ok,
         };
     }
 
-    private Session ResolveSession(HttpRequest request, JsonObject message, string method, out string? newSessionId)
+    /// <summary>resources/list：文章以 md 原文暴露，图片暴露相对路径与 CDN 形态，站点数据 JSON 直出。</summary>
+    public ListResourcesResult ListResources()
     {
-        newSessionId = null;
-        var now = DateTime.Now;
-
-        if (string.Equals(method, "initialize", StringComparison.Ordinal))
+        var resources = new List<Resource>();
+        if (_options.Scope == McpAccessScope.Status)
         {
-            var id = Guid.NewGuid().ToString("N");
-            var session = new Session(id, ClientName(message["params"] as JsonObject), now);
-            lock (_sessionGate) _sessions[id] = session;
-            newSessionId = id;
-            return session;
+            return new ListResourcesResult { Resources = resources };
         }
 
-        var sessionId = request.Headers.GetValueOrDefault("mcp-session-id");
-        if (!string.IsNullOrWhiteSpace(sessionId))
+        var scan = Scan();
+        foreach (var article in scan.Articles.OrderByDescending(a => a.Meta.Date))
         {
-            lock (_sessionGate)
+            resources.Add(new Resource
             {
-                if (_sessions.TryGetValue(sessionId, out var existing))
+                Uri = ArticlePrefix + EncodePath(article.MarkdownPath),
+                Name = $"article:{article.MarkdownPath}",
+                Title = article.Title,
+                MimeType = "text/markdown",
+                Size = article.BodyBytes,
+            });
+        }
+
+        if (_options.Scope == McpAccessScope.Repo)
+        {
+            foreach (var image in scan.Images.Where(i => i.Bytes >= 0).OrderBy(i => i.RelativePath, StringComparer.Ordinal))
+            {
+                resources.Add(new Resource
                 {
-                    existing.LastSeen = now;
-                    return existing;
-                }
+                    Uri = ImagePrefix + EncodePath(image.RelativePath),
+                    Name = $"image:{image.RelativePath}",
+                    Title = image.FileName,
+                    MimeType = ImageMime(image.RelativePath),
+                    Size = image.Bytes,
+                });
+            }
+            foreach (var site in scan.SiteFiles.OrderBy(s => s.RelativePath, StringComparer.Ordinal))
+            {
+                var sitePath = site.RelativePath.StartsWith("site/", StringComparison.OrdinalIgnoreCase)
+                    ? site.RelativePath[5..]
+                    : site.RelativePath;
+                resources.Add(new Resource
+                {
+                    Uri = SitePrefix + EncodePath(sitePath),
+                    Name = $"site:{sitePath}",
+                    Title = Path.GetFileName(site.RelativePath),
+                    MimeType = "application/json",
+                    Size = site.RawJson.Length,
+                });
             }
         }
 
-        var fallbackName = request.Headers.GetValueOrDefault("x-client-name");
-        return new Session(sessionId ?? string.Empty,
-            string.IsNullOrWhiteSpace(fallbackName) ? "MCP 客户端" : fallbackName.Trim(), now);
+        return new ListResourcesResult { Resources = resources };
     }
 
-    private static string ClientName(JsonObject? parameters)
+    /// <summary>resources/read：按 URI 前缀分发文章 / 图片 / 站点数据。</summary>
+    public ReadResourceResult ReadResource(JsonObject? parameters)
     {
-        var name = McpJson.Str(parameters?["clientInfo"] as JsonObject, "name");
-        return string.IsNullOrWhiteSpace(name) ? "MCP 客户端" : name.Trim();
-    }
+        var uri = McpJson.Str(parameters, "uri");
+        if (string.IsNullOrWhiteSpace(uri)) throw new McpRequestException("缺少 uri 参数。");
+        uri = uri.Trim();
 
-    private JsonObject ListTools()
-    {
-        var tools = new JsonArray();
-        foreach (var tool in McpCatalog.VisibleTools(_options))
+        if (uri.StartsWith(ArticlePrefix, StringComparison.Ordinal))
         {
-            tools.Add((JsonNode)new JsonObject
+            if (_options.Scope == McpAccessScope.Status)
             {
-                ["name"] = tool.Name,
-                ["description"] = tool.Description,
-                ["inputSchema"] = JsonNode.Parse(tool.SchemaJson),
-                ["annotations"] = new JsonObject { ["readOnlyHint"] = tool.ReadOnly },
-            });
+                throw new McpRequestException("当前授权范围仅状态查询，内容资源不可读。");
+            }
+            var path = DecodePath(uri[ArticlePrefix.Length..]);
+            var full = ResolveExisting(path, ".md");
+            if (full == null) throw new McpRequestException($"资源不存在：{path}");
+            return TextResource(uri, "text/markdown", File.ReadAllText(full));
         }
-        return new JsonObject { ["tools"] = tools };
+
+        if (uri.StartsWith(ImagePrefix, StringComparison.Ordinal))
+        {
+            if (_options.Scope != McpAccessScope.Repo)
+            {
+                throw new McpRequestException("当前授权范围不开放图片资源。");
+            }
+            var path = DecodePath(uri[ImagePrefix.Length..]);
+            var image = Scan().FindImage(path);
+            if (image == null) throw new McpRequestException($"资源不存在：{path}");
+            var payload = ImageJson(image, includeReferences: true);
+            payload["cdn"] = LinkStrategy.ToCdnUrl(image.RelativePath, _options.CdnBase, _options.RepoRoot);
+            return TextResource(uri, "application/json", payload.ToJsonString());
+        }
+
+        if (uri.StartsWith(SitePrefix, StringComparison.Ordinal))
+        {
+            if (_options.Scope != McpAccessScope.Repo)
+            {
+                throw new McpRequestException("当前授权范围不开放站点数据资源。");
+            }
+            var path = DecodePath(uri[SitePrefix.Length..]);
+            var relativePath = path.StartsWith("site/", StringComparison.OrdinalIgnoreCase) ? path : "site/" + path;
+            var full = ResolveExisting(relativePath, ".json");
+            if (full == null) throw new McpRequestException($"资源不存在：{path}");
+            var relative = RelativePath(_options.RepoRoot, full) ?? relativePath;
+            if (!relative.StartsWith("site/", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new McpRequestException("站点数据资源须位于 site/ 目录。");
+            }
+            return TextResource(uri, "application/json", File.ReadAllText(full));
+        }
+
+        throw new McpRequestException($"不支持的资源 URI：{uri}");
     }
 
-    private JsonObject ListPrompts()
+    /// <summary>prompts/list：四条预设指令模板。</summary>
+    public ListPromptsResult ListPrompts()
     {
-        var prompts = new JsonArray();
+        var prompts = new List<Prompt>();
         if (_options.Scope == McpAccessScope.Status)
         {
-            return new JsonObject { ["prompts"] = prompts };
+            return new ListPromptsResult { Prompts = prompts };
         }
         foreach (var prompt in McpCatalog.Prompts)
         {
-            var args = new JsonArray();
+            var args = new List<PromptArgument>();
             foreach (var argument in prompt.Arguments)
             {
-                args.Add((JsonNode)new JsonObject
+                args.Add(new PromptArgument
                 {
-                    ["name"] = argument,
-                    ["description"] = argument == "article" ? "文章仓库相对路径" : "附加指令（可选）",
-                    ["required"] = argument == "article",
+                    Name = argument,
+                    Description = argument == "article" ? "文章仓库相对路径" : "附加指令（可选）",
+                    Required = argument == "article",
                 });
             }
-            prompts.Add((JsonNode)new JsonObject
+            prompts.Add(new Prompt
             {
-                ["name"] = prompt.Name,
-                ["title"] = prompt.Title,
-                ["description"] = prompt.Description,
-                ["arguments"] = args,
+                Name = prompt.Name,
+                Title = prompt.Title,
+                Description = prompt.Description,
+                Arguments = args,
             });
         }
-        return new JsonObject { ["prompts"] = prompts };
+        return new ListPromptsResult { Prompts = prompts };
     }
 
-    private JsonObject GetPrompt(JsonObject? parameters)
+    /// <summary>prompts/get：渲染预设指令（附带文章正文片段）。</summary>
+    public GetPromptResult GetPrompt(JsonObject? parameters)
     {
         var name = McpJson.Str(parameters, "name");
         var prompt = McpCatalog.Prompts.FirstOrDefault(p => p.Name == name);
-        if (prompt == null) throw new RpcException(-32602, "未知的预设指令。");
+        if (prompt == null) throw new McpRequestException("未知的预设指令。");
         if (_options.Scope == McpAccessScope.Status)
         {
-            throw new RpcException(-32602, "当前授权范围仅状态查询，指令模板不可用。");
+            throw new McpRequestException("当前授权范围仅状态查询，指令模板不可用。");
         }
 
         var args = parameters?["arguments"] as JsonObject ?? [];
@@ -475,26 +309,48 @@ public sealed partial class McpServer : IDisposable
             text.AppendLine($"附加指令：{instruction.Trim()}");
         }
 
-        return new JsonObject
+        return new GetPromptResult
         {
-            ["description"] = prompt.Description,
-            ["messages"] = new JsonArray(new JsonObject
-            {
-                ["role"] = "user",
-                ["content"] = new JsonObject { ["type"] = "text", ["text"] = text.ToString().TrimEnd() },
-            }),
+            Description = prompt.Description,
+            Messages =
+            [
+                new PromptMessage
+                {
+                    Role = Role.User,
+                    Content = new TextContentBlock { Text = text.ToString().TrimEnd() },
+                },
+            ],
         };
     }
 
-    private bool IsAuthorized(string? header)
+    private static ReadResourceResult TextResource(string uri, string mimeType, string text) => new()
     {
-        if (string.IsNullOrWhiteSpace(header)) return false;
-        const string prefix = "Bearer ";
-        if (!header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
-        var supplied = Encoding.UTF8.GetBytes(header[prefix.Length..].Trim());
-        var expected = Encoding.UTF8.GetBytes(_options.Token.Trim());
-        return supplied.Length == expected.Length && CryptographicOperations.FixedTimeEquals(supplied, expected);
-    }
+        Contents =
+        [
+            new TextResourceContents
+            {
+                Uri = uri,
+                MimeType = mimeType,
+                Text = text,
+            },
+        ],
+    };
+
+    private static string ImageMime(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".svg" => "image/svg+xml",
+        _ => "application/octet-stream",
+    };
+
+    private static string EncodePath(string path) =>
+        string.Join("/", path.Split('/').Select(Uri.EscapeDataString));
+
+    private static string DecodePath(string path) =>
+        string.Join("/", path.Split('/').Select(Uri.UnescapeDataString));
 
     private string? ResolveRepoPath(string? relativePath)
     {
@@ -514,6 +370,7 @@ public sealed partial class McpServer : IDisposable
     private static long ElapsedMs(long started) =>
         (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
 
+    /// <summary>每次写入审计（含被拒绝与鉴权失败），界面「实时调用」与「调用审计」共用。</summary>
     private void Audit(string client, string tool, string target, string result, string? detail, long durationMs)
     {
         var entry = new ToolAuditEntry
@@ -530,161 +387,6 @@ public sealed partial class McpServer : IDisposable
         CallAudited?.Invoke(entry);
     }
 
-    // ---------- HTTP 解析 / 响应 ----------
-
-    private sealed record HttpRequest(
-        string Method,
-        string Path,
-        Dictionary<string, string> Headers,
-        string Body);
-
-    private sealed record McpHttpResponse(
-        int Status,
-        string? Body,
-        string? ContentType,
-        IReadOnlyDictionary<string, string>? Headers = null);
-
-    private sealed class HttpError(int status) : Exception
-    {
-        public int Status { get; } = status;
-    }
-
-    private sealed class RpcException(int code, string message) : Exception(message)
-    {
-        public int Code { get; } = code;
-    }
-
-    private static async Task<HttpRequest?> ReadRequestAsync(NetworkStream stream, CancellationToken ct)
-    {
-        var buffer = new List<byte>(8192);
-        var chunk = new byte[4096];
-        var headerEnd = -1;
-        while (headerEnd < 0)
-        {
-            var read = await stream.ReadAsync(chunk.AsMemory(), ct).ConfigureAwait(false);
-            if (read == 0) return null;
-            for (var i = 0; i < read; i++) buffer.Add(chunk[i]);
-            if (buffer.Count > MaxHeaderBytes) throw new HttpError(431);
-            headerEnd = FindHeaderEnd(buffer);
-        }
-
-        var headerText = Encoding.ASCII.GetString(buffer.GetRange(0, headerEnd).ToArray());
-        var lines = headerText.Split("\r\n", StringSplitOptions.None);
-        var parts = lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 3) throw new HttpError(400);
-
-        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 1; i < lines.Length; i++)
-        {
-            var colon = lines[i].IndexOf(':');
-            if (colon <= 0) continue;
-            headers[lines[i][..colon].Trim()] = lines[i][(colon + 1)..].Trim();
-        }
-
-        if (headers.TryGetValue("transfer-encoding", out var encoding) &&
-            encoding.Contains("chunked", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new HttpError(411);
-        }
-        var length = 0L;
-        if (headers.TryGetValue("content-length", out var rawLength) &&
-            !long.TryParse(rawLength, out length))
-        {
-            throw new HttpError(400);
-        }
-        if (length > MaxBodyBytes) throw new HttpError(413);
-
-        var body = new byte[length];
-        var written = 0;
-        for (var i = headerEnd + 4; i < buffer.Count && written < length; i++) body[written++] = buffer[i];
-        while (written < length)
-        {
-            var read = await stream.ReadAsync(body.AsMemory(written, (int)length - written), ct).ConfigureAwait(false);
-            if (read == 0) break;
-            written += read;
-        }
-
-        var path = parts[1];
-        var query = path.IndexOf('?');
-        if (query >= 0) path = path[..query];
-        return new HttpRequest(parts[0].ToUpperInvariant(), path, headers,
-            Encoding.UTF8.GetString(body, 0, written));
-    }
-
-    private static int FindHeaderEnd(List<byte> buffer)
-    {
-        for (var i = 3; i < buffer.Count; i++)
-        {
-            if (buffer[i] == 10 && buffer[i - 1] == 13 && buffer[i - 2] == 10 && buffer[i - 3] == 13)
-            {
-                return i - 3;
-            }
-        }
-        return -1;
-    }
-
-    private static async Task WriteResponseAsync(NetworkStream stream, McpHttpResponse response, CancellationToken ct)
-    {
-        var body = response.Body == null ? [] : Encoding.UTF8.GetBytes(response.Body);
-        var head = new StringBuilder()
-            .Append("HTTP/1.1 ").Append(response.Status).Append(' ').Append(Reason(response.Status)).Append("\r\n")
-            .Append("Content-Length: ").Append(body.Length).Append("\r\n")
-            .Append("Connection: close\r\n")
-            .Append("Cache-Control: no-store\r\n");
-        if (!string.IsNullOrEmpty(response.ContentType))
-        {
-            head.Append("Content-Type: ").Append(response.ContentType).Append("\r\n");
-        }
-        if (response.Headers != null)
-        {
-            foreach (var (key, value) in response.Headers) head.Append(key).Append(": ").Append(value).Append("\r\n");
-        }
-        head.Append("\r\n");
-
-        await stream.WriteAsync(Encoding.ASCII.GetBytes(head.ToString()), ct).ConfigureAwait(false);
-        if (body.Length > 0) await stream.WriteAsync(body, ct).ConfigureAwait(false);
-        await stream.FlushAsync(ct).ConfigureAwait(false);
-    }
-
-    private static string Reason(int status) => status switch
-    {
-        200 => "OK",
-        202 => "Accepted",
-        400 => "Bad Request",
-        401 => "Unauthorized",
-        404 => "Not Found",
-        405 => "Method Not Allowed",
-        411 => "Length Required",
-        413 => "Content Too Large",
-        431 => "Request Header Fields Too Large",
-        _ => "Internal Server Error",
-    };
-
-    private static McpHttpResponse JsonResponse(JsonObject node, string? sessionId)
-    {
-        var headers = sessionId == null
-            ? null
-            : new Dictionary<string, string> { ["Mcp-Session-Id"] = sessionId };
-        return new McpHttpResponse(200, node.ToJsonString(), "application/json; charset=utf-8", headers);
-    }
-
-    private static McpHttpResponse JsonRpcError(JsonNode? id, int code, string message, string? sessionId = null)
-    {
-        var node = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = id?.DeepClone(),
-            ["error"] = new JsonObject { ["code"] = code, ["message"] = message },
-        };
-        return JsonResponse(node, sessionId);
-    }
-
-    private sealed class Session(string id, string name, DateTime connectedAt)
-    {
-        public string Id { get; } = id;
-        public string Name { get; set; } = name;
-        public DateTime ConnectedAt { get; } = connectedAt;
-        public DateTime LastSeen { get; set; } = connectedAt;
-        public int Calls { get; set; }
-    }
+    /// <summary>协议级请求错误（客户端可读 message；SDK 负责映射为 JSON-RPC error）。</summary>
+    public sealed class McpRequestException(string message) : Exception(message);
 }

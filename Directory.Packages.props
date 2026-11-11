@@ -11,6 +11,9 @@
     <PackageVersion Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.AvaloniaEdit" Version="$(AvaloniaEditVersion)" />
+    <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
     <PackageVersion Include="AvaloniaEdit.TextMate" Version="$(AvaloniaEditTextMateVersion)" />
     <PackageVersion Include="TextMateSharp.Grammars" Version="$(TextMateSharpGrammarsVersion)" />
     <PackageVersion Include="TKCode.Arc" Version="$(ArcVersion)" />

@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <!-- MCP 引擎产出官方 SDK 的协议结果对象；Streamable HTTP 宿主（McpWebHost）也在此层，
+         App 与测试共用同一套传输实现 -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="ModelContextProtocol.Core" />
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 </Project>

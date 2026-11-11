@@ -1655,7 +1655,7 @@ public sealed class McpPage : UserControl
     // 评审修订（原型 D8）：停止服务前确认影响面（断开在线客户端、拒绝写入中调用）。
     private async Task StopServiceWithConfirmAsync()
     {
-        var clients = McpService.Server?.Clients().Count ?? 0;
+        var clients = McpService.Clients.Count;
         var ok = await ConfirmDialog.Show(_shell, T("Vox.Mcp.Confirm.StopTitle"),
             TF("Vox.Mcp.Confirm.StopBody", clients), T("Vox.Mcp.Confirm.StopYes"));
         if (!ok) return;
@@ -1715,7 +1715,7 @@ public sealed class McpPage : UserControl
     // 评审修订（原型 D8）：生成新令牌是破坏性操作（旧令牌立即失效、客户端断连），先确认影响面。
     private async Task GenerateTokenWithConfirmAsync()
     {
-        var clients = McpService.Server?.Clients().Count ?? 0;
+        var clients = McpService.Clients.Count;
         var ok = await ConfirmDialog.Show(_shell, T("Vox.Mcp.Confirm.TokenTitle"),
             TF("Vox.Mcp.Confirm.TokenBody", clients), T("Vox.Mcp.Confirm.TokenYes"));
         if (!ok) return;

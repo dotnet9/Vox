@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using ModelContextProtocol.Protocol;
 
 namespace Vox.Core.Mcp;
 
@@ -24,7 +25,7 @@ public sealed partial class McpServer
 
     private sealed record McpToolOutcome(bool Ok, string Text, string Target, string Detail, bool Denied = false);
 
-    private async Task<JsonObject> CallToolAsync(JsonObject? parameters, Session session, CancellationToken ct)
+    private async Task<CallToolResult> CallToolAsync(JsonObject? parameters, string client, CancellationToken ct)
     {
         var started = Stopwatch.GetTimestamp();
         var call = new CallState();
@@ -46,7 +47,7 @@ public sealed partial class McpServer
         {
             try
             {
-                outcome = await ExecuteToolAsync(tool, args, session.Name, ct).ConfigureAwait(false);
+                outcome = await ExecuteToolAsync(tool, args, client, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -62,18 +63,13 @@ public sealed partial class McpServer
             : !outcome.Ok ? "error"
             : call.Confirmed ? "okc"
             : "ok";
-        Audit(session.Name, tool?.Name ?? name, string.IsNullOrWhiteSpace(outcome.Target) ? name : outcome.Target,
+        Audit(client, tool?.Name ?? name, string.IsNullOrWhiteSpace(outcome.Target) ? name : outcome.Target,
             result, outcome.Detail, ElapsedMs(started));
-        lock (_sessionGate) session.Calls++;
 
-        return new JsonObject
+        return new CallToolResult
         {
-            ["content"] = new JsonArray(new JsonObject
-            {
-                ["type"] = "text",
-                ["text"] = outcome.Text,
-            }),
-            ["isError"] = !outcome.Ok,
+            Content = [new TextContentBlock { Text = outcome.Text }],
+            IsError = !outcome.Ok,
         };
     }
 

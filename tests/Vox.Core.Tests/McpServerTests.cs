@@ -170,18 +170,20 @@ public sealed class McpServerTests
 
     private sealed class McpFixture : IAsyncDisposable
     {
-        private McpFixture(string root, string auditPath, McpServer server, FakeHost host)
+        private McpFixture(string root, string auditPath, McpServer server, McpWebHost transport, FakeHost host)
         {
             Root = root;
             AuditPath = auditPath;
             Server = server;
+            Transport = transport;
             Host = host;
-            Http = new HttpClient { BaseAddress = new Uri(server.Endpoint) };
+            Http = new HttpClient { BaseAddress = new Uri(transport.Endpoint) };
         }
 
         public string Root { get; }
         public string AuditPath { get; }
         public McpServer Server { get; }
+        public McpWebHost Transport { get; }
         public FakeHost Host { get; }
         public HttpClient Http { get; }
         public McpOptions Options => Server.Options;
@@ -233,8 +235,9 @@ public sealed class McpServerTests
                 AuditPath = audit,
             };
             var server = new McpServer(options, host, () => RepoScanner.Scan(root));
-            server.Start();
-            return new McpFixture(root, audit, server, host);
+            var transport = new McpWebHost();
+            transport.Start(options, server);
+            return new McpFixture(root, audit, server, transport, host);
         }
 
         public async Task<string> InitializeAsync(string clientName)
@@ -274,7 +277,21 @@ public sealed class McpServerTests
             if (parameters != null) payload["params"] = parameters;
             var response = await PostAsync(payload, session);
             Assert.Equal(200, response.Status);
-            return JsonDocument.Parse(response.Body).RootElement.Clone();
+            return JsonDocument.Parse(ExtractJson(response.Body)).RootElement.Clone();
+        }
+
+        /// <summary>SDK 的 Streamable HTTP 以 SSE 帧回包（event: message / data: {...}），提取 data 行的 JSON。</summary>
+        private static string ExtractJson(string body)
+        {
+            foreach (var line in body.Split('\n'))
+            {
+                var trimmed = line.TrimEnd('\r');
+                if (trimmed.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    return trimmed["data:".Length..].Trim();
+                }
+            }
+            return body;
         }
 
         public async Task<(int Status, string Body, string? Session)> PostAsync(
@@ -285,6 +302,8 @@ public sealed class McpServerTests
                 Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
+            request.Headers.Accept.ParseAdd("application/json");
+            request.Headers.Accept.ParseAdd("text/event-stream");
             if (session != null) request.Headers.TryAddWithoutValidation("Mcp-Session-Id", session);
             return await SendAsync(request);
         }
@@ -312,7 +331,7 @@ public sealed class McpServerTests
         public ValueTask DisposeAsync()
         {
             Http.Dispose();
-            Server.Dispose();
+            Transport.Dispose();
             try
             {
                 Directory.Delete(Root, recursive: true);

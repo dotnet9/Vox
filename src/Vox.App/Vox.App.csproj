@@ -7,6 +7,8 @@
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <!-- MCP 官方 SDK 的 Streamable HTTP 传输跑在进程内 Kestrel 上（宿主在 Vox.Core/McpWebHost），
+         ASP.NET Core 框架经 Vox.Core 的 FrameworkReference 传递 -->
     <PackageReference Include="Avalonia.Themes.Simple" />
 
     <PackageReference Include="Avalonia" />

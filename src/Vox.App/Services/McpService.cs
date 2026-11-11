@@ -9,35 +9,48 @@ using Vox.Core.Mcp;
 namespace Vox.App.Services;
 
 /// <summary>
-/// MCP 服务进程内单例：按设置装配 <see cref="McpServer"/>，向页面广播启停状态与审计记录；
-/// 仓库扫描复用 <see cref="AppState.Scan"/>，写入后统一重扫并失效发布缓存。
+/// MCP 服务进程内单例：按设置装配 <see cref="McpServer"/>（业务引擎）与 <see cref="McpWebHost"/>
+/// （SDK 传输宿主），向页面广播启停状态与审计记录；仓库扫描复用 <see cref="AppState.Scan"/>，
+/// 写入后统一重扫并失效发布缓存。
 /// </summary>
 public static class McpService
 {
     private static readonly object Gate = new();
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
-    private static McpServer? _server;
+    private static McpServer? _engine;
+    private static McpWebHost? _host;
 
     public static event Action? StateChanged;
     public static event Action<ToolAuditEntry>? CallAudited;
 
-    public static McpServer? Server
+    public static bool IsRunning
     {
         get
         {
-            lock (Gate) return _server;
+            lock (Gate) return _host?.IsRunning == true;
         }
     }
 
-    public static bool IsRunning => Server?.IsRunning == true;
-
     public static string? LastError { get; private set; }
 
-    public static IReadOnlyList<McpClientSnapshot> Clients => Server?.Clients() ?? [];
+    public static IReadOnlyList<McpClientSnapshot> Clients
+    {
+        get
+        {
+            lock (Gate) return _host?.Clients ?? [];
+        }
+    }
 
-    public static string Endpoint => Server?.Endpoint ?? $"http://127.0.0.1:{AppState.Instance.Settings.McpPort}/mcp/";
+    public static string Endpoint =>
+        IsRunning ? _host!.Endpoint : $"http://127.0.0.1:{AppState.Instance.Settings.McpPort}/mcp/";
 
-    public static int VisibleToolCount => Server?.VisibleToolCount ?? McpCatalog.VisibleTools(BuildOptions()).Count;
+    public static int VisibleToolCount
+    {
+        get
+        {
+            lock (Gate) return _engine?.VisibleToolCount ?? McpCatalog.VisibleTools(BuildOptions()).Count;
+        }
+    }
 
     public static McpOptions BuildOptions()
     {
@@ -60,10 +73,13 @@ public static class McpService
     {
         lock (Gate)
         {
-            if (_server != null) return _server;
-            _server = new McpServer(BuildOptions(), new McpHostBridge(), () => AppState.Instance.Scan);
-            _server.CallAudited += entry => CallAudited?.Invoke(entry);
-            return _server;
+            if (_engine != null) return _engine;
+            _engine = new McpServer(BuildOptions(), new McpHostBridge(), () => AppState.Instance.Scan);
+            _engine.CallAudited += entry => CallAudited?.Invoke(entry);
+            _host = new McpWebHost();
+            _host.CallAudited += entry => CallAudited?.Invoke(entry);
+            _host.StateChanged += () => StateChanged?.Invoke();
+            return _engine;
         }
     }
 
@@ -85,10 +101,13 @@ public static class McpService
                 settings.McpToken = McpTokens.New();
                 AppState.Instance.SaveSettings();
             }
-            var server = Ensure();
+            var engine = Ensure();
             var options = BuildOptions();
-            server.UpdateOptions(options);
-            if (!server.IsRunning) server.Start();
+            engine.UpdateOptions(options);
+            lock (Gate)
+            {
+                if (_host is not { IsRunning: true }) _host!.Start(options, engine);
+            }
             StateChanged?.Invoke();
             return true;
         }
@@ -97,7 +116,7 @@ public static class McpService
             LastError = error.Message;
             try
             {
-                Server?.Stop();
+                _host?.Stop();
             }
             catch
             {
@@ -112,7 +131,7 @@ public static class McpService
     {
         try
         {
-            Server?.Stop();
+            lock (Gate) _host?.Stop();
             LastError = null;
         }
         catch (Exception error)
@@ -127,9 +146,10 @@ public static class McpService
         LastError = null;
         try
         {
-            var server = Ensure();
-            server.UpdateOptions(BuildOptions());
-            server.Restart();
+            var engine = Ensure();
+            engine.UpdateOptions(BuildOptions());
+            Stop();
+            if (!Start()) throw new InvalidOperationException(LastError ?? "重启失败");
             StateChanged?.Invoke();
             return true;
         }
@@ -138,7 +158,7 @@ public static class McpService
             LastError = error.Message;
             try
             {
-                Server?.Stop();
+                Stop();
             }
             catch
             {
@@ -152,9 +172,10 @@ public static class McpService
     /// <summary>授权范围 / 写确认 / git 总开关 / 工具上下线：不需要重启。</summary>
     public static void UpdateHot()
     {
-        var server = Server;
-        if (server == null) return;
-        server.UpdateOptions(BuildOptions());
+        lock (Gate)
+        {
+            _engine?.UpdateOptions(BuildOptions());
+        }
         StateChanged?.Invoke();
     }
 
