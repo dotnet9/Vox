@@ -182,6 +182,22 @@ public sealed class McpServerTests
     }
 
     [Fact]
+    public async Task Stateful_server_rejects_tool_calls_without_session()
+    {
+        await using var repo = await McpFixture.CreateAsync();
+        var session = await repo.InitializeAsync("Cursor");
+        var payload = """{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"article_read","arguments":{"path":"2026/10/hello.md"}}}""";
+
+        var withSession = await repo.PostJsonAsync(payload, session);
+        Assert.Equal(200, withSession.Status);
+
+        // 官方 SDK 的 Stateful 会话：握手后的请求不带 Mcp-Session-Id 一律拒绝——
+        // 页面「测试连接 / 模拟调用」必须先 initialize 取会话再带头发送。
+        var withoutSession = await repo.PostJsonAsync(payload, null);
+        Assert.NotEqual(200, withoutSession.Status);
+    }
+
+    [Fact]
     public async Task Path_traversal_is_rejected()
     {
         await using var repo = await McpFixture.CreateAsync();
@@ -326,6 +342,20 @@ public sealed class McpServerTests
             using var request = new HttpRequestMessage(HttpMethod.Post, "")
             {
                 Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
+            request.Headers.Accept.ParseAdd("application/json");
+            request.Headers.Accept.ParseAdd("text/event-stream");
+            if (session != null) request.Headers.TryAddWithoutValidation("Mcp-Session-Id", session);
+            return await SendAsync(request);
+        }
+
+        /// <summary>带 Accept 的原始 JSON 发送（可选会话）：用于钉死官方 SDK 的会话行为。</summary>
+        public async Task<(int Status, string Body, string? Session)> PostJsonAsync(string json, string? session = null)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "")
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
             request.Headers.Accept.ParseAdd("application/json");

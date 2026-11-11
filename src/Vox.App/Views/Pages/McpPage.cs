@@ -763,7 +763,7 @@ public sealed class McpPage : UserControl
                 },
             },
         };
-        var (ok, body) = await McpService.SendAsync(init);
+        var (ok, body, session) = await McpService.SendAsync(init);
         if (!ok)
         {
             Res(_testOut, TextBlock.ForegroundProperty, "VoxDanger");
@@ -771,13 +771,14 @@ public sealed class McpPage : UserControl
             return;
         }
 
+        // Stateful 传输：握手后的请求必须携带 Mcp-Session-Id（会话由 initialize 响应头分配）。
         var list = await McpService.SendAsync(new JsonObject
         {
             ["jsonrpc"] = "2.0",
             ["id"] = 2,
             ["method"] = "tools/list",
             ["params"] = new JsonObject(),
-        });
+        }, session);
         var count = list.Ok ? ToolsCount(list.Body) ?? McpService.VisibleToolCount : McpService.VisibleToolCount;
         Res(_testOut, TextBlock.ForegroundProperty, "VoxOk");
         _testOut.Text = TF("Vox.Mcp.Clients.TestOk", count);
@@ -787,7 +788,9 @@ public sealed class McpPage : UserControl
     {
         if (!EnsureRunning()) return;
         var call = ToolCall("article_list", new JsonObject { ["limit"] = 2 });
-        var (ok, body) = await McpService.SendAsync(call);
+        var session = await McpService.EnsureUiSessionAsync();
+        var (ok, body, _) = await McpService.SendAsync(call, session);
+        if (!ok) McpService.InvalidateUiSession();
         ShowRequest("article_list", body, ok);
     }
 
@@ -821,7 +824,9 @@ public sealed class McpPage : UserControl
             ["mode"] = "replace_all",
             ["content"] = body.TrimEnd(),
         });
-        var (ok, response) = await McpService.SendAsync(call);
+        var session = await McpService.EnsureUiSessionAsync();
+        var (ok, response, _) = await McpService.SendAsync(call, session);
+        if (!ok) McpService.InvalidateUiSession();
         ShowRequest("article_write", response, ok);
         RefreshHead();
         RefreshLive();

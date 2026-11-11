@@ -129,6 +129,7 @@ public static class McpService
 
     public static void Stop()
     {
+        _uiSession = null;
         try
         {
             lock (Gate) _host?.Stop();
@@ -196,10 +197,50 @@ public static class McpService
         CallAudited?.Invoke(entry);
     }
 
-    /// <summary>页面「测试连接 / 模拟调用」走真实 HTTP 端点（真实鉴权、确认与审计）。</summary>
-    public static async Task<(bool Ok, string Body)> SendAsync(JsonObject payload, string? session = null)
+    /// <summary>页面 UI 客户端的会话缓存：Stateful 传输下握手后的请求必须携带 Mcp-Session-Id。</summary>
+    private static string? _uiSession;
+
+    /// <summary>服务停止/重启后使 UI 会话失效（会话随传输生命周期存活）。</summary>
+    public static void InvalidateUiSession() => _uiSession = null;
+
+    /// <summary>
+    /// 页面「测试连接 / 模拟调用」共用的 UI 会话握手：先 initialize 拿 Mcp-Session-Id 并缓存，
+    /// 供后续 tools/list、tools/call 携带；服务未运行或握手失败返回 null（调用方按错误提示走）。
+    /// </summary>
+    public static async Task<string?> EnsureUiSessionAsync()
     {
-        if (!IsRunning) return (false, "服务未启动");
+        if (!IsRunning)
+        {
+            _uiSession = null;
+            return null;
+        }
+
+        if (_uiSession != null) return _uiSession;
+        var init = new JsonObject
+        {
+            ["jsonrpc"] = "2.0",
+            ["id"] = "ui-init",
+            ["method"] = "initialize",
+            ["params"] = new JsonObject
+            {
+                ["protocolVersion"] = "2024-11-05",
+                ["capabilities"] = new JsonObject(),
+                ["clientInfo"] = new JsonObject
+                {
+                    ["name"] = "Vox UI",
+                    ["version"] = typeof(McpService).Assembly.GetName().Version?.ToString(3) ?? "0.1.0",
+                },
+            },
+        };
+        var (_, _, session) = await SendAsync(init);
+        _uiSession = session;
+        return session;
+    }
+
+    /// <summary>页面「测试连接 / 模拟调用」走真实 HTTP 端点（真实鉴权、确认与审计）。</summary>
+    public static async Task<(bool Ok, string Body, string? Session)> SendAsync(JsonObject payload, string? session = null)
+    {
+        if (!IsRunning) return (false, "服务未启动", null);
         var settings = AppState.Instance.Settings;
         using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)
         {
@@ -217,11 +258,14 @@ public static class McpService
         {
             using var response = await Http.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
-            return ((int)response.StatusCode == 200, body);
+            var assigned = response.Headers.TryGetValues("Mcp-Session-Id", out var values)
+                ? values.FirstOrDefault()
+                : null;
+            return ((int)response.StatusCode == 200, body, assigned);
         }
         catch (Exception error)
         {
-            return (false, error.Message);
+            return (false, error.Message, null);
         }
     }
 }
