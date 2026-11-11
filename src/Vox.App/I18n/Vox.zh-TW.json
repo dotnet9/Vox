@@ -314,6 +314,7 @@
   "Vox.Shell.Search.HintOpen": "Enter 開啟",
   "Vox.Shell.Search.HintClose": "Esc 關閉",
   "Vox.Shell.Toast.LanguageSet": "界面語言：{0}",
+  "Vox.Shell.Toast.Close": "關閉通知",
   "Vox.Shell.Toast.Rescanned": "已重新掃描",
   "Vox.Shell.Toast.LaunchFailed": "啟動失敗：{0}",
   "Vox.Settings.Appearance.Density": "界面密度",

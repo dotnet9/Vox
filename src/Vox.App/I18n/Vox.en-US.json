@@ -314,6 +314,7 @@
   "Vox.Shell.Search.HintOpen": "Enter to open",
   "Vox.Shell.Search.HintClose": "Esc to close",
   "Vox.Shell.Toast.LanguageSet": "Language: {0}",
+  "Vox.Shell.Toast.Close": "Close notification",
   "Vox.Shell.Toast.Rescanned": "Rescanned",
   "Vox.Shell.Toast.LaunchFailed": "Launch failed: {0}",
   "Vox.Settings.Appearance.Density": "Density",

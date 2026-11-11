@@ -1099,8 +1099,9 @@ public partial class MainWindow : Window
             TextWrapping = TextWrapping.Wrap
         };
         var close = new Button { Content = "×", Classes = { "toast-close" } };
-        ToolTip.SetTip(close, "关闭提示");
-        AutomationProperties.SetName(close, "关闭提示");
+        var closeTip = T("Vox.Shell.Toast.Close");
+        ToolTip.SetTip(close, closeTip);
+        AutomationProperties.SetName(close, closeTip);
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { text, close } };
         var item = new Border { Classes = { "toast-item" }, Child = row };
         AutomationProperties.SetName(item, message);

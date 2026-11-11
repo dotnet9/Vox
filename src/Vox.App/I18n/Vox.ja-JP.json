@@ -314,6 +314,7 @@
   "Vox.Shell.Search.HintOpen": "Enter で開く",
   "Vox.Shell.Search.HintClose": "Esc で閉じる",
   "Vox.Shell.Toast.LanguageSet": "表示言語：{0}",
+  "Vox.Shell.Toast.Close": "通知を閉じる",
   "Vox.Shell.Toast.Rescanned": "再スキャンしました",
   "Vox.Shell.Toast.LaunchFailed": "起動に失敗：{0}",
   "Vox.Settings.Appearance.Density": "表示密度",
