@@ -155,8 +155,8 @@ public sealed class PublishDialog : Border
         PublishChannel.Site => T("Vox.Publish.Channel.Site"),
         PublishChannel.WeChat => T("Vox.Publish.Channel.WeChat"),
         PublishChannel.Cnblogs => T("Vox.Publish.Channel.Cnblogs"),
-        PublishChannel.Csdn => "CSDN",
-        PublishChannel.Zhihu => "知乎",
+        PublishChannel.Csdn => T("Vox.Publish.Channel.Csdn"),
+        PublishChannel.Zhihu => T("Vox.Publish.Channel.Zhihu"),
         _ => channel.ToString(),
     };
 
