@@ -697,6 +697,16 @@ public sealed class WritePage : UserControl
             HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false };
         Res(marker, Border.BackgroundProperty, "VoxAccent");
         content.Children.Add(marker); Grid.SetColumnSpan(marker, 5);
+        // 文章行右键菜单（轻量，仅「复制路径」）：菜单挂在行上、点开时取行 DataContext，
+        // 年/月分组行（IsGroup）在 UpdateRow 里清空菜单，保证只有文件项生效。
+        var rowMenu = new ContextMenu();
+        var copyPathItem = new MenuItem { Header = T("Vox.Write.Menu.CopyPath") };
+        copyPathItem.Click += (_, _) =>
+        {
+            if ((copyPathItem.DataContext as ArticleNavigationRow ?? _articleList.SelectedItem as ArticleNavigationRow)?.Article is { } article)
+                CopyArticlePathToClipboard(article);
+        };
+        rowMenu.Items.Add(copyPathItem);
         IDisposable? labelBinding = null;
         void UpdateRow()
         {
@@ -704,6 +714,7 @@ public sealed class WritePage : UserControl
             if (content.DataContext is not ArticleNavigationRow row) return;
             content.Margin = new Thickness(row.Depth * 14, 0, 0, 0);
             content.Classes.Set("group", row.IsGroup);
+            content.ContextMenu = row.Article is null ? null : rowMenu;
             arrow.IsVisible = row.IsGroup;
             arrow.Data = Geometry.Parse(row.IsExpanded ? "M6 9L12 15L18 9" : "M9 6L15 12L9 18");
             icon.Source = FileIconCatalog.Default.Resolve(row.Article is { } article ? Path.GetFileName(article.MarkdownPath) : row.Label,
@@ -722,6 +733,16 @@ public sealed class WritePage : UserControl
         content.DetachedFromVisualTree += (_, _) => { labelBinding?.Dispose(); labelBinding = null; };
         content.ActualThemeVariantChanged += (_, _) => UpdateRow();
         return content;
+    }
+
+    /// <summary>复制路径：文章索引存仓库相对路径，这里拼上仓库根写完整绝对路径进剪贴板（与发布页复制全路径同口径），完成走 Toast。</summary>
+    private async void CopyArticlePathToClipboard(Article article)
+    {
+        var repoRoot = AppState.Instance.CurrentRepoRoot;
+        var fullPath = repoRoot is { } root ? LinkStrategy.ToLocalFile(root, article.MarkdownPath) : article.MarkdownPath;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard != null) await clipboard.SetTextAsync(fullPath);
+        _shell.ShowToast(T("Vox.Write.Msg.PathCopied"));
     }
 
     private void OnArticleListSelection(object? sender, SelectionChangedEventArgs e)
