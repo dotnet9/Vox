@@ -20,6 +20,32 @@ public sealed class McpServerTests
     }
 
     [Fact]
+    public async Task Missing_accept_header_returns_406_and_dual_accept_returns_200()
+    {
+        await using var fixture = await McpFixture.CreateAsync();
+        const string initialize =
+            """{"jsonrpc":"2.0","id":"init","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"Cursor","version":"1.0"}}}""";
+
+        // MCP 规范：POST 缺少 Accept（需同时含 application/json 与 text/event-stream）时 SDK 直接回 406
+        var withoutAccept = await fixture.PostRawAsync(initialize, Token);
+        Assert.Equal(406, withoutAccept.Status);
+
+        var withAccept = await fixture.PostAsync(new Dictionary<string, object?>
+        {
+            ["jsonrpc"] = "2.0",
+            ["id"] = "init",
+            ["method"] = "initialize",
+            ["params"] = new Dictionary<string, object?>
+            {
+                ["protocolVersion"] = "2024-11-05",
+                ["capabilities"] = new Dictionary<string, object?>(),
+                ["clientInfo"] = new Dictionary<string, object?> { ["name"] = "Cursor", ["version"] = "1.0" },
+            },
+        });
+        Assert.Equal(200, withAccept.Status);
+    }
+
+    [Fact]
     public async Task Initialize_returns_session_and_tool_catalog_honors_scope_and_switches()
     {
         await using var repo = await McpFixture.CreateAsync();

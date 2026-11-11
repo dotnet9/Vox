@@ -206,6 +206,9 @@ public static class McpService
             Content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.McpToken);
+        // MCP 规范要求 POST 的 Accept 同时含 application/json 与 text/event-stream，缺失会被官方 SDK 拒绝（406）。
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd("text/event-stream");
         if (!string.IsNullOrWhiteSpace(session))
         {
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", session);
