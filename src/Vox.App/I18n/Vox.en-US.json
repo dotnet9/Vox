@@ -1116,6 +1116,7 @@
   "Vox.Ai.Chat.Ready": "Chat ready · Select text in the body (or right-click a paragraph) → \"Add to chat\" → just ask",
   "Vox.Ai.Chat.Clear": "Clear",
   "Vox.Ai.Chat.ClearDone": "Chat cleared",
+  "Vox.Ai.Chat.AddTo": "Add to chat",
   "Vox.Ai.Chat.Selection": "Selection · L{0}",
   "Vox.Ai.Chat.SelectionRange": "Selection · L{0}–L{1}",
   "Vox.Ai.Chat.Paragraph": "Paragraph · L{0}",

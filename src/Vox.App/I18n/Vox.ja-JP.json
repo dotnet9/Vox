@@ -1116,6 +1116,7 @@
   "Vox.Ai.Chat.Ready": "チャット準備完了 · 本文を選択（または右クリックで段落選択）→「チャットに追加」→ そのまま質問",
   "Vox.Ai.Chat.Clear": "クリア",
   "Vox.Ai.Chat.ClearDone": "チャットをクリアしました",
+  "Vox.Ai.Chat.AddTo": "会話に追加",
   "Vox.Ai.Chat.Selection": "選択範囲 · L{0}",
   "Vox.Ai.Chat.SelectionRange": "選択範囲 · L{0}–L{1}",
   "Vox.Ai.Chat.Paragraph": "段落 · L{0}",

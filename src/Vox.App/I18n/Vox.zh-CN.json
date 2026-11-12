@@ -1117,6 +1117,7 @@
   "Vox.Ai.Chat.Ready": "会话已就绪 · 正文选中文字（或右键选段落）→「添加到会话」→ 直接提问",
   "Vox.Ai.Chat.Clear": "清空",
   "Vox.Ai.Chat.ClearDone": "会话已清空",
+  "Vox.Ai.Chat.AddTo": "添加到会话",
   "Vox.Ai.Chat.Selection": "选区 · L{0}",
   "Vox.Ai.Chat.SelectionRange": "选区 · L{0}–L{1}",
   "Vox.Ai.Chat.Paragraph": "光标段落 · L{0}",

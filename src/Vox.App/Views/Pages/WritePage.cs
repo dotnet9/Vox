@@ -16,6 +16,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using AvaloniaEdit.Rendering;
 using CodeWF.Avalonia.Markdown.Controls;
 using CodeWF.Avalonia.Markdown.Editor.Controls;
 using CodeWF.Avalonia.Markdown.Editor.Services;
@@ -181,6 +182,8 @@ public sealed class WritePage : UserControl
     private readonly List<LlmChatTurn> _aiTurns = [];
     private Border _aiSelPill = null!;
     private TextBlock _aiSelPillLabel = null!;
+    private TextBlock _aiSelPillRange = null!;
+    private bool _aiSelDragging;
     private ((int Offset, int Length) Range, bool IsSelection)? _aiSelAnchor;
 
     /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>
@@ -882,6 +885,8 @@ public sealed class WritePage : UserControl
                 OpenFindBar();
                 e.Handled = true;
             }
+            // 原型口径：Esc 收选区浮钮（不拦事件，查找条等其余 Esc 逻辑照常）
+            if (e.Key is Key.Escape && _aiSelPill is { IsVisible: true }) AiHideSelPill();
         }, RoutingStrategies.Tunnel);
         MovePanelHandle(intoPanel: false); // 默认收起：把手骑视图区右缘垂直居中（最后加入保证置顶）
 
@@ -3200,7 +3205,7 @@ public sealed class WritePage : UserControl
         _editorScope.RequestedThemeVariant = target;
     }
 
-    /// <summary>选区浮钮（Trae 模式，原型同款）：正文出现选区 / 右键选段时浮出「✦ 添加到会话」，点击把片段作为上下文入会话。</summary>
+    /// <summary>选区浮钮（Trae 模式，原型同款）：拖选松手 / 右键选段时浮出「✦ 添加到会话 L11–L13」，点击把片段作为上下文入会话。</summary>
     private void BuildAiSelectionPill()
     {
         var spark = new TextBlock
@@ -3217,7 +3222,15 @@ public sealed class WritePage : UserControl
             FontWeight = FontWeight.Medium,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        _aiSelPillLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Chat.AddTo");
         Res(_aiSelPillLabel, TextBlock.ForegroundProperty, "VoxFg");
+        _aiSelPillRange = new TextBlock
+        {
+            FontSize = Fs(10),
+            FontFamily = MonoFont,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(_aiSelPillRange, TextBlock.ForegroundProperty, "VoxFaint");
         _aiSelPill = new Border
         {
             Padding = new Thickness(12, 4),
@@ -3233,7 +3246,7 @@ public sealed class WritePage : UserControl
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 5,
-                Children = { spark, _aiSelPillLabel },
+                Children = { spark, _aiSelPillLabel, _aiSelPillRange },
             },
             BoxShadow = new BoxShadows(new BoxShadow
             {
@@ -3249,52 +3262,77 @@ public sealed class WritePage : UserControl
             e.Handled = true;
             AddAiSelectionToChat();
         };
-        // 拖选实时更新浮钮；右键=选光标所在段落（原型口径）
-        Editor.TextArea.SelectionChanged += (_, _) => UpdateAiSelectionPill();
+        // 右键先把光标落到点击处（AvalonEdit 默认不动光标，段落会取错），再选段高亮 → SelectionChanged 出浮钮。
+        Editor.TextArea.RightClickMovesCaret = true;
+        // 原型口径：拖选过程中浮钮不出现，松手才出；滚动/重排则收起（LayoutUpdated 覆盖滚动与字号变化）。
+        Editor.TextArea.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(Editor.TextArea).Properties.IsLeftButtonPressed) return;
+            _aiSelDragging = true;
+            AiHideSelPill();
+        };
         Editor.TextArea.PointerReleased += (_, e) =>
         {
-            if (e.InitialPressMouseButton == MouseButton.Right) UpdateAiSelectionPill(paragraphFallback: true);
+            switch (e.InitialPressMouseButton)
+            {
+                case MouseButton.Left when _aiSelDragging:
+                    _aiSelDragging = false;
+                    UpdateAiSelectionPill();
+                    break;
+                case MouseButton.Right:
+                    SelectParagraphForAi();
+                    break;
+            }
+        };
+        Editor.TextArea.SelectionChanged += (_, _) => UpdateAiSelectionPill();
+        // 滚动收浮钮（原型口径）：TextView 无独立滚动事件，LayoutUpdated 里盯滚动偏移，偏移变了才算滚动——
+        // 浮钮自身改 Margin 引发的重排不会误收。
+        var lastScroll = Editor.TextArea.TextView.ScrollOffset;
+        Editor.TextArea.TextView.LayoutUpdated += (_, _) =>
+        {
+            var current = Editor.TextArea.TextView.ScrollOffset;
+            if (current == lastScroll) return;
+            lastScroll = current;
+            if (_aiSelPill.IsVisible) AiHideSelPill();
         };
     }
 
-    /// <summary>选区变化 → 更新/隐藏浮钮；位置贴选区末行上方、右缘对齐编辑器内边距（行滚出视口则不显示）。</summary>
-    private void UpdateAiSelectionPill(bool paragraphFallback = false)
+    /// <summary>右键选段（原型口径）：已有选区时尊重选区（点在选区内右键不改选）；否则高亮光标段落，随 SelectionChanged 出浮钮。</summary>
+    private void SelectParagraphForAi()
     {
-        if (!_attached) return;
+        if (!string.IsNullOrEmpty(Editor.SelectedText)) return;
         var body = _editorView.Text ?? string.Empty;
-        var selection = Editor.SelectedText ?? string.Empty;
-        int offset;
-        int length;
-        var isSelection = selection.Length > 0;
-        if (isSelection)
+        var paragraph = AiPrompts.ParagraphAt(body, Math.Clamp(Editor.CaretOffset, 0, body.Length));
+        if (paragraph.Length > 0)
         {
-            offset = Editor.SelectionStart;
-            length = selection.Length;
-        }
-        else if (paragraphFallback)
-        {
-            var paragraph = AiPrompts.ParagraphAt(body, Math.Clamp(Editor.CaretOffset, 0, body.Length));
-            offset = paragraph.Offset;
-            length = paragraph.Length;
-            if (length == 0)
-            {
-                AiHideSelPill();
-                return;
-            }
+            Editor.Select(paragraph.Offset, paragraph.Length);
         }
         else
         {
             AiHideSelPill();
+        }
+    }
+
+    /// <summary>选区变化 → 更新/隐藏浮钮；位置贴选区末行上方、右缘对齐编辑器内边距（行滚出视口则不显示）。</summary>
+    private void UpdateAiSelectionPill()
+    {
+        if (!_attached || _aiSelDragging) return;
+        var selection = Editor.SelectedText ?? string.Empty;
+        if (selection.Length == 0)
+        {
+            AiHideSelPill();
             return;
         }
+        var offset = Editor.SelectionStart;
+        var length = selection.Length;
 
         var document = Editor.Document;
         var startLine = document.GetLineByOffset(offset).LineNumber;
-        var endLine = document.GetLineByOffset(offset + length).LineNumber;
-        _aiSelPillLabel.Text = isSelection
-            ? startLine == endLine ? TF("Vox.Ai.Chat.Selection", startLine) : TF("Vox.Ai.Chat.SelectionRange", startLine, endLine)
-            : TF("Vox.Ai.Chat.Paragraph", startLine);
-        _aiSelAnchor = ((offset, length), isSelection);
+        var endLine = EndLineOf(document, offset, length);
+        _aiSelPillRange.Text = startLine == endLine
+            ? FormattableString.Invariant($"L{startLine}")
+            : FormattableString.Invariant($"L{startLine}\u2013L{endLine}");
+        _aiSelAnchor = ((offset, length), true);
 
         var textView = Editor.TextArea.TextView;
         var visual = textView.GetVisualLine(endLine);
@@ -3314,6 +3352,14 @@ public sealed class WritePage : UserControl
         var top = Math.Max(8, point.Y - pillHeight - 6);
         _aiSelPill.Margin = new Thickness(0, top, 14, 0);
         _aiSelPill.IsVisible = true;
+    }
+
+    /// <summary>选区末行号：选区含行尾换行时，末端偏移落在下一行行首，行号应算到内容实际所在的行。</summary>
+    private static int EndLineOf(AvaloniaEdit.Document.TextDocument document, int offset, int length)
+    {
+        var end = Math.Min(offset + length, document.TextLength);
+        if (length > 0 && end > offset && document.GetCharAt(end - 1) is '\n' or '\r') end--;
+        return document.GetLineByOffset(Math.Max(offset, end)).LineNumber;
     }
 
     private void AiHideSelPill()
@@ -3361,20 +3407,20 @@ public sealed class WritePage : UserControl
         }
     }
 
-    /// <summary>浮钮点击：当前选区/段落作为一条上下文入会话（同 Kind 旧 chip 替换），打开面板并聚焦输入框。</summary>
+    /// <summary>浮钮点击：当前选区作为一条上下文入会话（选区 chip 去重替换），打开面板并聚焦输入框。</summary>
     private void AddAiSelectionToChat()
     {
-        if (_aiSelAnchor is not { Range: { } range, IsSelection: var isSelection } || range.Length <= 0) return;
+        if (_aiSelAnchor is not { Range: { } range } || range.Length <= 0) return;
         var document = Editor.Document;
         if (range.Offset + range.Length > document.TextLength) return;
         var text = document.Text.Substring(range.Offset, range.Length);
         var startLine = document.GetLineByOffset(range.Offset).LineNumber;
-        var endLine = document.GetLineByOffset(range.Offset + range.Length).LineNumber;
-        var label = isSelection
-            ? startLine == endLine ? TF("Vox.Ai.Chat.Selection", startLine) : TF("Vox.Ai.Chat.SelectionRange", startLine, endLine)
-            : TF("Vox.Ai.Chat.Paragraph", startLine);
-        _aiCtx.RemoveAll(c => c.Kind == (isSelection ? "sel" : "para"));
-        _aiCtx.Add(new AiChatContext(isSelection ? "sel" : "para", label, range.Offset, range.Length, text));
+        var endLine = EndLineOf(document, range.Offset, range.Length);
+        var label = startLine == endLine
+            ? TF("Vox.Ai.Chat.Selection", startLine)
+            : TF("Vox.Ai.Chat.SelectionRange", startLine, endLine);
+        _aiCtx.RemoveAll(c => c.Kind == "sel");
+        _aiCtx.Add(new AiChatContext("sel", label, range.Offset, range.Length, text));
         RenderAiCtx();
         AiHideSelPill();
         AiOpenPanel();
