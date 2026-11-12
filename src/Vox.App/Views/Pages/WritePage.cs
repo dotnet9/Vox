@@ -3976,17 +3976,73 @@ public sealed class WritePage : UserControl
                 DisableAiOps(ops);
                 _ = InsertAiTextAsync(text);
             };
-            var copy = new Button { Classes = { "btn", "sm" } };
-            copy[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Copy");
-            copy.Click += async (_, _) =>
-            {
-                DisableAiOps(ops);
-                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-                if (clipboard != null) await clipboard.SetTextAsync(text);
-                AddAiNote(T("Vox.Ai.Copied"), success: true);
-            };
             ops.Children.Add(insert);
-            ops.Children.Add(copy);
+            ops.Children.Add(MakeAiCopyButton(text, ops));
+            botBody.Children.Add(ops);
+            _aiMsgScroll.ScrollToEnd();
+            return;
+        }
+
+        if (!offer.Writes)
+        {
+            // 文本型预设（原型口径）：Summary→写入 description、Title→按候选替换 H1、Alt→写回 alt，附复制。
+            Button CopyButton() => MakeAiCopyButton(text, ops);
+            switch (offer.PresetKey)
+            {
+                case "Summary":
+                    var writeDesc = new Button { Classes = { "btn", "sm", "primary" } };
+                    writeDesc[!Button.ContentProperty] = I18n.Bind("Vox.Ai.WriteDescription");
+                    writeDesc.Click += (_, _) =>
+                    {
+                        DisableAiOps(ops);
+                        ApplyAiDescription(text, offer);
+                    };
+                    ops.Children.Add(writeDesc);
+                    break;
+                case "Title":
+                    // 候选逐条成钮：点谁就用谁替换 H1（首个为主推荐 primary）
+                    var first = true;
+                    foreach (var candidate in ParseAiTitleCandidates(text))
+                    {
+                        var pick = candidate;
+                        var use = new Button
+                        {
+                            Classes = { "btn", "sm", first ? "primary" : string.Empty },
+                            Content = TruncateGrapheme(pick, 16),
+                        };
+                        use.Click += (_, _) =>
+                        {
+                            DisableAiOps(ops);
+                            ApplyAiH1(pick, offer);
+                        };
+                        ops.Children.Add(use);
+                        first = false;
+                    }
+                    break;
+                case "Alt":
+                    var writeAlt = new Button { Classes = { "btn", "sm", "primary" } };
+                    writeAlt[!Button.ContentProperty] = I18n.Bind("Vox.Ai.WriteAlt");
+                    writeAlt.Click += (_, _) =>
+                    {
+                        DisableAiOps(ops);
+                        ApplyAiAlt(text, offer);
+                    };
+                    ops.Children.Add(writeAlt);
+                    break;
+            }
+            if (ops.Children.Count == 0)
+            {
+                // 解析不出候选/目标时的兜底：与自定义回复同口径插入光标处
+                var insert = new Button { Classes = { "btn", "sm", "primary" } };
+                insert[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Insert");
+                insert.Click += (_, _) =>
+                {
+                    DisableAiOps(ops);
+                    _ = InsertAiTextAsync(text);
+                };
+                ops.Children.Add(insert);
+            }
+            ops.Children.Add(CopyButton());
             botBody.Children.Add(ops);
             _aiMsgScroll.ScrollToEnd();
             return;
@@ -4032,7 +4088,7 @@ public sealed class WritePage : UserControl
         ops.Children.Add(discard);
         var footnote = new TextBlock
         {
-            Text = T(offer.Writes ? "Vox.Ai.Footnote" : "Vox.Ai.Footnote.Copy"),
+            Text = T("Vox.Ai.Footnote"),
             TextWrapping = TextWrapping.Wrap,
             FontSize = Fs(10),
         };
@@ -4040,6 +4096,135 @@ public sealed class WritePage : UserControl
         botBody.Children.Add(ops);
         botBody.Children.Add(footnote);
         _aiMsgScroll.ScrollToEnd();
+    }
+
+    private Button MakeAiCopyButton(string text, StackPanel ops)
+    {
+        var copy = new Button { Classes = { "btn", "sm" } };
+        copy[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Copy");
+        copy.Click += async (_, _) =>
+        {
+            DisableAiOps(ops);
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null) await clipboard.SetTextAsync(text);
+            AddAiNote(T("Vox.Ai.Copied"), success: true);
+        };
+        return copy;
+    }
+
+    /// <summary>写入 description（预设 Summary）：更新文章元数据并走元数据保存链（front matter 随保存合并回写，lastmod 自动刷新）。</summary>
+    private void ApplyAiDescription(string value, AiOffer offer)
+    {
+        if (_current == null) return;
+        _current.Meta.Description = value.Trim();
+        MarkMetaDirty();
+        RefreshMetaTab();
+        AuditAiWrite(offer, "description", $"{offer.DisplayName} · {value.Length} 字");
+        AddAiNote(T("Vox.Ai.DescWritten"), success: true);
+    }
+
+    /// <summary>替换 H1（预设 Title）：首个一级标题行换成候选（可撤销）；正文没有 H1 时插到开头。</summary>
+    private void ApplyAiH1(string title, AiOffer offer)
+    {
+        var document = Editor.Document;
+        var heading = "# " + title.Trim().TrimStart('#').Trim();
+        var replaced = false;
+        for (var i = 1; i <= document.LineCount; i++)
+        {
+            var line = document.GetLineByNumber(i);
+            var content = document.GetText(line);
+            var body = content.TrimEnd('\r', '\n');
+            if (!body.StartsWith("# ") && body != "#") continue;
+            var delimiter = content.EndsWith("\r\n") ? "\r\n" : content.EndsWith("\n") ? "\n" : string.Empty;
+            document.Replace(line.Offset, line.Length, heading + delimiter);
+            Editor.CaretOffset = line.Offset + heading.Length;
+            replaced = true;
+            break;
+        }
+        if (!replaced)
+        {
+            document.Insert(0, heading + "\n\n");
+            Editor.CaretOffset = heading.Length;
+        }
+        Editor.Focus();
+        AuditAiWrite(offer, "H1", heading);
+        AddAiNote(T("Vox.Ai.H1Replaced"), success: true);
+    }
+
+    /// <summary>写回图片 alt（预设 Alt）：解析回复里的「路径 → alt」行，按路径匹配正文图片引用替换 alt 文本（可撤销）。</summary>
+    private void ApplyAiAlt(string reply, AiOffer offer)
+    {
+        var document = Editor.Document;
+        var text = document.Text;
+        var edits = new List<(int Offset, int Length, string Alt)>();
+        foreach (var raw in reply.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.Trim().TrimStart('-', '*', ' ');
+            var sep = line.IndexOf('→');
+            var sepLength = 1;
+            if (sep < 0)
+            {
+                sep = line.IndexOf("->", StringComparison.Ordinal);
+                sepLength = 2;
+            }
+            if (sep <= 0) continue;
+            var path = line[..sep].Trim().Trim('`').Replace("![", string.Empty).Trim();
+            var alt = line[(sep + sepLength)..].Trim().Trim('`', '"', '“', '”');
+            if (path.Length == 0 || alt.Length == 0) continue;
+            foreach (System.Text.RegularExpressions.Match match in
+                     System.Text.RegularExpressions.Regex.Matches(text, @"!\[([^\]]*)\]\(([^)\s]+)"))
+            {
+                var reference = match.Groups[2].Value;
+                if (reference.StartsWith("./")) reference = reference[2..];
+                if (!string.Equals(reference, path, StringComparison.OrdinalIgnoreCase)) continue;
+                var group = match.Groups[1];
+                edits.Add((group.Index, group.Length, alt));
+                break; // 同一路径多个引用只改第一处（与提示词「逐行输出」一一对应）
+            }
+        }
+        if (edits.Count == 0)
+        {
+            AddAiNote(T("Vox.Ai.AltNoMatch"), error: true);
+            return;
+        }
+        foreach (var (offset, length, alt) in edits.OrderByDescending(e => e.Offset))
+        {
+            document.Replace(offset, length, alt);
+        }
+        Editor.Focus();
+        AuditAiWrite(offer, "alt", TF("Vox.Ai.AltWritten", edits.Count));
+        AddAiNote(TF("Vox.Ai.AltWritten", edits.Count), success: true);
+    }
+
+    /// <summary>标题候选解析（预设 Title）：逐行剥掉编号/井号/项目符号前缀，取非空行（上限 6 条去重）。</summary>
+    private static IReadOnlyList<string> ParseAiTitleCandidates(string text)
+    {
+        var result = new List<string>();
+        foreach (var raw in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = System.Text.RegularExpressions.Regex
+                .Replace(raw.Trim(), @"^(?:\d+[.)、]|[-*+]|#{1,6})\s*", string.Empty)
+                .Trim();
+            if (line.Length == 0) continue;
+            if (!result.Contains(line)) result.Add(line);
+            if (result.Count >= 6) break;
+        }
+        return result;
+    }
+
+    /// <summary>AI 写回的 MCP 调用审计（article_write 通道，与采纳/插入同口径）。</summary>
+    private void AuditAiWrite(AiOffer offer, string target, string detail)
+    {
+        if (_current == null) return;
+        ToolAuditStore.Append(new ToolAuditEntry
+        {
+            Client = T("Vox.Ai.Client"),
+            Tool = "article_write",
+            Target = $"{_current.MarkdownPath} · {target}",
+            Result = "ok",
+            Detail = detail,
+            DurationMs = (int)offer.Elapsed.TotalMilliseconds,
+        });
     }
 
     private void DisableAiOps(StackPanel ops)
