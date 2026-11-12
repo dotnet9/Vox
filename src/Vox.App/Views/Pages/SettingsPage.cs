@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using TKCode.Arc.Icons.Lucide;
 using Vox.App.Controls;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
@@ -17,7 +18,7 @@ using ArcInput = TKCode.Arc.Input;
 
 namespace Vox.App.Views.Pages;
 
-/// <summary>设置页（原型 #view-settings）：仓库 / 链接 / git / 平台账户 / 关于 五段（外观移标题栏弹层）。</summary>
+/// <summary>设置页（原型 #view-settings）：FluidTabControl 左页签四分区——写作 / 发布 / AI / 关于（外观移标题栏弹层）。</summary>
 public sealed class SettingsPage : UserControl
 {
     private readonly MainWindow _shell;
@@ -65,14 +66,15 @@ public sealed class SettingsPage : UserControl
 
     private void BuildLayout()
     {
-        var scroll = new ScrollViewer { Padding = new Thickness(18), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        var host = new StackPanel { Spacing = 12, MaxWidth = 860, HorizontalAlignment = HorizontalAlignment.Left };
         // 原型 .setting 是 max-width: 860 的块级元素：左贴页面留白、满宽到 860，而不是按内容收缩
-        scroll.SizeChanged += (_, e) => host.Width = Math.Min(860, Math.Max(0, e.NewSize.Width - 36));
-
-        var pageTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 2) };
+        var pageTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(18, 18, 18, 2) };
         pageTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Label.Title");
-        host.Children.Add(pageTitle);
+
+        // 原型 .settabs：8 卡重排为写作/发布/AI/关于四分区（对应 Arc FluidTabControl · TabPlacement=Left · TabListWidth=168）
+        var writeTab = new StackPanel { Spacing = 12 };
+        var publishTab = new StackPanel { Spacing = 12 };
+        var aiTab = new StackPanel { Spacing = 12 };
+        var aboutTab = new StackPanel { Spacing = 12 };
 
         // ---------- 写作与保存 ----------
         var writeCard = Card("Vox.Settings.Write.Title", "Vox.Settings.Write.Desc");
@@ -108,7 +110,7 @@ public sealed class SettingsPage : UserControl
             _shell.ShowToast(T(on ? "Vox.Settings.Write.OutlineNumbersEnabled" : "Vox.Settings.Write.OutlineNumbersDisabled"));
         };
         writeCard.Add(Row("Vox.Settings.Write.OutlineNumbers", outlineNumbersSwitch));
-        host.Children.Add(writeCard.Host);
+        writeTab.Children.Add(writeCard.Host);
 
         // ---------- 内容仓库 ----------
         var repoCard = Card("Vox.Settings.Repo.Title", "Vox.Settings.Repo.Desc");
@@ -136,7 +138,7 @@ public sealed class SettingsPage : UserControl
         indexRow.Children.Add(_indexInfo);
         indexRow.Children.Add(rescan);
         repoCard.Add(Row("Vox.Settings.Repo.Index", indexRow));
-        host.Children.Add(repoCard.Host);
+        writeTab.Children.Add(repoCard.Host);
 
         // ---------- 链接策略 ----------
         var linkCard = Card("Vox.Settings.Link.Title", "Vox.Settings.Link.CardDesc");
@@ -169,7 +171,7 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal,
             Children = { normalizeInfo, gotoCheck },
         }));
-        host.Children.Add(linkCard.Host);
+        writeTab.Children.Add(linkCard.Host);
 
         // ---------- git 与凭据 ----------
         var gitCard = Card("Vox.Settings.Git.Title", "Vox.Settings.Git.CardDesc");
@@ -183,7 +185,7 @@ public sealed class SettingsPage : UserControl
             Children = { _patInfo, patTest },
         }));
         gitCard.Add(Row("Vox.Settings.Git.SshFallback", Desc("Vox.Settings.Git.SshFallbackDesc")));
-        host.Children.Add(gitCard.Host);
+        publishTab.Children.Add(gitCard.Host);
 
         // ---------- 平台账户 ----------
         var platCard = Card("Vox.Settings.Platform.Title", "Vox.Settings.Platform.Desc");
@@ -191,7 +193,7 @@ public sealed class SettingsPage : UserControl
         platCard.Add(PlatformRow("Vox.Settings.Platform.Cnblogs", "Vox.Settings.Platform.CnblogsDesc", PlatformAccounts.LoadCnblogs() is { IsConfigured: true }));
         platCard.Add(PlatformRow("Vox.Settings.Platform.Csdn", "Vox.Settings.Platform.CsdnDesc", PlatformAccounts.LoadCsdn() is { IsConfigured: true }));
         platCard.Add(Row("Vox.Settings.Platform.CopyBased", Desc("Vox.Settings.Platform.CopyDesc")));
-        host.Children.Add(platCard.Host);
+        publishTab.Children.Add(platCard.Host);
 
         // ---------- 大模型 ----------
         var llmCard = Card("Vox.Settings.Llm.Title", "Vox.Settings.Llm.Desc");
@@ -272,7 +274,7 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal, Spacing = 10,
             Children = { llmSwitch, llmSwitchDesc },
         }));
-        host.Children.Add(llmCard.Host);
+        aiTab.Children.Add(llmCard.Host);
 
         // ---------- MCP 服务 ----------
         var mcpCard = Card("Vox.Settings.Mcp.Title", "Vox.Settings.Mcp.Desc");
@@ -293,7 +295,7 @@ public sealed class SettingsPage : UserControl
         };
         Res(confirmWrites, TextBlock.ForegroundProperty, "VoxMuted");
         mcpCard.Add(Row("Vox.Settings.Mcp.ConfirmWrites", confirmWrites));
-        host.Children.Add(mcpCard.Host);
+        aiTab.Children.Add(mcpCard.Host);
 
         // ---------- 关于 ----------
         var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
@@ -314,10 +316,41 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal,
             Children = { Desc("Vox.Settings.About.UninstallDesc"), uninstall },
         }));
-        host.Children.Add(aboutCard.Host);
+        aboutTab.Children.Add(aboutCard.Host);
 
-        scroll.Content = host;
-        Content = scroll;
+        var tabs = new TKCode.Arc.FluidTabControl
+        {
+            TabPlacement = TKCode.Arc.FluidTabPlacement.Left,
+            TabListWidth = 168,
+            Margin = new Thickness(18, 6, 18, 18),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Write", LucideIconKind.PenLine, writeTab));
+        tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Publish", LucideIconKind.Send, publishTab));
+        tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Ai", LucideIconKind.Sparkles, aiTab));
+        tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.About", LucideIconKind.Info, aboutTab));
+
+        // 页签区自带滚动宿主（scroll-spy：选页签滚到分区、滚动内容反选页签），不再嵌外层 ScrollViewer
+        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
+        Grid.SetRow(pageTitle, 0);
+        Grid.SetRow(tabs, 1);
+        root.Children.Add(pageTitle);
+        root.Children.Add(tabs);
+        root.SizeChanged += (_, e) => tabs.Width = Math.Min(860, Math.Max(0, e.NewSize.Width - 36)); // 满宽到 860，不按内容收缩
+        Content = root;
+    }
+
+    /// <summary>设置页左页签（原型 .settab）：动态绑定文案（语言切换不重建页面）+ Lucide 图标 + 分区内容。</summary>
+    private static TKCode.Arc.FluidTabItem MakeSettingsTab(string labelKey, LucideIconKind icon, Control section)
+    {
+        var header = new TextBlock();
+        header[!TextBlock.TextProperty] = I18n.Bind(labelKey);
+        return new TKCode.Arc.FluidTabItem
+        {
+            Header = header,
+            Icon = new LucideIcon { Kind = icon, Width = 16, Height = 16, StrokeThickness = 2 },
+            Content = section,
+        };
     }
 
     private (Border Host, Action<Control> Add) Card(string titleKey, string descKey)
