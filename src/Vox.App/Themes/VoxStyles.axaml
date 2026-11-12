@@ -96,57 +96,10 @@
           </ControlTemplate>
         </Setter>
       </ControlTheme>
-  <ControlTheme x:Key="{x:Type MenuItem}" TargetType="MenuItem">
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
-    <Setter Property="FontSize" Value="{DynamicResource VoxFontSizeMm}"/>
-    <Setter Property="Padding" Value="10,7"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource VoxRadiusSmall}"/>
-    <Setter Property="Cursor" Value="Hand"/>
-    <Setter Property="Template">
-      <ControlTemplate>
-        <Panel>
-          <Border Name="PART_LayoutRoot" Background="{TemplateBinding Background}"
-                  CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}"
-                  HorizontalAlignment="Left">
-            <ContentPresenter Name="PART_HeaderPresenter" Content="{TemplateBinding Header}"
-                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
-          </Border>
-          <Popup x:Name="PART_Popup" Placement="Bottom" HorizontalOffset="-4" VerticalOffset="2"
-                 IsOpen="{TemplateBinding IsSubMenuOpen}">
-            <Border Classes="mnu" MinWidth="170">
-              <ItemsPresenter Name="PART_ItemsPresenter"/>
-            </Border>
-          </Popup>
-        </Panel>
-      </ControlTemplate>
-    </Setter>
-    <Style Selector="^:pointerover /template/ Border#PART_LayoutRoot, ^:submenuopen /template/ Border#PART_LayoutRoot, ^:focus /template/ Border#PART_LayoutRoot">
-      <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
-    </Style>
-    <Style Selector="^:pointerover /template/ ContentPresenter#PART_HeaderPresenter, ^:submenuopen /template/ ContentPresenter#PART_HeaderPresenter">
-      <Setter Property="TextBlock.Foreground" Value="{DynamicResource VoxAccent}"/>
-    </Style>
-  </ControlTheme>
   </Styles.Resources>
 
   <!-- 顶栏项：tb-txt 观感（muted、Medium、8,4），悬停/打开转前景色（文件级：ControlTheme 内不允许后代选择器） -->
-  <Style Selector="Menu > MenuItem">
-    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
-    <Setter Property="FontWeight" Value="Medium"/>
-    <Setter Property="Padding" Value="8,4"/>
-  </Style>
-  <Style Selector="Menu > MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, Menu > MenuItem:submenuopen /template/ ContentPresenter#PART_HeaderPresenter">
-    <Setter Property="TextBlock.Foreground" Value="{DynamicResource VoxFg}"/>
-  </Style>
   <!-- 子菜单分隔线（原 Border.mnu 内分隔线同款） -->
-  <Style Selector="Menu MenuItem Separator">
-    <Setter Property="Template">
-      <ControlTemplate>
-        <Border Height="1" Background="{DynamicResource VoxLine}" Margin="6,4"/>
-      </ControlTemplate>
-    </Setter>
-  </Style>
 
   <!-- ══════════ .btn（tokens.css 基类 + app.css 变体） ══════════ -->
   <Style Selector="Button.btn">
@@ -867,21 +820,6 @@
 
 
   <!-- ══════════ 标题栏原生 Menu/MenuItem（Vex 同款机制；Arc/Simple 均不含原生菜单模板） ══════════ -->
-  <Style Selector="Menu.titlebar-menu">
-    <Setter Property="Background" Value="#FF0000"/>
-    <Setter Property="ItemsPanel">
-      <ItemsPanelTemplate>
-        <StackPanel Orientation="Horizontal" Spacing="2"/>
-      </ItemsPanelTemplate>
-    </Setter>
-    <Setter Property="Template">
-      <ControlTemplate>
-        <StackPanel Orientation="Horizontal" Spacing="2">
-          <ItemsPresenter Name="PART_ItemsPresenter"/>
-        </StackPanel>
-      </ControlTemplate>
-    </Setter>
-  </Style>
 
   <!-- ══════════ 弹层 .mask / .modal ══════════ -->
   <Style Selector="Border.mask">

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:arc="https://github.com/AIDotNet/TKCode.Arc"
         xmlns:ctl="clr-namespace:Vox.App.Controls"
         xmlns:icons="clr-namespace:TKCode.Arc.Icons.Lucide;assembly=TKCode.Arc.Icons.Lucide"
         x:Class="Vox.App.Views.MainWindow"
@@ -8,6 +9,28 @@
         FontFamily="{DynamicResource VoxFontUi}" FontSize="13"
         Foreground="{DynamicResource VoxFg}"
         Background="{DynamicResource VoxBg}">
+<Window.Styles>
+  <!-- 标题栏 Arc DropdownMenu：压平为标题栏文字（控件级样式压过 Arc 运行时主题） -->
+  <Style Selector="arc|DropdownMenu.titlebar-menu /template/ arc|Button#PART_Trigger">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="6,3"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Foreground" Value="{DynamicResource VoxMuted}"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+  </Style>
+  <Style Selector="arc|DropdownMenu.titlebar-menu /template/ arc|Button#PART_Trigger:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="arc|DropdownMenu.titlebar-menu:open /template/ arc|Button#PART_Trigger">
+    <Setter Property="Foreground" Value="{DynamicResource VoxFg}"/>
+    <Setter Property="Background" Value="{DynamicResource VoxSurface2}"/>
+  </Style>
+  <Style Selector="arc|DropdownMenu.titlebar-menu /template/ arc|ArcGlyph#PART_Chevron">
+    <Setter Property="IsVisible" Value="False"/>
+  </Style>
+</Window.Styles>
 
   <Grid RowDefinitions="Auto,*">
     <!-- 标题栏：白底 · logo 名称 文件 文件名行 · 搜索/外观/语言 · 窗口钮 -->
@@ -20,26 +43,21 @@
         <TextBlock Grid.Column="1" Text="Vox · 维声" FontWeight="SemiBold" FontSize="{DynamicResource VoxFontSizeMd}"
                    VerticalAlignment="Center" Margin="0,0,2,0"/>
         <!-- 标题栏原生菜单（Vex 同款机制）：Menu+MenuItem 天然支持打开态下悬停切换；模板见 VoxStyles -->
-        <Menu Grid.Column="2" Grid.ColumnSpan="2" Margin="4,0,0,0" VerticalAlignment="Center" Classes="titlebar-menu">
-          <Menu.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="2"/>
-            </ItemsPanelTemplate>
-          </Menu.ItemsPanel>
-          <MenuItem x:Name="FileMenuItem" Header="文件">
-            <MenuItem x:Name="MiNewWindow" Header="新建窗口"/>
-            <MenuItem x:Name="MiOpenDir" Header="打开目录…"/>
-            <MenuItem x:Name="MiOpenFile" Header="打开文件…"/>
-            <Separator/>
-            <MenuItem x:Name="MiNew" Header="新建文章"/>
-            <MenuItem x:Name="MiMeta" Header="文章元数据…"/>
-            <MenuItem x:Name="MiImg" Header="图片入库…"/>
-          </MenuItem>
-          <MenuItem x:Name="HelpMenuItem" Header="帮助">
-            <MenuItem x:Name="MiUpdate" Header="检查更新…"/>
-            <MenuItem x:Name="MiAbout" Header="关于 Vox"/>
-          </MenuItem>
-        </Menu>
+        <StackPanel Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="4,0,0,0" VerticalAlignment="Center">
+  <arc:DropdownMenu x:Name="FileMenu" Classes="titlebar-menu" Label="文件" Side="Bottom" Alignment="Start">
+    <arc:MenuEntry x:Name="MiNewWindow" Header="新建窗口" />
+    <arc:MenuEntry x:Name="MiOpenDir" Header="打开目录…" />
+    <arc:MenuEntry x:Name="MiOpenFile" Header="打开文件…" />
+    <arc:MenuEntrySeparator />
+    <arc:MenuEntry x:Name="MiNew" Header="新建文章" />
+    <arc:MenuEntry x:Name="MiMeta" Header="文章元数据…" />
+    <arc:MenuEntry x:Name="MiImg" Header="图片入库…" />
+  </arc:DropdownMenu>
+  <arc:DropdownMenu x:Name="HelpMenu" Classes="titlebar-menu" Label="帮助" Side="Bottom" Alignment="Start">
+    <arc:MenuEntry x:Name="MiUpdate" Header="检查更新…" />
+    <arc:MenuEntry x:Name="MiAbout" Header="关于 Vox" />
+  </arc:DropdownMenu>
+</StackPanel>
         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" Margin="6,0,0,0" VerticalAlignment="Center">
           <Ellipse x:Name="FileDot" Width="7" Height="7" Fill="{DynamicResource VoxWarn}" IsVisible="False"/>
           <TextBlock x:Name="FileNameText" Classes="mono" FontSize="{DynamicResource VoxFontSizeXs}" IsVisible="False"

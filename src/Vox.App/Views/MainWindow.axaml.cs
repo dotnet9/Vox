@@ -1,4 +1,5 @@
 using Avalonia;
+using ArcMenu = TKCode.Arc;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -277,16 +278,16 @@ public partial class MainWindow : Window
     private void ApplyChrome()
     {
         // 标题栏原生菜单（Vex 同款）：MenuItem 头部走 I18n 动态绑定；悬停切换由 Menu 交互层原生提供。
-        FileMenuItem[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Shell.Menu.File");
-        HelpMenuItem[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Shell.Menu.Help");
-        MiUpdate[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Help.Menu.CheckUpdate");
-        MiAbout[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Help.Menu.About");
-        MiNewWindow[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewWindow");
-        MiOpenDir[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
-        MiOpenFile[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
-        MiNew[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
-        MiMeta[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
-        MiImg[!MenuItem.HeaderProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
+        MiUpdate[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Help.Menu.CheckUpdate");
+        MiAbout[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Help.Menu.About");
+        MiNewWindow[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewWindow");
+        MiOpenDir[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
+        MiOpenFile[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
+        MiNew[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
+        MiMeta[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
+        MiImg[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
+        FileMenu[!ArcMenu.DropdownMenu.LabelProperty] = I18n.Bind("Vox.Shell.Menu.File");
+        HelpMenu[!ArcMenu.DropdownMenu.LabelProperty] = I18n.Bind("Vox.Shell.Menu.Help");
         // MCP 按钮 tooltip 走动态文案（UpdateMcpBadge 按服务现态重绑），这里不再静态绑定。
         BtnTbSearch[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Search");
         BtnTbLook[!ToolTip.TipProperty] = I18n.Bind("Vox.Shell.Tooltip.Appearance");
@@ -728,6 +729,12 @@ public partial class MainWindow : Window
         MiNewWindow.Command = new DelegateCommand(_ => LaunchVox("--empty"));
         MiOpenDir.Command = new DelegateCommand(_ => _ = OpenDirectoryAsync());
         MiOpenFile.Command = new DelegateCommand(_ => _ = OpenFileAsync());
+
+        // 标题栏菜单悬停互切（Vex 标题栏同款）：一个菜单开着时，滑入另一个触发器即切换。
+        FileMenu.Opened += (_, _) => HelpMenu.IsOpen = false;
+        HelpMenu.Opened += (_, _) => FileMenu.IsOpen = false;
+        FileMenu.PointerEntered += (_, _) => { if (HelpMenu.IsOpen) { FileMenu.IsOpen = true; HelpMenu.IsOpen = false; } };
+        HelpMenu.PointerEntered += (_, _) => { if (FileMenu.IsOpen) { HelpMenu.IsOpen = true; FileMenu.IsOpen = false; } };
     }
 
     /// <summary>打开目录选择器并在当前进程切换仓库。</summary>
