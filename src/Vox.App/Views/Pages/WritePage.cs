@@ -175,6 +175,7 @@ public sealed class WritePage : UserControl
     private Button _aiSend = null!;
     private bool _aiBusy;
     private int _aiGeneration;
+    private int _aiChatEpoch;
     private CancellationTokenSource? _aiCts;
     private readonly List<AiChatContext> _aiCtx = [];
     private readonly List<LlmChatTurn> _aiTurns = [];
@@ -3467,7 +3468,8 @@ public sealed class WritePage : UserControl
         _aiInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Ai.InputPlaceholder");
         _aiInput.KeyDown += (_, e) =>
         {
-            if (e.Key != Key.Enter) return;
+            // 原型口径：生成中回车不动作（停止只走按钮）；Shift+Enter 不触发发送。
+            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || _aiBusy) return;
             e.Handled = true;
             _ = ChatSendAsync();
         };
@@ -3653,6 +3655,7 @@ public sealed class WritePage : UserControl
     private void ClearAiChat()
     {
         _aiGeneration++;
+        _aiChatEpoch++; // 在途流的收尾不再往新会话里补「已停止」注与历史轮次
         _aiCts?.Cancel();
         SetAiBusy(false);
         _aiTurns.Clear();
@@ -3745,14 +3748,16 @@ public sealed class WritePage : UserControl
 
         AddAiUserBubble(displayName);
         var prompt = AiPrompts.Build(presetKey, body, caret, selection, string.Empty);
-        var turns = new List<LlmChatTurn> { new("user", prompt.User) };
-        var outcome = await AiStreamIntoBotAsync(prompt.System, turns);
+        // 预设也是会话的一轮：提问入史（此前只入回复，历史会以 assistant 开头），后续多轮据此续聊。
+        _aiTurns.Add(new LlmChatTurn("user", prompt.User));
+        var outcome = await AiStreamIntoBotAsync(prompt.System, _aiTurns);
         if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer);
     }
 
     /// <summary>
-    /// 开一个助手气泡，把多轮流式回复写进去：SSE 增量经 StreamMark MarkdownStream 平滑上屏（任意线程 Push），
-    /// 停止/完成由生成代际判定；返回气泡内容面板与最终文本（取消时为已生成的部分）。
+    /// 开一个助手气泡，把多轮流式回复写进去：SSE 增量经 StreamMark MarkdownStream 平滑上屏（任意线程 Push）。
+    /// 返回气泡内容面板与最终文本——<paramref name="text"/> 仅在回复完整时非空：
+    /// 停止 / 流内中断的半截内容保留在气泡与历史里，但不给「采纳/插入」操作钮（原型口径）。
     /// </summary>
     private async Task<(StackPanel Body, string Text)> AiStreamIntoBotAsync(
         string system, List<LlmChatTurn> turns)
@@ -3763,8 +3768,8 @@ public sealed class WritePage : UserControl
         SetAiBusy(true);
         _aiGeneration++;
         var generation = _aiGeneration;
-        _aiCts?.Cancel();
-        _aiCts?.Dispose();
+        var epoch = _aiChatEpoch;
+        _aiCts?.Cancel(); // Cancel 已释放旧 CTS 的 CancelAfter 计时器，直接换新实例
         _aiCts = new CancellationTokenSource();
         _aiModelTag.Text = settings.LlmModel;
 
@@ -3778,11 +3783,9 @@ public sealed class WritePage : UserControl
             preset.Key, settings.LlmModel, system, turns,
             chunk =>
             {
-                string snapshot;
                 lock (gate)
                 {
                     full.Append(chunk);
-                    snapshot = full.ToString();
                 }
                 stream.Push(chunk); // MarkdownStream 任意线程可调，内部按帧平滑放出
             },
@@ -3796,23 +3799,50 @@ public sealed class WritePage : UserControl
         var stopped = generation != _aiGeneration;
         _aiBusy = false;
         SetAiBusy(false);
-        if (!result.Ok && !stopped)
+        if (epoch != _aiChatEpoch)
         {
-            var error = new TextBlock
-            {
-                Text = TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")),
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = Fs(11),
-            };
-            Res(error, TextBlock.ForegroundProperty, "VoxDanger");
-            botBody.Children.Add(error);
-            _aiMsgScroll.ScrollToEnd();
+            // 会话已清空：气泡早已被移除，不往新会话里补注与历史。
             return (botBody, string.Empty);
         }
         var text = result.Text.Length > 0 ? result.Text : partial;
-        if (stopped) AddAiNote(T("Vox.Ai.Stopped"));
-        if (text.Length > 0) _aiTurns.Add(new LlmChatTurn("assistant", text));
+        if (!result.Ok && !stopped)
+        {
+            AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")), "VoxDanger");
+            return (botBody, string.Empty);
+        }
+        if (stopped)
+        {
+            if (text.Length > 0)
+            {
+                turns.Add(new LlmChatTurn("assistant", text)); // 半截回复留作后续上下文
+                AppendAiBubbleLine(botBody, T("Vox.Ai.Incomplete"), "VoxFaint");
+            }
+            AddAiNote(T("Vox.Ai.Stopped"));
+            return (botBody, string.Empty);
+        }
+        if (result.Error != null && text.Length > 0)
+        {
+            // 流内错误但已有部分文本：内容保留并标注中断原因，不给操作钮。
+            turns.Add(new LlmChatTurn("assistant", text));
+            AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Interrupted", result.Error), "VoxDanger");
+            return (botBody, string.Empty);
+        }
+        if (text.Length > 0) turns.Add(new LlmChatTurn("assistant", text));
         return (botBody, text);
+    }
+
+    /// <summary>气泡内追加一行说明（错误 / 中断 / 不完整标注），并滚到末尾。</summary>
+    private void AppendAiBubbleLine(StackPanel body, string text, string resourceKey)
+    {
+        var line = new TextBlock
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = Fs(11),
+        };
+        Res(line, TextBlock.ForegroundProperty, resourceKey);
+        body.Children.Add(line);
+        _aiMsgScroll.ScrollToEnd();
     }
 
     private const string AiChatSystemSuffix =
