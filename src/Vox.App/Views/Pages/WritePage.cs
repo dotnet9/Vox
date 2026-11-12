@@ -813,6 +813,9 @@ public sealed class WritePage : UserControl
         BuildAiTrigger();
         BuildAiSelectionPill();
         _srcCard = Card(new Panel { Children = { _editorScope, _savePill, _aiBtn, _aiSelPill, BuildAiChatPanel() } }, new Thickness(2, 10, 2, 10));
+        // AI 会话面板高度随编辑器卡伸缩：原型口径 min(560, 100% - 58px)，矮窗口下限 320。
+        _srcCard.SizeChanged += (_, e) =>
+            _aiPop.Height = Math.Clamp(e.NewSize.Height - 58, 320, 560);
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
@@ -3495,7 +3498,6 @@ public sealed class WritePage : UserControl
         {
             Content = _aiMsgList,
             Margin = new Thickness(0, 8, 0, 0),
-            MaxHeight = 330,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
         };
 
@@ -3524,11 +3526,24 @@ public sealed class WritePage : UserControl
         _aiSend.Click += (_, _) => _ = OnAiSendClickedAsync();
         var inputRow = new DockPanel { LastChildFill = true, Children = { _aiSend.Dock(Dock.Right), _aiInput } };
 
-        var body = new StackPanel { Children = { head, _aiCtxBar, _aiMsgScroll, chips, inputRow } };
+        // 原型 ai-chat 高度 min(560px, 100% - 58px)：消息区吃满剩余高度（* 行），头/chips/输入行自适应。
+        var body = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"),
+            Children =
+            {
+                head, _aiCtxBar, _aiMsgScroll, chips, inputRow,
+            },
+        };
+        Grid.SetRow(head, 0);
+        Grid.SetRow(_aiCtxBar, 1);
+        Grid.SetRow(_aiMsgScroll, 2);
+        Grid.SetRow(chips, 3);
+        Grid.SetRow(inputRow, 4);
         _aiPop = new Border
         {
             Width = 420,
-            MaxHeight = 520,
+            Height = 520,
             Padding = new Thickness(14, 12, 14, 14),
             CornerRadius = new CornerRadius(14),
             BorderThickness = new Thickness(1),
@@ -3595,9 +3610,17 @@ public sealed class WritePage : UserControl
         var body = new StackPanel { Spacing = 4 };
         foreach (var ctx in _aiCtx)
         {
+            // 原型 ai-quote：accent 左条 + surface 底 + 粗体出处标签（选区 · L11–L13）+ 原文摘录
+            var quoteLabel = new TextBlock
+            {
+                Text = ctx.Label,
+                FontSize = Fs(10),
+                FontWeight = FontWeight.SemiBold,
+            };
+            Res(quoteLabel, TextBlock.ForegroundProperty, "VoxAccent");
             var quote = new TextBlock
             {
-                Text = ctx.Text.Length > 120 ? ctx.Text[..120] + "…" : ctx.Text,
+                Text = TruncateGrapheme(ctx.Text, 120),
                 FontSize = Fs(10),
                 TextWrapping = TextWrapping.Wrap,
             };
@@ -3607,9 +3630,10 @@ public sealed class WritePage : UserControl
                 Padding = new Thickness(6, 3),
                 CornerRadius = new CornerRadius(6),
                 BorderThickness = new Thickness(2, 0, 0, 0),
-                Background = Brushes.Transparent,
-                Child = quote,
+                Child = new StackPanel { Children = { quoteLabel, quote } },
             });
+            Res((Border)body.Children[^1], Border.BorderBrushProperty, "VoxAccent");
+            Res((Border)body.Children[^1], Border.BackgroundProperty, "VoxSurface");
         }
         body.Children.Add(new TextBlock { Text = text, FontSize = Fs(11), TextWrapping = TextWrapping.Wrap });
         Res(body.Children[^1], TextBlock.ForegroundProperty, "VoxFg");
@@ -3682,6 +3706,8 @@ public sealed class WritePage : UserControl
     {
         _aiBusy = busy;
         _aiSend.Content = busy ? T("Vox.Ai.Stop") : T("Vox.Ai.Send");
+        // 原型 aiSetSend：停止态去 primary（普通样式），回到发送态再点亮
+        _aiSend.Classes.Set("primary", !busy);
     }
 
     private void AiOpenPanel()
@@ -3783,7 +3809,7 @@ public sealed class WritePage : UserControl
             source = string.Empty;
         }
         var displayName = T("Vox.Ai.Preset." + presetKey);
-        var offer = new AiOffer(
+        var offerDraft = new AiOffer(
             presetKey,
             displayName,
             section.Length > 0 ? section : T("Vox.Ai.Section.Body"),
@@ -3797,15 +3823,19 @@ public sealed class WritePage : UserControl
         // 预设也是会话的一轮：提问入史（此前只入回复，历史会以 assistant 开头），后续多轮据此续聊。
         _aiTurns.Add(new LlmChatTurn("user", prompt.User));
         var outcome = await AiStreamIntoBotAsync(prompt.System, _aiTurns);
-        if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer);
+        if (outcome.Text.Length > 0)
+        {
+            // 生成耗时随流式结果回填，审计里的 DurationMs 才是真实时长
+            AddAiBotOps(outcome.Body, outcome.Text, offerDraft with { Elapsed = outcome.Elapsed });
+        }
     }
 
     /// <summary>
     /// 开一个助手气泡，把多轮流式回复写进去：SSE 增量经 StreamMark MarkdownStream 平滑上屏（任意线程 Push）。
-    /// 返回气泡内容面板与最终文本——<paramref name="text"/> 仅在回复完整时非空：
+    /// 返回气泡内容面板、最终文本与耗时——<paramref name="Text"/> 仅在回复完整时非空：
     /// 停止 / 流内中断的半截内容保留在气泡与历史里，但不给「采纳/插入」操作钮（原型口径）。
     /// </summary>
-    private async Task<(StackPanel Body, string Text)> AiStreamIntoBotAsync(
+    private async Task<(StackPanel Body, string Text, TimeSpan Elapsed)> AiStreamIntoBotAsync(
         string system, List<LlmChatTurn> turns)
     {
         var settings = AppState.Instance.Settings;
@@ -3820,6 +3850,10 @@ public sealed class WritePage : UserControl
         _aiModelTag.Text = settings.LlmModel;
 
         var botBody = AddAiBotBubble();
+        // 等待指示（原型三点动画的位置）：首段增量到达即摘除，网络首字延迟期间气泡不再空白
+        var pending = new TextBlock { Text = T("Vox.Ai.Generating"), FontSize = Fs(10.5) };
+        Res(pending, TextBlock.ForegroundProperty, "VoxFaint");
+        botBody.Children.Add(pending);
         var full = new StringBuilder();
         var gate = new object();
         var stream = new MarkdownStream();
@@ -3834,6 +3868,12 @@ public sealed class WritePage : UserControl
                     full.Append(chunk);
                 }
                 stream.Push(chunk); // MarkdownStream 任意线程可调，内部按帧平滑放出
+                // 网络线程回调：UI 侧摘等待指示 + 视口跟随流式内容（原型每个流式 tick 都滚到底）
+                Dispatcher.UIThread.Post(() =>
+                {
+                    pending.IsVisible = false;
+                    _aiMsgScroll.ScrollToEnd();
+                });
             },
             cancellationToken: _aiCts.Token);
         stream.Complete();
@@ -3848,13 +3888,13 @@ public sealed class WritePage : UserControl
         if (epoch != _aiChatEpoch)
         {
             // 会话已清空：气泡早已被移除，不往新会话里补注与历史。
-            return (botBody, string.Empty);
+            return (botBody, string.Empty, result.Elapsed);
         }
         var text = result.Text.Length > 0 ? result.Text : partial;
         if (!result.Ok && !stopped)
         {
             AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")), "VoxDanger");
-            return (botBody, string.Empty);
+            return (botBody, string.Empty, result.Elapsed);
         }
         if (stopped)
         {
@@ -3864,17 +3904,17 @@ public sealed class WritePage : UserControl
                 AppendAiBubbleLine(botBody, T("Vox.Ai.Incomplete"), "VoxFaint");
             }
             AddAiNote(T("Vox.Ai.Stopped"));
-            return (botBody, string.Empty);
+            return (botBody, string.Empty, result.Elapsed);
         }
         if (result.Error != null && text.Length > 0)
         {
             // 流内错误但已有部分文本：内容保留并标注中断原因，不给操作钮。
             turns.Add(new LlmChatTurn("assistant", text));
             AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Interrupted", result.Error), "VoxDanger");
-            return (botBody, string.Empty);
+            return (botBody, string.Empty, result.Elapsed);
         }
         if (text.Length > 0) turns.Add(new LlmChatTurn("assistant", text));
-        return (botBody, text);
+        return (botBody, text, result.Elapsed);
     }
 
     /// <summary>气泡内追加一行说明（错误 / 中断 / 不完整标注），并滚到末尾。</summary>
@@ -3904,15 +3944,23 @@ public sealed class WritePage : UserControl
             foreach (var ctx in _aiCtx)
             {
                 builder.Append("\n\n[").Append(ctx.Label).Append("]\n")
-                    .Append(ctx.Text.Length > 2000 ? ctx.Text[..2000] + "…" : ctx.Text);
+                    .Append(TruncateGrapheme(ctx.Text, 2000));
             }
         }
         else
         {
             builder.Append("\n\n[").Append(T("Vox.Ai.Chat.WholeArticle")).Append("]\n")
-                .Append(body[..Math.Min(body.Length, 5000)]);
+                .Append(TruncateGrapheme(body, 5000));
         }
         return builder.ToString();
+    }
+
+    /// <summary>按字符数截断并加省略号；边界落在代理对（emoji 等扩展字符）中间时回退一位，不产生半个字符。</summary>
+    private static string TruncateGrapheme(string text, int max)
+    {
+        if (text.Length <= max) return text;
+        var cut = char.IsHighSurrogate(text[max - 1]) ? max - 1 : max;
+        return text[..cut] + "…";
     }
 
     /// <summary>回复落定后的操作排：自定义回复 = 插入光标/复制；预设改稿 = 写入位置 + diff 卡 + 采纳（＋N 行）/放弃。</summary>
@@ -3944,15 +3992,28 @@ public sealed class WritePage : UserControl
             return;
         }
 
-        // 评审修订（原型 D9）：写入位置标注 + 采纳按钮带影响面（＋N 行），diff 绿加红删。
+        // 评审修订（原型 D9）：写入位置标注 + ±行数 chips（＋N −M 语义色），diff 绿加红删。
         var added = 0;
+        var removed = 0;
         foreach (var line in AiDiff.Build(offer.Source, text))
         {
             if (line.Kind == '+') added++;
+            else if (line.Kind == '-') removed++;
         }
-        var loc = new TextBlock { Text = TF("Vox.Ai.Location", offer.Section), FontSize = Fs(10), Margin = new Thickness(0, 2, 0, 0) };
+        var loc = new TextBlock { Text = TF("Vox.Ai.Location", offer.Section), FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Center };
         Res(loc, TextBlock.ForegroundProperty, "VoxMuted");
-        botBody.Children.Add(loc);
+        var locRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 2, 0, 0) };
+        locRow.Children.Add(loc);
+        var addChip = new TextBlock { Text = TF("Vox.Ai.Diff.Added", added), FontSize = Fs(10), FontWeight = FontWeight.Bold };
+        Res(addChip, TextBlock.ForegroundProperty, "VoxOk");
+        locRow.Children.Add(addChip);
+        if (removed > 0)
+        {
+            var delChip = new TextBlock { Text = TF("Vox.Ai.Diff.Removed", removed), FontSize = Fs(10), FontWeight = FontWeight.Bold };
+            Res(delChip, TextBlock.ForegroundProperty, "VoxDanger");
+            locRow.Children.Add(delChip);
+        }
+        botBody.Children.Add(locRow);
         botBody.Children.Add(BuildAiDiffView(offer.Source, text, offer.Section));
         var accept = new Button { Classes = { "btn", "sm", "primary" }, Content = TF("Vox.Ai.AcceptN", added) };
         var discard = new Button { Classes = { "btn", "sm", "ghost" } };
@@ -4028,7 +4089,8 @@ public sealed class WritePage : UserControl
                 Text = prefix + line.Text,
                 FontFamily = MonoFont,
                 FontSize = Fs(10),
-                TextWrapping = TextWrapping.NoWrap,
+                // 原型 ai-chat 内 diff 换行展示（pre-wrap），不引横向滚动
+                TextWrapping = TextWrapping.Wrap,
             };
             Res(row, TextBlock.ForegroundProperty, line.Kind switch
             {
@@ -4050,7 +4112,7 @@ public sealed class WritePage : UserControl
             {
                 Content = lines,
                 MaxHeight = 160,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             },
         };
