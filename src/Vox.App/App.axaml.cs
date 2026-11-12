@@ -27,6 +27,13 @@ public partial class App : Application
         Views.MarkdownRendering.Register();
         CodeWF.Avalonia.Markdown.MathRendering.CodeWFMarkdownMathExtensions.UseMath();
         CodeWF.Avalonia.Markdown.Mermaid.CodeWFMarkdownMermaidExtensions.EnsureRegistered();
+
+        // StreamMark（AI 会话气泡的流式 Markdown）：默认主题 + TextMate 代码高亮，挂在 App 级向下级联。
+        Styles.Add(new StreamMark.Avalonia.Themes.StreamMarkTheme());
+        StreamMark.Avalonia.Extensions.MarkdownServices.SetServices(this, new StreamMark.Avalonia.Extensions.MarkdownServices
+        {
+            Plugins = [new StreamMark.Highlighting.TextMate.TextMatePlugin()],
+        });
     }
 
     public override void OnFrameworkInitializationCompleted()

@@ -6,6 +6,8 @@
     <TextMateSharpGrammarsVersion>3.0.0-preview.1</TextMateSharpGrammarsVersion>
     <!-- Arc 仍精确依赖 Avalonia 12.1.4；保留 NU1608，并用本机/CI 原生验证覆盖 12.1.5。 -->
     <ArcVersion>1.0.0</ArcVersion>
+    <!-- StreamMark（自研流式 Markdown，AI 会话气泡）：与 Arc Blocks 同走 ADR 0011 口径，精确钉版 -->
+    <StreamMarkVersion>0.1.2</StreamMarkVersion>
     <CodeWFToolkitVersion>1.1.6</CodeWFToolkitVersion>
     <CodeWFAvaloniaVersion>12.1.6.4</CodeWFAvaloniaVersion>
     <YamlDotNetVersion>18.1.0</YamlDotNetVersion>

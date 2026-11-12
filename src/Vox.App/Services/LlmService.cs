@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Vox.App.Infrastructure;
+using Vox.Core.Llm;
 using Vox.Git;
 
 namespace Vox.App.Services;
@@ -15,6 +16,7 @@ public static class LlmPresets
 {
     public static readonly LlmPreset[] All =
     [
+        new("GLM", "https://open.bigmodel.cn/api/coding/paas/v4", "glm-5.3-flash", true),
         new("DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat", true),
         new("OpenAI", "https://api.openai.com/v1", "gpt-4o", true),
         new("Claude", "https://api.anthropic.com/v1", "claude-sonnet-4-5", true),
@@ -107,6 +109,125 @@ public static class LlmService
         catch (Exception ex)
         {
             watch.Stop();
+            return new LlmResult(false, string.Empty, ex.Message, watch.Elapsed);
+        }
+    }
+
+    /// <summary>多轮会话中的一条消息（user / assistant）。</summary>
+    public sealed record LlmChatTurn(string Role, string Content);
+
+    /// <summary>
+    /// 多轮流式对话：SSE 增量经 <paramref name="onDelta"/> 回吐（每收到一段就调用，调用方自行调度到 UI 线程）。
+    /// 用户主动取消（<paramref name="cancellationToken"/>）时返回已生成的部分文本（Ok 视为有内容）；
+    /// 超时或流内错误返回失败。解析逻辑在 Vox.Core.Llm.LlmStreamParser（有单测）。
+    /// </summary>
+    public static async Task<LlmResult> StreamAsync(
+        string provider,
+        string model,
+        string system,
+        IReadOnlyList<LlmChatTurn> turns,
+        Action<string> onDelta,
+        int maxTokens = 1400,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        var preset = LlmPresets.Get(provider);
+        var resolvedModel = string.IsNullOrWhiteSpace(model) ? preset.DefaultModel : model.Trim();
+        var apiKey = GetApiKey(preset.Key);
+        if (preset.NeedsKey && string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Error.NoKey"), TimeSpan.Zero);
+        }
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(timeout ?? TimeSpan.FromSeconds(120));
+        var watch = Stopwatch.StartNew();
+        try
+        {
+            var isClaude = preset.Key == "Claude";
+            var messages = turns.Select(t => new LlmMessage { Role = t.Role, Content = t.Content }).ToArray();
+            HttpRequestMessage Build()
+            {
+                HttpRequestMessage request;
+                if (isClaude)
+                {
+                    var payload = new AnthropicRequest
+                    {
+                        Model = resolvedModel, MaxTokens = maxTokens, System = system, Messages = messages, Stream = true,
+                    };
+                    request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/messages")
+                    {
+                        Content = new StringContent(
+                            JsonSerializer.Serialize(payload, LlmJsonContext.Default.AnthropicRequest),
+                            Encoding.UTF8, "application/json"),
+                    };
+                    request.Headers.TryAddWithoutValidation("x-api-key", apiKey);
+                    request.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+                }
+                else
+                {
+                    var payload = new OpenAiRequest
+                    {
+                        Model = resolvedModel, Messages = messages, MaxTokens = maxTokens, Stream = true,
+                    };
+                    request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/chat/completions")
+                    {
+                        Content = new StringContent(
+                            JsonSerializer.Serialize(payload, LlmJsonContext.Default.OpenAiRequest),
+                            Encoding.UTF8, "application/json"),
+                    };
+                    if (!string.IsNullOrWhiteSpace(apiKey))
+                    {
+                        request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
+                    }
+                }
+                return request;
+            }
+
+            using var request = Build();
+            using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                var raw = await response.Content.ReadAsStringAsync(cts.Token);
+                return new LlmResult(false, string.Empty, DescribeError(raw, (int)response.StatusCode), watch.Elapsed);
+            }
+
+            var full = new StringBuilder();
+            var protocol = isClaude ? LlmStreamProtocol.Anthropic : LlmStreamProtocol.OpenAiCompatible;
+            var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+            using var reader = new StreamReader(stream);
+            while (await reader.ReadLineAsync(cts.Token) is { } line)
+            {
+                if (!line.StartsWith("data:", StringComparison.Ordinal)) continue; // event:/注释/空行跳过
+                var @event = LlmStreamParser.Parse(protocol, line["data:".Length..]);
+                if (@event.Error != null)
+                {
+                    return new LlmResult(full.Length > 0, full.ToString(), @event.Error, watch.Elapsed);
+                }
+                if (@event.Text is { Length: > 0 } chunk)
+                {
+                    full.Append(chunk);
+                    onDelta(chunk);
+                }
+                if (@event.Done) break;
+            }
+            watch.Stop();
+            var text = full.ToString().Trim();
+            return text.Length == 0
+                ? new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Error.Empty"), watch.Elapsed)
+                : new LlmResult(true, text, null, watch.Elapsed);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // 用户点「停止」：已生成的部分保留在会话里，不算失败。
+            return new LlmResult(true, string.Empty, null, watch.Elapsed);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Error.Timeout"), watch.Elapsed);
+        }
+        catch (Exception ex)
+        {
             return new LlmResult(false, string.Empty, ex.Message, watch.Elapsed);
         }
     }
@@ -254,6 +375,7 @@ public sealed class AnthropicRequest
     [JsonPropertyName("system")] public string System { get; set; } = string.Empty;
     [JsonPropertyName("messages")] public LlmMessage[] Messages { get; set; } = [];
     [JsonPropertyName("temperature")] public double Temperature { get; set; } = 0.6;
+    [JsonPropertyName("stream")] public bool Stream { get; set; }
 }
 
 public sealed class AnthropicResponse

@@ -19,6 +19,11 @@
     <PackageVersion Include="TKCode.Arc" Version="$(ArcVersion)" />
     <PackageVersion Include="TKCode.Arc.Fonts" Version="$(ArcVersion)" />
     <PackageVersion Include="TKCode.Arc.Icons.Lucide" Version="$(ArcVersion)" />
+    <!-- StreamMark：自研流式 Markdown（AI 会话气泡），跟随 Arc ADR 0011 精确钉版；
+         Core 显式升 0.1.2 统一 TKCode.Arc 1.0.0（=0.1.1）与 Avalonia 0.1.2（>=0.1.2）的传递冲突（NU1608 已容忍） -->
+    <PackageVersion Include="TKCode.StreamMark.Avalonia" Version="[$(StreamMarkVersion)]" />
+    <PackageVersion Include="TKCode.StreamMark.Core" Version="[$(StreamMarkVersion)]" />
+    <PackageVersion Include="TKCode.StreamMark.Highlighting.TextMate" Version="[$(StreamMarkVersion)]" />
     <PackageVersion Include="CodeWF.Toolkit.Lang" Version="$(CodeWFToolkitVersion)" />
     <PackageVersion Include="CodeWF.Avalonia.Lang" Version="$(CodeWFAvaloniaVersion)" />
     <PackageVersion Include="CodeWF.Avalonia.DataGrid" Version="$(CodeWFAvaloniaVersion)" />

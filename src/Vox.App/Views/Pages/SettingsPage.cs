@@ -197,6 +197,13 @@ public sealed class SettingsPage : UserControl
         var llmCard = Card("Vox.Settings.Llm.Title", "Vox.Settings.Llm.Desc");
         var llmSettings = AppState.Instance.Settings;
         var llmPreset = LlmPresets.Get(llmSettings.LlmProvider);
+        var endpointText = new TextBlock
+        {
+            Text = llmPreset.BaseUrl,
+            FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace"),
+            FontSize = 10.5,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         _llmModel[!ArcInput.LabelProperty] = I18n.Bind("Vox.Settings.Llm.Title");
         _llmModel.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
         _llmModel.Text = llmSettings.LlmModel;
@@ -213,6 +220,7 @@ public sealed class SettingsPage : UserControl
                 s.LlmModel = preset.DefaultModel;
             });
             _llmModel.Text = preset.DefaultModel;
+            endpointText.Text = preset.BaseUrl;
             RefreshLlmKey();
             _shell.ShowToast(TF("Vox.Settings.Llm.ProviderSwitched", LlmPresets.DisplayName(preset), preset.DefaultModel));
         };
@@ -220,6 +228,14 @@ public sealed class SettingsPage : UserControl
         {
             Orientation = Orientation.Horizontal, Spacing = 8,
             Children = { _llmProvider, _llmModel },
+        }));
+        var endpointDesc = new TextBlock { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+        endpointDesc[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.EndpointDesc");
+        Res(endpointDesc, TextBlock.ForegroundProperty, "VoxFaint");
+        llmCard.Add(Row("Vox.Settings.Llm.Endpoint", new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 0,
+            Children = { endpointText, endpointDesc },
         }));
 
         var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };

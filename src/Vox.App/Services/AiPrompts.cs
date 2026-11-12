@@ -10,7 +10,7 @@ public static class AiPrompts
 
     public static readonly string[] PresetKeys = ["Continue", "Polish", "Summary", "Title", "Translate", "Alt"];
 
-    private const string SystemPrompt =
+    public const string SystemPrompt =
         "你是资深中文技术博客编辑，为作者的 Markdown 文章提供可直接采用的改稿结果。" +
         "严格遵守：只输出结果本身，不解释、不加前后缀、不包裹代码围栏（除非原文就是代码）；保持 Markdown 结构与技术术语准确。";
 

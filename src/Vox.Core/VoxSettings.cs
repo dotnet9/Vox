@@ -84,11 +84,11 @@ public sealed class VoxSettings
     /// <summary>写作页 AI 助手开关（右下角指令条显隐）。</summary>
     public bool LlmEnabled { get; set; } = true;
 
-    /// <summary>大模型服务商标识（DeepSeek / OpenAI / Claude / Ollama），密钥按服务商存凭据管理器。</summary>
-    public string LlmProvider { get; set; } = "DeepSeek";
+    /// <summary>大模型服务商标识（GLM / DeepSeek / OpenAI / Claude / Ollama），密钥按服务商存凭据管理器。</summary>
+    public string LlmProvider { get; set; } = "GLM";
 
     /// <summary>模型名（随服务商切换写默认值，可手改）。</summary>
-    public string LlmModel { get; set; } = "deepseek-chat";
+    public string LlmModel { get; set; } = "glm-5.3-flash";
 
     /// <summary>MCP 本机服务开关（仅监听 127.0.0.1，Bearer Token 鉴权）。</summary>
     public bool McpEnabled { get; set; }

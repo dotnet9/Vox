@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -23,6 +24,7 @@ using CodeWF.Avalonia.MindView;
 using CodeWF.Avalonia.MindView.Controls;
 using CodeWF.Avalonia.MindView.Markdown;
 using Markdig;
+using StreamMark.Avalonia;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
@@ -164,11 +166,20 @@ public sealed class WritePage : UserControl
     private Border _aiBtn = null!;
     private Border _aiPop = null!;
     private TextBox _aiInput = null!;
-    private StackPanel _aiResult = null!;
+    private ScrollViewer _aiMsgScroll = null!;
+    private StackPanel _aiMsgList = null!;
+    private Border _aiCtxBar = null!;
+    private WrapPanel _aiCtxList = null!;
+    private TextBlock _aiModelTag = null!;
+    private Button _aiSend = null!;
+    private bool _aiBusy;
     private int _aiGeneration;
     private CancellationTokenSource? _aiCts;
-    private AiOffer? _aiOffer;
-    private string _aiText = string.Empty;
+    private readonly List<AiChatContext> _aiCtx = [];
+    private readonly List<LlmService.LlmChatTurn> _aiTurns = [];
+    private Border _aiSelPill = null!;
+    private TextBlock _aiSelPillLabel = null!;
+    private ((int Offset, int Length) Range, bool IsSelection)? _aiSelAnchor;
 
     /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>
     private bool _attached;
@@ -795,7 +806,8 @@ public sealed class WritePage : UserControl
         _editorScope.Child = _editorView;
         BuildSaveStatePill();
         BuildAiTrigger();
-        _srcCard = Card(new Panel { Children = { _editorScope, _savePill, _aiBtn, BuildAiPopup() } }, new Thickness(2, 10, 2, 10));
+        BuildAiSelectionPill();
+        _srcCard = Card(new Panel { Children = { _editorScope, _savePill, _aiBtn, _aiSelPill, BuildAiChatPanel() } }, new Thickness(2, 10, 2, 10));
 
         // 预览卡：MarkdownViewer（增量渲染），滚动宿主交给外层 ScrollViewer；
         // 相对路径图片按 md 文件目录解析（ImageBasePath 在打开文章时指向 md 目录）。
@@ -911,6 +923,10 @@ public sealed class WritePage : UserControl
         if (_aiPop is { IsVisible: true } && !IsWithin(source, _aiPop) && !IsWithin(source, _aiBtn))
         {
             _aiPop.IsVisible = false;
+        }
+        if (_aiSelPill is { IsVisible: true } && !IsWithin(source, _aiSelPill))
+        {
+            AiHideSelPill();
         }
         if (_openFlyout == null) return;
         for (Visual? node = source; node != null; node = node.Parent as Visual)
@@ -2767,6 +2783,9 @@ public sealed class WritePage : UserControl
         // 此前收口发生在换向后的 RefreshMetaTab 里，旧文手改会被 ApplyMeta 到新文章（数据错乱级次序缺陷）。
         ApplyYamlIfDirty();
         if (_dirty && _current != null) SaveCurrent(silent: true);
+        AiHideSelPill();
+        _aiCtx.Clear();
+        RenderAiCtx(); // 上下文 chip 带旧文行号/偏移，切文即失效；会话消息保留
 
         _loading = true;
         try
@@ -3145,8 +3164,12 @@ public sealed class WritePage : UserControl
         _aiBtn.PointerPressed += (_, e) =>
         {
             e.Handled = true;
-            _aiPop.IsVisible = !_aiPop.IsVisible;
-            if (_aiPop.IsVisible) _aiInput.Focus();
+            if (_aiPop.IsVisible)
+            {
+                _aiPop.IsVisible = false;
+                return;
+            }
+            AiOpenPanel();
         };
         ApplyAiChrome();
     }
@@ -3175,16 +3198,191 @@ public sealed class WritePage : UserControl
         _editorScope.RequestedThemeVariant = target;
     }
 
-    private Border BuildAiPopup()
+    /// <summary>选区浮钮（Trae 模式，原型同款）：正文出现选区 / 右键选段时浮出「✦ 添加到会话」，点击把片段作为上下文入会话。</summary>
+    private void BuildAiSelectionPill()
     {
-        var head = new DockPanel();
-        var title = new TextBlock
+        var spark = new TextBlock
         {
-            Text = T("Vox.Ai.Title"),
-            FontSize = Fs(12.5),
+            Text = "✦",
+            FontSize = Fs(11),
             FontWeight = FontWeight.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        Res(spark, TextBlock.ForegroundProperty, "VoxAccent");
+        _aiSelPillLabel = new TextBlock
+        {
+            FontSize = Fs(11),
+            FontWeight = FontWeight.Medium,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(_aiSelPillLabel, TextBlock.ForegroundProperty, "VoxFg");
+        _aiSelPill = new Border
+        {
+            Padding = new Thickness(12, 4),
+            CornerRadius = new CornerRadius(99),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsVisible = false,
+            IsHitTestVisible = true,
+            ZIndex = 36,
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 5,
+                Children = { spark, _aiSelPillLabel },
+            },
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0, OffsetY = 2, Blur = 8, Color = Color.Parse("#14000000"),
+            }),
+        };
+        Res(_aiSelPill, Border.BackgroundProperty, "VoxSurface");
+        Res(_aiSelPill, Border.BorderBrushProperty, "VoxLine");
+        _aiSelPill.PointerEntered += (_, _) => Res(_aiSelPill, Border.BorderBrushProperty, "VoxAccent");
+        _aiSelPill.PointerExited += (_, _) => Res(_aiSelPill, Border.BorderBrushProperty, "VoxLine");
+        _aiSelPill.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            AddAiSelectionToChat();
+        };
+        // 拖选实时更新浮钮；右键=选光标所在段落（原型口径）
+        Editor.TextArea.SelectionChanged += (_, _) => UpdateAiSelectionPill();
+        Editor.TextArea.PointerReleased += (_, e) =>
+        {
+            if (e.InitialPressMouseButton == MouseButton.Right) UpdateAiSelectionPill(paragraphFallback: true);
+        };
+    }
+
+    /// <summary>选区变化 → 更新/隐藏浮钮；位置贴选区末行上方、右缘对齐编辑器内边距（行滚出视口则不显示）。</summary>
+    private void UpdateAiSelectionPill(bool paragraphFallback = false)
+    {
+        if (!_attached) return;
+        var body = _editorView.Text ?? string.Empty;
+        var selection = Editor.SelectedText ?? string.Empty;
+        int offset;
+        int length;
+        var isSelection = selection.Length > 0;
+        if (isSelection)
+        {
+            offset = Editor.SelectionStart;
+            length = selection.Length;
+        }
+        else if (paragraphFallback)
+        {
+            var paragraph = AiPrompts.ParagraphAt(body, Math.Clamp(Editor.CaretOffset, 0, body.Length));
+            offset = paragraph.Offset;
+            length = paragraph.Length;
+            if (length == 0)
+            {
+                AiHideSelPill();
+                return;
+            }
+        }
+        else
+        {
+            AiHideSelPill();
+            return;
+        }
+
+        var document = Editor.Document;
+        var startLine = document.GetLineByOffset(offset).LineNumber;
+        var endLine = document.GetLineByOffset(offset + length).LineNumber;
+        _aiSelPillLabel.Text = isSelection
+            ? startLine == endLine ? TF("Vox.Ai.Chat.Selection", startLine) : TF("Vox.Ai.Chat.SelectionRange", startLine, endLine)
+            : TF("Vox.Ai.Chat.Paragraph", startLine);
+        _aiSelAnchor = ((offset, length), isSelection);
+
+        var textView = Editor.TextArea.TextView;
+        var visual = textView.GetVisualLine(endLine);
+        if (visual == null)
+        {
+            AiHideSelPill();
+            return;
+        }
+        var viewportY = visual.VisualTop - textView.VerticalOffset + visual.Height;
+        var anchor = Editor.TextArea.TranslatePoint(new Point(0, viewportY), _srcCard);
+        if (anchor is not { } point)
+        {
+            AiHideSelPill();
+            return;
+        }
+        var pillHeight = _aiSelPill.DesiredSize.Height > 0 ? _aiSelPill.DesiredSize.Height : 27;
+        var top = Math.Max(8, point.Y - pillHeight - 6);
+        _aiSelPill.Margin = new Thickness(0, top, 14, 0);
+        _aiSelPill.IsVisible = true;
+    }
+
+    private void AiHideSelPill()
+    {
+        _aiSelPill.IsVisible = false;
+        _aiSelAnchor = null;
+    }
+
+    /// <summary>上下文 chip 渲染：标签 + ×，同 Kind 新增时旧 chip 已被替换（原型口径）。</summary>
+    private void RenderAiCtx()
+    {
+        _aiCtxBar.IsVisible = _aiCtx.Count > 0;
+        _aiCtxList.Children.Clear();
+        foreach (var ctx in _aiCtx)
+        {
+            var label = new TextBlock
+            {
+                Text = ctx.Label,
+                FontSize = Fs(10.5),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Res(label, TextBlock.ForegroundProperty, "VoxFg");
+            var remove = new TextBlock
+            {
+                Text = "×",
+                FontSize = Fs(11),
+                Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = new Cursor(StandardCursorType.Hand),
+            };
+            Res(remove, TextBlock.ForegroundProperty, "VoxFaint");
+            var captured = ctx;
+            remove.PointerPressed += (_, e) =>
+            {
+                e.Handled = true;
+                _aiCtx.Remove(captured);
+                RenderAiCtx();
+            };
+            _aiCtxList.Children.Add(new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 8, 0),
+                Children = { label, remove },
+            });
+        }
+    }
+
+    /// <summary>浮钮点击：当前选区/段落作为一条上下文入会话（同 Kind 旧 chip 替换），打开面板并聚焦输入框。</summary>
+    private void AddAiSelectionToChat()
+    {
+        if (_aiSelAnchor is not { Range: { } range, IsSelection: var isSelection } || range.Length <= 0) return;
+        var document = Editor.Document;
+        if (range.Offset + range.Length > document.TextLength) return;
+        var text = document.Text.Substring(range.Offset, range.Length);
+        var startLine = document.GetLineByOffset(range.Offset).LineNumber;
+        var endLine = document.GetLineByOffset(range.Offset + range.Length).LineNumber;
+        var label = isSelection
+            ? startLine == endLine ? TF("Vox.Ai.Chat.Selection", startLine) : TF("Vox.Ai.Chat.SelectionRange", startLine, endLine)
+            : TF("Vox.Ai.Chat.Paragraph", startLine);
+        _aiCtx.RemoveAll(c => c.Kind == (isSelection ? "sel" : "para"));
+        _aiCtx.Add(new AiChatContext(isSelection ? "sel" : "para", label, range.Offset, range.Length, text));
+        RenderAiCtx();
+        AiHideSelPill();
+        AiOpenPanel();
+        _shell.ShowToast(TF("Vox.Ai.Chat.Added", label));
+    }
+
+    /// <summary>AI 会话面板（原型同款）：模型徽章 + 清空/关闭、上下文 chip、消息流、预设 chips、输入行。</summary>
+    private Border BuildAiChatPanel()
+    {
+        var head = new DockPanel { LastChildFill = true };
         var close = new Button
         {
             Classes = { "btn", "ghost", "sm" },
@@ -3194,9 +3392,66 @@ public sealed class WritePage : UserControl
         };
         close.Click += (_, _) => _aiPop.IsVisible = false;
         head.Children.Add(close.Dock(Dock.Right));
-        head.Children.Add(title);
+        var clear = new Button { Classes = { "btn", "ghost", "sm" }, VerticalAlignment = VerticalAlignment.Center };
+        clear[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Clear");
+        clear.Click += (_, _) => ClearAiChat();
+        head.Children.Add(clear.Dock(Dock.Right));
+        _aiModelTag = new TextBlock
+        {
+            Text = AppState.Instance.Settings.LlmModel,
+            FontFamily = MonoFont,
+            FontSize = Fs(10),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+        Res(_aiModelTag, TextBlock.ForegroundProperty, "VoxMuted");
+        head.Children.Add(_aiModelTag.Dock(Dock.Right));
+        var spark = new TextBlock
+        {
+            Text = "✦",
+            FontSize = Fs(12),
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(spark, TextBlock.ForegroundProperty, "VoxAccent");
+        var titleLabel = new TextBlock
+        {
+            FontSize = Fs(12.5),
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        titleLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Title");
+        Res(titleLabel, TextBlock.ForegroundProperty, "VoxFg");
+        head.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+            Children = { spark, titleLabel },
+        });
 
-        var chips = new WrapPanel { Margin = new Thickness(0, 10, 0, 8) };
+        _aiCtxList = new WrapPanel();
+        _aiCtxBar = new Border
+        {
+            Padding = new Thickness(8, 5),
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 8, 0, 0),
+            IsVisible = false,
+            Child = _aiCtxList,
+        };
+        Res(_aiCtxBar, Border.BackgroundProperty, "VoxAccentSoft");
+        Res(_aiCtxBar, Border.BorderBrushProperty, "VoxLine");
+
+        _aiMsgList = new StackPanel { Spacing = 10 };
+        _aiMsgScroll = new ScrollViewer
+        {
+            Content = _aiMsgList,
+            Margin = new Thickness(0, 8, 0, 0),
+            MaxHeight = 330,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+
+        var chips = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
         foreach (var presetKey in AiPrompts.PresetKeys)
         {
             chips.Children.Add(BuildAiChip(presetKey));
@@ -3213,23 +3468,18 @@ public sealed class WritePage : UserControl
         {
             if (e.Key != Key.Enter) return;
             e.Handled = true;
-            _ = RunAiAsync("Custom");
+            _ = ChatSendAsync();
         };
-        var send = new Button { Classes = { "btn", "sm", "primary" }, Margin = new Thickness(6, 0, 0, 0) };
-        send[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Send");
-        send.Click += (_, _) => _ = RunAiAsync("Custom");
-        var inputRow = new DockPanel { Children = { send.Dock(Dock.Right), _aiInput } };
+        _aiSend = new Button { Classes = { "btn", "sm", "primary" }, Margin = new Thickness(6, 0, 0, 0) };
+        _aiSend[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Send");
+        _aiSend.Click += (_, _) => _ = OnAiSendClickedAsync();
+        var inputRow = new DockPanel { LastChildFill = true, Children = { _aiSend.Dock(Dock.Right), _aiInput } };
 
-        _aiResult = new StackPanel();
-        ShowAiHint();
-
-        var body = new StackPanel
-        {
-            Children = { head, chips, inputRow, _aiResult },
-        };
+        var body = new StackPanel { Children = { head, _aiCtxBar, _aiMsgScroll, chips, inputRow } };
         _aiPop = new Border
         {
-            Width = 360,
+            Width = 420,
+            MaxHeight = 520,
             Padding = new Thickness(14, 12, 14, 14),
             CornerRadius = new CornerRadius(14),
             BorderThickness = new Thickness(1),
@@ -3260,7 +3510,7 @@ public sealed class WritePage : UserControl
         chip.PointerPressed += (_, e) =>
         {
             e.Handled = true;
-            _ = RunAiAsync(presetKey);
+            _ = ChatRunPresetAsync(presetKey);
         };
         chip.PointerEntered += (_, _) =>
         {
@@ -3275,41 +3525,87 @@ public sealed class WritePage : UserControl
         return chip;
     }
 
-    private void ShowAiHint()
+    /// <summary>居中浅色系统注（欢迎语 / 已写入 / 已停止），加进消息流末尾。</summary>
+    private void AddAiNote(string text, bool error = false, bool success = false)
     {
-        _aiResult.Children.Clear();
-        var hint = new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = Fs(10.5),
-            Margin = new Thickness(0, 8, 0, 0),
-        };
-        hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Hint");
-        Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
-        _aiResult.Children.Add(hint);
-    }
-
-    private void ShowAiMessage(string text, bool error = false, bool success = false)
-    {
-        _aiResult.Children.Clear();
         var note = new TextBlock
         {
             Text = text,
             TextWrapping = TextWrapping.Wrap,
-            FontSize = Fs(11),
-            Margin = new Thickness(0, 10, 0, 0),
+            FontSize = Fs(10.5),
+            TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(12, 0, 12, 0),
         };
         Res(note, TextBlock.ForegroundProperty, error ? "VoxDanger" : success ? "VoxOk" : "VoxFaint");
-        _aiResult.Children.Add(note);
+        _aiMsgList.Children.Add(note);
+        _aiMsgScroll.ScrollToEnd();
     }
 
-    private void ShowAiNoKey()
+    private Border AddAiUserBubble(string text)
     {
-        _aiResult.Children.Clear();
-        var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0), Spacing = 6 };
+        var body = new StackPanel { Spacing = 4 };
+        foreach (var ctx in _aiCtx)
+        {
+            var quote = new TextBlock
+            {
+                Text = ctx.Text.Length > 120 ? ctx.Text[..120] + "…" : ctx.Text,
+                FontSize = Fs(10),
+                TextWrapping = TextWrapping.Wrap,
+            };
+            Res(quote, TextBlock.ForegroundProperty, "VoxMuted");
+            body.Children.Add(new Border
+            {
+                Padding = new Thickness(6, 3),
+                CornerRadius = new CornerRadius(6),
+                BorderThickness = new Thickness(2, 0, 0, 0),
+                Background = Brushes.Transparent,
+                Child = quote,
+            });
+        }
+        body.Children.Add(new TextBlock { Text = text, FontSize = Fs(11), TextWrapping = TextWrapping.Wrap });
+        Res(body.Children[^1], TextBlock.ForegroundProperty, "VoxFg");
+        var bubble = new Border
+        {
+            Padding = new Thickness(9, 7),
+            CornerRadius = new CornerRadius(10),
+            BorderThickness = new Thickness(1),
+            MaxWidth = 360,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = body,
+        };
+        Res(bubble, Border.BackgroundProperty, "VoxAccentSoft");
+        Res(bubble, Border.BorderBrushProperty, "VoxAccentSoft");
+        _aiMsgList.Children.Add(bubble);
+        _aiMsgScroll.ScrollToEnd();
+        return bubble;
+    }
+
+    /// <summary>助手气泡壳：内容由调用方填（流式 MarkdownView / diff 卡 / 错误行）。</summary>
+    private StackPanel AddAiBotBubble()
+    {
+        var body = new StackPanel { Spacing = 6 };
+        var bubble = new Border
+        {
+            Padding = new Thickness(9, 7),
+            CornerRadius = new CornerRadius(10),
+            BorderThickness = new Thickness(1),
+            MaxWidth = 380,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = body,
+        };
+        Res(bubble, Border.BackgroundProperty, "VoxSurface2");
+        Res(bubble, Border.BorderBrushProperty, "VoxLine");
+        _aiMsgList.Children.Add(bubble);
+        _aiMsgScroll.ScrollToEnd();
+        return body;
+    }
+
+    private void AddAiNoKeyBubble()
+    {
+        var body = AddAiBotBubble();
         var note = new TextBlock { Text = T("Vox.Ai.Error.NoKey"), TextWrapping = TextWrapping.Wrap, FontSize = Fs(11) };
         Res(note, TextBlock.ForegroundProperty, "VoxDanger");
-        panel.Children.Add(note);
+        body.Children.Add(note);
         var go = new Button { Classes = { "btn", "sm", "ghost" }, HorizontalAlignment = HorizontalAlignment.Left };
         go[!Button.ContentProperty] = I18n.Bind("Vox.Ai.GoSettings");
         go.Click += (_, _) =>
@@ -3317,28 +3613,98 @@ public sealed class WritePage : UserControl
             _aiPop.IsVisible = false;
             _shell.ShowPage("settings");
         };
-        panel.Children.Add(go);
-        _aiResult.Children.Add(panel);
+        body.Children.Add(go);
+        _aiMsgScroll.ScrollToEnd();
     }
 
-    private async Task RunAiAsync(string presetKey)
+    /// <summary>发送/停止二态按钮：忙碌时点击 = 停止本次生成（原型口径）。</summary>
+    private async Task OnAiSendClickedAsync()
     {
+        if (_aiBusy)
+        {
+            _aiGeneration++;
+            _aiCts?.Cancel();
+            return;
+        }
+        await ChatSendAsync();
+    }
+
+    private void SetAiBusy(bool busy)
+    {
+        _aiBusy = busy;
+        _aiSend.Content = busy ? T("Vox.Ai.Stop") : T("Vox.Ai.Send");
+    }
+
+    private void AiOpenPanel()
+    {
+        _aiPop.IsVisible = true;
+        AiSeedWelcome();
+        _aiModelTag.Text = AppState.Instance.Settings.LlmModel;
+        _aiInput.Focus();
+    }
+
+    private void AiSeedWelcome()
+    {
+        if (_aiMsgList.Children.Count > 0) return;
+        AddAiNote(T("Vox.Ai.Chat.Ready"));
+    }
+
+    private void ClearAiChat()
+    {
+        _aiGeneration++;
+        _aiCts?.Cancel();
+        SetAiBusy(false);
+        _aiTurns.Clear();
+        _aiCtx.Clear();
+        RenderAiCtx();
+        _aiMsgList.Children.Clear();
+        AiSeedWelcome();
+        _shell.ShowToast(T("Vox.Ai.Chat.ClearDone"));
+    }
+
+    /// <summary>自定义提问：输入 + 上下文 chip（无 chip 则附当前文章头部）入历史，多轮流式回复。</summary>
+    private async Task ChatSendAsync()
+    {
+        var input = (_aiInput.Text ?? string.Empty).Trim();
+        if (input.Length == 0)
+        {
+            _aiInput.Focus();
+            return;
+        }
         if (_current == null)
         {
-            ShowAiMessage(T("Vox.Ai.Error.NoArticle"), error: true);
+            AddAiNote(T("Vox.Ai.Error.NoArticle"), error: true);
             return;
         }
         var settings = AppState.Instance.Settings;
         var preset = LlmPresets.Get(settings.LlmProvider);
         if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
         {
-            ShowAiNoKey();
+            AddAiNoKeyBubble();
             return;
         }
-        var custom = presetKey == "Custom" ? (_aiInput.Text ?? string.Empty).Trim() : string.Empty;
-        if (presetKey == "Custom" && custom.Length == 0)
+
+        _aiInput.Text = string.Empty;
+        AddAiUserBubble(input);
+        _aiTurns.Add(new LlmService.LlmChatTurn("user", BuildAiChatUserContent(input)));
+        var outcome = await AiStreamIntoBotAsync(AiPrompts.SystemPrompt + AiChatSystemSuffix, _aiTurns);
+        if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer: null);
+    }
+
+    /// <summary>预设指令（原型 chips）：单轮生成，流式落定后追加 diff 采纳卡，回复一并入会话历史。</summary>
+    private async Task ChatRunPresetAsync(string presetKey)
+    {
+        if (_aiBusy) return;
+        if (_current == null)
         {
-            _aiInput.Focus();
+            AddAiNote(T("Vox.Ai.Error.NoArticle"), error: true);
+            return;
+        }
+        var settings = AppState.Instance.Settings;
+        var preset = LlmPresets.Get(settings.LlmProvider);
+        if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
+        {
+            AddAiNoKeyBubble();
             return;
         }
 
@@ -3346,7 +3712,6 @@ public sealed class WritePage : UserControl
         var selection = Editor.SelectedText ?? string.Empty;
         var caret = Math.Clamp(Editor.CaretOffset, 0, body.Length);
         var section = AiPrompts.SectionAt(body, caret) ?? string.Empty;
-
         int offset;
         int length;
         string source;
@@ -3367,10 +3732,7 @@ public sealed class WritePage : UserControl
             length = 0;
             source = string.Empty;
         }
-
-        var displayName = presetKey == "Custom"
-            ? string.IsNullOrEmpty(custom) ? T("Vox.Ai.Custom") : $"{T("Vox.Ai.Custom")}：{custom}"
-            : T("Vox.Ai.Preset." + presetKey);
+        var displayName = T("Vox.Ai.Preset." + presetKey);
         var offer = new AiOffer(
             presetKey,
             displayName,
@@ -3380,145 +3742,199 @@ public sealed class WritePage : UserControl
             source,
             AiPrompts.WritesBody(presetKey));
 
+        AddAiUserBubble(displayName);
+        var prompt = AiPrompts.Build(presetKey, body, caret, selection, string.Empty);
+        var turns = new List<LlmService.LlmChatTurn> { new("user", prompt.User) };
+        var outcome = await AiStreamIntoBotAsync(prompt.System, turns);
+        if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer);
+    }
+
+    /// <summary>
+    /// 开一个助手气泡，把多轮流式回复写进去：SSE 增量经 StreamMark MarkdownStream 平滑上屏（任意线程 Push），
+    /// 停止/完成由生成代际判定；返回气泡内容面板与最终文本（取消时为已生成的部分）。
+    /// </summary>
+    private async Task<(StackPanel Body, string Text)> AiStreamIntoBotAsync(
+        string system, List<LlmService.LlmChatTurn> turns)
+    {
+        var settings = AppState.Instance.Settings;
+        var preset = LlmPresets.Get(settings.LlmProvider);
+        _aiBusy = true;
+        SetAiBusy(true);
         _aiGeneration++;
         var generation = _aiGeneration;
         _aiCts?.Cancel();
         _aiCts?.Dispose();
         _aiCts = new CancellationTokenSource();
-        _aiOffer = null;
-        _aiResult.Children.Clear();
-        // 评审修订（原型 D9）：生成中显示可点的「停止」，取消令牌并作废本次结果，不再只能干等。
-        var genRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
-        var generating = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
-        generating[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Generating");
-        Res(generating, TextBlock.ForegroundProperty, "VoxFaint");
-        genRow.Children.Add(generating);
-        var stop = new Button { Classes = { "btn", "sm" } };
-        stop[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Stop");
-        stop.Click += (_, _) =>
-        {
-            if (generation != _aiGeneration) return;
-            _aiGeneration++;
-            _aiCts?.Cancel();
-            ShowAiMessage(T("Vox.Ai.Stopped"));
-        };
-        genRow.Children.Add(stop);
-        _aiResult.Children.Add(genRow);
+        _aiModelTag.Text = settings.LlmModel;
 
-        var prompt = AiPrompts.Build(presetKey, body, caret, selection, custom);
-        var result = await LlmService.CompleteAsync(
-            preset.Key, settings.LlmModel, prompt.System, prompt.User, cancellationToken: _aiCts.Token);
-        if (generation != _aiGeneration) return;
-        if (!result.Ok || string.IsNullOrWhiteSpace(result.Text))
+        var botBody = AddAiBotBubble();
+        var full = new StringBuilder();
+        var gate = new object();
+        var stream = new MarkdownStream();
+        var view = new MarkdownView { Stream = stream };
+        botBody.Children.Add(view);
+        var result = await LlmService.StreamAsync(
+            preset.Key, settings.LlmModel, system, turns,
+            chunk =>
+            {
+                string snapshot;
+                lock (gate)
+                {
+                    full.Append(chunk);
+                    snapshot = full.ToString();
+                }
+                stream.Push(chunk); // MarkdownStream 任意线程可调，内部按帧平滑放出
+            },
+            cancellationToken: _aiCts.Token);
+        stream.Complete();
+        var partial = string.Empty;
+        lock (gate)
         {
-            ShowAiMessage(TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")), error: true);
+            partial = full.ToString();
+        }
+        var stopped = generation != _aiGeneration;
+        _aiBusy = false;
+        SetAiBusy(false);
+        if (!result.Ok && !stopped)
+        {
+            var error = new TextBlock
+            {
+                Text = TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")),
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = Fs(11),
+            };
+            Res(error, TextBlock.ForegroundProperty, "VoxDanger");
+            botBody.Children.Add(error);
+            _aiMsgScroll.ScrollToEnd();
+            return (botBody, string.Empty);
+        }
+        var text = result.Text.Length > 0 ? result.Text : partial;
+        if (stopped) AddAiNote(T("Vox.Ai.Stopped"));
+        if (text.Length > 0) _aiTurns.Add(new LlmService.LlmChatTurn("assistant", text));
+        return (botBody, text);
+    }
+
+    private const string AiChatSystemSuffix =
+        "\n这是编辑器内的多轮会话：回答保持简洁、直接可用；若给出改写文本，只输出新文本本身，不要解释。";
+
+    /// <summary>自定义提问的用户消息体：指令 + 上下文 chip 原文（无 chip 时附当前文章头部）。</summary>
+    private string BuildAiChatUserContent(string input)
+    {
+        var builder = new StringBuilder(input);
+        var body = _editorView.Text ?? string.Empty;
+        if (_aiCtx.Count > 0)
+        {
+            foreach (var ctx in _aiCtx)
+            {
+                builder.Append("\n\n[").Append(ctx.Label).Append("]\n")
+                    .Append(ctx.Text.Length > 2000 ? ctx.Text[..2000] + "…" : ctx.Text);
+            }
+        }
+        else
+        {
+            builder.Append("\n\n[").Append(T("Vox.Ai.Chat.WholeArticle")).Append("]\n")
+                .Append(body[..Math.Min(body.Length, 5000)]);
+        }
+        return builder.ToString();
+    }
+
+    /// <summary>回复落定后的操作排：自定义回复 = 插入光标/复制；预设改稿 = 写入位置 + diff 卡 + 采纳（＋N 行）/放弃。</summary>
+    private void AddAiBotOps(StackPanel botBody, string text, AiOffer? offer)
+    {
+        var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        if (offer == null)
+        {
+            var insert = new Button { Classes = { "btn", "sm", "primary" } };
+            insert[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Insert");
+            insert.Click += (_, _) =>
+            {
+                DisableAiOps(ops);
+                _ = InsertAiTextAsync(text);
+            };
+            var copy = new Button { Classes = { "btn", "sm" } };
+            copy[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Copy");
+            copy.Click += async (_, _) =>
+            {
+                DisableAiOps(ops);
+                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+                if (clipboard != null) await clipboard.SetTextAsync(text);
+                AddAiNote(T("Vox.Ai.Copied"), success: true);
+            };
+            ops.Children.Add(insert);
+            ops.Children.Add(copy);
+            botBody.Children.Add(ops);
+            _aiMsgScroll.ScrollToEnd();
             return;
         }
 
-        _aiText = result.Text.Trim();
-        _aiOffer = offer with { Elapsed = result.Elapsed };
-        ShowAiResult(_aiOffer, result.Text.Trim(), settings.LlmModel);
-    }
-
-    private void ShowAiResult(AiOffer offer, string text, string model)
-    {
-        _aiResult.Children.Clear();
-        var cardBody = new StackPanel();
-
-        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var spark = new TextBlock { Text = "✦", FontSize = Fs(11) };
-        Res(spark, TextBlock.ForegroundProperty, "VoxAccent");
-        header.Children.Add(spark);
-        header.Children.Add(new TextBlock
-        {
-            Text = offer.DisplayName,
-            FontSize = Fs(11),
-            FontWeight = FontWeight.SemiBold,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxWidth = 220,
-        });
-        var separator = new TextBlock { Text = "·", FontSize = Fs(10), Opacity = 0.5 };
-        Res(separator, TextBlock.ForegroundProperty, "VoxFaint");
-        header.Children.Add(separator);
-        var modelTag = new TextBlock { Text = model, FontFamily = MonoFont, FontSize = Fs(10) };
-        Res(modelTag, TextBlock.ForegroundProperty, "VoxFaint");
-        header.Children.Add(modelTag);
-        cardBody.Children.Add(header);
-
-        // 评审修订（原型 D9）：写入位置标注 + 采纳按钮带影响面（＋N 行）。
+        // 评审修订（原型 D9）：写入位置标注 + 采纳按钮带影响面（＋N 行），diff 绿加红删。
         var added = 0;
-        if (offer.Writes)
+        foreach (var line in AiDiff.Build(offer.Source, text))
         {
-            foreach (var line in AiDiff.Build(offer.Source, text))
-                if (line.Kind == '+') added++;
-            var loc = new TextBlock { Text = TF("Vox.Ai.Location", offer.Section), FontSize = Fs(10), Margin = new Thickness(0, 4, 0, 0) };
-            Res(loc, TextBlock.ForegroundProperty, "VoxMuted");
-            cardBody.Children.Add(loc);
+            if (line.Kind == '+') added++;
         }
-
-        cardBody.Children.Add(offer.Writes
-            ? BuildAiDiffView(offer.Source, text, offer.Section)
-            : BuildAiPlainView(text));
-
-        var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
-        var accept = new Button { Classes = { "btn", "sm", "primary" } };
-        if (offer.Writes) accept.Content = TF("Vox.Ai.AcceptN", added); // 影响面：＋N 行
-        else accept[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Copy");
-        accept.Click += async (_, _) => await AcceptAiAsync();
+        var loc = new TextBlock { Text = TF("Vox.Ai.Location", offer.Section), FontSize = Fs(10), Margin = new Thickness(0, 2, 0, 0) };
+        Res(loc, TextBlock.ForegroundProperty, "VoxMuted");
+        botBody.Children.Add(loc);
+        botBody.Children.Add(BuildAiDiffView(offer.Source, text, offer.Section));
+        var accept = new Button { Classes = { "btn", "sm", "primary" }, Content = TF("Vox.Ai.AcceptN", added) };
         var discard = new Button { Classes = { "btn", "sm", "ghost" } };
         discard[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Discard");
+        accept.Click += (_, _) =>
+        {
+            DisableAiOps(ops);
+            _ = AcceptAiAsync(offer, text);
+        };
         discard.Click += (_, _) =>
         {
-            _aiOffer = null;
-            ShowAiMessage(T("Vox.Ai.Discarded"));
+            DisableAiOps(ops);
+            AddAiNote(T("Vox.Ai.Discarded"));
         };
         ops.Children.Add(accept);
         ops.Children.Add(discard);
-        cardBody.Children.Add(ops);
-
         var footnote = new TextBlock
         {
             Text = T(offer.Writes ? "Vox.Ai.Footnote" : "Vox.Ai.Footnote.Copy"),
             TextWrapping = TextWrapping.Wrap,
             FontSize = Fs(10),
-            Margin = new Thickness(0, 8, 0, 0),
         };
         Res(footnote, TextBlock.ForegroundProperty, "VoxFaint");
-        cardBody.Children.Add(footnote);
-
-        var card = new Border
-        {
-            Padding = new Thickness(12, 10),
-            CornerRadius = new CornerRadius(10),
-            BorderThickness = new Thickness(1),
-            Margin = new Thickness(0, 10, 0, 0),
-            Child = cardBody,
-        };
-        Res(card, Border.BackgroundProperty, "VoxAccentSoft");
-        Res(card, Border.BorderBrushProperty, "VoxAccentSoft");
-        _aiResult.Children.Add(card);
+        botBody.Children.Add(ops);
+        botBody.Children.Add(footnote);
+        _aiMsgScroll.ScrollToEnd();
     }
 
-    private Control BuildAiPlainView(string text)
+    private void DisableAiOps(StackPanel ops)
     {
-        var block = new TextBlock
+        foreach (var child in ops.Children)
         {
-            Text = text,
-            FontFamily = MonoFont,
-            FontSize = Fs(10.5),
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8, 0, 0),
-        };
-        var border = new Border
+            if (child is Button button) button.IsEnabled = false;
+        }
+    }
+
+    /// <summary>自定义回复「插入光标处」：与采纳同口径写回正文并记 MCP 调用审计。</summary>
+    private async Task InsertAiTextAsync(string text)
+    {
+        var document = Editor.Document;
+        var at = Math.Clamp(Editor.CaretOffset, 0, document.TextLength);
+        var prefix = at > 0 && document.GetCharAt(at - 1) is not ('\n' or '\r') ? "\n\n" : string.Empty;
+        var suffix = at < document.TextLength && document.GetCharAt(at) is not ('\n' or '\r') ? "\n" : string.Empty;
+        document.Insert(at, prefix + text + suffix);
+        Editor.CaretOffset = at + prefix.Length + text.Length;
+        Editor.Focus();
+        if (_current != null)
         {
-            Padding = new Thickness(8, 4),
-            CornerRadius = new CornerRadius(8),
-            BorderThickness = new Thickness(1),
-            Child = new ScrollViewer { Content = block, MaxHeight = 180 },
-        };
-        Res(border, Border.BackgroundProperty, "VoxSurface");
-        Res(border, Border.BorderBrushProperty, "VoxLine");
-        return border;
+            ToolAuditStore.Append(new ToolAuditEntry
+            {
+                Client = T("Vox.Ai.Client"),
+                Tool = "article_write",
+                Target = $"{_current.MarkdownPath} · {T("Vox.Ai.Section.Body")}",
+                Result = "ok",
+                Detail = $"{T("Vox.Ai.Chat.Inserted")} · {text.Length} 字",
+            });
+        }
+        AddAiNote(T("Vox.Ai.Chat.Inserted"), success: true);
+        await Task.CompletedTask;
     }
 
     private Control BuildAiDiffView(string before, string after, string section)
@@ -3566,10 +3982,9 @@ public sealed class WritePage : UserControl
         return border;
     }
 
-    private async Task AcceptAiAsync()
+    private async Task AcceptAiAsync(AiOffer offer, string text)
     {
-        if (_aiOffer is not { } offer || _aiText.Length == 0) return;
-        var text = _aiText;
+        if (text.Length == 0) return;
         if (offer.Writes)
         {
             var document = Editor.Document;
@@ -3605,15 +4020,14 @@ public sealed class WritePage : UserControl
                     DurationMs = (int)offer.Elapsed.TotalMilliseconds,
                 });
             }
-            ShowAiMessage(T("Vox.Ai.Accepted"), success: true);
+            AddAiNote(T("Vox.Ai.Accepted"), success: true);
         }
         else
         {
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard != null) await clipboard.SetTextAsync(text);
-            ShowAiMessage(T("Vox.Ai.Copied"), success: true);
+            AddAiNote(T("Vox.Ai.Copied"), success: true);
         }
-        _aiOffer = null;
     }
 
     private sealed record AiOffer(
@@ -3627,6 +4041,9 @@ public sealed class WritePage : UserControl
     {
         public TimeSpan Elapsed { get; init; }
     }
+
+    /// <summary>会话上下文 chip：一段带行号出处（文章内偏移区间）的选区/段落原文，发送时随消息附给模型。</summary>
+    private sealed record AiChatContext(string Kind, string Label, int Offset, int Length, string Text);
 
     private void RefreshPreview()
     {
