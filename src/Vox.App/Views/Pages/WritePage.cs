@@ -32,6 +32,7 @@ using Vox.App.Services;
 using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Infrastructure.VoxTheme;
 using Vox.Core;
+using Vox.Core.Llm;
 
 namespace Vox.App.Views.Pages;
 
@@ -176,7 +177,7 @@ public sealed class WritePage : UserControl
     private int _aiGeneration;
     private CancellationTokenSource? _aiCts;
     private readonly List<AiChatContext> _aiCtx = [];
-    private readonly List<LlmService.LlmChatTurn> _aiTurns = [];
+    private readonly List<LlmChatTurn> _aiTurns = [];
     private Border _aiSelPill = null!;
     private TextBlock _aiSelPillLabel = null!;
     private ((int Offset, int Length) Range, bool IsSelection)? _aiSelAnchor;
@@ -3686,7 +3687,7 @@ public sealed class WritePage : UserControl
 
         _aiInput.Text = string.Empty;
         AddAiUserBubble(input);
-        _aiTurns.Add(new LlmService.LlmChatTurn("user", BuildAiChatUserContent(input)));
+        _aiTurns.Add(new LlmChatTurn("user", BuildAiChatUserContent(input)));
         var outcome = await AiStreamIntoBotAsync(AiPrompts.SystemPrompt + AiChatSystemSuffix, _aiTurns);
         if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer: null);
     }
@@ -3744,7 +3745,7 @@ public sealed class WritePage : UserControl
 
         AddAiUserBubble(displayName);
         var prompt = AiPrompts.Build(presetKey, body, caret, selection, string.Empty);
-        var turns = new List<LlmService.LlmChatTurn> { new("user", prompt.User) };
+        var turns = new List<LlmChatTurn> { new("user", prompt.User) };
         var outcome = await AiStreamIntoBotAsync(prompt.System, turns);
         if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer);
     }
@@ -3754,7 +3755,7 @@ public sealed class WritePage : UserControl
     /// 停止/完成由生成代际判定；返回气泡内容面板与最终文本（取消时为已生成的部分）。
     /// </summary>
     private async Task<(StackPanel Body, string Text)> AiStreamIntoBotAsync(
-        string system, List<LlmService.LlmChatTurn> turns)
+        string system, List<LlmChatTurn> turns)
     {
         var settings = AppState.Instance.Settings;
         var preset = LlmPresets.Get(settings.LlmProvider);
@@ -3810,7 +3811,7 @@ public sealed class WritePage : UserControl
         }
         var text = result.Text.Length > 0 ? result.Text : partial;
         if (stopped) AddAiNote(T("Vox.Ai.Stopped"));
-        if (text.Length > 0) _aiTurns.Add(new LlmService.LlmChatTurn("assistant", text));
+        if (text.Length > 0) _aiTurns.Add(new LlmChatTurn("assistant", text));
         return (botBody, text);
     }
 

@@ -37,7 +37,9 @@ public sealed record LlmResult(bool Ok, string Text, string? Error, TimeSpan Ela
 /// </summary>
 public static class LlmService
 {
-    private static readonly HttpClient Http = new();
+    // 客户端级超时置为无限：流式回复的时长由每次调用的 CancelAfter（流式 120s / 非流式 75s）统一裁决。
+    // 保留默认 100s 会先于 CancelAfter 掐断长流，120s 的流式上限便永远不可达。
+    private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
 
     public static string CredentialKey(string provider) => "llm/" + provider.ToLowerInvariant();
 
@@ -101,6 +103,12 @@ public static class LlmService
                 ? new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Error.Empty"), watch.Elapsed)
                 : new LlmResult(true, text.Trim(), null, watch.Elapsed);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // 调用方主动取消（如页面切换）：按取消回告，不算超时失败。
+            watch.Stop();
+            return new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Stopped"), watch.Elapsed);
+        }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             watch.Stop();
@@ -112,9 +120,6 @@ public static class LlmService
             return new LlmResult(false, string.Empty, ex.Message, watch.Elapsed);
         }
     }
-
-    /// <summary>多轮会话中的一条消息（user / assistant）。</summary>
-    public sealed record LlmChatTurn(string Role, string Content);
 
     /// <summary>
     /// 多轮流式对话：SSE 增量经 <paramref name="onDelta"/> 回吐（每收到一段就调用，调用方自行调度到 UI 线程）。
@@ -145,7 +150,14 @@ public static class LlmService
         try
         {
             var isClaude = preset.Key == "Claude";
-            var messages = turns.Select(t => new LlmMessage { Role = t.Role, Content = t.Content }).ToArray();
+            // 历史先整形（首条 user、角色交替）：预设指令 / 失败重试等路径攒出的历史可能有连续同角色，Anthropic 协议会直接 400。
+            var normalized = LlmChatHistory.Normalize(turns);
+            var messages = normalized.Select(t => new LlmMessage { Role = t.Role, Content = t.Content }).ToList();
+            // OpenAI 兼容协议没有独立 system 字段：system 一律作为首条消息下发（与非流式 BuildOpenAiCompatible 同口径）。
+            if (!isClaude && !string.IsNullOrWhiteSpace(system))
+            {
+                messages.Insert(0, new LlmMessage { Role = "system", Content = system });
+            }
             HttpRequestMessage Build()
             {
                 HttpRequestMessage request;
@@ -153,7 +165,7 @@ public static class LlmService
                 {
                     var payload = new AnthropicRequest
                     {
-                        Model = resolvedModel, MaxTokens = maxTokens, System = system, Messages = messages, Stream = true,
+                        Model = resolvedModel, MaxTokens = maxTokens, System = system, Messages = [.. messages], Stream = true,
                     };
                     request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/messages")
                     {
@@ -168,7 +180,7 @@ public static class LlmService
                 {
                     var payload = new OpenAiRequest
                     {
-                        Model = resolvedModel, Messages = messages, MaxTokens = maxTokens, Stream = true,
+                        Model = resolvedModel, Messages = [.. messages], MaxTokens = maxTokens, Stream = true,
                     };
                     request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/chat/completions")
                     {
