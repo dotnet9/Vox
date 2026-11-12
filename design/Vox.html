@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>Vox · 维声 · 软件原型</title>
 <meta name="description" content="Vox 写作客户端设计蓝本：写作 / 文章库 / 图片库 / 发布中心 / 站点数据 / MCP 服务 / 设置七大视图交互原型">
 <link rel="icon" href="assets/logo.svg">
-<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=62">
+<link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=66">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
 <script src="assets/vendor/vox-map-layout.js"></script>
 </head>
@@ -22,7 +22,6 @@
   <span class="spacer"></span>
           <span class="tb-extras" id="tbExtras">
             <button class="upd-pill" id="updPill" hidden>更新</button>
-            <button class="tb-ico mcp-tb" id="btnTbMcp" title="MCP 服务（运行中 · 2 个客户端在线）"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></button>
             <button class="tb-ico" id="btnTbSearch" title="搜索（Ctrl K）"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
             <button class="tb-ico" id="btnTbLook" title="外观"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></button>
             <button class="tb-ico" id="btnTbLang" title="语言 / Language（演示：正式实现经 CodeWF.Lang 资源切换）"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></button>
@@ -131,12 +130,13 @@
         <div class="wsrc" id="paneSrc">
           <div class="edscroll"><div class="gutter" id="gutter"></div><div class="elines" id="elines"></div></div>
           <div class="savestate pill" id="saveState" style="display:none"><b>已保存</b></div>
-          <button class="ai-trigger" id="btnAi" aria-expanded="false"><span class="spark">✦</span>AI 助手</button>
-          <section class="ai-pop" id="aiPop" hidden>
-            <div class="ai-head">AI 助手<span class="x" id="aiClose">×</span></div>
+          <button class="ai-trigger" id="btnAi" aria-expanded="false"><span class="spark">✦</span>AI 会话</button>
+          <section class="ai-pop ai-chat" id="aiPop" hidden>
+            <div class="ai-head">✦ AI 会话<span class="ai-model mono" id="aiModel" title="当前模型 · 设置页可换">glm-5.3-flash</span><span class="ai-clear" id="aiClear" title="清空会话">清空</span><span class="x" id="aiClose">×</span></div>
+            <div class="ai-ctx" id="aiCtx" hidden></div>
+            <div class="ai-msgs" id="aiMsgs"></div>
             <div class="ai-chips"><span class="chip">续写本节</span><span class="chip">润色改写</span><span class="chip">生成摘要 description</span><span class="chip">起标题</span><span class="chip">翻译英文</span><span class="chip">图片补 alt</span></div>
-            <div class="ai-row"><input class="input" id="aiInput" placeholder="自定义指令，回车发送…"><button class="btn sm primary" id="aiSend">发送</button></div>
-            <div id="aiResult"><div class="desc" style="color:var(--faint);margin-top:8px">选择上方预设或输入指令 · 生成结果带 diff 预览，采纳才写入正文</div></div>
+            <div class="ai-row"><input class="input" id="aiInput" placeholder="基于上下文提问或下指令，回车发送…"><button class="btn sm primary" id="aiSend">发送</button></div>
           </section>
         </div>
         <div class="modeseg-float"><div class="seg" id="modeSeg">
@@ -533,48 +533,67 @@
   <!-- ======== 视图：设置 ======== -->
   <section class="view" id="view-settings">
     <div class="pagehead"><h2>设置</h2></div>
-    <div class="setting">
-      <h3>写作与保存</h3><div class="sdesc">自动保存开启时以磁盘为唯一真值：停止输入自动落盘，外部程序修改当前文件静默自动载入，全程无阻断</div>
-      <div class="srow"><label>自动保存</label><div class="val"><div class="row"><span class="switch" data-switch id="swAutoSave"></span><span class="desc" id="autoSaveDesc">关闭 · Ctrl+S 手动保存，保存前检测外部修改并提示比较</span></div></div></div>
-    </div>
-    <div class="setting">
-      <h3>内容仓库</h3><div class="sdesc">Vox 管理的内容源仓库，全量内存索引 + 文件监视增量维护</div>
-      <div class="srow"><label>仓库路径</label><div class="val"><div class="row"><input class="input mono" style="font-size:0.8462rem" value="E:\github\Apps\Assets.Dotnet9"><button class="btn sm">更改…</button></div></div></div>
-      <div class="srow"><label>索引</label><div class="val">37 篇文章 · 259 张图片 · 12 组站点数据 · 上次全量扫描 10:32<button class="btn sm" style="margin-left:10px" onclick="toast('已重新扫描')">重新扫描</button></div></div>
-    </div>
-    <div class="setting">
-      <h3>链接策略</h3><div class="sdesc">正文引用相对 md 文件目录（唯一规范形态）；CDN 域名在渲染时拼接</div>
-      <div class="srow"><label>引用形态</label><div class="val"><span class="badge accent">相对路径（唯一规范形态）</span><div class="desc">插图与封面均写相对引用；CDN 域名渲染时拼接</div></div></div>
-      <div class="srow"><label>域名映射</label><div class="val"><input class="input mono" style="width:280px;font-size:0.8462rem" value="https://img1.dotnet9.com/"></div></div>
-      <div class="srow"><label>规范化</label><div class="val">全库 37 篇均为相对路径 · 3 处失效引用待处理<button class="btn sm" style="margin-left:10px">查看发布前检查 →</button></div></div>
-    </div>
-    <div class="setting">
-      <h3>git 与凭据</h3><div class="sdesc">内置 git（LibGit2Sharp），无需本机安装 git；SSH 推送自动降级系统 git / MinGit</div>
-      <div class="srow"><label>GitHub PAT</label><div class="val">已配置 <span class="mono">github_pat_****·****</span> · 存于系统凭据管理器 <button class="btn sm" style="margin-left:8px" onclick="toast('连接正常 · 对 dotnet9/Assets.Dotnet9 推送权限 ✓')">测试连接</button></div></div>
-      <div class="srow"><label>SSH 降级</label><div class="val">检测到系统 git（2.51.0）——SSH 远端推送将调用系统 git，复用你的密钥配置</div></div>
-    </div>
-    <div class="setting">
-      <h3>平台账户</h3><div class="sdesc">各平台凭据存系统凭据管理器；API 通道配置即启用直发，未配置降级复制助手</div>
-      <div class="srow"><label>微信公众号</label><div class="val">AppID/Secret <span class="badge ok">已连接</span> · 仅写草稿箱<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
-      <div class="srow"><label>博客园</label><div class="val"><span class="badge">未配置</span> · MetaWeblog API<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
-      <div class="srow"><label>CSDN</label><div class="val"><span class="badge warn">token 失效</span> · 上次推送 401<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">更新凭据…</button></div></div>
-      <div class="srow"><label>复制型平台</label><div class="val">知乎 / 头条 / B 站专栏等 · 无凭据要求，经复制助手发布</div></div>
-    </div>
-    <div class="setting">
-      <h3>大模型</h3><div class="sdesc">写作页 AI 助手的模型通道，凭据存系统凭据管理器；AI 改稿与 MCP 写入共用同一套工具层与审计</div>
-      <div class="srow"><label>服务商</label><div class="val"><div class="row"><select class="select" id="llmProv" style="width:auto"><option>DeepSeek</option><option>OpenAI</option><option>Claude</option><option>Ollama（本机）</option></select><input class="input mono" id="llmModel" value="deepseek-chat" style="width:200px"></div></div></div>
-      <div class="srow"><label>API Key</label><div class="val"><div class="row"><span class="badge ok">已配置</span><span class="mono" style="font-size:0.8462rem">sk-****·****</span><span class="desc" style="margin:0">存于系统凭据管理器</span><button class="btn sm" style="margin-left:8px" onclick="toast('连接正常 · deepseek-chat 可用 ✓')">测试连接</button><button class="btn sm ghost" onclick="toast('已更新密钥（系统凭据管理器）')">更换…</button></div></div></div>
-      <div class="srow"><label>AI 助手</label><div class="val"><div class="row"><span class="switch on" data-switch id="swAi"></span><span class="desc">写作页右下角显示 AI 指令条 · 关闭后隐藏</span></div></div></div>
-    </div>
-    <div class="setting">
-      <h3>MCP 服务</h3><div class="sdesc">把文章库经本机 MCP 接口开放给 AI 客户端（Claude Desktop / Cursor / ZCode…），Bearer Token 鉴权，写入操作应用内确认</div>
-      <div class="srow"><label>服务状态</label><div class="val"><div class="row"><span class="mcp-dot run" id="mcpSetDot"></span><span id="mcpSetState">运行中 · 127.0.0.1:17891 · 2 个客户端在线 · 今日 23 次调用</span><button class="btn sm" style="margin-left:10px" onclick="gotoMcp()">配置…</button></div></div></div>
-      <div class="srow"><label>写操作确认</label><div class="val">已开启 · article_write、git_push 等写入工具调用时弹窗确认</div></div>
-    </div>
-    <div class="setting">
-      <h3>关于</h3><div class="sdesc">Vox · 维声 <span data-vox-ver>0.1.0-preview.1</span> · 出品 码坊 CodeWF</div>
-      <div class="srow"><label>更新</label><div class="val">发布通道：GitHub Releases（不走应用商店）<button class="btn sm" style="margin-left:10px" onclick="openUpdateCheck()">检查更新</button></div></div>
-      <div class="srow"><label>卸载</label><div class="val">Windows / Linux 使用系统卸载入口；macOS 可打开应用内卸载助手<button class="btn sm" style="margin-left:10px" onclick="toast('macOS 卸载助手原型：卸载-macOS.html')">卸载助手…</button></div></div>
+    <div class="settabs"> <!-- 对应 Arc FluidTabControl · TabPlacement="Left" · TabListWidth="168" -->
+      <div class="settabs-list" role="tablist" aria-label="设置分区">
+        <button class="settab active" data-t="write" role="tab" aria-selected="true"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg><span>写作</span></button>
+        <button class="settab" data-t="publish" role="tab" aria-selected="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg><span>发布</span></button>
+        <button class="settab" data-t="ai" role="tab" aria-selected="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.6 5.6 1.9-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI</span></button>
+        <button class="settab" data-t="about" role="tab" aria-selected="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span>关于</span></button>
+      </div>
+      <div class="settabs-body">
+        <div class="setpane active" data-p="write">
+          <div class="setting">
+            <h3>写作与保存</h3>
+            <div class="srow"><label>自动保存</label><div class="val"><div class="row"><span class="switch" data-switch id="swAutoSave"></span><span class="desc" id="autoSaveDesc">关闭 · Ctrl+S 手动保存</span></div></div></div>
+          </div>
+          <div class="setting">
+            <h3>内容仓库</h3>
+            <div class="srow"><label>仓库路径</label><div class="val"><div class="row"><input class="input mono" style="font-size:0.8462rem" value="E:\github\Apps\Assets.Dotnet9"><button class="btn sm">更改…</button></div></div></div>
+            <div class="srow"><label>索引</label><div class="val">37 篇文章 · 259 张图片 · 12 组站点数据<button class="btn sm" style="margin-left:10px" onclick="toast('已重新扫描')">重新扫描</button></div></div>
+          </div>
+          <div class="setting">
+            <h3>链接策略</h3>
+            <div class="srow"><label>引用形态</label><div class="val"><span class="badge accent">相对路径</span><div class="desc">CDN 域名渲染时拼接</div></div></div>
+            <div class="srow"><label>域名映射</label><div class="val"><input class="input mono" style="width:280px;font-size:0.8462rem" value="https://img1.dotnet9.com/"></div></div>
+            <div class="srow"><label>规范化</label><div class="val">37 篇均为相对路径 · 3 处失效引用<button class="btn sm" style="margin-left:10px">查看发布前检查 →</button></div></div>
+          </div>
+        </div>
+        <div class="setpane" data-p="publish">
+          <div class="setting">
+            <h3>git 与凭据</h3>
+            <div class="srow"><label>GitHub PAT</label><div class="val">已配置 <span class="mono">github_pat_****·****</span><button class="btn sm" style="margin-left:8px" onclick="toast('连接正常 · 对 dotnet9/Assets.Dotnet9 推送权限 ✓')">测试连接</button></div></div>
+            <div class="srow"><label>SSH 降级</label><div class="val">检测到系统 git 2.51.0 · 推送复用其密钥配置</div></div>
+          </div>
+          <div class="setting">
+            <h3>平台账户</h3>
+            <div class="srow"><label>微信公众号</label><div class="val">AppID/Secret <span class="badge ok">已连接</span> · 仅草稿箱<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
+            <div class="srow"><label>博客园</label><div class="val"><span class="badge">未配置</span> · MetaWeblog<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">配置…</button></div></div>
+            <div class="srow"><label>CSDN</label><div class="val"><span class="badge warn">token 失效</span> · 上次推送 401<button class="btn sm" style="margin-left:10px" onclick="openModal('mPlatformCfg')">更新凭据…</button></div></div>
+            <div class="srow"><label>复制型平台</label><div class="val">知乎 / 头条 / B 站专栏 · 经复制助手发布</div></div>
+          </div>
+        </div>
+        <div class="setpane" data-p="ai">
+          <div class="setting">
+            <h3>大模型</h3>
+            <div class="srow"><label>服务商</label><div class="val"><div class="row"><select class="select" id="llmProv" style="width:auto"><option selected>GLM（ZCode 会员）</option><option>DeepSeek</option><option>OpenAI</option><option>Claude</option><option>Ollama（本机）</option></select><input class="input mono" id="llmModel" value="glm-5.3-flash" style="width:200px"></div></div></div>
+            <div class="srow"><label>接口端点</label><div class="val"><div class="row"><span class="mono" id="llmEndpoint" style="font-size:0.8462rem">https://open.bigmodel.cn/api/coding/paas/v4</span><span class="desc" style="margin:0">OpenAI 兼容 · 会员通道</span></div></div></div>
+            <div class="srow"><label>API Key</label><div class="val"><div class="row"><span class="badge ok">已配置</span><span class="mono" style="font-size:0.8462rem">sk-****·****</span><button class="btn sm" style="margin-left:8px" onclick="llmTest()">测试连接</button><button class="btn sm ghost" onclick="toast('已更新密钥（系统凭据管理器）')">更换…</button></div></div></div>
+            <div class="srow"><label>AI 助手</label><div class="val"><div class="row"><span class="switch on" data-switch id="swAi"></span><span class="desc">写作页右下角显示 AI 会话入口</span></div></div></div>
+          </div>
+          <div class="setting">
+            <h3>MCP 服务</h3>
+            <div class="srow"><label>服务状态</label><div class="val"><div class="row"><span class="mcp-dot run" id="mcpSetDot"></span><span id="mcpSetState">运行中 · 127.0.0.1:17891 · 2 个客户端在线 · 今日 23 次调用</span><button class="btn sm" style="margin-left:10px" onclick="gotoMcp()">配置…</button></div></div></div>
+            <div class="srow"><label>写操作确认</label><div class="val">写入工具调用时弹窗确认</div></div>
+          </div>
+        </div>
+        <div class="setpane" data-p="about">
+          <div class="setting">
+            <h3>关于</h3><div class="sdesc">Vox · 维声 <span data-vox-ver>0.1.0-preview.1</span> · 码坊 CodeWF</div>
+            <div class="srow"><label>更新</label><div class="val">GitHub Releases<button class="btn sm" style="margin-left:10px" onclick="openUpdateCheck()">检查更新</button></div></div>
+            <div class="srow"><label>卸载</label><div class="val">Windows / Linux 系统卸载入口 · macOS 应用内卸载助手<button class="btn sm" style="margin-left:10px" onclick="toast('macOS 卸载助手原型：卸载-macOS.html')">卸载助手…</button></div></div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </div><!-- /main -->
@@ -917,9 +936,10 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function renderLines(a){
   $('gutter').innerHTML=a.lines.map((_,i)=>'<i>'+(i+1)+'</i>').join('');
   $('elines').innerHTML=a.lines.map((l,i)=>{
-    const cls=[l[0],i===a.cur?'cur':''].join(' ').trim();
+    const cls=[l[1]===''?'empty':l[0],i===a.cur?'cur':''].join(' ').trim(); // 空行补 empty 类：撑起行高，正文与行号槽对齐（选区带才可见）
     const txt=esc(l[1]).replace(/`([^`]+)`/,'<code>$1</code>');
     return '<i id="eline-'+i+'" class="'+(cls||'')+'">'+txt+'</i>';}).join('');
+  if(typeof aiClearSel==='function')aiClearSel(); // 切文/大纲跳转后假选区失效
   }
 function artItem(k,a,compact){
   const flag=a.draft?'<span class="badge warn" style="margin-left:auto">草稿</span>':'';
@@ -1422,8 +1442,8 @@ function toast(msg){const wrap=document.getElementById('toastWrap');if(!wrap)ret
   sw.addEventListener('click',function(){
     var on=sw.classList.contains('on');
     desc.textContent=on
-      ?'开启 · 停止输入约 2 秒自动落盘；外部修改静默自动载入并以 toast 告知，不弹「请先比较」'
-      :'关闭 · Ctrl+S 手动保存，保存前检测外部修改并提示比较';
+      ?'开启 · 停止输入约 2 秒自动落盘，外部修改静默载入'
+      :'关闭 · Ctrl+S 手动保存';
     pill.style.display=on?'':'none';
     toast(on?'自动保存已开启：外部修改将静默自动载入':'自动保存已关闭');
   });
@@ -2323,8 +2343,6 @@ function renderMcpState(){
     :'<b style="color:var(--danger)">已停止</b> · 客户端无法连接';
   $('mcpNavCnt').textContent=cliN;
   $('mcpNavCnt').classList.toggle('live',cliN>0); /* 评审修订：在线客户端数>0 才亮绿，归零回中性 */
-  $('btnTbMcp').classList.toggle('off',!MCP.running);
-  $('btnTbMcp').title=MCP.running?('MCP 服务（运行中 · '+cliN+' 个客户端在线）'):'MCP 服务（已停止）';
   $('mcpSetDot').className='mcp-dot '+dot;
   $('mcpSetState').textContent=MCP.running
     ?('运行中 · 127.0.0.1:'+MCP.port+' · '+cliN+' 个客户端在线 · 今日 '+MCP.calls+' 次调用')
@@ -2537,7 +2555,6 @@ $('btnDemoWrite').onclick=function(){
   });
 })();
 $('mcpToolSearch').oninput=function(){renderMcpTools(this.value);};
-$('btnTbMcp').onclick=function(e){e.stopPropagation();closeTbPops();gotoMcp();};
 renderMcpState();renderMcpClient();renderMcpClients();renderMcpTools('');renderMcpAudit();
 
 /* ---------- 文章库「编辑」→ 写作视图加载文章 ---------- */
@@ -2829,9 +2846,8 @@ $('phTable').addEventListener('click',function(e){
 });
 renderPubHist();
 
-/* ---------- 写作页 AI 助手（与 MCP 共用工具层与审计） ---------- */
-var aiPending='';
-/* 评审修订：diff 用绿加/红删语义色（紫色只留给品牌），头标注写入位置与 ±行数，生成中可停止，采纳按钮带影响面 */
+/* ---------- 写作页 AI 会话（多轮 · 流式演示 · 选区上下文 · 与 MCP 共用工具层与审计） ---------- */
+/* 评审修订：diff 用绿加/红删语义色（紫色只留给品牌），标注写入位置与 ±行数，生成中可停止，采纳按钮带影响面 */
 var AI_DEMO_DIFF=['@@ ## 排查过程 @@','- 前次排查停在 Win7 缺失提示，未继续向下追。','+ 重扫依赖树后，问题收敛到 libSkiaSharp.dll 的 VC 运行库依赖。','+ 用 Dependencies 确认该 DLL 为 Release 编译、VC 运行库静态缺失。','+ 结论：Win7 侧补装 VC++ 2015-2022 运行库（x86 / x64 各一）后可正常启动。'];
 function aiDiffHTML(lines){
   return lines.map(function(l){
@@ -2841,52 +2857,234 @@ function aiDiffHTML(lines){
     return '<span class="dl-ctx">'+esc(l)+'</span>';
   }).join('');
 }
-function aiRun(label){
-  var out=$('aiResult');
-  var inst=($('aiInput').value||'').trim();
-  var name=label==='custom'?'自定义指令'+(inst?'：'+inst:''):label;
-  var gen='gen-'+Date.now();aiPending=gen;
-  out.innerHTML='<div class="ai-gen"><span>⏳ 正在生成…（'+esc(name)+'）</span><button type="button" class="btn sm" id="aiStop">停止</button></div>';
-  $('aiStop').onclick=function(){
-    if(aiPending!==gen)return;
-    aiPending='';
-    out.innerHTML='<div class="desc" style="color:var(--muted);margin-top:8px">已停止生成</div>';
-  };
-  setTimeout(function(){
-    if(aiPending!==gen)return;
-    var add=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='+';}).length;
-    var del=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='-';}).length;
-    out.innerHTML='<div class="ai-res"><div class="ai-res-h">✦ '+esc(name)+' · <span class="mono">'+$('llmModel').value+'</span></div>'
-      +'<div class="ai-loc">写入位置：第 11 行之后（「现象」小节末尾）· <span class="dl-add-chip">＋'+add+' 行</span><span class="dl-del-chip">−'+del+' 行</span></div>'
-      +'<pre class="ai-diff">'+aiDiffHTML(AI_DEMO_DIFF)+'</pre>'
-      +'<div class="ops"><button class="btn sm primary" onclick="aiAccept('+add+')">采纳写入正文（＋'+add+' 行）</button><button class="btn sm" onclick="aiDiscard()">放弃</button></div>'
-      +'<div class="desc" style="color:var(--muted);margin-top:8px">经工具层 article_write 写入 · 计入 MCP 调用审计</div></div>';
-  },600);
+var aiCtx=[],aiSel=null,aiBusy=false,aiTimer=null;
+function aiModelNow(){return ($('llmModel').value||'').trim()||'glm-5.3-flash';}
+function aiSyncModel(){$('aiModel').textContent=aiModelNow();}
+/* --- 会话上下文（选区/段落），出处带文章与行区间，采纳时可精确定位 --- */
+function aiCtxLabel(c){
+  if(c.kind==='doc')return '当前文章 · 全文';
+  if(c.kind==='para')return '光标段落 · L'+(c.from+1);
+  return '选区 · L'+(c.from+1)+(c.to>c.from?'–L'+(c.to+1):'');
 }
-function aiAccept(addLines){
-  $('aiResult').innerHTML='<div class="note">已写入正文（＋'+(addLines||0)+' 行） · Ctrl+Z 可撤销</div>';
+function aiRenderCtx(){
+  var box=$('aiCtx');box.hidden=!aiCtx.length;if(!aiCtx.length)return;
+  box.innerHTML=aiCtx.map(function(c,i){
+    return '<span class="chip" title="'+esc(aiCtxLabel(c))+'">'+esc(aiCtxLabel(c))+'<i data-ci="'+i+'" title="移除上下文">×</i></span>';}).join('');
+  box.querySelectorAll('i[data-ci]').forEach(function(x){x.onclick=function(e){e.stopPropagation();aiCtx.splice(+x.dataset.ci,1);aiRenderCtx();};});
+}
+function aiAddCtx(c){
+  aiCtx=aiCtx.filter(function(x){return x.kind!==c.kind;});aiCtx.push(c);aiRenderCtx();
+  aiOpen(true);toast('已添加到 AI 会话：'+aiCtxLabel(c));
+}
+/* --- 编辑器假选区（拖选行）+ 浮出「添加到会话」（Trae 模式） --- */
+function aiClearSel(){aiSel=null;aiPillHide();document.querySelectorAll('.elines i.sel').forEach(function(x){x.classList.remove('sel');});}
+function aiApplySel(){
+  document.querySelectorAll('.elines i').forEach(function(el,i){
+    el.classList.toggle('sel',!!aiSel&&i>=Math.min(aiSel.from,aiSel.to)&&i<=Math.max(aiSel.from,aiSel.to));});
+}
+function aiSelText(){
+  if(!aiSel)return{from:0,to:0,text:''};
+  var a=ARTS[curArt],f=Math.min(aiSel.from,aiSel.to),t=Math.max(aiSel.from,aiSel.to);
+  return{from:f,to:t,text:a.lines.slice(f,t+1).map(function(l){return l[1];}).join('\n')};
+}
+function aiSyncCur(){ // 选中后假光标随选区移到末行（渲染带 cur 类），不再与选区带并存矛盾
+  if(!aiSel)return;
+  var a=ARTS[curArt],end=Math.max(aiSel.from,aiSel.to);
+  if(a.cur===end)return;
+  var keep=aiSel;a.cur=end;renderLines(a);aiSel=keep;aiApplySel();
+}
+var _edpill=null;
+function aiPillHide(){if(_edpill){_edpill.remove();_edpill=null;}}
+function aiPillShow(){
+  aiPillHide();
+  if(!aiSel)return;
+  var s=aiSelText(),one=s.from===s.to;
+  var end=document.getElementById('eline-'+Math.max(aiSel.from,aiSel.to)); // 浮钮贴选区末行
+  if(!end)return;
+  var p=document.createElement('button');p.type='button';p.className='ed-pill';
+  p.innerHTML='<span class="spark">✦</span>添加到会话'+(one?'':'<span class="rng">L'+(s.from+1)+'–L'+(s.to+1)+'</span>');
+  document.body.appendChild(p);
+  var r=end.getBoundingClientRect(),pr=p.getBoundingClientRect();
+  var win=document.querySelector('.appwin').getBoundingClientRect(); // 钳在应用窗内，不越窗沿
+  var left=Math.min(r.right+12,win.right-pr.width-10),top=r.top-pr.height-6;
+  if(top<8)top=r.bottom+6; // 末行贴近顶部时改挂行下方
+  p.style.left=Math.max(win.left+10,left)+'px';p.style.top=top+'px';
+  p.addEventListener('click',function(e){
+    e.stopPropagation();
+    aiAddCtx({kind:one?'para':'sel',from:s.from,to:s.to}); // 打开会话 + 上下文 chip + 焦点落输入框
+    aiPillHide();
+  });
+  _edpill=p;
+  setTimeout(function(){ /* 点正文/滚动/Esc 收浮钮 */
+    document.addEventListener('click',function h(){aiPillHide();document.removeEventListener('click',h);});
+    document.addEventListener('scroll',function s2(){aiPillHide();document.removeEventListener('scroll',s2);},true);
+    document.addEventListener('keydown',function k(e){if(e.key==='Escape')aiPillHide();});
+  },0);
+}
+(function(){
+  var ed=$('elines'),drag=false,moved=false;
+  function idx(el){var m=/eline-(\d+)/.exec(el.id||'');return m?+m[1]:-1;}
+  ed.addEventListener('mousedown',function(e){
+    var t=e.target.closest('i');if(!t)return;
+    drag=true;moved=false;var i=idx(t);aiSel={from:i,to:i};aiApplySel();aiPillHide();e.preventDefault();});
+  ed.addEventListener('mouseover',function(e){
+    if(!drag)return;var t=e.target.closest('i');if(!t)return;
+    var i=idx(t);if(i!==aiSel.to){moved=true;aiSel.to=i;aiApplySel();}});
+  document.addEventListener('mouseup',function(){
+    if(!drag)return;drag=false;
+    if(moved&&aiSel){aiSyncCur();aiPillShow();}
+    else{aiSel=null;aiApplySel();aiPillHide();} // 单击=放置光标，不弹浮钮
+  });
+  ed.addEventListener('contextmenu',function(e){
+    e.preventDefault();e.stopPropagation();
+    var t=e.target.closest('i'),i=t?idx(t):-1;
+    if(i>=0){ // 右键行=选当前段落，同样出浮钮
+      aiSel={from:i,to:i};aiApplySel();aiSyncCur();aiPillShow();
+    }
+  });
+})();
+/* --- 会话消息 --- */
+function aiScroll(){$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;}
+function aiNote(t){var d=document.createElement('div');d.className='ai-note';d.textContent=t;$('aiMsgs').appendChild(d);aiScroll();return d;}
+function aiUserMsg(text){
+  var d=document.createElement('div');d.className='ai-msg user';
+  var q=aiCtx.map(function(c){return '<div class="ai-quote"><b>'+esc(aiCtxLabel(c))+'</b><br>'+esc(aiSelText().text.replace(/^\s*\n/,'').trim().slice(0,120)||(c.kind==='doc'?'（全文随消息附上，原型从略）':''))+'</div>';}).join('');
+  d.innerHTML=(q?q:'')+'<div>'+esc(text)+'</div>';
+  $('aiMsgs').appendChild(d);aiScroll();return d;
+}
+function aiBotShell(){
+  var d=document.createElement('div');d.className='ai-msg bot';d.innerHTML='<div class="ai-dots"><i></i><i></i><i></i></div>';
+  $('aiMsgs').appendChild(d);aiScroll();return d;
+}
+/* 流式演示：逐字上屏 + 闪烁光标；fin=完成后追加内容（diff/工具卡/操作钮） */
+function aiStream(shell,text,fin){
+  aiBusy=true;aiSetSend(true);
+  var body=document.createElement('div'),caret=document.createElement('span');caret.className='ai-caret';
+  body.appendChild(caret);shell.innerHTML='';shell.appendChild(body);
+  var i=0,gen=Date.now();aiTimer={id:null,gen:gen};
+  aiTimer.id=setInterval(function(){
+    if(aiTimer.gen!==gen)return;
+    i=Math.min(text.length,i+2);
+    body.textContent=text.slice(0,i);body.appendChild(caret);aiScroll();
+    if(i>=text.length){
+      clearInterval(aiTimer.id);aiTimer=null;aiBusy=false;aiSetSend(false);
+      caret.remove();if(fin)fin(shell);aiScroll();
+    }
+  },24);
+}
+function aiStopGen(){
+  if(!aiBusy)return;
+  if(aiTimer){clearInterval(aiTimer.id);aiTimer=null;}
+  aiBusy=false;aiSetSend(false);
+  var shell=$('aiMsgs').querySelector('.ai-msg.bot:last-child');
+  if(shell){var c=shell.querySelector('.ai-caret');if(c)c.remove();
+    var n=document.createElement('div');n.className='ai-note';n.textContent='（已停止 · 本条不完整）';shell.appendChild(n);}
+  aiNote('生成已停止');
+}
+function aiSetSend(busy){
+  var b=$('aiSend');b.textContent=busy?'停止':(busy===false?'发送':b.textContent);
+  b.classList.toggle('primary',!busy);
+}
+function aiOps(shell,items){
+  var ops=document.createElement('div');ops.className='ai-msg-ops';
+  items.forEach(function(it){
+    var b=document.createElement('button');b.className='btn sm'+(it.primary?' primary':'');b.textContent=it.t;
+    b.onclick=function(e){e.stopPropagation();it.fn(shell,ops);};
+    ops.appendChild(b);});
+  shell.appendChild(ops);
+}
+function aiAcceptDiff(shell){
+  shell.querySelectorAll('.ai-msg-ops button').forEach(function(b){b.disabled=true;b.style.opacity=.5;});
+  var add=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='+';}).length;
+  aiNote('已写入正文（＋'+add+' 行） · Ctrl+Z 可撤销 · 经工具层 article_write 计入 MCP 调用审计');
   mcpAuditAdd('内置 AI','article_write','当前文章 · §排查过程 · AI 续写','okc','已采纳 · 写入完成','1.4s');
 }
-function aiDiscard(){$('aiResult').innerHTML='<div class="desc" style="color:var(--faint);margin-top:8px">已放弃本次生成</div>';}
-$('btnAi').onclick=function(e){e.stopPropagation();var pop=$('aiPop');pop.hidden=!pop.hidden;this.setAttribute('aria-expanded',String(!pop.hidden));};
-$('aiClose').onclick=function(){$('aiPop').hidden=true;$('btnAi').setAttribute('aria-expanded','false');};
+function aiInsert(shell){
+  shell.querySelectorAll('.ai-msg-ops button').forEach(function(b){b.disabled=true;b.style.opacity=.5;});
+  aiNote('已插入正文（光标处） · 经工具层 article_write 计入 MCP 调用审计');
+  mcpAuditAdd('内置 AI','article_write','当前文章 · 光标处插入','okc','已采纳 · 写入完成','1.1s');
+}
+/* --- 演示剧本：按指令类型出 diff / 文本 / 工具卡 --- */
+function aiReply(trigger,inst){
+  var shell=aiBotShell();
+  function diffReply(intro){
+    aiStream(shell,intro,function(){
+      var add=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='+';}).length;
+      var del=AI_DEMO_DIFF.filter(function(l){return l.charAt(0)==='-';}).length;
+      var loc=document.createElement('div');loc.className='ai-loc';
+      loc.innerHTML='写入位置：第 11 行之后（「现象」小节末尾） · <span class="dl-add-chip">＋'+add+' 行</span><span class="dl-del-chip">−'+del+' 行</span>';
+      var pre=document.createElement('pre');pre.className='ai-diff';pre.innerHTML=aiDiffHTML(AI_DEMO_DIFF);
+      shell.appendChild(loc);shell.appendChild(pre);
+      aiOps(shell,[{t:'采纳写入正文（＋'+add+' 行）',primary:true,fn:aiAcceptDiff},{t:'放弃',fn:function(){aiNote('已放弃本次生成');}}]);
+    });
+  }
+  function textReply(intro,ops){
+    aiStream(shell,intro,ops?function(){aiOps(shell,ops);}:null);
+  }
+  if(trigger==='续写本节')return diffReply('好的，按「现象」小节语境续写 3 行，倾向补全排查链路：');
+  if(trigger==='润色改写')return diffReply('已润色选中/本节内容，改动集中在因果表述与术语一致性：');
+  if(trigger==='翻译英文')return diffReply('以下为英文译文（行级对照，可直接替换原段）：');
+  if(trigger==='生成摘要 description')return textReply('「用 Dependencies 重扫依赖树，确认 SkiaSharp 原生层对 VC 运行库的隐式依赖——一次 Native AOT 在 Win7 上的启动崩溃排查记。」（约 60 字）',[{t:'写入 description',primary:true,fn:aiInsert},{t:'复制',fn:function(){navigator.clipboard&&navigator.clipboard.writeText('');toast('已复制');}}]);
+  if(trigger==='起标题')return textReply('三个候选：\n1. Win7 上的 SkiaSharp 崩溃：一次 Native AOT 依赖排查\n2. AOT 之后没有 JIT 兜底：Skia 依赖链现形记\n3. 0xc0000135 之后：Native AOT 跨越 Win7',[{t:'替换 H1',primary:true,fn:aiInsert},{t:'复制',fn:function(){toast('已复制');}}]);
+  if(trigger==='图片补 alt')return textReply('diagnostic-flow.svg 建议补：\n![诊断流程：从 0xc0000135 到定位 libSkiaSharp 依赖链](…)',[{t:'写入 alt',primary:true,fn:aiInsert}]);
+  /* 自定义指令：像检索类问题 → 演示工具调用卡（P1 方向：内置 AI 复用 MCP 工具层） */
+  if(/[哪几哪篇|哪些|找|搜|列出|有几]/.test(inst||'')){
+    var tool=document.createElement('div');tool.className='ai-tool';
+    tool.innerHTML='<span class="badge ok">ok</span><span class="mono">article_list</span><span>关键词检索 · 返回 2 / 37 · 0.4s · 已计入 MCP 调用审计</span>';
+    shell.innerHTML='';shell.appendChild(tool);
+    aiStream(shell,'库里有 2 篇相关：\n1.《.NET Native AOT 依赖 Win7：Skia 依赖链排查记》（当前文章）—— 直接讲 SkiaSharp 依赖链；\n2.《Avalonia 自绘控件的渲染管线剖析》—— 渲染层引用了 Skia。\n要我把两篇的引用段落摘出来吗？');
+    return;
+  }
+  textReply('收到。基于当前上下文（'+(aiCtx.length?aiCtx.map(aiCtxLabel).join('、'):'当前文章全文')+'），示例回复：可以继续下指令，改写类指令会出 diff 预览，采纳才写入正文。');
+}
+function aiSendText(text){
+  var t=(text!==undefined?text:($('aiInput').value||'')).trim();
+  if(!t||aiBusy)return;
+  if(text===undefined)$('aiInput').value='';
+  aiUserMsg(t);
+  aiReply('custom',t);
+}
+function aiOpen(open){
+  var pop=$('aiPop');pop.hidden=!open;
+  $('btnAi').setAttribute('aria-expanded',String(open));
+  if(open){aiSyncModel();aiScroll();$('aiInput').focus();}
+}
+function aiSeed(){
+  aiNote('会话已就绪 · 模型走设置页「大模型」通道 · 正文选中文字（或右键选段落）→「添加到会话」→ 直接提问');
+  var tool='<div class="ai-tool"><span class="badge ok">ok</span><span class="mono">article_list</span><span>关键词 SkiaSharp · 返回 2 / 37 · 0.4s</span></div>';
+  var u=document.createElement('div');u.className='ai-msg user';u.innerHTML='<div>库里有哪几篇提到 SkiaSharp？</div>';
+  var b=document.createElement('div');b.className='ai-msg bot';b.innerHTML=tool+'<div>2 篇：<br>1.《.NET Native AOT 依赖 Win7：Skia 依赖链排查记》（当前文章）；<br>2.《Avalonia 自绘控件的渲染管线剖析》—— 渲染层引用了 Skia。<br>改写/续写类指令会先出 diff 预览，采纳才写入正文。</div>';
+  $('aiMsgs').appendChild(u);$('aiMsgs').appendChild(b);aiScroll();
+}
+$('btnAi').onclick=function(e){e.stopPropagation();aiOpen($('aiPop').hidden);};
+$('aiClose').onclick=function(){aiOpen(false);};
+$('aiClear').onclick=function(e){e.stopPropagation();aiCtx=[];aiRenderCtx();$('aiMsgs').innerHTML='';aiSeed();toast('会话已清空');};
 document.addEventListener('click',function(e){
   var pop=$('aiPop');
-  if(!pop.hidden&&!pop.contains(e.target)&&!$('btnAi').contains(e.target)){$('aiPop').hidden=true;$('btnAi').setAttribute('aria-expanded','false');}
+  if(!pop.hidden&&!pop.contains(e.target)&&!$('btnAi').contains(e.target)){aiOpen(false);}
 });
-document.querySelectorAll('.ai-chips .chip').forEach(function(c){c.onclick=function(){aiRun(this.textContent.trim());};});
-$('aiSend').onclick=function(){aiRun('custom');};
-$('aiInput').onkeydown=function(e){if(e.key==='Enter')aiRun('custom');};
+document.querySelectorAll('.ai-chips .chip').forEach(function(c){c.onclick=function(e){e.stopPropagation();if(aiBusy)return;aiUserMsg(this.textContent.trim());aiReply(this.textContent.trim());};});
+$('aiSend').onclick=function(){if(aiBusy){aiStopGen();return;}aiSendText();};
+$('aiInput').onkeydown=function(e){if(e.key==='Enter'&&!aiBusy)aiSendText();};
 $('swAi').addEventListener('click',function(){
   var on=this.classList.contains('on');
   $('btnAi').style.display=on?'':'none';
-  if(!on)$('aiPop').hidden=true;
-  toast(on?'AI 助手已显示在写作页右下角':'AI 助手已隐藏');
+  if(!on)aiOpen(false);
+  toast(on?'AI 会话已显示在写作页右下角':'AI 会话入口已隐藏');
 });
+aiSeed();
 $('llmProv').onchange=function(){
-  var m={'DeepSeek':'deepseek-chat','OpenAI':'gpt-4o','Claude':'claude-sonnet-4-5','Ollama（本机）':'qwen3:14b'}[this.value];
-  $('llmModel').value=m;toast('已切换服务商：'+this.value+' · '+m);
+  var m={'GLM（ZCode 会员）':'glm-5.3-flash','DeepSeek':'deepseek-chat','OpenAI':'gpt-4o','Claude':'claude-sonnet-4-5','Ollama（本机）':'qwen3:14b'}[this.value];
+  var ep={'GLM（ZCode 会员）':'https://open.bigmodel.cn/api/coding/paas/v4','DeepSeek':'https://api.deepseek.com/v1','OpenAI':'https://api.openai.com/v1','Claude':'https://api.anthropic.com/v1','Ollama（本机）':'http://127.0.0.1:11434/v1'}[this.value];
+  $('llmModel').value=m;$('llmEndpoint').textContent=ep;aiSyncModel();
+  toast('已切换服务商：'+this.value+' · '+m);
 };
+function llmTest(){toast('连接正常 · '+$('llmProv').value+' · '+aiModelNow()+' 可用 ✓');}
+/* ---------- 设置页分页（对应 Arc FluidTabControl 的页签切换语义） ---------- */
+document.querySelectorAll('.settab').forEach(function(t){t.onclick=function(){
+  document.querySelectorAll('.settab').forEach(function(x){x.classList.toggle('active',x===t);x.setAttribute('aria-selected',String(x===t));});
+  document.querySelectorAll('.setpane').forEach(function(p){p.classList.toggle('active',p.dataset.p===t.dataset.t);});
+};});
 
 /* ---------- 评审修订：键盘可达性增强（导航/开关语义化、模态焦点管理、搜索 ↑↓/Enter、焦点环兜底） ---------- */
 (function(){

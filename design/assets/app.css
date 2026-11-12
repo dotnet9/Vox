@@ -166,10 +166,10 @@ body.stage {
 .edhead .pos { font: 400 0.7308rem var(--font-mono); color: var(--faint); }
 .edscroll { flex: 1; overflow: auto; display: flex; align-items: flex-start; }
 .gutter { flex: none; width: 44px; padding: 12px 0; text-align: right; color: var(--faint);
-  font-size: 0.8462rem; line-height: 1.95; user-select: none; position: sticky; left: 0; background: var(--surface); }
+  font-size: 0.8846rem; line-height: 1.95; user-select: none; position: sticky; left: 0; background: var(--surface); } /* 字号与 .elines 一致：行槽步进相同，行号与正文严格对齐 */
 .gutter i { display: block; padding-right: 12px; font-style: normal; }
 .elines { flex: 1; min-width: 0; padding: 12px 0; font-size: 0.8846rem; line-height: 1.95; overflow-x: auto; }
-.elines i { display: block; padding: 0 16px 0 14px; font-style: normal; white-space: pre; color: var(--muted); }
+.elines i { display: block; padding: 0 16px 0 14px; font-style: normal; white-space: pre; color: var(--muted); user-select: none; }
 .elines i.h { color: var(--fg); font-weight: 600; }
 .elines i.h2 { color: var(--fg); }
 .elines i.bq { color: var(--accent); }
@@ -177,6 +177,7 @@ body.stage {
 html[data-theme="dark"] .elines i.lnk { color: #6fd39a; }
 .elines i.img { color: var(--accent); }
 .elines i.cur { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); color: var(--fg); }
+.elines i.sel { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); }
 .elines i.empty { min-height: 1.95em; }
 .elines i code { font: inherit; background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .wsrc .k1 { color: var(--fg); font-weight: 600; } .wsrc .cm { color: var(--faint); } .wsrc .str { color: #2f9e63; }
@@ -336,6 +337,21 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .srow .val { flex: 1; }
 .srow .desc { color: var(--faint); font-size: 0.8077rem; margin-top: 3px; }
 
+/* ---------- 设置页分页（对应 Arc FluidTabControl · TabPlacement="Left" · TabListWidth="168"） ---------- */
+.settabs { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; max-width: 860px; }
+.settabs-list { flex: none; width: 168px; padding: 8px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.settab { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border: 0; background: transparent; border-radius: 8px;
+  font: 500 0.8846rem var(--font-ui); color: var(--muted); cursor: pointer; text-align: left; min-height: 34px;
+  transition: background var(--t-fast) var(--motion), color var(--t-fast) var(--motion); }
+.settab svg { width: 16px; height: 16px; flex: none; }
+.settab:hover { background: var(--surface-2); color: var(--fg); }
+.settab.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.settabs-body { flex: 1; min-width: 0; padding: 4px 0 0 16px; }
+.setpane { display: none; }
+.setpane.active { display: block; }
+.setpane .setting { max-width: none; margin-bottom: 12px; }
+.setpane .setting:last-child { margin-bottom: 0; }
+
 /* ---------- 弹层 ---------- */
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,.4); backdrop-filter: blur(2px); display: none; place-items: center; z-index: 50; }
 .mask.open { display: grid; }
@@ -353,7 +369,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9231rem; }
 .slugprev { font: 500 0.8846rem var(--font-mono); color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
 
 /* 评审修订：toast 从底部居中深色胶囊改为右下主题化通知栈（避让 AI 助手按钮），多条排队、可关闭。 */
-.toast-wrap { position: fixed; right: 16px; bottom: 88px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+.toast-wrap { position: fixed; right: max(16px, calc((100vw - min(1480px, 100vw)) / 2 + 16px)); bottom: 88px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; } /* 收在 .appwin 窗体内，不越窗沿 */
 .toast-item { display: flex; align-items: flex-start; gap: 8px; max-width: min(420px, calc(100vw - 32px)); background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px 9px 14px; font-size: 0.8462rem; font-weight: 500; box-shadow: var(--shadow-pop); opacity: 0; transform: translateY(8px); transition: opacity var(--t-med) var(--motion), transform var(--t-med) var(--motion); pointer-events: auto; }
 .toast-item.show { opacity: 1; transform: none; }
 .toast-text { flex: 1 1 auto; min-width: 0; }
@@ -943,9 +959,7 @@ pre.mcp-code { margin: 8px 0 0; padding: 12px 14px; background: var(--surface-2)
 #view-mcp .chgroup .num { min-width: 22px; text-align: center; border-radius: 7px; background: var(--accent-soft); color: var(--accent); padding: 2px 7px; font-family: var(--font-mono); font-size: 0.8077rem; }
 #view-mcp .tool-row.locked td { opacity: .45; }
 .tool-name { font-family: var(--font-mono); font-size: 0.8462rem; color: var(--fg); }
-.tb-ico.mcp-tb { position: relative; }
-.tb-ico.mcp-tb::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 2px var(--surface); }
-.tb-ico.mcp-tb.off::after { background: var(--faint); }
+/* 标题栏 MCP 快捷图标已按评审要求移除（MCP 入口收敛到侧边导航与设置页） */
 [data-style="pixel"] pre.mcp-code, [data-style="pixel"] .mcp-req, [data-style="pixel"] .mcp-cli,
 [data-style="pixel"] .opt, [data-style="pixel"] .note { border-radius: 0 !important; }
 
@@ -979,6 +993,50 @@ pre.mcp-code { margin: 8px 0 0; padding: 12px 14px; background: var(--surface-2)
   font: 500 0.7692rem/1.7 var(--font-mono); overflow: auto; max-height: 160px; }
 .ai-res .ops { display: flex; gap: 8px; margin-top: 8px; }
 
+/* ---------- 写作页 AI 会话面板（多轮 · 流式演示 · 选区上下文） ---------- */
+.ai-pop.ai-chat { width: 420px; height: min(560px, calc(100% - 58px)); display: flex; flex-direction: column;
+  gap: 8px; padding: 10px 12px; bottom: 44px; }
+.ai-pop.ai-chat[hidden] { display: none; }
+.ai-chat .ai-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9615rem; flex: none; }
+.ai-chat .ai-head .x { margin-left: 0; font-size: 1.1538rem; padding: 0 2px; }
+.ai-chat .ai-model { margin-left: auto; font-size: 0.7308rem; font-weight: 500; color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; }
+.ai-chat .ai-clear { cursor: pointer; color: var(--muted); font-size: 0.7692rem; font-weight: 500;
+  border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; }
+.ai-chat .ai-clear:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.ai-ctx { display: flex; flex-wrap: wrap; gap: 6px; flex: none; }
+.ai-ctx .chip { font-size: 0.8077rem; background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.ai-msgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+.ai-msg { max-width: 94%; border-radius: 10px; padding: 8px 11px; font-size: 0.8846rem; line-height: 1.75; overflow-wrap: break-word; min-width: 0; }
+.ai-msg.user { align-self: flex-end; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); white-space: pre-wrap; }
+.ai-msg.bot { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--line); }
+.ai-msg .ai-quote { border-left: 2px solid var(--accent); background: var(--surface); border-radius: 6px;
+  padding: 3px 8px; margin: 2px 0 5px; color: var(--muted); font-size: 0.8077rem; }
+.ai-msg .ai-quote b { color: var(--accent); font-weight: 600; }
+.ai-note { align-self: center; color: var(--faint); font-size: 0.7692rem; text-align: center; }
+.ai-tool { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; margin: 6px 0; font-size: 0.8077rem; color: var(--muted); }
+.ai-tool .mono { color: var(--accent); font-weight: 600; }
+.ai-chat .ai-diff { white-space: normal; }
+.ai-chat .ai-diff span { white-space: pre-wrap; overflow-wrap: break-word; }
+.ai-msg-ops { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+.ai-caret { display: inline-block; width: 7px; height: 1em; border-radius: 1px; background: var(--accent);
+  vertical-align: -0.15em; margin-left: 2px; animation: ai-blink 1s steps(2) infinite; }
+@keyframes ai-blink { 50% { opacity: 0; } }
+.ai-dots { display: inline-flex; gap: 4px; align-items: center; padding: 2px 0; }
+.ai-dots i { width: 5px; height: 5px; border-radius: 99px; background: var(--faint); animation: ai-dot 1.1s ease-in-out infinite; }
+.ai-dots i:nth-child(2) { animation-delay: .15s; }
+.ai-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes ai-dot { 40% { transform: translateY(-4px); background: var(--accent); } }
+/* ---------- 编辑器选区浮出按钮（Trae 模式：选区 → 添加到会话 → 焦点落输入框） ---------- */
+.ed-pill { position: fixed; z-index: 96; display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12); font: 500 0.8462rem var(--font-ui); color: var(--fg); cursor: pointer;
+  animation: mup var(--t-fast) var(--motion); }
+.ed-pill:hover { border-color: var(--accent); color: var(--accent); }
+.ed-pill .spark { color: var(--accent); font-weight: 600; }
+.ed-pill .rng { color: var(--faint); font-size: 0.7308rem; font-family: var(--font-mono); }
+
 /* ---------- MCP 能力暴露 / 实时调用 ---------- */
 .mcp-caps { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
 .mcp-uri { display: block; font-size: 0.8077rem; color: var(--accent); background: var(--accent-soft); border-radius: 7px; padding: 5px 10px; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -989,7 +1047,7 @@ pre.mcp-code { margin: 8px 0 0; padding: 12px 14px; background: var(--surface-2)
 .mcp-live-row .mcp-cli-n { font-weight: 600; color: var(--fg); width: 90px; flex: none; }
 .mcp-live-row .d { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mcp-live-row .ms { font-family: var(--font-mono); color: var(--faint); }
-[data-style="pixel"] .ai-pop, [data-style="pixel"] .ai-trigger, [data-style="pixel"] .ai-res { border-radius: 0 !important; }
+[data-style="pixel"] .ai-pop, [data-style="pixel"] .ai-trigger, [data-style="pixel"] .ai-res, [data-style="pixel"] .ai-msg, [data-style="pixel"] .ai-tool, [data-style="pixel"] .ai-quote, [data-style="pixel"] .ed-pill, [data-style="pixel"] .settabs, [data-style="pixel"] .settab { border-radius: 0 !important; }
 
 
 /* ============================================================
