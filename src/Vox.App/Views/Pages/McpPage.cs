@@ -116,6 +116,12 @@ public sealed class McpPage : UserControl
         BuildLayout();
         AttachedToVisualTree += (_, _) => Hook();
         DetachedFromVisualTree += (_, _) => Unhook();
+        // 审计筛选随语言重建（2026-11-14 同族问题：选项文案快照失配）
+        CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged += (_, _) =>
+        {
+            AssignAuditFilters();
+            Dispatcher.UIThread.Post(RefreshAudit);
+        };
         RefreshAll();
     }
 
@@ -1194,25 +1200,7 @@ public sealed class McpPage : UserControl
         pagehead.Children.Add(clear);
         _auditTab.Children.Add(pagehead);
 
-        _auditClient.Items = new[]
-        {
-            T("Vox.Mcp.Audit.Filter.AllClients"), "Cursor", "ZCode", "Claude Desktop", "MCP 客户端", "系统",
-        }
-            .Concat(McpService.Clients.Select(c => c.Name)) // 在线客户端动态并入（2026-11-14：此前硬编码，新客户端接入筛不到）
-            .Concat(ToolAuditStore.List(limit: 5000).Select(e => e.Client).Distinct()) // 历史记录里的客户端也并入
-            .Distinct().ToList();
-        _auditClient.Selected = T("Vox.Mcp.Audit.Filter.AllClients");
-        _auditClient.SelectionChanged += _ => RefreshAudit();
-        _auditTool.Items = new[] { T("Vox.Mcp.Audit.Filter.AllTools"), "connect", "—" }
-            .Concat(McpCatalog.Tools.Select(t => t.Name)).ToList();
-        _auditTool.Selected = T("Vox.Mcp.Audit.Filter.AllTools");
-        _auditTool.SelectionChanged += _ => RefreshAudit();
-        _auditResult.Items = new[]
-        {
-            T("Vox.Mcp.Audit.Filter.AllResults"), T("Vox.Mcp.Result.Ok"), T("Vox.Mcp.Result.Confirmed"),
-            T("Vox.Mcp.Result.Deny"), T("Vox.Mcp.Result.Error"),
-        };
-        _auditResult.Selected = T("Vox.Mcp.Audit.Filter.AllResults");
+        AssignAuditFilters();
         _auditResult.SelectionChanged += _ => RefreshAudit();
 
         var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 10) };
@@ -1287,6 +1275,28 @@ public sealed class McpPage : UserControl
         badge.Margin = new Thickness(14, 0, 12, 0);
         if (!string.IsNullOrWhiteSpace(row.Detail)) ToolTip.SetTip(badge, row.Detail);
         return badge;
+    }
+
+    /// <summary>审计筛选选项装配：客户端动态并入（在线快照+历史），工具/结果文案随语言重建——切语言后 Selected 失配自动回"全部"（2026-11-14）。</summary>
+    private void AssignAuditFilters()
+    {
+        _auditClient.Items = new[]
+        {
+            T("Vox.Mcp.Audit.Filter.AllClients"), "Cursor", "ZCode", "Claude Desktop", "MCP 客户端", "系统",
+        }
+            .Concat(McpService.Clients.Select(c => c.Name)) // 在线客户端动态并入（此前硬编码，新客户端接入筛不到）
+            .Concat(ToolAuditStore.List(limit: 5000).Select(e => e.Client).Distinct()) // 历史记录里的客户端也并入
+            .Distinct().ToList();
+        _auditClient.Selected = T("Vox.Mcp.Audit.Filter.AllClients");
+        _auditTool.Items = new[] { T("Vox.Mcp.Audit.Filter.AllTools"), "connect", "—" }
+            .Concat(McpCatalog.Tools.Select(t => t.Name)).ToList();
+        _auditTool.Selected = T("Vox.Mcp.Audit.Filter.AllTools");
+        _auditResult.Items = new[]
+        {
+            T("Vox.Mcp.Audit.Filter.AllResults"), T("Vox.Mcp.Result.Ok"), T("Vox.Mcp.Result.Confirmed"),
+            T("Vox.Mcp.Result.Deny"), T("Vox.Mcp.Result.Error"),
+        };
+        _auditResult.Selected = T("Vox.Mcp.Audit.Filter.AllResults");
     }
 
     private void RefreshAudit()
