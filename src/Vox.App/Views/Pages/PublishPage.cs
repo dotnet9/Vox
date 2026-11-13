@@ -56,8 +56,7 @@ public sealed class PublishPage : UserControl
     private StackPanel _historyHost = new();
     private readonly TextBlock _authorName = new() { FontSize = 12.5, FontWeight = FontWeight.Medium };
     private readonly TextBlock _authorEmail = new() { FontSize = 10.5 };
-    private ArcButton _splitButton = new();
-    private ArcButton _unifiedButton = new();
+    private TKCode.Arc.SegmentedControl _diffModeSwitch = new();
     private int _aheadCount;
     private int _behindCount;
     private bool _branchOk;
@@ -245,17 +244,25 @@ public sealed class PublishPage : UserControl
         Res(diffBorder, Border.BackgroundProperty, "VoxSurface");
         Res(diffBorder, Border.BorderBrushProperty, "VoxLine");
         diffBorder.BorderThickness = new Thickness(1);
-        _splitButton = new ArcButton { Variant = ArcButtonVariant.Primary, FontSize = 11, Padding = new Thickness(10, 4, 10, 4) };
-        _splitButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Sync.Diff.Split");
-        _unifiedButton = new ArcButton { Variant = ArcButtonVariant.Secondary, FontSize = 11, Padding = new Thickness(10, 4, 10, 4) };
-        _unifiedButton[!ArcButton.ContentProperty] = I18n.Bind("Vox.Sync.Diff.Unified");
-        _splitButton.Click += (_, _) => SetSplitMode(true);
-        _unifiedButton.Click += (_, _) => SetSplitMode(false);
+        // diff 视图切换换 Arc SegmentedControl（选中 pill 弹簧滑动，2026-11-13 此前为两按钮换 Variant）
+        _diffModeSwitch = new TKCode.Arc.SegmentedControl
+        {
+            FontSize = 11,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 8, 10, 6),
+        };
+        _diffModeSwitch.Items.Add(new TKCode.Arc.SegmentedOption(false, T("Vox.Sync.Diff.Unified")));
+        _diffModeSwitch.Items.Add(new TKCode.Arc.SegmentedOption(true, T("Vox.Sync.Diff.Split")));
+        _diffModeSwitch.SelectedValue = true; // 默认并排（原 _splitMode=true 口径）
+        _diffModeSwitch.SelectionChanged += (_, _) =>
+        {
+            if (_diffModeSwitch.SelectedValue is bool split) SetSplitMode(split);
+        };
         var diffToggle = new StackPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 4,
-            HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 10, 6),
-            Children = { _unifiedButton, _splitButton },
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children = { _diffModeSwitch },
         };
         var diffScroll = new ScrollViewer { MaxHeight = 260, Content = _diffHost };
         diffBorder.Child = new DockPanel { Children = { diffToggle.Dock(Dock.Top), diffScroll } };
@@ -812,8 +819,7 @@ public sealed class PublishPage : UserControl
     private void SetSplitMode(bool split)
     {
         _splitMode = split;
-        _splitButton.Variant = split ? ArcButtonVariant.Primary : ArcButtonVariant.Secondary;
-        _unifiedButton.Variant = split ? ArcButtonVariant.Secondary : ArcButtonVariant.Primary;
+        if (_diffModeSwitch.SelectedValue is bool modeValue && modeValue != split) _diffModeSwitch.SelectedValue = split;
         if (_diffPath is { Length: > 0 } current)
         {
             RenderDiff(current);
