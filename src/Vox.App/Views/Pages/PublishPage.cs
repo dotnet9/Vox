@@ -2138,7 +2138,8 @@ public sealed class PublishPage : UserControl
         _logGrid.EnableDefaults(enableSmartTooltips: false);
 
         _logGrid.LoadingRow += (_, e) => e.Row.Cursor = new Cursor(StandardCursorType.Hand);
-        _logGrid.PointerReleased += (_, e) =>
+        // 单击弹发布框误触率高（2026-11-13）：改双击打开（单击仅行选中，浏览日志不再误弹窗）
+        _logGrid.DoubleTapped += (_, e) =>
         {
             if (e.Source is not Control control) return;
             if (control.FindAncestorOfType<DataGridRow>()?.DataContext is not LogRowModel row) return;
