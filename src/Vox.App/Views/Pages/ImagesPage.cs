@@ -32,6 +32,7 @@ public sealed class ImagesPage : UserControl
     private readonly Controls.MiniSelect _yearFilter = new();
     private readonly Controls.MiniSelect _refFilter = new();
     private readonly Controls.MiniSelect _formatFilter = new();
+    private readonly Controls.MiniSelect _sortFilter = new(); // 排序入口（2026-11-13 此前固定按路径）
     private readonly ArcInput _search = new() { Width = 200, IsLabelVisible = false };
     private readonly WrapPanel _grid = new() { Orientation = Orientation.Horizontal };
     private readonly ScrollViewer _gridScroll = new();
@@ -101,7 +102,7 @@ public sealed class ImagesPage : UserControl
         _search.Dock(Dock.Right);
         filters.Children.Add(_search);
         var selects = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left };
-        foreach (var f in new[] { _yearFilter, _refFilter, _formatFilter })
+        foreach (var f in new[] { _yearFilter, _refFilter, _formatFilter, _sortFilter })
         {
             f.SelectionChanged += _ => Rebuild();
             selects.Children.Add(f);
@@ -224,7 +225,8 @@ public sealed class ImagesPage : UserControl
         _refFilter.Items = new[] { T("Vox.Images.Pick.RefState"), T("Vox.Images.Pick.Used"), T("Vox.Images.Pick.Orphan"), T("Vox.Images.Pick.Cover"), T("Vox.Images.Pick.Missing") };
         _formatFilter.Items = new[] { T("Vox.Images.Pick.Format") }
             .Concat(scan?.Images.Select(i => FormatOf(i.FileName)).Distinct().OrderBy(f => f).ToList() ?? []).ToList();
-        foreach (var filter in new[] { _yearFilter, _refFilter, _formatFilter })
+        _sortFilter.Items = new[] { T("Vox.Images.Sort.Path"), T("Vox.Images.Sort.Name"), T("Vox.Images.Sort.Size"), T("Vox.Images.Sort.Refs") };
+        foreach (var filter in new[] { _yearFilter, _refFilter, _formatFilter, _sortFilter })
         {
             if (filter.Selected.Length == 0 || !filter.Items.Contains(filter.Selected)) filter.Selected = filter.Items[0];
         }
@@ -247,7 +249,13 @@ public sealed class ImagesPage : UserControl
         if (!string.IsNullOrWhiteSpace(term))
             query = query.Where(i => i.FileName.Contains(term, StringComparison.OrdinalIgnoreCase));
 
-        return query.OrderBy(i => i.RelativePath).ToList();
+        return _sortFilter.Selected switch
+        {
+            var s when s == T("Vox.Images.Sort.Name") => query.OrderBy(i => i.FileName, StringComparer.CurrentCultureIgnoreCase).ToList(),
+            var s when s == T("Vox.Images.Sort.Size") => query.OrderByDescending(i => i.Bytes).ToList(),
+            var s when s == T("Vox.Images.Sort.Refs") => query.OrderByDescending(i => i.ReferencedBy.Count).ThenBy(i => i.RelativePath).ToList(),
+            _ => query.OrderBy(i => i.RelativePath).ToList(), // 默认按路径
+        };
     }
 
     private void RebuildGrid()
