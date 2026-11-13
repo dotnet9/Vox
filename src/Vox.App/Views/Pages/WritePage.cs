@@ -4021,6 +4021,25 @@ public sealed class WritePage : UserControl
         _aiMsgScroll.ScrollToEnd();
     }
 
+    /// <summary>跳编辑器到引用 chip 出处：选区高亮原文并滚动定位，焦点移交编辑器（面板保持打开）。</summary>
+    private void JumpEditorToContext(AiChatContext ctx)
+    {
+        var doc = Editor.Document;
+        var offset = Math.Clamp(ctx.Offset, 0, doc.TextLength);
+        var length = Math.Clamp(ctx.Length, 0, doc.TextLength - offset);
+        if (length > 0)
+        {
+            Editor.Select(offset, offset + length);
+            Editor.CaretOffset = offset + length;
+        }
+        else
+        {
+            Editor.CaretOffset = offset;
+        }
+        Editor.ScrollToLine(doc.GetLineByOffset(offset).LineNumber);
+        Editor.Focus();
+    }
+
     private Border AddAiUserBubble(string text)
     {
         var body = new StackPanel { Spacing = 4 };
@@ -4048,8 +4067,18 @@ public sealed class WritePage : UserControl
                 BorderThickness = new Thickness(2, 0, 0, 0),
                 Child = new StackPanel { Children = { quoteLabel, quote } },
             });
-            Res((Border)body.Children[^1], Border.BorderBrushProperty, "VoxAccent");
-            Res((Border)body.Children[^1], Border.BackgroundProperty, "VoxSurface");
+            var quoteCard = (Border)body.Children[^1];
+            Res(quoteCard, Border.BorderBrushProperty, "VoxAccent");
+            Res(quoteCard, Border.BackgroundProperty, "VoxSurface");
+            // 点击引用卡跳编辑器原文并选区（跨面板联动，2026-11-13 轮4）：验证出处一击即达。
+            quoteCard.Cursor = new Cursor(StandardCursorType.Hand);
+            TKCode.Arc.Tooltip.SetTip(quoteCard, T("Vox.Ai.Chat.JumpToSource"));
+            var ctxSnapshot = ctx;
+            quoteCard.PointerPressed += (_, e) =>
+            {
+                e.Handled = true;
+                JumpEditorToContext(ctxSnapshot);
+            };
         }
         body.Children.Add(new TextBlock { Text = text, FontSize = Fs(11), TextWrapping = TextWrapping.Wrap });
         Res(body.Children[^1], TextBlock.ForegroundProperty, "VoxFg");

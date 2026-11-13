@@ -844,6 +844,7 @@
   "Vox.Ai.Model.Switched": "モデルを切替：{0}",
   "Vox.Ai.Reasoning.Thinking": "思考中…",
   "Vox.Ai.Retry": "再試行",
+  "Vox.Ai.Chat.JumpToSource": "クリックで原文へ",
   "Vox.Ai.Regenerate": "再生成",
   "Vox.Ai.Reasoning.Done": "深く思考しました（{0}秒）",
   "Vox.Ai.Chat.Thinking": "思考",

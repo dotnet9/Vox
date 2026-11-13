@@ -844,6 +844,7 @@
   "Vox.Ai.Model.Switched": "Model switched: {0}",
   "Vox.Ai.Reasoning.Thinking": "Thinking…",
   "Vox.Ai.Retry": "Retry",
+  "Vox.Ai.Chat.JumpToSource": "Click to jump to source",
   "Vox.Ai.Regenerate": "Regenerate",
   "Vox.Ai.Reasoning.Done": "Thought for {0}s",
   "Vox.Ai.Chat.Thinking": "Thinking",

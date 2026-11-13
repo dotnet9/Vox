@@ -844,6 +844,7 @@
   "Vox.Ai.Model.Switched": "已切換模型：{0}",
   "Vox.Ai.Reasoning.Thinking": "思考中…",
   "Vox.Ai.Retry": "重試",
+  "Vox.Ai.Chat.JumpToSource": "點擊跳轉原文",
   "Vox.Ai.Regenerate": "重新產生",
   "Vox.Ai.Reasoning.Done": "已深度思考（用時 {0} 秒）",
   "Vox.Ai.Chat.Thinking": "思考",
