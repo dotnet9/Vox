@@ -366,7 +366,7 @@ public sealed class McpPage : UserControl
             Children = { _portInput, _portHint },
         }));
 
-        _tokenInput.Text = settings.McpToken;
+        _tokenInput.Text = McpService.GetToken();
         var tokenGen = new Button { Classes = { "btn", "sm" } };
         tokenGen[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Config.TokenGen");
         tokenGen.Click += (_, _) => _ = GenerateTokenWithConfirmAsync();
@@ -666,7 +666,7 @@ public sealed class McpPage : UserControl
     {
         _clientPath.Text = T(ClientPathKey(_clientKey));
         var endpoint = McpService.Endpoint;
-        var token = AppState.Instance.Settings.McpToken;
+        var token = McpService.GetToken();
         if (_clientKey == "http")
         {
             _clientConfig.Text = TF("Vox.Mcp.Clients.Config.Raw", endpoint, token);
@@ -1646,7 +1646,7 @@ public sealed class McpPage : UserControl
             var ok = McpService.Start();
             if (ok)
             {
-                _tokenInput.Text = AppState.Instance.Settings.McpToken;
+                _tokenInput.Text = McpService.GetToken();
             }
             else
             {
@@ -1717,8 +1717,8 @@ public sealed class McpPage : UserControl
         SaveSetting(s =>
         {
             s.McpPort = port;
-            s.McpToken = token;
         });
+        McpService.SetToken(token); // 令牌入凭据管理器（2026-11-13 迁移），设置文件不再含明文
         var ok = McpService.Restart();
         if (ok != wasEnabled)
         {
@@ -1748,7 +1748,7 @@ public sealed class McpPage : UserControl
     {
         var token = McpTokens.New();
         _tokenInput.Text = token;
-        SaveSetting(s => s.McpToken = token);
+        McpService.SetToken(token);
         McpService.UpdateHot();
         RefreshClientConfig();
         _shell.ShowToast(T("Vox.Mcp.Config.TokenGenerated"));

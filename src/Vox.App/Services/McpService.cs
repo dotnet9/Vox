@@ -5,6 +5,7 @@ using Vox.App.Infrastructure;
 using Vox.App.Views;
 using Vox.Core;
 using Vox.Core.Mcp;
+using Vox.Git;
 
 namespace Vox.App.Services;
 
@@ -52,6 +53,33 @@ public static class McpService
         }
     }
 
+    /// <summary>MCP 令牌存取（凭据管理器 vox/secret/mcp/token）：此前明文存 settings.json（2026-11-13 迁移）。
+    /// settings.McpToken 字段保留仅作旧版迁移源——读到非空旧值即搬入凭据管理器并清空，设置文件不再含令牌。</summary>
+    public static string GetToken()
+    {
+        var store = CredentialStoreFactory.Create();
+        var stored = store.Get(TokenKey);
+        if (!string.IsNullOrWhiteSpace(stored)) return stored;
+        var legacy = AppState.Instance.Settings.McpToken;
+        if (string.IsNullOrWhiteSpace(legacy)) return string.Empty;
+        store.Save(TokenKey, legacy.Trim());
+        AppState.Instance.Settings.McpToken = string.Empty;
+        AppState.Instance.SaveSettings();
+        return legacy.Trim();
+    }
+
+    public static void SetToken(string token)
+    {
+        CredentialStoreFactory.Create().Save(TokenKey, token.Trim());
+        if (!string.IsNullOrEmpty(AppState.Instance.Settings.McpToken))
+        {
+            AppState.Instance.Settings.McpToken = string.Empty;
+            AppState.Instance.SaveSettings();
+        }
+    }
+
+    public const string TokenKey = "mcp/token";
+
     public static McpOptions BuildOptions()
     {
         var settings = AppState.Instance.Settings;
@@ -59,7 +87,7 @@ public static class McpService
         {
             RepoRoot = AppState.Instance.CurrentRepoRoot ?? string.Empty,
             Port = settings.McpPort,
-            Token = settings.McpToken,
+            Token = GetToken(),
             Scope = McpScopes.Parse(settings.McpScope),
             ConfirmWrites = settings.McpConfirmWrites,
             AllowGit = settings.McpAllowGit,
@@ -96,10 +124,9 @@ public static class McpService
         try
         {
             var settings = AppState.Instance.Settings;
-            if (string.IsNullOrWhiteSpace(settings.McpToken))
+            if (string.IsNullOrWhiteSpace(GetToken()))
             {
-                settings.McpToken = McpTokens.New();
-                AppState.Instance.SaveSettings();
+                SetToken(McpTokens.New());
             }
             var engine = Ensure();
             var options = BuildOptions();
@@ -246,7 +273,7 @@ public static class McpService
         {
             Content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json"),
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.McpToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", GetToken());
         // MCP 规范要求 POST 的 Accept 同时含 application/json 与 text/event-stream，缺失会被官方 SDK 拒绝（406）。
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Accept.ParseAdd("text/event-stream");
