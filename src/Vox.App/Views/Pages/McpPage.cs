@@ -54,8 +54,15 @@ public sealed class McpPage : UserControl
     private readonly ToggleButton _enableSwitch = new() { Classes = { "vswitch" } };
     private readonly TextBox _portInput = new() { Classes = { "vinput" }, Width = 110, FontSize = 11.5, FontFamily = MonoFont };
     private readonly TextBlock _portHint = new() { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBox _tokenInput = new() { Classes = { "vinput" }, Width = 250, FontSize = 11.5, FontFamily = MonoFont, PasswordChar = '●' };
-    private readonly Button _tokenShow = new() { Classes = { "btn", "sm", "ghost" } };
+    // Arc PasswordField（2026-11-13 与 LlmKeyModal 同口径）：默认掩码 + 眼形切换，替代手搓 PasswordChar + 显隐按钮
+    private readonly TKCode.Arc.PasswordField _tokenInput = new()
+    {
+        Width = 250,
+        FontSize = 11.5,
+        FontFamily = MonoFont,
+        Label = "MCP Token",
+        IsLabelVisible = false,
+    };
     private readonly Dictionary<McpAccessScope, Border> _scopeCards = new();
     private readonly Dictionary<McpAccessScope, RadioButton> _scopeRadios = new();
     private readonly ToggleButton _confirmSwitch = new() { Classes = { "vswitch" } };
@@ -352,8 +359,6 @@ public sealed class McpPage : UserControl
         var tokenGen = new Button { Classes = { "btn", "sm" } };
         tokenGen[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Config.TokenGen");
         tokenGen.Click += (_, _) => _ = GenerateTokenWithConfirmAsync();
-        _tokenShow[!ContentControl.ContentProperty] = I18n.Bind("Vox.Mcp.Config.TokenShow");
-        _tokenShow.Click += (_, _) => ToggleTokenVisibility();
         var tokenCopy = new Button { Classes = { "btn", "sm", "ghost" } };
         tokenCopy[!ContentControl.ContentProperty] = I18n.Bind("Vox.Common.Action.Copy");
         tokenCopy.Click += (_, _) => CopyText(_tokenInput.Text ?? string.Empty, "Vox.Mcp.Config.Copied");
@@ -369,7 +374,7 @@ public sealed class McpPage : UserControl
                 {
                     Orientation = Orientation.Horizontal,
                     Spacing = 6,
-                    Children = { _tokenInput, tokenGen, _tokenShow, tokenCopy },
+                    Children = { _tokenInput, tokenGen, tokenCopy },
                 },
                 tokenHint,
             },
@@ -1643,7 +1648,7 @@ public sealed class McpPage : UserControl
             {
                 SaveSetting(s => s.McpEnabled = false);
             }
-            McpService.AuditSystem("启动服务", ok, ok ? McpService.Endpoint : McpService.LastError);
+            McpService.AuditSystem(T("Vox.Mcp.Audit.Start"), ok, ok ? McpService.Endpoint : McpService.LastError);
             _shell.ShowToast(ok
                 ? TF("Vox.Mcp.Msg.Started", McpService.Endpoint)
                 : TF("Vox.Mcp.Msg.StartFail", McpService.LastError ?? string.Empty));
@@ -1651,7 +1656,7 @@ public sealed class McpPage : UserControl
         else
         {
             McpService.Stop();
-            McpService.AuditSystem("停止服务", true, "已停止");
+            McpService.AuditSystem(T("Vox.Mcp.Audit.Stop"), true, T("Vox.Mcp.Audit.Stopped"));
             _shell.ShowToast(T("Vox.Mcp.Msg.Stopped"));
         }
         RefreshAll();
@@ -1671,7 +1676,7 @@ public sealed class McpPage : UserControl
     {
         SaveSetting(s => s.McpEnabled = false);
         McpService.Stop();
-        McpService.AuditSystem("停止服务", true, "已停止");
+        McpService.AuditSystem(T("Vox.Mcp.Audit.Stop"), true, T("Vox.Mcp.Audit.Stopped"));
         _shell.ShowToast(T("Vox.Mcp.Msg.Stopped"));
         RefreshAll();
     }
@@ -1731,19 +1736,10 @@ public sealed class McpPage : UserControl
     {
         var token = McpTokens.New();
         _tokenInput.Text = token;
-        _tokenInput.PasswordChar = '●';
-        _tokenShow.Content = T("Vox.Mcp.Config.TokenShow");
         SaveSetting(s => s.McpToken = token);
         McpService.UpdateHot();
         RefreshClientConfig();
         _shell.ShowToast(T("Vox.Mcp.Config.TokenGenerated"));
-    }
-
-    private void ToggleTokenVisibility()
-    {
-        var hidden = _tokenInput.PasswordChar != '\0';
-        _tokenInput.PasswordChar = hidden ? '\0' : '●';
-        _tokenShow.Content = T(hidden ? "Vox.Mcp.Config.TokenHide" : "Vox.Mcp.Config.TokenShow");
     }
 
     private void ToggleConfirm(bool on)
