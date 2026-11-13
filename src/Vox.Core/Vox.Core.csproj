@@ -7,4 +7,9 @@
     <PackageReference Include="ModelContextProtocol.Core" />
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- 文档模板（模板中心内置库，2026-11-13）：产品真值同源——原型经 design/scripts/generate-templates.cjs
+         从本目录生成演示数据，桌面端经 TemplateLibrary.LoadBuiltins 读同一批内嵌资源 -->
+    <EmbeddedResource Include="Templates\**\*.md" />
+  </ItemGroup>
 </Project>

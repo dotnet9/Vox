@@ -1,6 +1,7 @@
 namespace Vox.Core;
 
-/// <summary>新建文章向导的输入（标题 → slug/日期自动生成 → 简述 → 大纲骨架，需求 M1 写作 P0）。</summary>
+/// <summary>新建文章向导的输入（标题 → slug/日期自动生成 → 简述 → 大纲骨架，需求 M1 写作 P0；
+/// 2026-11-13 模板中心引入 Categories/Tags 默认值——「使用此模板」带入元数据种子，向导手填仍可为空）。</summary>
 public sealed record NewArticleSpec
 {
     public required string Title { get; init; }
@@ -8,6 +9,8 @@ public sealed record NewArticleSpec
     public DateTime Date { get; init; } = DateTime.Now;
     public string? Description { get; init; }
     public IReadOnlyList<string> Outline { get; init; } = [];
+    public IReadOnlyList<string> Categories { get; init; } = [];
+    public IReadOnlyList<string> Tags { get; init; } = [];
     public bool Draft { get; init; } = true;
     public string Author { get; init; } = "Dotnet9";
 }
@@ -39,9 +42,9 @@ public static class ArticleScaffolder
             Date = date,
             LastMod = date,
             Cover = null,
-            Categories = [],
+            Categories = [.. spec.Categories],
             Albums = [],
-            Tags = [],
+            Tags = [.. spec.Tags],
             Author = spec.Author,
             Draft = spec.Draft,
         };

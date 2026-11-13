@@ -114,6 +114,13 @@ public sealed class VoxSettings
     /// <summary>提交并推送成功后，若有平台待发布/需更新则 toast 提示（平台账户弹层「发布默认项」）。</summary>
     public bool PublishAutoHintAfterPush { get; set; } = true;
 
+    /// <summary>
+    /// 用户模板目录（模板中心「我的模板」来源，2026-11-13 需求）：空 = %AppData%/Vox/templates。
+    /// 目录里的 *.md（带 front matter）即被识别为模板；是否把目录纳入 git 等版本管理由用户自行决定，
+    /// 程序不做任何 git 假设（打开的目录不一定是 git 仓库）。
+    /// </summary>
+    public string? TemplatesPath { get; set; }
+
     [JsonIgnore]
     public LinkOptions Link => new()
     {
