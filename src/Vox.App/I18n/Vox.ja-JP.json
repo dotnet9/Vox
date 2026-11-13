@@ -536,6 +536,7 @@
   "Vox.Ai.ConfirmNoCtx": "「挿入前に確認」モードですが本文が引用されていません：返信はチャット内に残ります",
   "Vox.Title.WordCount": "· {0:N0} 字",
   "Vox.Library.Action.Rename": "名前変更",
+  "Vox.Ai.Export.Time": "書き出し：{0}",
   "Vox.Library.Rename.Title": "記事の名前変更",
   "Vox.Library.Rename.Hint": "新しいファイル名を入力（.md は自動付加）。再スキャンで公開状態を更新し、移動は Git ワークスペースに記録されます。",
   "Vox.Library.Rename.Confirm": "変更",

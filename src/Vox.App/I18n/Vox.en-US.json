@@ -536,6 +536,7 @@
   "Vox.Ai.ConfirmNoCtx": "Confirm-write is on but no text was quoted: the reply stays in chat for manual insert or copy",
   "Vox.Title.WordCount": "· {0:N0} words",
   "Vox.Library.Action.Rename": "Rename",
+  "Vox.Ai.Export.Time": "Exported: {0}",
   "Vox.Library.Rename.Title": "Rename article",
   "Vox.Library.Rename.Hint": "Enter the new file name (.md appended automatically); publish mappings refresh on rescan and the move is visible in the Git workspace.",
   "Vox.Library.Rename.Confirm": "Rename",

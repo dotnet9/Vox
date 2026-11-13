@@ -4300,6 +4300,8 @@ public sealed class WritePage : UserControl
         var builder = new StringBuilder();
         builder.AppendLine("# " + T("Vox.Ai.Title"));
         builder.AppendLine();
+        builder.AppendLine("> " + TF("Vox.Ai.Export.Time", DateTime.Now.ToString("yyyy-MM-dd HH:mm")));
+        builder.AppendLine();
         foreach (var (role, text) in _aiExportLog)
         {
             builder.AppendLine("## " + T(role == "user" ? "Vox.Ai.Export.User" : "Vox.Ai.Export.Assistant"));
