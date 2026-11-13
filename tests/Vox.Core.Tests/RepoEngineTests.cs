@@ -364,8 +364,8 @@ public class FixOpsTests
             Assert.Contains("![a](a.png)", File.ReadAllText(md)); // 同年月折叠为文件名（相对 md 目录）
             Assert.DoesNotContain("img1.dotnet9.com", File.ReadAllText(md));
 
-            FixOps.FillAuthor(root, article);
-            Assert.Equal("Dotnet9", YamlSidecar.LoadFromMarkdown(md).Author);
+            FixOps.FillAuthor(root, article, "tester");
+            Assert.Equal("tester", YamlSidecar.LoadFromMarkdown(md).Author);
         }
         finally
         {

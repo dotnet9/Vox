@@ -376,7 +376,7 @@ public sealed class PublishDialog : Border
             var cover = _article.Meta.Cover is { Length: > 0 } coverPath
                 ? LinkStrategy.ToCdnUrl(coverPath, AppState.Instance.Settings.Link.CdnBase, AppState.Instance.Settings.Link.RepoRoot)
                 : null;
-            var result = await publisher.PublishAsync(_article.Title, markdown, cover);
+            var result = await publisher.PublishAsync(_article.Title, markdown, cover, _article.Meta.Author);
             var states = PublishStateStore.Load();
             PublishStateStore.MarkPublished(states, _article.MarkdownPath, channel, hash, result);
             PublishStateStore.Save(states);

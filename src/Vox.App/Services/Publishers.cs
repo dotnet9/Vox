@@ -10,7 +10,8 @@ namespace Vox.App.Services;
 public interface IPlatformPublisher
 {
     /// <summary>发布（或写入草稿箱）。markdown 为全文、title 为标题、coverCdnUrl 为封面 CDN 地址（可空）。</summary>
-    Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, CancellationToken ct = default);
+    /// <summary>发布（<paramref name="author"/> 供平台 payload 使用：文章 Meta.Author，未配置时实现方回退 git 身份或留空）。</summary>
+    Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, string? author = null, CancellationToken ct = default);
 
     /// <summary>连通性检查（设置页「测试连接」/状态探测）。</summary>
     Task<bool> ProbeAsync(CancellationToken ct = default);
@@ -34,7 +35,23 @@ public sealed class WeChatPublisher(WeChatAccount account) : IPlatformPublisher
         }
     }
 
-    public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, CancellationToken ct = default)
+    /// <summary>公众号 payload author：文章 Meta.Author → git 身份 → 空串（2026-11-14 去硬编码 Dotnet9）。</summary>
+    internal static string ResolveAuthor(string? author)
+    {
+        if (!string.IsNullOrWhiteSpace(author)) return author;
+        try
+        {
+            var root = AppState.Instance.CurrentRepoRoot;
+            if (root is not null && new Vox.Git.GitService(root).IdentityOrDefault() is { Item1: false } t)
+            {
+                return t.Item2;
+            }
+        }
+        catch { /* 无仓库/无 git：留空交平台校验 */ }
+        return string.Empty;
+    }
+
+    public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, string? author = null, CancellationToken ct = default)
     {
         var token = await GetAccessTokenAsync(ct)
             ?? throw new InvalidOperationException("获取 access_token 失败：检查 AppID/AppSecret（IP 白名单需含本机出口 IP）");
@@ -57,7 +74,7 @@ public sealed class WeChatPublisher(WeChatAccount account) : IPlatformPublisher
         {
           "articles": [{
             "title": {{Publishers.J(title)}},
-            "author": "Dotnet9",
+            "author": {{Publishers.J(ResolveAuthor(author))}},
             "content": {{Publishers.J(html)}},
             "thumb_media_id": {{Publishers.J(thumbId)}},
             "need_open_comment": 0,
@@ -120,7 +137,23 @@ public sealed class CnblogsPublisher(CnblogsAccount account) : IPlatformPublishe
         }
     }
 
-    public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, CancellationToken ct = default)
+    /// <summary>公众号 payload author：文章 Meta.Author → git 身份 → 空串（2026-11-14 去硬编码 Dotnet9）。</summary>
+    internal static string ResolveAuthor(string? author)
+    {
+        if (!string.IsNullOrWhiteSpace(author)) return author;
+        try
+        {
+            var root = AppState.Instance.CurrentRepoRoot;
+            if (root is not null && new Vox.Git.GitService(root).IdentityOrDefault() is { Item1: false } t)
+            {
+                return t.Item2;
+            }
+        }
+        catch { /* 无仓库/无 git：留空交平台校验 */ }
+        return string.Empty;
+    }
+
+    public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, string? author = null, CancellationToken ct = default)
     {
         var description = $"<p><img src=\"{coverCdnUrl}\" alt=\"cover\"/></p>\n" + markdown;
         var body = Rpc("metaWeblog.newPost",
@@ -161,7 +194,7 @@ public sealed class ZhihuCopyPublisher : IPlatformPublisher
 {
     public Task<bool> ProbeAsync(CancellationToken ct = default) => Task.FromResult(true);
 
-    public Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, CancellationToken ct = default) =>
+    public Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, string? author = null, CancellationToken ct = default) =>
         throw new InvalidOperationException("知乎无公开 API：请用「复制助手」（标题/描述/富文本已备好）");
 }
 
@@ -197,7 +230,23 @@ public sealed class CsdnPublisher(CsdnAccount account) : IPlatformPublisher
         }
     }
 
-    public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, CancellationToken ct = default)
+    /// <summary>公众号 payload author：文章 Meta.Author → git 身份 → 空串（2026-11-14 去硬编码 Dotnet9）。</summary>
+    internal static string ResolveAuthor(string? author)
+    {
+        if (!string.IsNullOrWhiteSpace(author)) return author;
+        try
+        {
+            var root = AppState.Instance.CurrentRepoRoot;
+            if (root is not null && new Vox.Git.GitService(root).IdentityOrDefault() is { Item1: false } t)
+            {
+                return t.Item2;
+            }
+        }
+        catch { /* 无仓库/无 git：留空交平台校验 */ }
+        return string.Empty;
+    }
+
+    public async Task<string> PublishAsync(string title, string markdown, string? coverCdnUrl, string? author = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(account.Token))
             throw new InvalidOperationException("未配置 CSDN 登录 Cookie，请在「设置 → 平台账户」中填写。");

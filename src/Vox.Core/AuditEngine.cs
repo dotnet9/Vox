@@ -69,7 +69,7 @@ public static class AuditEngine
             {
                 // 信息项：站点渲染默认站长（CodeWF 侧规则），数据保真不填充，仅列出供作者知悉。
                 issues.Add(new AuditIssue(AuditRule.MissingAuthor, AuditSeverity.Clue, article.MarkdownPath,
-                    "author 为空（站点默认渲染为站长 Dotnet9）", "Dotnet9"));
+                    "author 为空（站点默认渲染为站长名）", "填写作者名或配置 git 身份"));
             }
             if (!SlugRules.IsCompliant(article.Slug))
             {

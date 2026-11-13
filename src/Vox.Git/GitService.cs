@@ -242,8 +242,14 @@ public sealed class GitService
         {
             Commands.Stage(repo, path);
         }
-        var signature = new Signature(string.IsNullOrWhiteSpace(authorName) ? "Dotnet9" : authorName,
-            string.IsNullOrWhiteSpace(authorEmail) ? "dotnet9@codewf.com" : authorEmail, DateTimeOffset.Now);
+        // 兜底身份：仓库/全局配置 → 通用标识（不冒名硬编码，2026-11-14；主流程已用 IdentityOrDefault 阻断未配置）
+        authorName = string.IsNullOrWhiteSpace(authorName)
+            ? repo.Config.Get<string>("user.name")?.Value ?? "Vox"
+            : authorName;
+        authorEmail = string.IsNullOrWhiteSpace(authorEmail)
+            ? repo.Config.Get<string>("user.email")?.Value ?? "vox@local"
+            : authorEmail;
+        var signature = new Signature(authorName, authorEmail, DateTimeOffset.Now);
         return repo.Commit(message, signature, signature);
     }
 

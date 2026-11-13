@@ -2022,9 +2022,16 @@ public sealed class PublishPage : UserControl
             _shell.ShowToast(T("Vox.Publish.Msg.NoMissingAuthor"));
             return;
         }
+        string? authorName = null;
+        SafeGit(git => authorName = git.IdentityOrDefault() is { Item1: false } t ? t.Item2 : null);
+        if (string.IsNullOrWhiteSpace(authorName))
+        {
+            _shell.ShowToast(T("Vox.Publish.Error.NeedIdentity"));
+            return;
+        }
         foreach (var article in missing)
         {
-            FixOps.FillAuthor(root, article, "Dotnet9");
+            FixOps.FillAuthor(root, article, authorName);
         }
         AppState.Instance.NotifyRepoChanged();
         PublishHub.Invalidate();

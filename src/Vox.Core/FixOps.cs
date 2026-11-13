@@ -8,7 +8,7 @@ namespace Vox.Core;
 /// </summary>
 public static class FixOps
 {
-    public static void FillAuthor(string repoRoot, Article article, string author = "Dotnet9") =>
+    public static void FillAuthor(string repoRoot, Article article, string author) =>
         YamlSidecar.RewriteMarkdown(LinkStrategy.ToLocalFile(repoRoot, article.MarkdownPath), meta =>
         {
             meta.Author = author;
