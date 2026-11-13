@@ -3624,6 +3624,17 @@ public sealed class WritePage : UserControl
             VerticalContentAlignment = VerticalAlignment.Top,
         };
         _aiInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Ai.InputPlaceholder");
+        // 随内容自动增高（Trae 口径）：按换行分段 × 每行约 60 字符估算折行（Avalonia 无 LineCount），76–160 区间
+        _aiInput.TextChanged += (_, _) =>
+        {
+            var text = _aiInput.Text ?? string.Empty;
+            var visualLines = 0;
+            foreach (var seg in text.Split('\n'))
+            {
+                visualLines += Math.Max(1, (int)Math.Ceiling(seg.Length / 60.0));
+            }
+            _aiInput.MinHeight = Math.Clamp(visualLines * 16 + 12, 76, 160);
+        };
         _aiInput.KeyDown += (_, e) =>
         {
             // 原型口径：生成中回车不动作（停止只走按钮）；Shift+Enter 换行不触发发送。
