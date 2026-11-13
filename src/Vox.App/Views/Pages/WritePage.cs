@@ -333,6 +333,7 @@ public sealed class WritePage : UserControl
         _editorView.MarkdownChanged += (_, _) =>
         {
             if (_loading) return;
+            _shell.SetWordCount(TextMetrics.CountWords(_editorView.Text)); // 标题栏实时字数（2026-11-14）
             _dirty = true;
             _debounce.Stop();
             _debounce.Start();

@@ -569,6 +569,32 @@ public partial class MainWindow : Window
 
     // ---------- 文件名行（写作页联动） ----------
 
+    private TextBlock? _fileWordCount; // 标题栏实时正文字数（写作页编辑回传，懒建）
+
+    /// <summary>标题栏实时正文字数（写作页编辑内容变化回传；null 隐藏）。</summary>
+    public void SetWordCount(int? count)
+    {
+        if (_fileWordCount is null && FileNameText.Parent is StackPanel host)
+        {
+            _fileWordCount = new TextBlock
+            {
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsVisible = false,
+                Foreground = TryBrush("VoxMuted"),
+            };
+            host.Children.Add(_fileWordCount);
+        }
+        if (_fileWordCount is null) return;
+        if (count is not { } words)
+        {
+            _fileWordCount.IsVisible = false;
+            return;
+        }
+        _fileWordCount.Text = TF("Vox.Title.WordCount", words);
+        _fileWordCount.IsVisible = true;
+    }
+
     public void SetCurrentFile(Article? article, string fileName, IReadOnlyList<(PublishStatus Status, string Note)> badges)
     {
         FileDot.IsVisible = article != null;
@@ -576,7 +602,12 @@ public partial class MainWindow : Window
         FileNameText.Text = fileName;
         FileBadges.Children.Clear();
         FileBadges.IsVisible = article != null;
-        if (article == null) return;
+        if (article == null)
+        {
+            SetWordCount(null); // 无文章时字数一并隐藏，避免残留上一篇文章的计数
+            return;
+        }
+        SetWordCount(article.WordCount); // 打开文章先给扫描口径，编辑随键刷新
         foreach (var (status, _) in badges)
         {
             var key = status switch

@@ -534,6 +534,7 @@
   "Vox.Site.Label.SaveHint": "儲存時校驗：JSON 合法、slug 唯一、與文章引用一致（git 待提交）",
   "Vox.Site.Confirm.DiscardTitle": "放棄未儲存的修改？",
   "Vox.Ai.ConfirmNoCtx": "目前為「確認後寫入」模式，但發送時未引用正文：結果保留在會話，可手動插入或複製",
+  "Vox.Title.WordCount": "· {0:N0} 字",
   "Vox.Mcp.Audit.Start": "啟動服務",
   "Vox.Mcp.Audit.Stop": "停止服務",
   "Vox.Mcp.Audit.Stopped": "已停止",

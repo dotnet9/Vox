@@ -534,6 +534,7 @@
   "Vox.Site.Label.SaveHint": "Validated on save: valid JSON, unique slugs, article refs consistent (pending git commit)",
   "Vox.Site.Confirm.DiscardTitle": "Discard unsaved changes?",
   "Vox.Ai.ConfirmNoCtx": "Confirm-write is on but no text was quoted: the reply stays in chat for manual insert or copy",
+  "Vox.Title.WordCount": "· {0:N0} words",
   "Vox.Mcp.Audit.Start": "Service started",
   "Vox.Mcp.Audit.Stop": "Service stopped",
   "Vox.Mcp.Audit.Stopped": "Stopped",
