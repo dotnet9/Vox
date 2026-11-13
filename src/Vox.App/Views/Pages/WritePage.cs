@@ -200,6 +200,7 @@ public sealed class WritePage : UserControl
     private ArcButton _aiModeButton = null!;
     private ArcButton _aiModelButton = null!;
     private Func<Task>? _aiRetry; // 当前会话的重试闭包（失败重试 / 重新生成共用），清空会话即作废
+    private bool _aiFollowTail = true; // 流式跟随：用户上滚暂停贴底、滚回底部恢复（Trae/ZCode 口径，2026-11-14）
     private EventHandler<EventArgs>? _aiComposerCultureRefresh; // 切语言刷新底栏按钮文案（T() 快照会过期）
     private readonly List<(string Role, string Text)> _aiExportLog = []; // 导出用对话记录（用户提问 + 助手回复）
     private Control? _aiEmptyState;
@@ -3624,6 +3625,12 @@ public sealed class WritePage : UserControl
             Margin = new Thickness(0, 8, 0, 0),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
         };
+        // 流式跟随判定（仅认用户滚轮）：上滚暂停贴底，滚回底部恢复——流式期间的程序滚动不改变状态
+        _aiMsgScroll.PointerWheelChanged += (_, e) =>
+        {
+            if (e.Delta.Y < 0) _aiFollowTail = false;
+            else if (AiAtMessageTail()) _aiFollowTail = true;
+        };
 
         var chips = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
         foreach (var presetKey in AiPrompts.PresetKeys)
@@ -4215,6 +4222,13 @@ public sealed class WritePage : UserControl
         _aiMsgScroll.ScrollToEnd();
     }
 
+    /// <summary>消息流是否已贴底（容差 8px）。</summary>
+    private bool AiAtMessageTail()
+    {
+        var max = Math.Max(0, _aiMsgScroll.Extent.Height - _aiMsgScroll.Viewport.Height);
+        return max < 8 || _aiMsgScroll.Offset.Y >= max - 8;
+    }
+
     /// <summary>发送/停止二态按钮：忙碌时点击 = 停止本次生成（原型口径）。</summary>
     private async Task OnAiSendClickedAsync()
     {
@@ -4509,7 +4523,7 @@ public sealed class WritePage : UserControl
                 {
                     pending.IsVisible = false;
                     reasoning.OnContentStarted();
-                    _aiMsgScroll.ScrollToEnd();
+                    if (_aiFollowTail) _aiMsgScroll.ScrollToEnd(); // 用户上滚阅读时暂停贴底，滚回底部自动恢复
                 });
             },
             cancellationToken: _aiCts.Token,
