@@ -14,6 +14,8 @@ using Vox.App.Views;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
 using ArcInput = TKCode.Arc.Input;
+using ArcControlSize = TKCode.Arc.ControlSize;
+using TKCode.Arc.Icons.Lucide;
 using static Vox.App.Views.Pages.WritePage;
 
 
@@ -274,8 +276,15 @@ public sealed class ImagesPage : UserControl
 
         if (!_grid.Children.Any())
         {
-            var empty = new TextBlock { Text = T("Vox.Images.Empty"), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 24) };
-            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
+            // Arc EmptyState（Small）替代裸文字空态（2026-11-13 与 AI 会话/原型空态口径一致）
+            var empty = new TKCode.Arc.EmptyState
+            {
+                Size = ArcControlSize.Small,
+                Icon = Lucide.Geometry(LucideIconKind.ImageOff),
+                Title = T("Vox.Images.Empty"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 32),
+            };
             _grid.Children.Add(empty);
         }
 
@@ -491,6 +500,7 @@ public sealed class ImagesPage : UserControl
             TF("Vox.Images.Batch.DeleteBody", picked.Count), T("Vox.Images.Action.Delete"));
         if (!ok) return;
         var deleted = 0;
+        var skipped = 0;
         foreach (var image in picked)
         {
             try
@@ -499,10 +509,15 @@ public sealed class ImagesPage : UserControl
                 if (_selectedPath == image.RelativePath) _selectedPath = null;
                 deleted++;
             }
-            catch { /* 只读/占用：跳过，重扫后仍在 */ }
+            catch
+            {
+                skipped++; // 只读/占用：如实上报，不再静默吞掉（2026-11-13）
+            }
         }
         _pickedPaths.Clear();
-        _shell.ShowToast(TF("Vox.Images.Batch.Deleted", deleted));
+        _shell.ShowToast(skipped > 0
+            ? TF("Vox.Images.Batch.DeletedSkipped", deleted, skipped)
+            : TF("Vox.Images.Batch.Deleted", deleted));
         AppState.Instance.NotifyRepoChanged();
     }
 
