@@ -348,6 +348,14 @@ public sealed class McpPage : UserControl
         }));
 
         _portInput.Text = settings.McpPort.ToString();
+        // 端口实时校验：输错立即红字提示（此前只在点「重启」时才校验，2026-11-13）
+        _portInput.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty) return;
+            var valid = int.TryParse(_portInput.Text?.Trim(), out var p) && p is >= 1024 and <= 65535;
+            Res(_portHint, TextBlock.ForegroundProperty, valid ? "VoxFaint" : "VoxDanger");
+            _portHint.Text = T(valid ? "Vox.Mcp.Config.PortHint" : "Vox.Mcp.Config.PortInvalid");
+        };
         Res(_portHint, TextBlock.ForegroundProperty, "VoxFaint");
         _portHint[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Config.PortHint");
         config.Add(Row("Vox.Mcp.Config.Port", new StackPanel
