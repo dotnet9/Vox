@@ -4286,10 +4286,13 @@ public sealed class WritePage : UserControl
         }
         var provider = TopLevel.GetTopLevel(this)?.StorageProvider;
         if (provider == null) return;
+        // 建议文件名带文章标题（非法字符剔除，2026-11-14）：归档时一眼认出出处
+        var titlePart = string.Join(string.Empty, (_current?.Meta.Title ?? "会话")
+            .Where(c => !Path.GetInvalidFileNameChars().Contains(c) && !char.IsWhiteSpace(c)));
         var file = await provider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
         {
             Title = T("Vox.Ai.Export"),
-            SuggestedFileName = $"vox-ai-{DateTime.Now:yyyyMMdd-HHmm}",
+            SuggestedFileName = $"vox-ai-{titlePart}-{DateTime.Now:yyyyMMdd-HHmm}",
             DefaultExtension = "md",
         });
         if (file is null) return;
