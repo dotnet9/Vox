@@ -1496,7 +1496,7 @@ public sealed class PublishPage : UserControl
             {
                 e.Handled = true;
                 var label = T("Vox.Publish.Filter." + (key == "Ok" ? "AllArticles" : key));
-                if (_matrixFilterKeys.TryGetValue(label, out _))
+                if (_matrixFilterKeys.ContainsKey(label))
                 {
                     _matrixFilter.Selected = label;
                     RefreshMatrix();
