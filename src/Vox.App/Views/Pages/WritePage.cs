@@ -4369,6 +4369,12 @@ public sealed class WritePage : UserControl
                 AddAiBotOps(outcome.Body, outcome.Text, offer);
                 _aiInput.Focus(); // 回复落定焦点回输入框（Trae 口径），连续追问不丢焦点
                 break;
+            case AiChatMode.ConfirmWrite:
+                // 确认写入但发送时未引用正文：无区间可出 diff 卡，降级为讨论口径并说明（2026-11-13）
+                AddAiNote(T("Vox.Ai.ConfirmNoCtx"), error: false);
+                AddAiBotOps(outcome.Body, outcome.Text, offer: null);
+                _aiInput.Focus();
+                break;
             default:
                 AddAiBotOps(outcome.Body, outcome.Text, offer: null);
                 _aiInput.Focus();
