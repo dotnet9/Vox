@@ -13,6 +13,8 @@ using Vox.App.Views;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
 using ArcInput = TKCode.Arc.Input;
+using ArcControlSize = TKCode.Arc.ControlSize;
+using TKCode.Arc.Icons.Lucide;
 using static Vox.App.Views.Pages.WritePage;
 
 namespace Vox.App.Views.Pages;
@@ -23,9 +25,11 @@ public sealed class LibraryPage : UserControl
     private readonly MainWindow _shell;
     private WrapPanel _statsHost = new();
     private readonly DataGrid _libGrid = new();
-    private readonly TextBlock _libEmpty = new()
+    // 空态换 Arc EmptyState（Small，与图片库/AI 会话口径一致，2026-11-13）
+    private readonly TKCode.Arc.EmptyState _libEmpty = new()
     {
-        FontSize = 12,
+        Size = ArcControlSize.Small,
+        Icon = Lucide.Geometry(LucideIconKind.SearchX),
         HorizontalAlignment = HorizontalAlignment.Center,
         IsVisible = false,
     };
@@ -59,7 +63,7 @@ public sealed class LibraryPage : UserControl
         BuildLayout();
         DetachedFromVisualTree += (_, _) =>
         {
-            // 页面按导航重建（MainWindow.GetPage 每次 new）：卸载即停防抖表 + 作废在途扫描
+            // 卸载即停防抖表 + 作废在途扫描（页面实例在 MainWindow 缓存，卸载发生在关仓/换仓）
             _searchDebounce.Stop();
             _searchCts?.Cancel();
         };
@@ -142,7 +146,7 @@ public sealed class LibraryPage : UserControl
         ConfigureGrid();
         var tableHost = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto") };
         tableHost.Children.Add(_libGrid);
-        _libEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Library.Label.NoMatch");
+        _libEmpty.Title = T("Vox.Library.Label.NoMatch");
         _libEmpty.Margin = new Thickness(0, 22);
         Grid.SetRow(_libEmpty, 1);
         Res(_libEmpty, TextBlock.ForegroundProperty, "VoxFaint");
