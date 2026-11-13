@@ -4,6 +4,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Input;
+using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Views;
 using Vox.Core;
@@ -23,13 +25,32 @@ public sealed class SiteDataPage : UserControl
     private string? _selectedFile;
     private JsonObject? _root;
     private string? _originalJson;
+    private bool _dirty; // 编辑未保存标记：单元格回写/原文改动/增删行置位，切换守卫与自动保存依据
 
     public SiteDataPage(MainWindow shell)
     {
         _shell = shell;
         BuildLayout();
+        // Ctrl+S 保存（原型口径）：编辑区任意子控件聚焦时按键冒泡到此
+        KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.S || !e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+            Save();
+            e.Handled = true;
+        };
         AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(RebuildNav);
         RebuildNav();
+    }
+
+    /// <summary>离开页面（切工作区）即静默落盘：站点数据是唯一无自动保存的编辑页，静默丢失不可接受（2026-11-13）。</summary>
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        if (_dirty)
+        {
+            _dirty = false;
+            Save();
+        }
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void BuildLayout()
@@ -114,7 +135,8 @@ public sealed class SiteDataPage : UserControl
                 FontSize = 11,
                 Tag = file,
             };
-            item.Click += (_, _) => Select(file.RelativePath);
+            var target = file.RelativePath;
+            item.Click += (_, _) => _ = SelectWithGuardAsync(target);
             _navHost.Children.Add(item);
             ApplyNavStyle(item, file.RelativePath == _selectedFile);
         }
@@ -151,10 +173,63 @@ public sealed class SiteDataPage : UserControl
         if (active) item.Classes.Add("active");
     }
 
+    /// <summary>带守卫切换文件：有未保存编辑时确认放弃（确认对话框统一 ConfirmDialog 口径）。</summary>
+    private async Task SelectWithGuardAsync(string relativePath)
+    {
+        if (_dirty && relativePath != _selectedFile)
+        {
+            var ok = await ConfirmDialog.Show(_shell, T("Vox.Site.Confirm.DiscardTitle"),
+                TF("Vox.Site.Confirm.DiscardMsg", _selectedFile ?? string.Empty),
+                T("Vox.Site.Confirm.DiscardConfirm"), destructive: true);
+            if (!ok) return; // 留在当前编辑，不切
+        }
+        _dirty = false;
+        Select(relativePath);
+    }
+
+    /// <summary>按内存 _root 重建编辑区（增/删行后调用）：此前调 Select() 会从磁盘重读，
+    /// 未保存的单元格编辑被丢弃、删除行操作被撤销（2026-11-13 数据丢失级 bug 修复）。</summary>
+    private void RefreshEditor()
+    {
+        if (_root == null || _selectedFile == null) return;
+        _contentHost.Children.Clear();
+        _contentHost.Children.Add(_contentTitle);
+        foreach (var (key, value) in _root)
+        {
+            if (value is JsonArray { Count: > 0 } array && array[0] is JsonObject)
+            {
+                BuildArrayEditor(key, array);
+                return;
+            }
+        }
+        // 主数组为空（行已删光）或非数组结构：内存态直接进原文编辑，不再回读磁盘
+        var raw = new TextBox
+        {
+            Classes = { "vinput" },
+            Text = _root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
+            AcceptsReturn = true, IsReadOnly = false,
+            FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace"),
+            FontSize = 11, MinHeight = 320,
+            TextWrapping = TextWrapping.NoWrap,
+            Tag = "raw",
+        };
+        raw.TextChanged += (_, _) => _dirty = true;
+        _contentHost.Children.Add(raw);
+        MarkDirty();
+    }
+
+    /// <summary>标题追脏点：视觉提示当前文件有未保存修改。</summary>
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _contentTitle.Text = _selectedFile + " ●";
+    }
+
     private void Select(string relativePath)
     {
         _selectedFile = relativePath;
         _root = null;
+        _dirty = false;
         _warnHost.Children.Clear(); // 切换文件清空上次的保存校验提醒
         foreach (var child in _navHost.Children.OfType<Button>())
         {
@@ -218,6 +293,7 @@ public sealed class SiteDataPage : UserControl
             TextWrapping = TextWrapping.NoWrap,
             Tag = "raw",
         };
+        text.TextChanged += (_, _) => MarkDirty();
         _contentHost.Children.Add(text);
     }
 
@@ -301,6 +377,7 @@ public sealed class SiteDataPage : UserControl
                     {
                         captured[prop] = JsonValue.Create(box.Text);
                     }
+                    MarkDirty();
                 };
                 row.Children.Add(box);
                 Grid.SetColumn(box, index);
@@ -324,7 +401,7 @@ public sealed class SiteDataPage : UserControl
             remove.Click += (_, _) =>
             {
                 array.Remove(capturedRow);
-                Select(_selectedFile!);
+                RefreshEditor(); // 从内存重建：此前 Select() 回读磁盘，未保存编辑被丢且删除被撤销
             };
             row.Children.Add(remove);
             Grid.SetColumn(remove, withCount ? properties.Count + 1 : properties.Count);
@@ -341,7 +418,7 @@ public sealed class SiteDataPage : UserControl
                 entry[prop] = JsonValue.Create(string.Empty);
             }
             array.Add((JsonNode)entry);
-            Select(_selectedFile!);
+            RefreshEditor();
         };
         addRow.Children.Add(add);
         var hint = new TextBlock
@@ -353,8 +430,6 @@ public sealed class SiteDataPage : UserControl
         addRow.Children.Add(hint);
         _contentHost.Children.Add(addRow);
     }
-
-    private static bool IsNumericLike(string text) => double.TryParse(text, out _);
 
     /// <summary>是否为分类字典文件（site/**/categories.json）。</summary>
     private static bool IsCategoriesFile(string? relativePath) =>
@@ -512,6 +587,8 @@ public sealed class SiteDataPage : UserControl
 
             var localPath = LinkStrategy.ToLocalFile(AppState.Instance.CurrentRepoRoot, _selectedFile);
             File.WriteAllText(localPath, json + Environment.NewLine);
+            _dirty = false;
+            _contentTitle.Text = _selectedFile;
             // 保存校验（警示不阻断）：slug 重复、categories 与文章引用一致性
             RenderWarnings(ValidateSiteData(json));
             AppState.Instance.NotifyRepoChanged();
