@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using CodeWF.Avalonia.DataGrid;
+using CodeWF.Toolkit.Lang;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
@@ -72,8 +73,16 @@ public sealed class LibraryPage : UserControl
             e.Handled = true;
         };
         BuildLayout();
+        EventHandler<EventArgs> cultureRefresh = (_, _) =>
+        {
+            // 切语言后筛选选项文案重建：Selected 失配自动回"全部"（与矩阵筛选稳定键化同族问题，2026-11-14）
+            RebuildFilters();
+            RebuildTable();
+        };
+        CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged += cultureRefresh;
         DetachedFromVisualTree += (_, _) =>
         {
+            CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged -= cultureRefresh;
             // 卸载即停防抖表 + 作废在途扫描（页面实例在 MainWindow 缓存，卸载发生在关仓/换仓）
             _searchDebounce.Stop();
             _searchCts?.Cancel();

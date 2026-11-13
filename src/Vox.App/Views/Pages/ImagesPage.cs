@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using CodeWF.Toolkit.Lang;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Views;
@@ -109,6 +110,11 @@ public sealed class ImagesPage : UserControl
             selects.Children.Add(f);
         }
         filters.Children.Add(selects);
+        // 切语言后筛选选项文案重建（Selected 失配自动回"全部"，2026-11-14 同 LibraryPage）
+        EventHandler<EventArgs> imagesCultureRefresh = (_, _) => Rebuild();
+        CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged += imagesCultureRefresh;
+        DetachedFromVisualTree += (_, _) => CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged -= imagesCultureRefresh;
+
         // 搜索 300ms 防抖（与 LibraryPage 同口径）：Rebuild 会重建统计/筛选/网格，逐键执行在打字时卡顿
         var searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         searchDebounce.Tick += (_, _) =>
