@@ -19,6 +19,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Rendering;
 using CodeWF.Avalonia.Markdown.Controls;
+using CodeWF.Toolkit.Lang;
 using CodeWF.Avalonia.Markdown.Editor.Controls;
 using CodeWF.Avalonia.Markdown.Editor.Services;
 using CodeWF.Avalonia.Markdown.Shared.Rendering;
@@ -199,6 +200,7 @@ public sealed class WritePage : UserControl
     private ArcButton _aiModeButton = null!;
     private ArcButton _aiModelButton = null!;
     private Func<Task>? _aiRetry; // 当前会话的重试闭包（失败重试 / 重新生成共用），清空会话即作废
+    private EventHandler<EventArgs>? _aiComposerCultureRefresh; // 切语言刷新底栏按钮文案（T() 快照会过期）
     private readonly List<(string Role, string Text)> _aiExportLog = []; // 导出用对话记录（用户提问 + 助手回复）
     private Control? _aiEmptyState;
     private ArcPopover? _aiModePop;
@@ -352,7 +354,20 @@ public sealed class WritePage : UserControl
         {
             CancelOutlineNavigation();
             _outlineReadingSample?.Dispose(); _outlineReadingSample = null;
+            if (_aiComposerCultureRefresh is not null)
+            {
+                I18nManager.Instance.CultureChanged -= _aiComposerCultureRefresh;
+                _aiComposerCultureRefresh = null;
+            }
         };
+        // 切语言时刷新 composer 底栏（模式/模型触发钮文案为快照）
+        EventHandler<EventArgs> aiCultureRefresh = (_, _) =>
+        {
+            UpdateAiModeButton();
+            UpdateAiModelButton();
+        };
+        I18nManager.Instance.CultureChanged += aiCultureRefresh;
+        _aiComposerCultureRefresh = aiCultureRefresh;
         // 预览里的任务勾选回写源码（库返回新 Markdown 与变更区间，整串应用即可）。
         _preview.TaskWriteBackRequested += (_, e) =>
         {
