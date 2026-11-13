@@ -565,7 +565,7 @@
   "Vox.Settings.Platform.Configure": "Configure…",
   "Vox.Settings.Platform.CopyBased": "Copy-based platforms",
   "Vox.Settings.Platform.CopyDesc": "Zhihu / Toutiao / Bilibili columns etc. · no credentials required, published via the copy assistant",
-  "Vox.Settings.About.DescPreview": "Vox 0.2.0-preview.4 · by CodeWF",
+  "Vox.Settings.About.DescPreview": "Vox {0} · by CodeWF",
   "Vox.Settings.About.CheckUpdate": "Check for updates",
   "Vox.Settings.About.UpToDate": "Already on the latest version 0.2.0-preview.4 (GitHub Releases channel)",
   "Vox.Settings.About.UpdateRow": "Update",

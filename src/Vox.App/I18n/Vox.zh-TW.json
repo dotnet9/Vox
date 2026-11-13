@@ -565,7 +565,7 @@
   "Vox.Settings.Platform.Configure": "設定…",
   "Vox.Settings.Platform.CopyBased": "複製型平台",
   "Vox.Settings.Platform.CopyDesc": "知乎 / 頭條 / B 站專欄等 · 無憑證要求，經複製助理發布",
-  "Vox.Settings.About.DescPreview": "Vox · 維聲 0.2.0-preview.4 · 出品 碼坊 CodeWF",
+  "Vox.Settings.About.DescPreview": "Vox · 維聲 {0} · 出品 碼坊 CodeWF",
   "Vox.Settings.About.CheckUpdate": "檢查更新",
   "Vox.Settings.About.UpToDate": "已是最新版本 0.2.0-preview.4（GitHub Releases 通道）",
   "Vox.Settings.About.UpdateRow": "更新",

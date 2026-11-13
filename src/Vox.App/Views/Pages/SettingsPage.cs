@@ -4,8 +4,8 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using System.Linq;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
+using System.Reflection;
+using CodeWF.Toolkit.Lang;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Controls;
 using Vox.App.Dialogs;
@@ -43,6 +43,7 @@ public sealed class SettingsPage : UserControl
     };
     private readonly TextBlock _mcpState = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     private ArcButton _llmTest = null!;
+    private EventHandler<EventArgs>? _aboutVersionRefresh;
 
     public SettingsPage(MainWindow shell)
     {
@@ -62,6 +63,11 @@ public sealed class SettingsPage : UserControl
         base.OnDetachedFromVisualTree(e);
         McpService.StateChanged -= OnMcpStateChanged;
         McpService.CallAudited -= OnMcpCallAudited;
+        if (_aboutVersionRefresh is not null)
+        {
+            I18nManager.Instance.CultureChanged -= _aboutVersionRefresh;
+            _aboutVersionRefresh = null;
+        }
     }
 
     private void OnMcpStateChanged() => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshMcp);
@@ -312,7 +318,9 @@ public sealed class SettingsPage : UserControl
         aiTab.Children.Add(mcpCard.Host);
 
         // ---------- 关于 ----------
-        var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview", showTitle: false); // 左页签已选「关于」，右侧不再重复标题（2026-11-13）
+        // 描述行版本号实时取程序集 InformationalVersion（i18n 只留 {0} 占位）：旧串把 0.2.0-preview.4
+        // 写死在四份语言 JSON、早已落后实际版本（2026-11-13）。
+        var aboutCard = Card("Vox.Settings.About.Title", showTitle: false, desc: AboutVersionDesc());
         var checkUpdate = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         checkUpdate[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.About.CheckUpdate");
         // 检查更新与标题栏药丸/帮助菜单共用同一更新会话（单一数据源）：开窗恢复现场或重新检查。
@@ -339,6 +347,7 @@ public sealed class SettingsPage : UserControl
             Margin = new Thickness(0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             ContentPadding = new Thickness(18, 14, 18, 16), // 覆盖控件 token 默认缩进：内容紧贴页签列（原型 .settabs-body 口径）
+            SectionSpacing = 0, // 见下方真切换注释：分区槽间距在显隐口径下是纯空白
         };
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Write", LucideIconKind.PenLine, writeTab));
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Publish", LucideIconKind.Send, publishTab));
@@ -346,20 +355,17 @@ public sealed class SettingsPage : UserControl
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.About", LucideIconKind.Info, aboutTab));
 
         // 原型口径（.settab → .setpane 显隐切换）：选中分区可见、其余隐藏（真切换，保留 FluidTabControl
-        // 的滑块动效与左列形态）。显隐后把内容视口滚动偏移归零：控件先按 scroll-spy 滚到旧坐标，
-        // 显隐令内容骤短时旧偏移会把内容顶推出视口，形成大段空白（2026-11-13 用户反馈的右侧顶空白根因）。
+        // 的滑块动效与左列形态）。控件是滚动间谍设计：四个分区槽永远纵向堆叠、槽间按 SectionSpacing(40)
+        // 留距——隐藏分区内容只塌缩槽内高度，槽位与槽间距仍在，第 N 个分区上方压着 N×40px 实空隙
+        // （关于=3×40+上边距≈134px，2026-11-13 用户反馈的右侧顶空白根因；此前「滚动偏移归零」只治了
+        // scroll-spy 滚到旧坐标的伴随症状，不是根因）。真切换下同一时刻仅一个分区占位，槽间距无意义，
+        // 故上方 SectionSpacing=0 让空槽零高、内容贴顶；显隐切换照旧，偏移无需手工干预。
         Control[] sections = [writeTab, publishTab, aiTab, aboutTab];
         for (var i = 1; i < sections.Length; i++) sections[i].IsVisible = false;
         tabs.SelectionChanged += (_, _) =>
         {
             var index = tabs.SelectedIndex;
             for (var i = 0; i < sections.Length; i++) sections[i].IsVisible = i == index;
-            Dispatcher.UIThread.Post(() =>
-            {
-                var viewport = tabs.GetVisualDescendants().OfType<ScrollViewer>()
-                    .FirstOrDefault(sv => sv.Name == "PART_ContentViewport");
-                if (viewport != null && viewport.Offset.Y != 0) viewport.Offset = new Vector(viewport.Offset.X, 0);
-            });
         };
 
         // 原型 .settabs：页签列 + 内容同框的一张圆角卡片（整体边框，高度随内容），不铺满页面。
@@ -394,8 +400,9 @@ public sealed class SettingsPage : UserControl
     }
 
     /// <summary>设置分区卡片。<paramref name="showTitle"/>=false 时省略标题行（左侧页签已选中分区，
-    /// 标题与页签同名时右侧重复显示——2026-11-13 用户反馈，关于卡片启用）。</summary>
-    private (Border Host, Action<Control> Add) Card(string titleKey, string descKey, bool showTitle = true)
+    /// 标题与页签同名时右侧重复显示——2026-11-13 用户反馈，关于卡片启用）。
+    /// <paramref name="desc"/> 提供时替代 i18n 描述行（关于卡版本串为代码组装，见 <see cref="AboutVersionDesc"/>）。</summary>
+    private (Border Host, Action<Control> Add) Card(string titleKey, string? descKey = null, bool showTitle = true, Control? desc = null)
     {
         var border = new Border
         {
@@ -413,10 +420,39 @@ public sealed class SettingsPage : UserControl
             titleBlock[!TextBlock.TextProperty] = I18n.Bind(titleKey);
             body.Children.Add(titleBlock);
         }
-        body.Children.Add(Desc(descKey));
+        if (desc is not null)
+        {
+            body.Children.Add(desc);
+        }
+        else if (descKey is not null)
+        {
+            body.Children.Add(Desc(descKey));
+        }
         body.Children.Add(new Border { Height = 6 });
         void Add(Control row) => body.Children.Add(row);
         return (border, Add);
+    }
+
+    /// <summary>关于描述行：TF 组装 i18n 框架文案与程序集版本，随语言切换重排（UpdatePill 同款接线），页面析构解绑。</summary>
+    private TextBlock AboutVersionDesc()
+    {
+        var block = new TextBlock { FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
+        Res(block, TextBlock.ForegroundProperty, "VoxFaint");
+        void Refresh() => block.Text = TF("Vox.Settings.About.DescPreview", VersionLabel());
+        EventHandler<EventArgs> handler = (_, _) => Refresh();
+        I18nManager.Instance.CultureChanged += handler;
+        _aboutVersionRefresh = handler;
+        Refresh();
+        return block;
+    }
+
+    /// <summary>InformationalVersion 含预览后缀（如 0.2.0-preview.14）；缺省回退程序集版本。</summary>
+    private static string VersionLabel()
+    {
+        var informational = typeof(SettingsPage).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        return string.IsNullOrWhiteSpace(informational)
+            ? typeof(SettingsPage).Assembly.GetName().Version?.ToString() ?? "?"
+            : informational;
     }
 
     private Control Row(string labelKey, Control value)
