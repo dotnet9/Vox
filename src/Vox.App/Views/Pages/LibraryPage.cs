@@ -675,6 +675,11 @@ public sealed class LibraryPage : UserControl
         }
         PublishHub.Invalidate();
         AppState.Instance.Rescan();
+        if (wasOpen)
+        {
+            // 删除的是当前打开文章：清标题栏文件名与字数（正文保留供回滚参考，2026-11-14）
+            _shell.SetCurrentFile(null, string.Empty, Array.Empty<(Vox.Core.PublishStatus, string)>());
+        }
         _shell.ShowToast(T("Vox.Library.Delete.Done"));
     }
 
