@@ -3657,9 +3657,10 @@ public sealed class WritePage : UserControl
         Grid.SetRow(chips, 3);
         Grid.SetRow(inputRow, 4);
         Grid.SetRow(composerFooter, 5);
+        var savedWidth = Math.Clamp(AppState.Instance.Settings.AiPanelWidth, 380, 640);
         _aiPop = new Border
         {
-            Width = 420,
+            Width = savedWidth,
             Height = 520,
             Padding = new Thickness(14, 12, 14, 14),
             CornerRadius = new CornerRadius(14),
@@ -3713,6 +3714,9 @@ public sealed class WritePage : UserControl
             startWidth = null;
             e.Pointer.Capture(null);
             e.Handled = true;
+            // 宽度持久化：拖一次即记住（设置文件随 SaveSettings 落盘）
+            AppState.Instance.Settings.AiPanelWidth = (int)Math.Clamp(_aiPop.Width, 380, 640);
+            AppState.Instance.SaveSettings();
         };
         return new Grid { Children = { handle, body } };
     }

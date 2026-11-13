@@ -84,6 +84,9 @@ public sealed class VoxSettings
     /// <summary>写作页 AI 助手开关（右下角指令条显隐）。</summary>
     public bool LlmEnabled { get; set; } = true;
 
+    /// <summary>AI 会话面板宽度（380–640，拖拽左缘调节；持久化避免每次重开面板再拖，2026-11-13）。</summary>
+    public int AiPanelWidth { get; set; } = 420;
+
     /// <summary>大模型服务商标识（GLM / DeepSeek / OpenAI / Claude / Ollama），密钥按服务商存凭据管理器。</summary>
     public string LlmProvider { get; set; } = "GLM";
 
