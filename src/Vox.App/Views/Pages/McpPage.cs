@@ -961,7 +961,7 @@ public sealed class McpPage : UserControl
         Res(_toolSub, TextBlock.ForegroundProperty, "VoxFaint");
         pagehead.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { title, _toolSub } });
         _toolSearch.VerticalAlignment = VerticalAlignment.Center;
-        _toolSearch[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Mcp.Tools.Search");
+        _toolSearch[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Mcp.Tools.Search");
         _toolSearch.PropertyChanged += (_, e) =>
         {
             if (e.Property == TextBox.TextProperty) RefreshTools();

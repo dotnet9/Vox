@@ -119,7 +119,7 @@ public sealed class PublishPage : UserControl
         _checkAll[!CheckBox.ContentProperty] = I18n.Bind("Vox.Sync.Label.SelectAll");
         _summaryInput[!ArcInput.LabelProperty] = I18n.Bind("Vox.Publish.Label.Summary");
         _summaryInput[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Sync.Hint.Summary");
-        _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Sync.Hint.Description");
+        _descInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Sync.Hint.Description");
         _matrixSearch[!ArcInput.LabelProperty] = I18n.Bind("Vox.Publish.Hint.SearchTitle");
         _matrixSearch[!ArcInput.PlaceholderProperty] = I18n.Bind("Vox.Publish.Hint.SearchTitle");
 

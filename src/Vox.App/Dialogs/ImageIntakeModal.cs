@@ -102,7 +102,7 @@ public sealed class ImageIntakeModal : Border
 
         // 网图 URL：下载到临时目录后与本地文件同管线（自动命名/落位/压缩），不做外链
         _urlInput = Modal.Input(mono: true);
-        _urlInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Image.Label.UrlPlaceholder");
+        _urlInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Image.Label.UrlPlaceholder");
         _urlInput.KeyDown += async (_, e) =>
         {
             if (e.Key == Key.Enter)
@@ -121,7 +121,7 @@ public sealed class ImageIntakeModal : Border
 
         // 描述名（可选）：填写后建议名 = 前缀-描述名.扩展名；留空保持 前缀-时间戳
         _descInput = Modal.Input();
-        _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Image.Label.DescPlaceholder");
+        _descInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Image.Label.DescPlaceholder");
         _descInput.TextChanged += (_, _) => RefreshNameSuggestion();
         body.Children.Add(BoundLabel("Vox.Image.Label.Desc"));
         body.Children.Add(_descInput);

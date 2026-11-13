@@ -52,7 +52,7 @@ public sealed class PlatformCfgModal : Border
         modal.Child = null; // 先断开骨架 Border 的逻辑父级，再借用其内容（否则「已有父级」崩溃）
         Child = skeleton;
         close.Click += (_, _) => shell.CloseModal();
-        _cnbToken[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Settings.Platform.Token");
+        _cnbToken[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Settings.Platform.Token");
 
         var intro = new TextBlock
         {

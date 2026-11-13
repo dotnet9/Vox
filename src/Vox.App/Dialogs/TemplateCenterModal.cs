@@ -55,7 +55,7 @@ public sealed class TemplateCenterModal : Border
         close.Click += (_, _) => shell.CloseModal();
 
         // 工具行：搜索 + 分类页签
-        _searchInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Tpl.SearchPlaceholder");
+        _searchInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Tpl.SearchPlaceholder");
         _searchInput.TextChanged += (_, _) => ApplyFilter();
 
         foreach (var (key, value) in new[] { ("Vox.Tpl.Cat.All", "all"), ("Vox.Tpl.Cat.Dev", "dev"), ("Vox.Tpl.Cat.Ops", "ops"), ("Vox.Tpl.Cat.My", "my") })

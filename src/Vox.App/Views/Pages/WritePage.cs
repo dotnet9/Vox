@@ -272,7 +272,7 @@ public sealed class WritePage : UserControl
         // 长行口径与原型分屏一致：源码默认横向滚动（关=横滚，控件 WordWrap 属性成对改写滚动条）。
         _editorView.WordWrap = false;
         // placeholder 动态篇数（原型 L111「搜索 37 篇…」）：随索引重建重绑（TFBind 参数为运行时值，语言切换自动重排）。
-        _search[!TextBox.WatermarkProperty] = TFBind("Vox.Write.List.SearchFmt", 0);
+        _search[!TextBox.PlaceholderTextProperty] = TFBind("Vox.Write.List.SearchFmt", 0);
 
         _debounce.Tick += (_, _) => { _debounce.Stop(); RefreshPreview(); };
         _autoSaveTimer.Tick += (_, _) => { _autoSaveTimer.Stop(); AutoSaveTick(); };
@@ -656,7 +656,7 @@ public sealed class WritePage : UserControl
         var scan = AppState.Instance.Scan;
         if (scan == null)
         {
-            _search[!TextBox.WatermarkProperty] = I18n.Bind(Write.List.SearchPlaceholder);
+            _search[!TextBox.PlaceholderTextProperty] = I18n.Bind(Write.List.SearchPlaceholder);
             _articleItems.Clear();
             _listCount.IsVisible = false;
             ShowListEmpty("Vox.Write.List.NoRepo");
@@ -664,7 +664,7 @@ public sealed class WritePage : UserControl
         }
 
         // placeholder 动态篇数（原型「搜索 37 篇…」）：随索引重绑；底部总篇数同步。
-        _search[!TextBox.WatermarkProperty] = TFBind("Vox.Write.List.SearchFmt", scan.Articles.Count);
+        _search[!TextBox.PlaceholderTextProperty] = TFBind("Vox.Write.List.SearchFmt", scan.Articles.Count);
         _listCount.IsVisible = true;
         _listCount[!TextBlock.TextProperty] = TFBind("Vox.Write.List.Total", scan.Articles.Count);
 
@@ -2182,7 +2182,7 @@ public sealed class WritePage : UserControl
                 Classes = { "vinput" },
                 Text = meta.Date == default ? string.Empty : meta.Date.ToString(YamlSidecar.Date_format),
                 FontFamily = MonoFont, FontSize = 11,
-                Watermark = YamlSidecar.Date_format,
+                PlaceholderText = YamlSidecar.Date_format,
             };
             ToolTip.SetTip(dateBox, T("Vox.Write.Meta.DateTip"));
             dateBox.LostFocus += (_, _) =>
@@ -2318,7 +2318,7 @@ public sealed class WritePage : UserControl
                 MinHeight = 28,
                 Margin = new Thickness(0, 6, 0, 0),
             };
-            tagInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Write.Meta.TagInputPlaceholder");
+            tagInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Write.Meta.TagInputPlaceholder");
             tagInput.KeyDown += (_, e) =>
             {
                 if (e.Key != Key.Enter) return;
@@ -2455,7 +2455,7 @@ public sealed class WritePage : UserControl
                 Classes = { "vinput" },
                 Text = meta.Copyright ?? string.Empty,
             };
-            crBox[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Write.Meta.CopyrightPlaceholder");
+            crBox[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Write.Meta.CopyrightPlaceholder");
             crBox.PropertyChanged += (_, e) =>
             {
                 if (e.Property != TextBox.TextProperty) return;
@@ -3626,7 +3626,7 @@ public sealed class WritePage : UserControl
             TextWrapping = TextWrapping.Wrap,
             VerticalContentAlignment = VerticalAlignment.Top,
         };
-        _aiInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Ai.InputPlaceholder");
+        _aiInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Ai.InputPlaceholder");
         _aiInput.KeyDown += (_, e) =>
         {
             // 原型口径：生成中回车不动作（停止只走按钮）；Shift+Enter 换行不触发发送。
@@ -5168,7 +5168,7 @@ public sealed class WritePage : UserControl
             Background = Brushes.Transparent,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        _findInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Write.Find.Placeholder");
+        _findInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Write.Find.Placeholder");
         _findInput.TextChanged += (_, _) => RunFind(CountAction: true);
         _findInput.KeyDown += (_, e) =>
         {

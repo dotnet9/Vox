@@ -80,11 +80,11 @@ public sealed class NewArticleModal : Border
         // 第 1 步：标题 + slug
         var step1 = new StackPanel { Spacing = 4 };
         step1.Children.Add(BoundLabel("Vox.Wizard.New.FieldTitle"));
-        _titleInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Wizard.New.TitlePlaceholder");
+        _titleInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Wizard.New.TitlePlaceholder");
         _titleInput.TextChanged += (_, _) => RefreshSlugPreview();
         step1.Children.Add(_titleInput);
         step1.Children.Add(BoundLabel("Vox.Wizard.New.FieldSlug"));
-        _slugInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Wizard.New.SlugPlaceholder");
+        _slugInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Wizard.New.SlugPlaceholder");
         _slugInput.TextChanged += (_, _) => RefreshSlugPreview();
         step1.Children.Add(_slugInput);
         WritePage.Res(_slugPreview, TextBlock.ForegroundProperty, "VoxAccent");
@@ -98,7 +98,7 @@ public sealed class NewArticleModal : Border
         // 第 2 步：简述 + 日期
         var step2 = new StackPanel { Spacing = 4 };
         step2.Children.Add(BoundLabel("Vox.Wizard.New.FieldDescription"));
-        _descInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Wizard.New.DescPlaceholder");
+        _descInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Wizard.New.DescPlaceholder");
         step2.Children.Add(_descInput);
         step2.Children.Add(BoundLabel("Vox.Wizard.New.FieldDate"));
         var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };

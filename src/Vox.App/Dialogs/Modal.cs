@@ -89,7 +89,7 @@ public static class Modal
         {
             Classes = { "vinput" },
             Text = value ?? string.Empty,
-            Watermark = watermark,
+            PlaceholderText = watermark,
             FontSize = mono ? 11 : 12.5,
         };
         if (mono) input.FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");

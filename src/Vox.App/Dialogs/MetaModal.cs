@@ -58,7 +58,7 @@ public sealed class MetaModal : Border
             Text = meta.Author ?? string.Empty,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        authorInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Meta.Label.AuthorField");
+        authorInput[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Meta.Label.AuthorField");
         authorInput.LostFocus += (_, _) => meta.Author = authorInput.Text?.Trim() ?? string.Empty;
         var draftSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = !meta.Draft, VerticalAlignment = VerticalAlignment.Center };
         var draftLabel = new TextBlock { Text = meta.Draft ? T("Vox.Write.Meta.DraftState") : T("Vox.Write.Meta.PublishedState"), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
@@ -315,7 +315,7 @@ public sealed class MetaModal : Border
                 var input = new TextBox
                 {
                     Classes = { "vinput" }, Width = 104, FontSize = 11, MinHeight = 22,
-                    Watermark = values.Count >= 5 ? T("Vox.Write.Meta.TagLimitReached") : T("Vox.Meta.Label.EnterToAdd"),
+                    PlaceholderText = values.Count >= 5 ? T("Vox.Write.Meta.TagLimitReached") : T("Vox.Meta.Label.EnterToAdd"),
                 };
                 // 输入框插在「＋」chip 之前；空回车/失焦收起（原型 chip-input 口径）。
                 var closeInput = () => wrap.Children.Remove(input);
