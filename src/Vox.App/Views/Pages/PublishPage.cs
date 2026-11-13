@@ -1785,7 +1785,7 @@ public sealed class PublishPage : UserControl
                 && row.Channels[wanted].Status != status) continue;
 
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions(headerColumns) };
-            var titleHost = new StackPanel { Margin = new Thickness(14, 0, 0, 0) };
+            var titleHost = new StackPanel { Margin = new Thickness(14, 0, 0, 0), Cursor = new Cursor(StandardCursorType.Hand) };
             var titleBlock = new TextBlock { Text = row.Title, FontSize = 12, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
             var pathBlock = new TextBlock
             {
@@ -1795,6 +1795,20 @@ public sealed class PublishPage : UserControl
             Res(pathBlock, TextBlock.ForegroundProperty, "VoxFaint");
             titleHost.Children.Add(titleBlock);
             titleHost.Children.Add(pathBlock);
+            // 点击文章名跳编辑（与发布历史行双击同口径，2026-11-14）
+            var matrixArticle = row;
+            titleHost.PointerReleased += (_, e) =>
+            {
+                e.Handled = true;
+                var article = AppState.Instance.Scan?.FindArticle(matrixArticle.MarkdownPath);
+                if (article == null)
+                {
+                    _shell.ShowToast(T("Vox.PublishLog.Msg.ArticleGone"));
+                    return;
+                }
+                _shell.ShowPage("write");
+                if (_shell.CachedWritePage is { } writer) _ = writer.OpenArticleAsync(article);
+            };
             grid.Children.Add(titleHost);
 
             for (var channel = 0; channel < 5; channel++)
