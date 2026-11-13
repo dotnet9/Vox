@@ -1712,14 +1712,22 @@ public sealed class McpPage : UserControl
             _shell.ShowToast(T("Vox.Mcp.Config.TokenGenerated"));
         }
 
+        // 端口/令牌先落盘；enabled 在重启结果出来后写——此前无条件先置 true，失败时设置与运行态脱节（2026-11-13）
+        var wasEnabled = AppState.Instance.Settings.McpEnabled;
         SaveSetting(s =>
         {
             s.McpPort = port;
             s.McpToken = token;
-            s.McpEnabled = true;
         });
         var ok = McpService.Restart();
-        McpService.AuditSystem("重启服务", ok, ok ? McpService.Endpoint : McpService.LastError);
+        if (ok != wasEnabled)
+        {
+            SaveSetting(s => s.McpEnabled = ok); // 失败回滚（或成功补记），与运行态一致
+            _syncing = true;
+            _enableSwitch.IsChecked = ok;
+            _syncing = false;
+        }
+        McpService.AuditSystem(T("Vox.Mcp.Audit.Restart"), ok, ok ? McpService.Endpoint : McpService.LastError);
         _shell.ShowToast(ok
             ? TF("Vox.Mcp.Msg.Restarted", McpService.Endpoint)
             : TF("Vox.Mcp.Msg.RestartFail", McpService.LastError ?? string.Empty));
