@@ -199,6 +199,8 @@ public sealed class WritePage : UserControl
     private ArcButton _aiModeButton = null!;
     private ArcButton _aiModelButton = null!;
     private Func<Task>? _aiRetry; // 当前会话的重试闭包（失败重试 / 重新生成共用），清空会话即作废
+    private readonly List<(string Role, string Text)> _aiExportLog = []; // 导出用对话记录（用户提问 + 助手回复）
+    private Control? _aiEmptyState;
     private ArcPopover? _aiModePop;
     private ArcPopover? _aiModelPop;
     private readonly Dictionary<AiChatMode, LucideIcon> _aiModeChecks = [];
@@ -3552,6 +3554,10 @@ public sealed class WritePage : UserControl
         clear[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Clear");
         clear.Click += (_, _) => ClearAiChat();
         head.Children.Add(clear.Dock(Dock.Right));
+        var export = new Button { Classes = { "btn", "ghost", "sm" }, VerticalAlignment = VerticalAlignment.Center };
+        export[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Export");
+        export.Click += (_, _) => _ = ExportAiChatAsync();
+        head.Children.Add(export.Dock(Dock.Right));
         var spark = new TextBlock
         {
             Text = "✦",
@@ -4035,6 +4041,8 @@ public sealed class WritePage : UserControl
 
     private Border AddAiUserBubble(string text)
     {
+        _aiEmptyState?.SetCurrentValue(Visual.IsVisibleProperty, false);
+        _aiExportLog.Add(("user", text));
         var body = new StackPanel { Spacing = 4 };
         foreach (var ctx in _aiCtx)
         {
@@ -4159,7 +4167,18 @@ public sealed class WritePage : UserControl
     private void AiSeedWelcome()
     {
         if (_aiMsgList.Children.Count > 0) return;
-        AddAiNote(T("Vox.Ai.Chat.Ready"));
+        // Arc EmptyState（Small 尺寸为侧面板设计）替代纯文字欢迎注：图 + 标题 + 用法提示。
+        var empty = new TKCode.Arc.EmptyState
+        {
+            Size = ArcControlSize.Small,
+            Icon = Lucide.Geometry(LucideIconKind.Sparkles),
+            Title = T("Vox.Ai.Chat.Ready"),
+            Description = T("Vox.Ai.Chat.EmptyDesc"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 24, 0, 8),
+        };
+        _aiEmptyState = empty;
+        _aiMsgList.Children.Add(empty);
     }
 
     private void ClearAiChat()
@@ -4171,10 +4190,45 @@ public sealed class WritePage : UserControl
         _aiTurns.Clear();
         _aiCtx.Clear();
         _aiRetry = null;
+        _aiExportLog.Clear();
         RenderAiCtx();
         _aiMsgList.Children.Clear();
+        _aiEmptyState = null;
         AiSeedWelcome();
         _shell.ShowToast(T("Vox.Ai.Chat.ClearDone"));
+    }
+
+    /// <summary>会话导出：问答记录拼 Markdown，另存对话框落盘（文档工作流：AI 产出可直接归档进仓库）。</summary>
+    private async Task ExportAiChatAsync()
+    {
+        if (_aiExportLog.Count == 0)
+        {
+            _shell.ShowToast(T("Vox.Ai.Export.Empty"));
+            return;
+        }
+        var provider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (provider == null) return;
+        var file = await provider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = T("Vox.Ai.Export"),
+            SuggestedFileName = $"vox-ai-{DateTime.Now:yyyyMMdd-HHmm}",
+            DefaultExtension = "md",
+        });
+        if (file is null) return;
+        var builder = new StringBuilder();
+        builder.AppendLine("# " + T("Vox.Ai.Title"));
+        builder.AppendLine();
+        foreach (var (role, text) in _aiExportLog)
+        {
+            builder.AppendLine("## " + T(role == "user" ? "Vox.Ai.Export.User" : "Vox.Ai.Export.Assistant"));
+            builder.AppendLine();
+            builder.AppendLine(text.TrimEnd());
+            builder.AppendLine();
+        }
+        await using var stream = await file.OpenWriteAsync();
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(builder.ToString());
+        _shell.ShowToast(T("Vox.Ai.Export.Saved"));
     }
 
     /// <summary>自定义提问：输入 + 上下文 chip（无 chip 则附当前文章头部）入历史，多轮流式回复。</summary>
@@ -4410,7 +4464,11 @@ public sealed class WritePage : UserControl
             AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Interrupted", result.Error), "VoxDanger");
             return (botBody, string.Empty, result.Elapsed);
         }
-        if (text.Length > 0) turns.Add(new LlmChatTurn("assistant", text));
+        if (text.Length > 0)
+        {
+            turns.Add(new LlmChatTurn("assistant", text));
+            _aiExportLog.Add(("assistant", text));
+        }
         return (botBody, text, result.Elapsed);
     }
 
