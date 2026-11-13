@@ -340,6 +340,20 @@ public sealed class GitService
         return (name, email);
     }
 
+    /// <summary>身份未配置时返回缺失标记（不再静默兜底硬编码身份冒名提交，2026-11-13）：
+    /// 调用方据 identityMissing 阻断提交并指引配置。</summary>
+    public (bool Missing, string Name, string Email) IdentityOrDefault()
+    {
+        using var repo = new Repository(_repoRoot);
+        var name = repo.Config.Get<string>("user.name")?.Value;
+        var email = repo.Config.Get<string>("user.email")?.Value;
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email))
+        {
+            return (true, string.Empty, string.Empty);
+        }
+        return (false, name, email);
+    }
+
     public void SetIdentity(string name, string email)
     {
         using var repo = new Repository(_repoRoot);

@@ -534,6 +534,7 @@
   "Vox.Mcp.Audit.Stopped": "已停止",
   "Vox.Mcp.Audit.Restart": "重启服务",
   "Vox.Mcp.Client.System": "系统",
+  "Vox.Publish.Error.NeedIdentity": "未配置 Git 身份：请先设置 git 全局 user.name / user.email",
   "Vox.Site.Confirm.DiscardMsg": "“{0}”有未保存的修改，切换文件将丢失这些编辑。",
   "Vox.Site.Confirm.DiscardConfirm": "放弃修改",
   "Vox.Site.Toast.NoFile": "没有可保存的文件",

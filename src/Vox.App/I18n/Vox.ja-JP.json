@@ -534,6 +534,7 @@
   "Vox.Mcp.Audit.Stopped": "停止済み",
   "Vox.Mcp.Audit.Restart": "サービス再起動",
   "Vox.Mcp.Client.System": "システム",
+  "Vox.Publish.Error.NeedIdentity": "Git 身元未設定：先に git の user.name / user.email を設定してください",
   "Vox.Site.Confirm.DiscardMsg": "「{0}」には未保存の変更があり、ファイルを切り替えると失われます。",
   "Vox.Site.Confirm.DiscardConfirm": "破棄",
   "Vox.Site.Toast.NoFile": "保存できるファイルがありません",

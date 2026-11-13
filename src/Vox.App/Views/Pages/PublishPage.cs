@@ -67,6 +67,7 @@ public sealed class PublishPage : UserControl
 
     // 矩阵标签
     private readonly Controls.MiniSelect _matrixFilter = new();
+    private readonly Dictionary<string, string> _matrixFilterKeys = new(); // 标签→稳定键：筛选比较不再依赖本地化字符串（切语言不失效）
     private readonly Controls.MiniSelect _platformFilter = new();
     private readonly ArcInput _matrixSearch = new() { Width = 200, IsLabelVisible = false };
     private StackPanel _matrixHost = new();
@@ -1128,8 +1129,15 @@ public sealed class PublishPage : UserControl
         var message = _summaryInput.Text.Trim()
             + (string.IsNullOrWhiteSpace(_descInput.Text) ? string.Empty : $"\n\n{_descInput.Text.Trim()}");
         var paths = selected.Select(c => c.Path).ToList();
-        var (name, email) = ("Dotnet9", "dotnet9@codewf.com");
-        SafeGit(git => (name, email) = git.Identity());
+        var (name, email) = (string.Empty, string.Empty);
+        var identityMissing = false;
+        SafeGit(git => (identityMissing, name, email) = git.IdentityOrDefault());
+        if (identityMissing)
+        {
+            // 此前静默兜底硬编码身份冒名提交（2026-11-13）：git 全局/仓库均未配置 user.name/email 时阻断并指引
+            _shell.ShowToast(T("Vox.Publish.Error.NeedIdentity"));
+            return;
+        }
 
         await Task.Run(() =>
         {
@@ -1172,7 +1180,12 @@ public sealed class PublishPage : UserControl
             try
             {
                 var git = AppState.Instance.Git();
-                git?.PullFastForward("Dotnet9", "dotnet9@codewf.com");
+                if (git is not null)
+                {
+                    // 作者取仓库配置身份（原硬编码 Dotnet9，2026-11-13 清理）
+                    var (pullName, pullEmail) = git.Identity();
+                    git.PullFastForward(pullName, pullEmail);
+                }
                 Dispatcher.UIThread.Post(() =>
                 {
                     _shell.ShowToast(T("Vox.Publish.Msg.Pulled"));
@@ -1426,12 +1439,13 @@ public sealed class PublishPage : UserControl
         _matrixTab.Children.Add(_queueCard);
 
         var filters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 10) };
-        _matrixFilter.Items = new[]
+        // 筛选标签→稳定键映射：此前按本地化字符串比较，切语言后筛选静默失效（2026-11-13 修复）
+        _matrixFilterKeys.Clear();
+        foreach (var key in new[] { "AllArticles", "OnlyPending", "OnlyStale", "OnlyFailed", "Pending" })
         {
-            T("Vox.Publish.Filter.AllArticles"), T("Vox.Publish.Filter.OnlyPending"),
-            T("Vox.Publish.Filter.OnlyStale"), T("Vox.Publish.Filter.OnlyFailed"),
-            T("Vox.Publish.Filter.Pending"),
-        };
+            _matrixFilterKeys[T("Vox.Publish.Filter." + key)] = key;
+        }
+        _matrixFilter.Items = _matrixFilterKeys.Keys.ToArray();
         _matrixFilter.Selected = T("Vox.Publish.Filter.AllArticles");
         _matrixFilter.SelectionChanged += _ => RefreshMatrix();
         _platformFilter.Items = new[]
@@ -1750,7 +1764,7 @@ public sealed class PublishPage : UserControl
     /// <summary>状态筛选匹配：单状态沿用 MatchFilter，「仅待处理」为组合口径（任一通道非已同步）。</summary>
     private bool StatusFilterMatches((PublishStatus Status, string Note)[] channels)
     {
-        if (_matrixFilter.Selected == T("Vox.Publish.Filter.Pending"))
+        if (MatrixFilterKey() == "Pending")
         {
             return channels.Any(c => c.Status != PublishStatus.Ok);
         }
@@ -1780,11 +1794,18 @@ public sealed class PublishPage : UserControl
     };
 
     /// <summary>把状态筛选下拉的当前选项映射为发布状态（选项文本随语言变化，按当前语言文本比对）。</summary>
-    private static PublishStatus? MatchFilter(string selected) =>
-        selected == T("Vox.Publish.Filter.OnlyPending") ? PublishStatus.Off
-        : selected == T("Vox.Publish.Filter.OnlyStale") ? PublishStatus.Stale
-        : selected == T("Vox.Publish.Filter.OnlyFailed") ? PublishStatus.Error
-        : null;
+    /// <summary>当前矩阵筛选的稳定键（标签→键映射，切语言后比较依然成立）。</summary>
+    private string MatrixFilterKey() =>
+        _matrixFilter.Selected is { Length: > 0 } label && _matrixFilterKeys.TryGetValue(label, out var key) ? key : "AllArticles";
+
+    private PublishStatus? MatchFilter(string selected) =>
+        MatrixFilterKey() switch
+        {
+            "OnlyPending" => PublishStatus.Off,
+            "OnlyStale" => PublishStatus.Stale,
+            "OnlyFailed" => PublishStatus.Error,
+            _ => null,
+        };
 
     // ================= 标签 3：发布前检查 =================
 
