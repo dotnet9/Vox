@@ -89,9 +89,9 @@ Vox 是基于 .NET 与 Avalonia 的桌面**写作环境、内容仓库治理与�
 
 ## 技术栈
 
-.NET 11 RC · Avalonia 12.1.5 · [TKCode.Arc](https://www.nuget.org/packages/TKCode.Arc)（官方 NuGet 组件、独立主题、强调色与弹簧动效）· [CodeWF.Avalonia.Markdown](https://github.com/dotnet9/CodeWF.Avalonia)（Markdown 实时预览与排版内核）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（与 Vex 使用同一编辑器）。
+.NET 11 GA · Avalonia 12.1.6 · [TKCode.Arc](https://www.nuget.org/packages/TKCode.Arc) 1.1.0（官方 NuGet 组件、独立主题、强调色与弹簧动效、AI 会话块）· [CodeWF.Avalonia.Markdown](https://github.com/dotnet9/CodeWF.Avalonia) 12.1.6.5（Markdown 实时预览与排版内核）· TKCode.StreamMark（AI 气泡流式 Markdown）· LibGit2Sharp（内置 git）· CommunityToolkit.Mvvm · AvaloniaEdit（与 Vex 使用同一编辑器）。
 
-SDK 固定在 `global.json`，目标框架与编译默认值在 `build/ProjectDefaults.props`，NuGet 版本变量在 `build/Versions.props`，`Directory.Packages.props` 只维护中央包声明。主分支跟随稳定／预览依赖，不以 Win7 为兼容目标；升级前代码冻结在 `win7-archive`。当前使用官方 NuGet Arc **0.4.0-preview.5**、CodeWF.Avalonia **12.1.5.2**、Toolkit **1.1.6**。Arc 仍精确依赖 Avalonia 12.1.4，采用 12.1.5 时保留 `NU1608` 警告，并以本机与 CI 验证覆盖兼容性。启用 nullable 与 C# preview，可空诊断作为构建错误。
+SDK 固定在 `global.json`，目标框架与编译默认值在 `build/ProjectDefaults.props`，NuGet 版本变量在 `build/Versions.props`，`Directory.Packages.props` 只维护中央包声明。主分支跟随稳定／预览依赖，不以 Win7 为兼容目标；升级前代码冻结在 `win7-archive`。当前使用官方 NuGet Arc **1.1.0**（GA）、CodeWF.Avalonia **12.1.6.5**、Toolkit **1.1.6**、StreamMark **0.1.2**（精确钉版）。Arc 依赖 `Avalonia [12.1.5, 13.0.0)`，与 Avalonia 12.1.6 组合经本机与 CI 验证。启用 nullable 与 C# preview，可空诊断作为构建错误。
 
 默认从正式 NuGet 还原，无需重建候选自研库：
 
