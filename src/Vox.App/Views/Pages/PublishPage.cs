@@ -1513,9 +1513,18 @@ public sealed class PublishPage : UserControl
         };
         _platformFilter.Selected = T("Vox.Publish.Filter.AllPlatforms");
         _platformFilter.SelectionChanged += _ => RefreshMatrix();
+        // 矩阵搜索 300ms 防抖（与文章库/图片库同口径）：每键全量重建矩阵（每行 7 格 + 可点状态点）在打字时卡顿
+        var matrixSearchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        matrixSearchDebounce.Tick += (_, _) =>
+        {
+            matrixSearchDebounce.Stop();
+            RefreshMatrix();
+        };
         _matrixSearch.PropertyChanged += (_, e) =>
         {
-            if (e.Property == TextBox.TextProperty) RefreshMatrix();
+            if (e.Property != TextBox.TextProperty) return;
+            matrixSearchDebounce.Stop();
+            matrixSearchDebounce.Start();
         };
         filters.Children.Add(_matrixFilter);
         filters.Children.Add(_platformFilter);
