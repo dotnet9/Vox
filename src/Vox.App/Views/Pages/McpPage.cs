@@ -1197,7 +1197,10 @@ public sealed class McpPage : UserControl
         _auditClient.Items = new[]
         {
             T("Vox.Mcp.Audit.Filter.AllClients"), "Cursor", "ZCode", "Claude Desktop", "MCP 客户端", "系统",
-        };
+        }
+            .Concat(McpService.Clients.Select(c => c.Name)) // 在线客户端动态并入（2026-11-14：此前硬编码，新客户端接入筛不到）
+            .Concat(ToolAuditStore.List(limit: 5000).Select(e => e.Client).Distinct()) // 历史记录里的客户端也并入
+            .Distinct().ToList();
         _auditClient.Selected = T("Vox.Mcp.Audit.Filter.AllClients");
         _auditClient.SelectionChanged += _ => RefreshAudit();
         _auditTool.Items = new[] { T("Vox.Mcp.Audit.Filter.AllTools"), "connect", "—" }
