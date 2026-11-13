@@ -541,7 +541,7 @@
   "Vox.Publish.Error.NeedIdentity": "Git identity missing: set global git user.name / user.email first",
   "Vox.Images.Batch.DeletedSkipped": "Deleted {0} · skipped {1} (read-only or locked)",
   "Vox.Sync.Error.GitRead": "Failed to read the repository: {0} (check whether .git is corrupted or locked)",
-  "Vox.Site.Confirm.DiscardMsg": ""{0}" has unsaved changes; switching files will lose them.",
+  "Vox.Site.Confirm.DiscardMsg": "“{0}” has unsaved changes; switching files will lose them.",
   "Vox.Site.Confirm.DiscardConfirm": "Discard",
   "Vox.Site.Toast.NoFile": "No file to save",
   "Vox.Site.Toast.NoChanges": "No changes",
