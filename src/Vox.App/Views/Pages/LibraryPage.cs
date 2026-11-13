@@ -13,6 +13,7 @@ using Vox.App.Views;
 using Vox.Core;
 using static Vox.App.Infrastructure.I18n;
 using ArcInput = TKCode.Arc.Input;
+using ArcButton = TKCode.Arc.Button;
 using ArcControlSize = TKCode.Arc.ControlSize;
 using TKCode.Arc.Icons.Lucide;
 using static Vox.App.Views.Pages.WritePage;
@@ -27,7 +28,7 @@ public sealed class LibraryPage : UserControl
     private string _libSortKey = "Date"; // 表格排序键：Title/Date/WordCount（Sorting 事件维护）
     private bool _libSortAsc;
     private readonly DataGrid _libGrid = new();
-    // 空态换 Arc EmptyState（Small，与图片库/AI 会话口径一致，2026-11-13）
+    // 空态换 Arc EmptyState（Small，与图片库/AI 会话口径一致，2026-11-13）；Action = 清除筛选
     private readonly TKCode.Arc.EmptyState _libEmpty = new()
     {
         Size = ArcControlSize.Small,
@@ -144,6 +145,12 @@ public sealed class LibraryPage : UserControl
         Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
         Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
         tableWrap.BorderThickness = new Thickness(1);
+
+        _libEmpty.Description = T("Vox.Library.Stats.ResetTip");
+        var clearFilter = new ArcButton { Variant = TKCode.Arc.ButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(0, 10, 0, 0) };
+        clearFilter[!ArcButton.ContentProperty] = I18n.Bind("Vox.Library.Chips.Clear");
+        clearFilter.Click += (_, _) => ResetFilters();
+        _libEmpty.Action = clearFilter;
 
         ConfigureGrid();
         var tableHost = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto") };
