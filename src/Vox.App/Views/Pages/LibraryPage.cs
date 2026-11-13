@@ -692,6 +692,7 @@ public sealed class LibraryPage : UserControl
         modal.DetachedFromVisualTree += (_, _) => tcs.TrySetResult(false);
         _shell.ShowModal(modal); // ConfirmDialog 同口径：modal 本体即弹层
         input.Focus();
+        input.SelectAll(); // 全选现名直接改（表单惯例，2026-11-14）
         if (!await tcs.Task) return;
         var newName = input.Tag as string ?? string.Empty;
         if (newName.Length == 0) return;
