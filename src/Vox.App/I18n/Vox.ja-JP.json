@@ -535,6 +535,7 @@
   "Vox.Site.Confirm.DiscardTitle": "未保存の変更を破棄しますか？",
   "Vox.Ai.ConfirmNoCtx": "「挿入前に確認」モードですが本文が引用されていません：返信はチャット内に残ります",
   "Vox.Title.WordCount": "· {0:N0} 字",
+  "Vox.Sync.Group.ShowAll": "すべて表示（{0}件）",
   "Vox.Library.Action.Rename": "名前変更",
   "Vox.Ai.Export.Time": "書き出し：{0}",
   "Vox.Library.Rename.Title": "記事の名前変更",

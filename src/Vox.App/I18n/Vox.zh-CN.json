@@ -535,6 +535,7 @@
   "Vox.Site.Confirm.DiscardTitle": "放弃未保存的修改？",
   "Vox.Ai.ConfirmNoCtx": "当前为「确认后写入」模式，但发送时未引用正文：结果保留在会话，可手动插入或复制",
   "Vox.Title.WordCount": "· {0:N0} 字",
+  "Vox.Sync.Group.ShowAll": "显示全部 {0} 条",
   "Vox.Library.Action.Rename": "重命名",
   "Vox.Ai.Export.Time": "导出时间：{0}",
   "Vox.Library.Rename.Title": "重命名文章",

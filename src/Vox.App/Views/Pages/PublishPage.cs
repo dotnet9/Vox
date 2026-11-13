@@ -20,6 +20,7 @@ using Vox.Git;
 using static Vox.App.Infrastructure.I18n;
 using static Vox.App.Views.Pages.WritePage;
 using ArcButton = TKCode.Arc.Button;
+using ArcControlSize = TKCode.Arc.ControlSize;
 using ArcButtonVariant = TKCode.Arc.ButtonVariant;
 using ArcInput = TKCode.Arc.Input;
 
@@ -384,6 +385,7 @@ public sealed class PublishPage : UserControl
     }
 
     private string? _lastGitError; // 最近一次 git 读操作异常（仓库损坏/锁定），空=正常
+    private bool _changeShowAll; // 变更列表大仓库折叠展开标记（重扫后重置）
 
     private void SafeGit(Action<GitService> action, Action? onError = null)
     {
@@ -459,6 +461,7 @@ public sealed class PublishPage : UserControl
     private void RefreshChanges()
     {
         _changes = [];
+        _changeShowAll = false; // 新扫描重置折叠
         SafeGit(git => _changes = git.SemanticChanges().ToList());
         if (_checkAll.IsChecked == true)
         {
@@ -497,6 +500,14 @@ public sealed class PublishPage : UserControl
             var expanded = _expandedGroups.GetValueOrDefault(key, true);
             var groupHead = GroupHeader(labelKey, key, items, kids);
             kids.IsVisible = expanded;
+            // 大仓库折叠（2026-11-14）：每组默认渲染前 60 行，「显示全部」展开——500+ 变更全量建行卡顿
+            var visibleItems = items;
+            bool truncated = false;
+            if (!_changeShowAll && items.Count > 60)
+            {
+                visibleItems = items.Take(60).ToList();
+                truncated = true;
+            }
             _changeList.Children.Add(groupHead);
             _changeList.Children.Add(kids);
 
@@ -511,9 +522,19 @@ public sealed class PublishPage : UserControl
                 kids.Children.Add(hint);
             }
 
-            foreach (var change in items)
+            foreach (var change in visibleItems)
             {
                 kids.Children.Add(ChangeRow(change));
+            }
+            if (truncated)
+            {
+                var more = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Content = TF("Vox.Sync.Group.ShowAll", items.Count), Margin = new Thickness(0, 6, 0, 0) };
+                more.Click += (_, _) =>
+                {
+                    _changeShowAll = true;
+                    RenderChangeList();
+                };
+                kids.Children.Add(more);
             }
         }
         if (_changes.Count == 0)

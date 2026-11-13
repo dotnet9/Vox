@@ -535,6 +535,7 @@
   "Vox.Site.Confirm.DiscardTitle": "Discard unsaved changes?",
   "Vox.Ai.ConfirmNoCtx": "Confirm-write is on but no text was quoted: the reply stays in chat for manual insert or copy",
   "Vox.Title.WordCount": "· {0:N0} words",
+  "Vox.Sync.Group.ShowAll": "Show all {0}",
   "Vox.Library.Action.Rename": "Rename",
   "Vox.Ai.Export.Time": "Exported: {0}",
   "Vox.Library.Rename.Title": "Rename article",
