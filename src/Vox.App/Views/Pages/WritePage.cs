@@ -2915,7 +2915,7 @@ public sealed class WritePage : UserControl
             fileName = $"image-{stamp}-{attempt}.png";
         }
         var fullPath = Path.Combine(mdDir, fileName);
-        bitmap.Save(fullPath);
+        bitmap.Save(fullPath, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
         InsertImageMarkdown(Path.GetRelativePath(_repoRoot, fullPath));
         return true;
     }

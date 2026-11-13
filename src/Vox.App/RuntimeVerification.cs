@@ -97,7 +97,7 @@ internal static class RuntimeVerification
                         using var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
                         bitmap.Render(window);
                         if (culture == "zh-CN")
-                            bitmap.Save(Path.Combine(root, page + (dark ? "-dark.png" : "-light.png")));
+                            bitmap.Save(Path.Combine(root, page + (dark ? "-dark.png" : "-light.png")), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                         renders++;
                         if (page == "write")
                         {
@@ -105,7 +105,7 @@ internal static class RuntimeVerification
                             WaitUntil(() => list.ItemCount == 1003);
                             using var treeBitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
                             treeBitmap.Render(window);
-                            if (culture == "zh-CN") treeBitmap.Save(Path.Combine(root, dark ? "tree-dark.png" : "tree-light.png"));
+                            if (culture == "zh-CN") treeBitmap.Save(Path.Combine(root, dark ? "tree-dark.png" : "tree-light.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                             renders++;
                             SwitchNavigation(tree: false);
                         }
@@ -147,7 +147,7 @@ internal static class RuntimeVerification
                 using (var bitmap = new RenderTargetBitmap(new PixelSize((int)Math.Ceiling(presenter.Bounds.Width), (int)Math.Ceiling(presenter.Bounds.Height))))
                 {
                     bitmap.Render(presenter);
-                    bitmap.Save(Path.Combine(root, $"language-menu-{culture}-{(dark ? "dark" : "light")}.png"));
+                    bitmap.Save(Path.Combine(root, $"language-menu-{culture}-{(dark ? "dark" : "light")}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                 }
                 var alternate = rows[(Array.IndexOf(rows, selected) + 1) % rows.Length];
                 alternate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -217,7 +217,7 @@ internal static class RuntimeVerification
                         var until = Environment.TickCount64 + 100; WaitUntil(() => Environment.TickCount64 >= until);
                         if (frame % 15 == 0) Console.WriteLine($"DOCS {name}/{frame}: window={window.Bounds}; writer={writer.Bounds}; mode={mode.SelectedValue}");
                         using var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
-                        bitmap.Render(window); bitmap.Save(Path.Combine(folder, $"{frame:D3}.png"));
+                        bitmap.Render(window); bitmap.Save(Path.Combine(folder, $"{frame:D3}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                     }
                     Console.WriteLine("RECORD " + name + "; frames=60; interval=100ms");
                 }
@@ -267,14 +267,14 @@ internal static class RuntimeVerification
                 finally { WriteClipboard(previous); }
                 var menuReady = menu.Menu is { Bounds.Width: > 0, Bounds.Height: > 0 };
                 using (var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820)))
-                { bitmap.Render(window); bitmap.Save(Path.Combine(root, "preview-copy-menu.png")); }
+                { bitmap.Render(window); bitmap.Save(Path.Combine(root, "preview-copy-menu.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions()); }
                 menu.Close();
                 var images = preview.GetVisualDescendants().OfType<CodeWF.Avalonia.Markdown.Controls.MarkdownImage>().ToArray();
                 var diagnostics = $"copyShortcut=passed; copySelection=passed; copyDocument=passed; copyMenuReady={menuReady}; textFocusable={text.Focusable}; selectionBrush={text.SelectionBrush}; selectionForeground={text.SelectionForegroundBrush}; tableImages={images.Length}\n" +
                     string.Join("\n", images.Select(image => $"image={image.Bounds}; desired={image.DesiredSize}; bitmap={image.GetVisualDescendants().OfType<Avalonia.Controls.Image>().FirstOrDefault()?.Bounds}"));
                 File.WriteAllText(Path.Combine(root, "preview-interactions.txt"), diagnostics);
                 using (var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820)))
-                { bitmap.Render(window); bitmap.Save(Path.Combine(root, "preview-interactions.png")); }
+                { bitmap.Render(window); bitmap.Save(Path.Combine(root, "preview-interactions.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions()); }
                 if (!menuReady) throw new InvalidOperationException("Preview copy menu has no usable layout.");
                 if (images.Length != 2 || images.Any(image => image.Bounds.Width < 30 || image.Bounds.Height < 30
                     || !image.GetVisualDescendants().OfType<Avalonia.Controls.Image>().Any(bitmap => bitmap.Source is not null && bitmap.Bounds.Height > 20)))
@@ -316,7 +316,7 @@ internal static class RuntimeVerification
                         scroll.Offset = new Vector(0, Math.Max(0, scroll.Offset.Y + point.Y - 90));
                         var until = Environment.TickCount64 + 300; WaitUntil(() => Environment.TickCount64 >= until);
                         using var articleBitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
-                        articleBitmap.Render(window); articleBitmap.Save(Path.Combine(root, $"article-table-images-{previewMode}.png"));
+                        articleBitmap.Render(window); articleBitmap.Save(Path.Combine(root, $"article-table-images-{previewMode}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                         Console.WriteLine($"Article table images passed: mode={previewMode}; count={images.Length}; {string.Join("; ", images.Select(image => image.Bounds.Size))}");
                     }
                 }
@@ -396,7 +396,7 @@ internal static class RuntimeVerification
                 Settle();
                 if (Math.Abs(held.Y - scroll.Offset.Y) > 1) throw new InvalidOperationException("Reading highlight navigated the document.");
                 using var bitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
-                bitmap.Render(window); bitmap.Save(Path.Combine(root, "outline-reading.png"));
+                bitmap.Render(window); bitmap.Save(Path.Combine(root, "outline-reading.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                 Console.WriteLine("Outline hierarchy, filter/collapse restoration, explicit activation, virtualization and reading follow passed.");
                 mode.SelectedValue = 0;
 

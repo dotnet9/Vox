@@ -389,7 +389,7 @@ public sealed class ImageIntakeModal : Border
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, $"clipboard-{DateTime.Now:yyyyMMdd-HHmmss-fff}.png");
             using var stream = File.Create(path);
-            bitmap.Save(stream);
+            bitmap.Save(stream, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
             return path;
         }
         catch
@@ -619,7 +619,7 @@ public sealed class ImageIntakeModal : Border
                             using var input = File.OpenRead(source);
                             using var bitmap = Bitmap.DecodeToWidth(input, 1600);
                             using var output = File.Create(target);
-                            bitmap.Save(output);
+                            bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                         }
                         catch
                         {
