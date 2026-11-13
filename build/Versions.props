@@ -5,11 +5,11 @@
     <AvaloniaEditTextMateVersion>12.0.0</AvaloniaEditTextMateVersion>
     <TextMateSharpGrammarsVersion>3.0.0-preview.1</TextMateSharpGrammarsVersion>
     <!-- Arc 1.1.0-preview.4：用户升级（2026-11-12），与 StreamMark 0.1.2 同源对齐；升级需核对迁移说明并构建验证 -->
-    <ArcVersion>1.1.0-preview.4</ArcVersion>
+    <ArcVersion>1.1.0-preview.7</ArcVersion>
     <!-- StreamMark（自研流式 Markdown，AI 会话气泡）：与 Arc Blocks 同走 ADR 0011 口径，精确钉版 -->
     <StreamMarkVersion>0.1.2</StreamMarkVersion>
     <CodeWFToolkitVersion>1.1.6</CodeWFToolkitVersion>
-    <CodeWFAvaloniaVersion>12.1.6.4</CodeWFAvaloniaVersion>
+    <CodeWFAvaloniaVersion>12.1.6.5</CodeWFAvaloniaVersion>
     <YamlDotNetVersion>18.1.0</YamlDotNetVersion>
     <LibGit2SharpVersion>0.32.0</LibGit2SharpVersion>
     <CommunityToolkitMvvmVersion>8.4.2</CommunityToolkitMvvmVersion>

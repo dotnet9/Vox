@@ -68,8 +68,6 @@ public sealed class SettingsPage : UserControl
     private void BuildLayout()
     {
         // 原型 .setting 是 max-width: 860 的块级元素：左贴页面留白、满宽到 860，而不是按内容收缩
-        var pageTitle = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold, Margin = new Thickness(18, 18, 18, 2) };
-        pageTitle[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Label.Title");
 
         // 原型 .settabs：8 卡重排为写作/发布/AI/关于四分区（对应 Arc FluidTabControl · TabPlacement=Left · TabListWidth=168）
         var writeTab = new StackPanel { Spacing = 12 };
@@ -239,11 +237,11 @@ public sealed class SettingsPage : UserControl
             RefreshLlmKey();
             _shell.ShowToast(TF("Vox.Settings.Llm.ProviderSwitched", LlmPresets.DisplayName(preset), preset.DefaultModel));
         };
-        llmCard.Add(Row("Vox.Settings.Llm.Provider", new StackPanel
-        {
-            Orientation = Orientation.Horizontal, Spacing = 8,
-            Children = { _llmProvider, _llmModel },
-        }));
+        // 服务商与模型名分行（2026-13 用户反馈：同行挤压致下拉文字截断、表单不清）
+        _llmProvider.Width = 220;
+        llmCard.Add(Row("Vox.Settings.Llm.Provider", _llmProvider));
+        _llmModel.Width = 260;
+        llmCard.Add(Row("Vox.Settings.Llm.ModelName", _llmModel));
         var endpointDesc = new TextBlock { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
         endpointDesc[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.EndpointDesc");
         Res(endpointDesc, TextBlock.ForegroundProperty, "VoxFaint");
@@ -335,22 +333,41 @@ public sealed class SettingsPage : UserControl
         {
             TabPlacement = TKCode.Arc.FluidTabPlacement.Left,
             TabListWidth = 168,
-            Margin = new Thickness(18, 6, 18, 18),
-            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ContentPadding = new Thickness(18, 14, 18, 16), // 覆盖控件 token 默认缩进：内容紧贴页签列（原型 .settabs-body 口径）
         };
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Write", LucideIconKind.PenLine, writeTab));
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Publish", LucideIconKind.Send, publishTab));
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Ai", LucideIconKind.Sparkles, aiTab));
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.About", LucideIconKind.Info, aboutTab));
 
-        // 页签区自带滚动宿主（scroll-spy：选页签滚到分区、滚动内容反选页签），不再嵌外层 ScrollViewer
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
-        Grid.SetRow(pageTitle, 0);
-        Grid.SetRow(tabs, 1);
-        root.Children.Add(pageTitle);
-        root.Children.Add(tabs);
-        root.SizeChanged += (_, e) => tabs.Width = Math.Min(860, Math.Max(0, e.NewSize.Width - 36)); // 满宽到 860，不按内容收缩
-        Content = root;
+        // 原型口径（.settab → .setpane 显隐切换）：选中的分区可见，其余隐藏——
+        // Arc FluidTabControl 默认把全部分区堆叠滚动（scroll-spy），这里用显隐覆盖为真切换。
+        Control[] sections = [writeTab, publishTab, aiTab, aboutTab];
+        for (var i = 1; i < sections.Length; i++) sections[i].IsVisible = false;
+        tabs.SelectionChanged += (_, _) =>
+        {
+            var index = tabs.SelectedIndex;
+            for (var i = 0; i < sections.Length; i++) sections[i].IsVisible = i == index;
+        };
+
+        // 原型 .settabs：页签列 + 内容同框的一张圆角卡片（整体边框，高度随内容），不铺满页面。
+        // 2026-11-13 用户拍板：左侧导航已选中「设置」、左列已选分区，页面不再显示「设置」大标题行。
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(1),
+            MaxWidth = 860,
+            Margin = new Thickness(18, 14, 18, 18),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Child = tabs,
+        };
+        Res(card, Border.BackgroundProperty, "VoxSurface");
+        Res(card, Border.BorderBrushProperty, "VoxLine");
+        Content = card;
     }
 
     /// <summary>设置页左页签（原型 .settab）：动态绑定文案（语言切换不重建页面）+ Lucide 图标 + 分区内容。</summary>

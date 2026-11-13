@@ -3298,6 +3298,62 @@ public sealed class WritePage : UserControl
             lastScroll = current;
             if (_aiSelPill.IsVisible) AiHideSelPill();
         };
+
+        AttachSelectionBarExtras();
+    }
+
+    /// <summary>
+    /// 格式条扩展槽注入（库 12.1.6.5 SelectionBarExtras，Trae 口径）：拖选后点 ✦ 把选区文字
+    /// 填入 AI 会话输入框并聚焦——提示词由用户自己输入后发送，不自动发起请求。
+    /// 右键菜单方案已废弃（2026-11-13 用户拍板）：只保留格式条单入口。
+    /// </summary>
+    private void AttachSelectionBarExtras()
+    {
+        var addChat = new Button
+        {
+            Classes = { "format" },
+            [!ToolTip.TipProperty] = I18n.Bind("Vox.Ai.Menu.AddToChat"),
+            Content = new TextBlock
+            {
+                Text = "✦",
+                FontSize = Fs(13),
+                FontWeight = FontWeight.SemiBold,
+            },
+        };
+        addChat.Click += (_, _) => AddSelectionToChatInput();
+        _editorView.SelectionBarExtras.Add(addChat);
+    }
+
+    /// <summary>
+    /// 格式条 ✦（Trae 口径）：选区原文以「行号引用」挂为会话上下文（chip 显示 L17–L22，发送时随提示词送给模型），
+    /// 并在输入框当前光标位置插入【L17-L22】标记——用户在标记前后自由组织提示词，如
+    /// 「这段文字【L17-L22】写的太 AI 化了，需要有人味」。选区原文不进输入框。
+    /// </summary>
+    private void AddSelectionToChatInput()
+    {
+        var selection = Editor.SelectedText ?? string.Empty;
+        if (selection.Length == 0)
+        {
+            _shell.ShowToast(T("Vox.Ai.Chat.NeedSelection"));
+            return;
+        }
+        var offset = Editor.SelectionStart;
+        AddRangeToChat(offset, selection.Length);
+
+        var document = Editor.Document;
+        var startLine = document.GetLineByOffset(offset).LineNumber;
+        var endLine = EndLineOf(document, offset, selection.Length);
+        var marker = startLine == endLine ? $"【L{startLine}】" : $"【L{startLine}-L{endLine}】";
+
+        var text = _aiInput.Text ?? string.Empty;
+        // 面板刚开/输入框无焦点时插到末尾（新提示词的自然起点）；有焦点则插在光标处
+        var index = _aiInput.IsFocused
+            ? Math.Clamp(_aiInput.CaretIndex, 0, text.Length)
+            : text.Length;
+        _aiInput.Text = text.Insert(index, marker);
+        _aiInput.CaretIndex = index + marker.Length;
+        AiOpenPanel();
+        _aiInput.Focus();
     }
 
     /// <summary>右键选段（原型口径）：已有选区时尊重选区（点在选区内右键不改选）；否则高亮光标段落，随 SelectionChanged 出浮钮。</summary>
@@ -3341,18 +3397,21 @@ public sealed class WritePage : UserControl
         var visual = textView.GetVisualLine(endLine);
         if (visual == null)
         {
-            AiHideSelPill();
+            AiShowSelPillFallback();
             return;
         }
         var viewportY = visual.VisualTop - textView.VerticalOffset + visual.Height;
         var anchor = Editor.TextArea.TranslatePoint(new Point(0, viewportY), _srcCard);
         if (anchor is not { } point)
         {
-            AiHideSelPill();
+            AiShowSelPillFallback();
             return;
         }
         var pillHeight = _aiSelPill.DesiredSize.Height > 0 ? _aiSelPill.DesiredSize.Height : 27;
         var top = Math.Max(8, point.Y - pillHeight - 6);
+        // 常规路径显式恢复顶对齐：兜底分支会改 Bottom，残留会破坏此处 Margin 语义
+        _aiSelPill.HorizontalAlignment = HorizontalAlignment.Right;
+        _aiSelPill.VerticalAlignment = VerticalAlignment.Top;
         _aiSelPill.Margin = new Thickness(0, top, 14, 0);
         _aiSelPill.IsVisible = true;
     }
@@ -3369,6 +3428,16 @@ public sealed class WritePage : UserControl
     {
         _aiSelPill.IsVisible = false;
         _aiSelAnchor = null;
+    }
+
+    /// <summary>浮钮兜底：可视行/坐标换算不可得（滚动边界、布局未就绪）时不再隐藏，
+    /// 固定显示在编辑器卡右下角——保证「添加到会话」入口始终可达（2026-11-13 用户验证反馈）。</summary>
+    private void AiShowSelPillFallback()
+    {
+        _aiSelPill.HorizontalAlignment = HorizontalAlignment.Right;
+        _aiSelPill.VerticalAlignment = VerticalAlignment.Bottom;
+        _aiSelPill.Margin = new Thickness(0, 0, 14, 12);
+        _aiSelPill.IsVisible = true;
     }
 
     /// <summary>上下文 chip 渲染：标签 + ×，同 Kind 新增时旧 chip 已被替换（原型口径）。</summary>
@@ -3410,20 +3479,26 @@ public sealed class WritePage : UserControl
         }
     }
 
-    /// <summary>浮钮点击：当前选区作为一条上下文入会话（选区 chip 去重替换），打开面板并聚焦输入框。</summary>
+    /// <summary>浮钮点击（原型口径保留）：当前选区作为一条上下文入会话（选区 chip 去重替换），打开面板并聚焦输入框。</summary>
     private void AddAiSelectionToChat()
     {
         if (_aiSelAnchor is not { Range: { } range } || range.Length <= 0) return;
+        AddRangeToChat(range.Offset, range.Length);
+    }
+
+    /// <summary>选区入会话主体：构造行号标签的上下文 chip，替换同 Kind 旧 chip 并打开面板。</summary>
+    private void AddRangeToChat(int offset, int length)
+    {
         var document = Editor.Document;
-        if (range.Offset + range.Length > document.TextLength) return;
-        var text = document.Text.Substring(range.Offset, range.Length);
-        var startLine = document.GetLineByOffset(range.Offset).LineNumber;
-        var endLine = EndLineOf(document, range.Offset, range.Length);
+        if (offset + length > document.TextLength) return;
+        var text = document.Text.Substring(offset, length);
+        var startLine = document.GetLineByOffset(offset).LineNumber;
+        var endLine = EndLineOf(document, offset, length);
         var label = startLine == endLine
             ? TF("Vox.Ai.Chat.Selection", startLine)
             : TF("Vox.Ai.Chat.SelectionRange", startLine, endLine);
         _aiCtx.RemoveAll(c => c.Kind == "sel");
-        _aiCtx.Add(new AiChatContext("sel", label, range.Offset, range.Length, text));
+        _aiCtx.Add(new AiChatContext("sel", label, offset, length, text));
         RenderAiCtx();
         AiHideSelPill();
         AiOpenPanel();
@@ -3511,12 +3586,17 @@ public sealed class WritePage : UserControl
         {
             Classes = { "vinput" },
             FontSize = 11.5,
-            MinHeight = 28,
+            // 2026-11-13 用户反馈：默认三行高（Trae 口径），提示词多行起草；Enter 发送、Shift+Enter 换行
+            MinHeight = 76,
+            MaxHeight = 160,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalContentAlignment = VerticalAlignment.Top,
         };
         _aiInput[!TextBox.WatermarkProperty] = I18n.Bind("Vox.Ai.InputPlaceholder");
         _aiInput.KeyDown += (_, e) =>
         {
-            // 原型口径：生成中回车不动作（停止只走按钮）；Shift+Enter 不触发发送。
+            // 原型口径：生成中回车不动作（停止只走按钮）；Shift+Enter 换行不触发发送。
             if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || _aiBusy) return;
             e.Handled = true;
             _ = ChatSendAsync();
