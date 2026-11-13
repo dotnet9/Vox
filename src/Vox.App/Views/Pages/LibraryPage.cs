@@ -671,7 +671,7 @@ public sealed class LibraryPage : UserControl
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         close.Click += (_, _) => tcs.TrySetResult(false);
         cancel.Click += (_, _) => tcs.TrySetResult(false);
-        confirm.Click += (_, _) =>
+        void Submit()
         {
             var newName = (input.Text ?? string.Empty).Trim();
             if (newName.Equals(oldName, StringComparison.OrdinalIgnoreCase))
@@ -681,6 +681,13 @@ public sealed class LibraryPage : UserControl
             }
             tcs.TrySetResult(true);
             input.Tag = newName; // 借 Tag 把输入带出弹层（弹层关闭后控件仍在）
+        }
+        confirm.Click += (_, _) => Submit();
+        input.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            e.Handled = true;
+            Submit(); // Enter 提交（表单惯例，2026-11-14）
         };
         modal.DetachedFromVisualTree += (_, _) => tcs.TrySetResult(false);
         _shell.ShowModal(modal); // ConfirmDialog 同口径：modal 本体即弹层
