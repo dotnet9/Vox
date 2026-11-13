@@ -147,9 +147,15 @@ public sealed class SiteDataPage : UserControl
             _navHost.Children.Add(NavHint(T("Vox.Site.Label.NoFilesShort")));
             _contentTitle.Text = string.Empty;
             _contentHost.Children.Clear();
-            var empty = new TextBlock { Text = T("Vox.Site.Label.NoFiles"), FontSize = 12, Margin = new Thickness(0, 8) };
-            Res(empty, TextBlock.ForegroundProperty, "VoxFaint");
-            _contentHost.Children.Add(empty);
+            // Arc EmptyState（Small）替代裸文字空态（2026-11-13 与全应用空态口径一致）
+            _contentHost.Children.Add(new TKCode.Arc.EmptyState
+            {
+                Size = TKCode.Arc.ControlSize.Small,
+                Icon = TKCode.Arc.Icons.Lucide.Lucide.Geometry(TKCode.Arc.Icons.Lucide.LucideIconKind.FileJson),
+                Title = T("Vox.Site.Label.NoFiles"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 24),
+            });
             return;
         }
 
