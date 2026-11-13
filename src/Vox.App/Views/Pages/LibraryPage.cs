@@ -218,12 +218,19 @@ public sealed class LibraryPage : UserControl
         LayoutStatsCards();
     }
 
-    /// <summary>统计卡快捷筛选：可点、悬停描边提示（原型 .stat-link）。</summary>
+    /// <summary>统计卡快捷筛选：可点、悬停描边提示（原型 .stat-link）；键盘可达（Tab 聚焦 + Enter/Space 触发）。</summary>
     private void MakeClickable(Border card, string tip, Action action)
     {
         ToolTip.SetTip(card, tip);
         card.Cursor = new Cursor(StandardCursorType.Hand);
         card.PointerReleased += (_, e) => { e.Handled = true; action(); };
+        card.Focusable = true;
+        card.KeyDown += (_, e) =>
+        {
+            if (e.Key is not (Key.Enter or Key.Space)) return;
+            e.Handled = true;
+            action();
+        };
         card.Classes.Add("stat-link");
     }
 
