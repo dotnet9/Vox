@@ -1632,7 +1632,6 @@ public sealed class WritePage : UserControl
         Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
     }
 
-    private bool _mapDirty; // 导图不可见期间正文/文章变化：切到导图态再重建（切文件链路省一次全量布局）
 
     /// <summary>文件类型图标（material-icon-theme 主题，Vex FileIconCatalog 同源）：按文件名/文件夹解析，明暗随界面主题。</summary>
     private Avalonia.Controls.Image? FileIconImage(string name, bool folder, bool expanded)
@@ -1649,14 +1648,12 @@ public sealed class WritePage : UserControl
     /// <summary>导图态可见才重建；不可见只置脏，SetMode 切入时补建。</summary>
     private void RebuildMapIfVisible()
     {
-        if (_mode != 3) { _mapDirty = true; return; }
+        if (_mode != 3) return; // 导图态可见才重建（SetMode 切入时另调 RebuildMap）
         RebuildMap();
-        _mapDirty = false;
     }
 
     private void RebuildMap()
     {
-        _mapDirty = false;
         var text = _editorView.Text;
         if (string.IsNullOrWhiteSpace(text) || _current == null)
         {

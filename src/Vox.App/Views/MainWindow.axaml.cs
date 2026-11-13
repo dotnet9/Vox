@@ -713,7 +713,10 @@ public partial class MainWindow : Window
     /// <summary>MenuItem 不暴露 Click 事件：轻量命令包装，code-behind 直接给处理器。</summary>
     internal sealed class DelegateCommand(Action<object?> execute) : System.Windows.Input.ICommand
     {
+        // 菜单命令恒可执行（CanExecute 恒 true），无订阅者也无触发场景——按接口要求声明，不引发（CS0067 有意抑制）
+#pragma warning disable CS0067
         public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
         public bool CanExecute(object? parameter) => true;
         public void Execute(object? parameter) => execute(parameter);
     }

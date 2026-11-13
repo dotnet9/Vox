@@ -82,7 +82,7 @@ public sealed class ImagesPage : UserControl
         var subtitle = new TextBlock { Text = T("Vox.Images.Subtitle"), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 2, 0, 0) };
         Res(subtitle, TextBlock.ForegroundProperty, "VoxFaint");
         head.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { title, subtitle } });
-        _cleanOrphans.Click += (_, _) => CleanOrphans();
+        _cleanOrphans.Click += (_, _) => _ = CleanOrphans(); // 事件处理器内发起后台任务，显式弃元（CS4014）
         head.Children.Add(_cleanOrphans);
         DockPanel.SetDock(_cleanOrphans, Dock.Right);
         _intake.Content = T("Vox.Images.Action.Intake");
@@ -672,7 +672,7 @@ public sealed class ImagesPage : UserControl
             ops.Children.Add(OpButton(T("Vox.Images.Action.SetCover"), primary: false, () => SetAsCover(image)));
         ops.Children.Add(OpButton(T("Vox.Images.Action.Reveal"), primary: false, () => RevealInExplorer(image)));
         if (image.IsOrphan)
-            ops.Children.Add(OpButton(T("Vox.Images.Action.Delete"), primary: false, () => DeleteOrphanAsync(image), danger: true));
+            ops.Children.Add(OpButton(T("Vox.Images.Action.Delete"), primary: false, () => _ = DeleteOrphanAsync(image), danger: true));
         _detailHost.Children.Add(ops);
     }
 
