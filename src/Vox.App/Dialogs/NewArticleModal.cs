@@ -212,6 +212,19 @@ public sealed class NewArticleModal : Border
         ? SlugRules.FromTitle(_titleInput.Text ?? string.Empty)
         : _slugInput.Text.Trim();
 
+    /// <summary>取 git 身份作文章作者（仓库级 → 全局）；未配置返回 null（front matter 缺省），不再冒名硬编码。</summary>
+    private string? ReadAuthorName()
+    {
+        try
+        {
+            return new Vox.Git.GitService(_repoRoot).IdentityOrDefault() is { Item1: false } t ? t.Item2 : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void RefreshSlugPreview()
     {
         var month = DateTime.Now.ToString("yyyy/MM");
@@ -288,7 +301,7 @@ public sealed class NewArticleModal : Border
                 Categories = _templateCategories,
                 Tags = _templateTags,
                 Draft = _draftSwitch.IsChecked == true,
-                Author = "Dotnet9",
+                Author = ReadAuthorName(), // git 仓库/全局身份（2026-11-14 去硬编码 Dotnet9）
             };
             var created = ArticleScaffolder.Create(_repoRoot, spec);
             _shell.CloseModal();

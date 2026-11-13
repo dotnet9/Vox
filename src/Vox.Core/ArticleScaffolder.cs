@@ -12,7 +12,7 @@ public sealed record NewArticleSpec
     public IReadOnlyList<string> Categories { get; init; } = [];
     public IReadOnlyList<string> Tags { get; init; } = [];
     public bool Draft { get; init; } = true;
-    public string Author { get; init; } = "Dotnet9";
+    public string? Author { get; init; } // git 身份（2026-11-14 去硬编码），未配置时不写作者行
 }
 
 /// <summary>脚手架产物：落位路径 + 待写入内容。</summary>
@@ -45,7 +45,7 @@ public static class ArticleScaffolder
             Categories = [.. spec.Categories],
             Albums = [],
             Tags = [.. spec.Tags],
-            Author = spec.Author,
+            Author = spec.Author ?? string.Empty, // 未配置 git 身份时留空（缺 author 是体检项，不冒名填充）
             Draft = spec.Draft,
         };
 
