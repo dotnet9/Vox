@@ -536,6 +536,7 @@
   "Vox.Mcp.Client.System": "系統",
   "Vox.Publish.Error.NeedIdentity": "未設定 Git 身分：請先設定 git 全域 user.name / user.email",
   "Vox.Images.Batch.DeletedSkipped": "已刪除 {0} 張 · 跳過 {1} 張（唯讀或被佔用）",
+  "Vox.Sync.Error.GitRead": "儲存庫讀取失敗：{0}（檢查 .git 是否損壞或被佔用）",
   "Vox.Site.Confirm.DiscardMsg": "「{0}」有未儲存的修改，切換檔案將遺失這些編輯。",
   "Vox.Site.Confirm.DiscardConfirm": "放棄修改",
   "Vox.Site.Toast.NoFile": "沒有可儲存的檔案",

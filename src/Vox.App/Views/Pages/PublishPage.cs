@@ -375,15 +375,22 @@ public sealed class PublishPage : UserControl
         RefreshPublishLog();
     }
 
+    private string? _lastGitError; // 最近一次 git 读操作异常（仓库损坏/锁定），空=正常
+
     private void SafeGit(Action<GitService> action, Action? onError = null)
     {
         try
         {
             var git = AppState.Instance.Git();
-            if (git != null) action(git);
+            if (git != null)
+            {
+                action(git);
+                _lastGitError = null; // 任一读操作成功即恢复正常
+            }
         }
-        catch
+        catch (Exception ex)
         {
+            _lastGitError = ex.Message;
             onError?.Invoke();
         }
     }
@@ -503,6 +510,21 @@ public sealed class PublishPage : UserControl
         }
         if (_changes.Count == 0)
         {
+            if (_lastGitError is { Length: > 0 } gitError)
+            {
+                // 仓库读失败不再假装"全部已同步"（2026-11-13）：异常信息直出
+                var fail = new TextBlock
+                {
+                    Text = TF("Vox.Sync.Error.GitRead", gitError),
+                    FontSize = 11.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 34),
+                };
+                Res(fail, TextBlock.ForegroundProperty, "VoxDanger");
+                _changeList.Children.Add(fail);
+                return;
+            }
             var empty = new StackPanel
             {
                 Margin = new Thickness(0, 34, 0, 34),
