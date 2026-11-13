@@ -1551,6 +1551,10 @@ public sealed class PublishPage : UserControl
         filters.Children.Add(_matrixFilter);
         filters.Children.Add(_platformFilter);
         filters.Children.Add(_matrixSearch);
+        // 切语言后平台筛选选项文案重建（Selected 失配自动回"全部"，2026-11-14；矩阵键映射已稳定键化）
+        EventHandler<EventArgs> platformCultureRefresh = (_, _) => RefreshMatrix();
+        CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged += platformCultureRefresh;
+        DetachedFromVisualTree += (_, _) => CodeWF.Toolkit.Lang.I18nManager.Instance.CultureChanged -= platformCultureRefresh;
         _matrixTab.Children.Add(filters);
 
         var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
