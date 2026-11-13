@@ -98,10 +98,12 @@ public sealed class LibraryPage : UserControl
         host.Children.Add(_statsHost);
 
         // 筛选行（搜索框靠右，原型 .filters 的 flex 间隔口径）；评审修订（原型 D6）：下拉前置字段名 + 每页条数。
+        // selects 改 WrapPanel：1280 窗口下四筛选+每页+搜索超宽，StackPanel 溢出裁切搜索框（2026-11-13 截图发现），折行替代裁切。
         var filters = new DockPanel();
         _search.Dock(Dock.Right);
         filters.Children.Add(_search);
-        var selects = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left };
+        var selects = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left };
+        void AddSelect(Control wrapped) => selects.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 10, 6), Children = { wrapped } });
         foreach (var (select, allLabel, labelKey) in new[]
                  {
                      (_yearFilter, T("Vox.Library.Filter.Year"), "Vox.Library.Column.Year"),
@@ -113,7 +115,7 @@ public sealed class LibraryPage : UserControl
             select.Items = new[] { allLabel };
             select.Selected = allLabel;
             select.SelectionChanged += _ => { _page = 0; RebuildTable(); };
-            selects.Children.Add(WithFieldLabel(select, labelKey));
+            AddSelect(WithFieldLabel(select, labelKey));
         }
         _pageSizeFilter.Items = new[] { "5", "20", "50" };
         _pageSizeFilter.Selected = "5";
@@ -126,7 +128,7 @@ public sealed class LibraryPage : UserControl
                 RebuildTable();
             }
         };
-        selects.Children.Add(WithFieldLabel(_pageSizeFilter, "Vox.Library.Filter.PageSize"));
+        AddSelect(WithFieldLabel(_pageSizeFilter, "Vox.Library.Filter.PageSize"));
         filters.Children.Add(selects);
         _search.PropertyChanged += (_, e) =>
         {
