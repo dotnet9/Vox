@@ -4088,7 +4088,7 @@ public sealed class WritePage : UserControl
             Padding = new Thickness(9, 7),
             CornerRadius = new CornerRadius(10),
             BorderThickness = new Thickness(1),
-            MaxWidth = 360,
+            MaxWidth = 420,
             HorizontalAlignment = HorizontalAlignment.Right,
             Child = body,
         };
@@ -4108,8 +4108,7 @@ public sealed class WritePage : UserControl
             Padding = new Thickness(9, 7),
             CornerRadius = new CornerRadius(10),
             BorderThickness = new Thickness(1),
-            MaxWidth = 380,
-            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalAlignment = HorizontalAlignment.Stretch, // 填满面板宽：拖宽后长 Markdown 不再窄条（2026-11-13）
             Child = body,
         };
         Res(bubble, Border.BackgroundProperty, "VoxSurface2");
