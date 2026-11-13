@@ -842,6 +842,8 @@
   "Vox.Ai.Mode.Auto": "Auto insert",
   "Vox.Ai.Mode.AutoDesc": "Replies land at the cursor as soon as they finish",
   "Vox.Ai.Model.Switched": "Model switched: {0}",
+  "Vox.Ai.Reasoning.Thinking": "Thinking…",
+  "Vox.Ai.Reasoning.Done": "Thought for {0}s",
   "Vox.Ai.Chat.Thinking": "Thinking",
   "Vox.Ai.Chat.ThinkingOn": "On",
   "Vox.Ai.Chat.ThinkingOff": "Off",

@@ -95,4 +95,40 @@ public class LlmStreamParserTests
             .Select(e => e.Text));
         Assert.Equal("第一段。\n\n第二段。", text);
     }
+
+    [Fact]
+    public void Openai_reasoning_content_yields_reasoning_delta()
+    {
+        var frame = LlmStreamParser.Parse(LlmStreamProtocol.OpenAiCompatible,
+            """{"choices":[{"delta":{"reasoning_content":"先分析问题"}}]}""");
+        Assert.Equal("先分析问题", frame.Reasoning);
+        Assert.Null(frame.Text);
+        Assert.False(frame.Done);
+    }
+
+    [Fact]
+    public void Openai_reasoning_then_content_transition()
+    {
+        var reasoning = LlmStreamParser.Parse(LlmStreamProtocol.OpenAiCompatible,
+            """{"choices":[{"delta":{"reasoning_content":"想"}}]}""");
+        var content = LlmStreamParser.Parse(LlmStreamProtocol.OpenAiCompatible,
+            """{"choices":[{"delta":{"reasoning_content":"","content":"答"}}]}""");
+        Assert.Equal("想", reasoning.Reasoning);
+        Assert.Equal("答", content.Text); // 空 reasoning 不产生思考增量，正文正常出
+        Assert.Null(content.Reasoning);
+    }
+
+    [Fact]
+    public void Anthropic_thinking_delta_yields_reasoning_and_text_delta_yields_text()
+    {
+        var thinking = LlmStreamParser.Parse(LlmStreamProtocol.Anthropic,
+            """{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"分析"}}""");
+        Assert.Equal("分析", thinking.Reasoning);
+        Assert.Null(thinking.Text);
+
+        var text = LlmStreamParser.Parse(LlmStreamProtocol.Anthropic,
+            """{"type":"content_block_delta","delta":{"type":"text_delta","text":"正文"}}""");
+        Assert.Equal("正文", text.Text);
+        Assert.Null(text.Reasoning);
+    }
 }

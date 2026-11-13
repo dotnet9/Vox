@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -4247,6 +4248,9 @@ public sealed class WritePage : UserControl
         var pending = new TextBlock { Text = T("Vox.Ai.Generating"), FontSize = Fs(10.5) };
         Res(pending, TextBlock.ForegroundProperty, "VoxFaint");
         botBody.Children.Add(pending);
+        // 思考折叠条（Trae/ZCode 口径）：推理模型（GLM reasoning_content / Anthropic thinking_delta）的思考增量
+        // 汇总在此，思考中常显、正文到达后折叠；点击头部随时展开回看。
+        var reasoning = BuildAiReasoningRow(botBody);
         var full = new StringBuilder();
         var gate = new object();
         var stream = new MarkdownStream();
@@ -4265,11 +4269,13 @@ public sealed class WritePage : UserControl
                 Dispatcher.UIThread.Post(() =>
                 {
                     pending.IsVisible = false;
+                    reasoning.OnContentStarted();
                     _aiMsgScroll.ScrollToEnd();
                 });
             },
             cancellationToken: _aiCts.Token,
-            disableThinking: !_aiThinking); // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
+            disableThinking: !_aiThinking, // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
+            onReasoning: chunk => Dispatcher.UIThread.Post(() => reasoning.OnReasoning(chunk))); // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
         stream.Complete();
         var partial = string.Empty;
         lock (gate)
@@ -4277,6 +4283,7 @@ public sealed class WritePage : UserControl
             partial = full.ToString();
         }
         var stopped = generation != _aiGeneration;
+        reasoning.OnFinished(result.Elapsed, stopped);
         _aiBusy = false;
         SetAiBusy(false);
         if (epoch != _aiChatEpoch)
@@ -4323,6 +4330,132 @@ public sealed class WritePage : UserControl
         Res(line, TextBlock.ForegroundProperty, resourceKey);
         body.Children.Add(line);
         _aiMsgScroll.ScrollToEnd();
+    }
+
+    /// <summary>思考折叠条（Trae/ZCode 口径）：无思考增量时整行隐藏；思考中常显「思考中…」，正文到达即折叠。</summary>
+    private AiReasoningRow BuildAiReasoningRow(StackPanel botBody)
+    {
+        var row = new AiReasoningRow(Fs(10.5));
+        botBody.Children.Add(row.Host);
+        return row;
+    }
+
+    /// <summary>思考折叠条实例：跨线程方法均在 UI 线程回调（调用方已 Post），状态自洽。</summary>
+    private sealed class AiReasoningRow
+    {
+        private const double ContentMaxHeight = 200;
+        private readonly double _fontSize;
+        private readonly object _gate = new();
+        private readonly StringBuilder _text = new();
+        private readonly Stopwatch _watch = Stopwatch.StartNew();
+        private long _frozenSeconds = -1;
+        private bool _expanded;
+
+        private readonly Border _content;
+        private readonly TextBlock _contentText;
+        private readonly TextBlock _label;
+        private readonly LucideIcon _chevron;
+
+        public Border Host { get; } = new()
+        {
+            IsVisible = false,
+            Margin = new Thickness(0, 0, 0, 4),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8, 5),
+            BorderThickness = new Thickness(1),
+            Cursor = new Cursor(StandardCursorType.Hand),
+        };
+
+        public AiReasoningRow(double fontSize)
+        {
+            _fontSize = fontSize;
+            _contentText = new TextBlock { FontSize = _fontSize, TextWrapping = TextWrapping.Wrap };
+            _content = new Border
+            {
+                IsVisible = false,
+                MaxHeight = ContentMaxHeight,
+                Padding = new Thickness(2, 6, 2, 2),
+                Child = new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = _contentText,
+                },
+            };
+            _label = new TextBlock { Text = T("Vox.Ai.Reasoning.Thinking"), FontSize = _fontSize, VerticalAlignment = VerticalAlignment.Center };
+            _chevron = new LucideIcon { Kind = LucideIconKind.ChevronDown, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
+            var icon = new LucideIcon { Kind = LucideIconKind.BrainCog, Width = 14, Height = 14, StrokeThickness = 1.8, VerticalAlignment = VerticalAlignment.Center };
+            Res(icon, LucideIcon.ForegroundProperty, "VoxMuted");
+            Res(_label, TextBlock.ForegroundProperty, "VoxMuted");
+            Res(_chevron, LucideIcon.ForegroundProperty, "VoxMuted");
+            Res(_content, Border.BackgroundProperty, "VoxSurface2");
+            Host.Child = new StackPanel
+            {
+                Children =
+                {
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                        ColumnSpacing = 7,
+                        Children = { icon, _label, _chevron },
+                    },
+                    _content,
+                },
+            };
+            Grid.SetColumn(_chevron, 2);
+            Host.PointerPressed += (_, e) =>
+            {
+                e.Handled = true;
+                SetExpanded(!_expanded);
+            };
+        }
+
+        public void OnReasoning(string chunk)
+        {
+            lock (_gate)
+            {
+                _text.Append(chunk);
+                _contentText.Text = _text.ToString();
+            }
+            Host.IsVisible = true;
+        }
+
+        /// <summary>正文首增量到达：折叠思考并定格用时（重复调用无副作用）。</summary>
+        public void OnContentStarted()
+        {
+            if (_frozenSeconds >= 0) return;
+            lock (_gate)
+            {
+                if (_text.Length == 0) return; // 纯内容回复：整行保持隐藏
+                _frozenSeconds = (long)_watch.Elapsed.TotalSeconds;
+                SetExpanded(false);
+                _label.Text = TF("Vox.Ai.Reasoning.Done", _frozenSeconds);
+            }
+        }
+
+        /// <summary>流落定：停止态或无思考时收尾（隐藏行/定格标签），用户手动展开的保持展开。</summary>
+        public void OnFinished(TimeSpan total, bool stopped)
+        {
+            lock (_gate)
+            {
+                if (_text.Length == 0) return;
+                if (_frozenSeconds < 0)
+                {
+                    _frozenSeconds = stopped
+                        ? (long)_watch.Elapsed.TotalSeconds
+                        : Math.Max(1, (long)total.TotalSeconds);
+                    _label.Text = TF("Vox.Ai.Reasoning.Done", _frozenSeconds);
+                    SetExpanded(false);
+                }
+            }
+        }
+
+        private void SetExpanded(bool expanded)
+        {
+            _expanded = expanded;
+            _content.IsVisible = expanded;
+            _chevron.RenderTransform = new RotateTransform(expanded ? 180 : 0);
+        }
     }
 
     private const string AiChatSystemSuffix =

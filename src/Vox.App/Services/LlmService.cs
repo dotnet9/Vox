@@ -136,6 +136,7 @@ public static class LlmService
         int maxTokens = 1400,
         TimeSpan? timeout = null,
         bool disableThinking = false,
+        Action<string>? onReasoning = null,
         CancellationToken cancellationToken = default)
     {
         var preset = LlmPresets.Get(provider);
@@ -223,6 +224,10 @@ public static class LlmService
                 {
                     full.Append(chunk);
                     onDelta(chunk);
+                }
+                if (@event.Reasoning is { Length: > 0 } thought)
+                {
+                    onReasoning?.Invoke(thought);
                 }
                 if (@event.Done) break;
             }

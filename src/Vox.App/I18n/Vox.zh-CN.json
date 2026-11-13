@@ -842,6 +842,8 @@
   "Vox.Ai.Mode.Auto": "自动插入",
   "Vox.Ai.Mode.AutoDesc": "回复完成直接落到光标处",
   "Vox.Ai.Model.Switched": "已切换模型：{0}",
+  "Vox.Ai.Reasoning.Thinking": "思考中…",
+  "Vox.Ai.Reasoning.Done": "已深度思考（用时 {0} 秒）",
   "Vox.Ai.Chat.Thinking": "思考",
   "Vox.Ai.Chat.ThinkingOn": "开",
   "Vox.Ai.Chat.ThinkingOff": "关",

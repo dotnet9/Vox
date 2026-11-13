@@ -842,6 +842,8 @@
   "Vox.Ai.Mode.Auto": "自動挿入",
   "Vox.Ai.Mode.AutoDesc": "返信完了後すぐカーソル位置へ反映",
   "Vox.Ai.Model.Switched": "モデルを切替：{0}",
+  "Vox.Ai.Reasoning.Thinking": "思考中…",
+  "Vox.Ai.Reasoning.Done": "深く思考しました（{0}秒）",
   "Vox.Ai.Chat.Thinking": "思考",
   "Vox.Ai.Chat.ThinkingOn": "オン",
   "Vox.Ai.Chat.ThinkingOff": "オフ",
