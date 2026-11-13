@@ -3664,11 +3664,51 @@ public sealed class WritePage : UserControl
             IsVisible = false,
             ZIndex = 46,
             BoxShadow = BoxShadows.Parse("0 18 50 0 #29000000, 0 4 14 0 #14000000"),
-            Child = body,
+            Child = AttachAiResizeHandle(body),
         };
         Res(_aiPop, Border.BackgroundProperty, "VoxSurface");
         Res(_aiPop, Border.BorderBrushProperty, "VoxLine");
         return _aiPop;
+    }
+
+    /// <summary>面板左缘 6px 拖拽手柄：横向拉伸面板宽度（380–640），会话级记忆（Trae 可调侧栏口径）。</summary>
+    private Grid AttachAiResizeHandle(Control body)
+    {
+        var handle = new Border
+        {
+            Width = 8,
+            Margin = new Thickness(-2, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Cursor = new Cursor(StandardCursorType.SizeWestEast),
+            Background = Brushes.Transparent,
+        };
+        double? startWidth = null;
+        double startX = 0;
+        handle.PointerPressed += (_, e) =>
+        {
+            startWidth = _aiPop.Width;
+            startX = e.GetPosition(_aiPop).X;
+            e.Pointer.Capture(handle);
+            e.Handled = true;
+        };
+        handle.PointerMoved += (_, e) =>
+        {
+            if (startWidth is not double width) return;
+            if (e.GetCurrentPoint(handle).Properties.IsLeftButtonPressed is false)
+            {
+                startWidth = null;
+                return;
+            }
+            // 向左拖增宽：X 以面板左缘为原点，拖动距离即宽度增量
+            _aiPop.Width = Math.Clamp(width + (startX - e.GetPosition(_aiPop).X), 380, 640);
+        };
+        handle.PointerReleased += (_, e) =>
+        {
+            startWidth = null;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+        };
+        return new Grid { Children = { handle, body } };
     }
 
     private Border BuildAiChip(string presetKey)
@@ -4173,9 +4213,11 @@ public sealed class WritePage : UserControl
                     "Chat", T("Vox.Ai.Mode.Confirm"), chatCtx.Label,
                     chatCtx.Offset, chatCtx.Length, chatCtx.Text, true) with { Elapsed = outcome.Elapsed };
                 AddAiBotOps(outcome.Body, outcome.Text, offer);
+                _aiInput.Focus(); // 回复落定焦点回输入框（Trae 口径），连续追问不丢焦点
                 break;
             default:
                 AddAiBotOps(outcome.Body, outcome.Text, offer: null);
+                _aiInput.Focus();
                 break;
         }
     }
@@ -4243,14 +4285,16 @@ public sealed class WritePage : UserControl
             var outcome = await AiStreamIntoBotAsync(prompt.System, _aiTurns);
             if (outcome.Text.Length > 0)
             {
-                // 生成耗时随流式结果回填，审计里的 DurationMs 才是真实时长
                 AddAiBotOps(outcome.Body, outcome.Text, offerDraft with { Elapsed = outcome.Elapsed });
+                _aiInput.Focus();
             }
         };
         var outcome = await AiStreamIntoBotAsync(prompt.System, _aiTurns);
         if (outcome.Text.Length > 0)
         {
+            // 生成耗时随流式结果回填，审计里的 DurationMs 才是真实时长
             AddAiBotOps(outcome.Body, outcome.Text, offerDraft with { Elapsed = outcome.Elapsed });
+            _aiInput.Focus();
         }
     }
 
@@ -4511,6 +4555,7 @@ public sealed class WritePage : UserControl
         {
             button.IsEnabled = false;
             _ = retry();
+            _aiInput.Focus();
         };
         botBody.Children.Add(button);
         _aiMsgScroll.ScrollToEnd();
