@@ -346,6 +346,7 @@ public sealed class PublishPage : UserControl
         var commitPush = new ArcButton { Variant = ArcButtonVariant.Primary };
         commitPush[!ArcButton.ContentProperty] = I18n.Bind("Vox.Publish.Action.CommitPush");
         commitPush.Click += async (_, _) => await CommitAsync(push: true);
+        TKCode.Arc.Tooltip.SetTip(commitPush, "Ctrl+Enter");
         actions.Children.Add(commitOnly);
         actions.Children.Add(commitPush);
         commit.Children.Add(actions);
