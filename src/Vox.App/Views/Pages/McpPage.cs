@@ -98,9 +98,10 @@ public sealed class McpPage : UserControl
     private readonly MiniSelect _auditResult = new();
     private readonly TextBlock _auditSub = new() { FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
     private readonly DataGrid _auditGrid = new();
-    private readonly TextBlock _auditEmpty = new()
+    private readonly TKCode.Arc.EmptyState _auditEmpty = new()
     {
-        FontSize = 11.5,
+        Size = ArcControlSize.Small,
+        Icon = Lucide.Geometry(LucideIconKind.ScrollText),
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Center,
         IsVisible = false,
@@ -1221,8 +1222,7 @@ public sealed class McpPage : UserControl
         var tableHost = new Grid();
         ConfigureAuditGrid();
         tableHost.Children.Add(_auditGrid);
-        _auditEmpty[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Audit.Empty");
-        Res(_auditEmpty, TextBlock.ForegroundProperty, "VoxFaint");
+        _auditEmpty.Title = T("Vox.Mcp.Audit.Empty");
         tableHost.Children.Add(_auditEmpty);
         Grid.SetRow(tableHost, 2);
         _auditTab.Children.Add(tableHost);
