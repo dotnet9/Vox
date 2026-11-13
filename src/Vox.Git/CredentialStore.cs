@@ -64,27 +64,32 @@ public sealed class WindowsCredentialStore : ICredentialStore
     {
         CredDelete(target, 1, 0);
         var blob = Encoding.UTF8.GetBytes(value);
-        var cred = new CREDENTIAL
+        // 持久化策略降级重试（2026-11-13 崩溃修复）：LocalMachine 在 Entra/AAD 域加入机器上会被
+        // 策略拒绝（CredWrite 返回 false），Enterprise 为合规降级路径——两档都失败才抛错并带错误码。
+        foreach (var persist in new[] { 2, 3 }) // 2=LOCAL_MACHINE, 3=ENTERPRISE
         {
-            Type = 1,
-            TargetName = target,
-            CredentialBlobSize = blob.Length,
-            CredentialBlob = Marshal.AllocHGlobal(blob.Length),
-            Persist = 2, // CRED_PERSIST_LOCAL_MACHINE：当前用户永久
-            UserName = Environment.UserName,
-        };
-        try
-        {
-            Marshal.Copy(blob, 0, cred.CredentialBlob, blob.Length);
-            if (!CredWrite(ref cred, 0))
+            var cred = new CREDENTIAL
             {
-                throw new InvalidOperationException("写入 Windows 凭据管理器失败。");
+                Type = 1,
+                TargetName = target,
+                CredentialBlobSize = blob.Length,
+                CredentialBlob = Marshal.AllocHGlobal(blob.Length),
+                Persist = persist,
+                UserName = Environment.UserName,
+            };
+            try
+            {
+                Marshal.Copy(blob, 0, cred.CredentialBlob, blob.Length);
+                if (CredWrite(ref cred, 0)) return;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(cred.CredentialBlob);
             }
         }
-        finally
-        {
-            Marshal.FreeHGlobal(cred.CredentialBlob);
-        }
+        var error = Marshal.GetLastWin32Error();
+        throw new InvalidOperationException(
+            $"写入 Windows 凭据管理器失败（Win32 错误码 {error}；域策略机器请确认允许凭据 Enterprise 持久化）。");
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

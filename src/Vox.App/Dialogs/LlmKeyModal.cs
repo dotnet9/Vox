@@ -59,7 +59,22 @@ public sealed class LlmKeyModal : Border
         save[!ContentControl.ContentProperty] = I18n.Bind("Vox.Common.Action.Save");
         save.Click += (_, _) =>
         {
-            LlmService.SaveApiKey(_provider, _keyBox.Text ?? string.Empty);
+            // 凭据写入失败不再终止进程（2026-11-13 崩溃修复）：toast 报错并保留弹层供重试。
+            try
+            {
+                LlmService.SaveApiKey(_provider, _keyBox.Text ?? string.Empty);
+            }
+            catch (Exception ex)
+            {
+                // 打断式对话框（2026-11-13 用户反馈：凭据写入失败属必须关注的结果，toast 太弱）；
+                // 对话框关闭后重开 Key 弹层并保留已输入内容，用户可直接重试。
+                var typed = _keyBox.Text ?? string.Empty;
+                var provider = _provider;
+                var onSaved = _onSaved;
+                shell.CloseModal();
+                _ = ShowSaveErrorThenReopenAsync(shell, provider, onSaved, typed, ex.Message);
+                return;
+            }
             _onSaved?.Invoke();
             shell.CloseModal();
             shell.ShowToast(T("Vox.Settings.Llm.KeySaved"));
@@ -68,4 +83,43 @@ public sealed class LlmKeyModal : Border
 
         AttachedToVisualTree += (_, _) => _keyBox.Focus();
     }
+
+    /// <summary>保存失败的打断式错误对话框：确定/关闭后重开 Key 弹层，已输入内容保留可直接重试。</summary>
+    private static async Task ShowSaveErrorThenReopenAsync(
+        MainWindow shell, string provider, Action? onSaved, string typedText, string error)
+    {
+        var (modal, body, footer, close) = Modal.Create(T("Vox.Settings.Llm.KeyErrorTitle"), 440, 240);
+
+        body.Children.Add(new TextBlock
+        {
+            Text = error,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12.5,
+            LineHeight = 21,
+        });
+
+        var ok = new Button { Classes = { "btn", "primary" } };
+        ok[!ContentControl.ContentProperty] = I18n.Bind("Vox.Common.Action.Confirm");
+        footer.Children.Add(ok);
+
+        var reopened = false;
+        void Reopen()
+        {
+            if (reopened) return;
+            reopened = true;
+            var retry = new LlmKeyModal(shell, provider, onSaved);
+            retry.SetKeyText(typedText);
+            shell.ShowModal(retry);
+        }
+
+        close.Click += (_, _) => Reopen();
+        ok.Click += (_, _) => Reopen();
+        modal.DetachedFromVisualTree += (_, _) => Reopen();
+
+        shell.ShowModal(modal);
+        await Task.CompletedTask;
+    }
+
+    /// <summary>重开弹层后回填用户已输入（未保存成功）的 Key。</summary>
+    internal void SetKeyText(string value) => _keyBox.Text = value;
 }

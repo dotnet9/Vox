@@ -3,6 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using System.Linq;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using TKCode.Arc.Icons.Lucide;
 using Vox.App.Controls;
 using Vox.App.Dialogs;
@@ -309,7 +312,7 @@ public sealed class SettingsPage : UserControl
         aiTab.Children.Add(mcpCard.Host);
 
         // ---------- 关于 ----------
-        var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview");
+        var aboutCard = Card("Vox.Settings.About.Title", "Vox.Settings.About.DescPreview", showTitle: false); // 左页签已选「关于」，右侧不再重复标题（2026-11-13）
         var checkUpdate = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
         checkUpdate[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.About.CheckUpdate");
         // 检查更新与标题栏药丸/帮助菜单共用同一更新会话（单一数据源）：开窗恢复现场或重新检查。
@@ -342,14 +345,21 @@ public sealed class SettingsPage : UserControl
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.Ai", LucideIconKind.Sparkles, aiTab));
         tabs.Items.Add(MakeSettingsTab("Vox.Settings.Tab.About", LucideIconKind.Info, aboutTab));
 
-        // 原型口径（.settab → .setpane 显隐切换）：选中的分区可见，其余隐藏——
-        // Arc FluidTabControl 默认把全部分区堆叠滚动（scroll-spy），这里用显隐覆盖为真切换。
+        // 原型口径（.settab → .setpane 显隐切换）：选中分区可见、其余隐藏（真切换，保留 FluidTabControl
+        // 的滑块动效与左列形态）。显隐后把内容视口滚动偏移归零：控件先按 scroll-spy 滚到旧坐标，
+        // 显隐令内容骤短时旧偏移会把内容顶推出视口，形成大段空白（2026-11-13 用户反馈的右侧顶空白根因）。
         Control[] sections = [writeTab, publishTab, aiTab, aboutTab];
         for (var i = 1; i < sections.Length; i++) sections[i].IsVisible = false;
         tabs.SelectionChanged += (_, _) =>
         {
             var index = tabs.SelectedIndex;
             for (var i = 0; i < sections.Length; i++) sections[i].IsVisible = i == index;
+            Dispatcher.UIThread.Post(() =>
+            {
+                var viewport = tabs.GetVisualDescendants().OfType<ScrollViewer>()
+                    .FirstOrDefault(sv => sv.Name == "PART_ContentViewport");
+                if (viewport != null && viewport.Offset.Y != 0) viewport.Offset = new Vector(viewport.Offset.X, 0);
+            });
         };
 
         // 原型 .settabs：页签列 + 内容同框的一张圆角卡片（整体边框，高度随内容），不铺满页面。
@@ -383,7 +393,9 @@ public sealed class SettingsPage : UserControl
         };
     }
 
-    private (Border Host, Action<Control> Add) Card(string titleKey, string descKey)
+    /// <summary>设置分区卡片。<paramref name="showTitle"/>=false 时省略标题行（左侧页签已选中分区，
+    /// 标题与页签同名时右侧重复显示——2026-11-13 用户反馈，关于卡片启用）。</summary>
+    private (Border Host, Action<Control> Add) Card(string titleKey, string descKey, bool showTitle = true)
     {
         var border = new Border
         {
@@ -395,9 +407,12 @@ public sealed class SettingsPage : UserControl
         border.BorderThickness = new Thickness(1);
         var body = new StackPanel { Spacing = 2 };
         border.Child = body;
-        var titleBlock = new TextBlock { FontSize = 13.5, FontWeight = FontWeight.SemiBold };
-        titleBlock[!TextBlock.TextProperty] = I18n.Bind(titleKey);
-        body.Children.Add(titleBlock);
+        if (showTitle)
+        {
+            var titleBlock = new TextBlock { FontSize = 13.5, FontWeight = FontWeight.SemiBold };
+            titleBlock[!TextBlock.TextProperty] = I18n.Bind(titleKey);
+            body.Children.Add(titleBlock);
+        }
         body.Children.Add(Desc(descKey));
         body.Children.Add(new Border { Height = 6 });
         void Add(Control row) => body.Children.Add(row);

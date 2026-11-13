@@ -836,6 +836,7 @@
   "Vox.Ai.Preset.Translate": "翻译英文",
   "Vox.Ai.Preset.Alt": "图片补 alt",
   "Vox.Ai.Chat.NeedSelection": "请先选中文字",
+  "Vox.Settings.Llm.KeySaveFailed": "API Key 保存失败：{0}",
   "Vox.Ai.Menu.AddToChat": "添加到 AI 会话",
   "Vox.Ai.Menu.Polish": "AI 润色改写",
   "Vox.Ai.InputPlaceholder": "基于上下文提问或下指令，回车发送…",
