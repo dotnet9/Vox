@@ -46,13 +46,13 @@ function t(name, cond) { if (!cond) throw new Error('FAIL: ' + name); ok++; cons
   t('编辑跳写作页', await page.$eval('#view-write', el => el.classList.contains('active')));
   t('加载对应文章', (await page.textContent('#elines')).includes('C#百万对象序列化'));
 
-  // 4) AI 助手：生成 → 采纳 → 审计 +1
+  // 4) AI 助手：生成 → 采纳 → 审计 +1（评审修订：AI 面板已重构为多轮会话流式输出，断言随新结构对齐）
   await page.click('#btnAi');
   t('AI 弹层打开', await page.$eval('#aiPop', el => !el.hidden));
   const before = await page.evaluate(() => MCP_AUDIT.length);
   await page.click('.ai-chips .chip:first-child');
-  await page.waitForSelector('.ai-res', { timeout: 3000 });
-  await page.click('.ai-res .ops .primary');
+  await page.waitForSelector('.ai-msg.bot:last-child .ai-msg-ops button.primary', { timeout: 3000 });
+  await page.click('.ai-msg.bot:last-child .ai-msg-ops button.primary');
   t('AI 采纳计入审计', (await page.evaluate(() => MCP_AUDIT.length)) === before + 1);
 
   // 5) MCP：分页 / 客户端配置 / 模拟写入确认 / 审计过滤
@@ -123,6 +123,39 @@ function t(name, cond) { if (!cond) throw new Error('FAIL: ' + name); ok++; cons
   t('配色六卡六色', schemeColors === 6);
   await page.click('#mapClose');
   await page.click('#modeSeg button[data-m="src"]');
+
+  // 12) 模板中心：菜单入口、列表渲染、搜索、分类、预览、使用带入向导
+  await page.click('#mFileBtn');
+  await page.click('#miTpl');
+  t('模板中心打开', await page.$eval('#mTemplates', el => el.classList.contains('open')));
+  t('模板列表渲染', (await page.$$('#tplList .tpl-it')).length === 14);
+  t('预览非空', (await page.textContent('#tplPrev')).includes('可行性分析'));
+  await page.fill('#tplSearch', '故障');
+  const searchTxt = await page.textContent('#tplList');
+  t('搜索过滤（标题+正文全文命中 3 篇）', (await page.$$('#tplList .tpl-it')).length === 3
+    && searchTxt.includes('软件需求规格说明') && searchTxt.includes('事件（故障）报告') && searchTxt.includes('应急预案'));
+  await page.fill('#tplSearch', '');
+  await page.click('#tplCatSeg button[data-c="ops"]');
+  t('运维分类 5 篇', (await page.$$('#tplList .tpl-it')).length === 5);
+  await page.click('#tplCatSeg button[data-c="my"]');
+  t('我的模板 2 篇', (await page.$$('#tplList .tpl-it')).length === 2);
+  t('我的目录提示', (await page.textContent('#tplList')).includes('templates'));
+  await page.click('#tplCatSeg button[data-c="all"]');
+  await page.click('#tplList .tpl-it[data-i="2"]'); // SRS
+  t('点选出预览', (await page.textContent('#tplPrev')).includes('需求规格'));
+  t('使用按钮启用', await page.$eval('#tplUse', el => !el.disabled));
+  await page.click('#tplUse');
+  t('带入向导并跳大纲步', await page.$eval('#mNew', el => el.classList.contains('open'))
+    && await page.$eval('#nOutline', el => el.closest('.mpage').classList.contains('active')));
+  t('大纲已预填', (await page.$eval('#nOutline', el => el.value)).includes('需求规定'));
+  t('front-matter 分类已填', (await page.textContent('#nFmCats')).includes('软件工程文档'));
+  await page.click('#mNew .x');
+  await page.click('#mFileBtn');
+  await page.click('#miNew');
+  const outlineAfterReopen = await page.$eval('#nOutline', el => el.value);
+  t('重开向导为全新状态（大纲还原默认）', ['背景', '实现思路', '关键代码', '踩坑记录', '总结'].every(k => outlineAfterReopen.includes(k))
+    && (await page.textContent('#nFmCats')).trim() === '[]');
+  await page.click('#mNew .x');
 
   if (errors.length) throw new Error('页面 JS 错误:\n' + errors.join('\n'));
   console.log(`PASS: browser-smoke（${ok} 项）`);

@@ -5,7 +5,7 @@
 <link rel="icon" href="assets/logo.svg">
 <link rel="stylesheet" href="assets/tokens.css?v=52"><link rel="stylesheet" href="assets/app.css?v=66">
 <script src="assets/vendor/d3-hierarchy.min.js"></script>
-<script src="assets/vendor/vox-map-layout.js"></script>
+<script src="assets/vendor/vox-map-layout.js"></script><script src="assets/generated/templates-data.js"></script>
 </head>
 <body class="stage">
 
@@ -16,7 +16,7 @@
 <div class="appwin">
 <header class="topbar">
   <img class="tb-logo" src="assets/logo.svg" alt=""><span class="tb-name">Vox · 维声</span>
-  <span class="tb-menu"><button class="tb-txt" id="mFileBtn">文件</button><div class="mnu" id="mFile"><a id="miNew">新建文章</a><a id="miMeta">文章元数据…</a><a id="miImg">图片入库…</a></div></span>
+  <span class="tb-menu"><button class="tb-txt" id="mFileBtn">文件</button><div class="mnu" id="mFile"><a id="miNew">新建文章</a><a id="miTpl">模板中心…</a><a id="miMeta">文章元数据…</a><a id="miImg">图片入库…</a></div></span>
 <span class="tb-menu"><button class="tb-txt" id="mHelpBtn">帮助</button><div class="mnu" id="mHelp"><a id="miUpdate">检查更新…</a><a id="miAbout">关于 Vox</a></div></span>
           <span class="tb-file"><span class="dotln"></span><span class="fn" id="edFn">dotnet-native-aot-win7-skia-dependency.md</span><span class="pub-badges" title="发布状态：网站已同步 · 公众号需更新 · 博客园/CSDN 未发布" onclick="openPublishDlg('2026/09/dotnet-native-aot-…-dependency.md')"><i class="ok"></i><i class="stale"></i><i class="off"></i><i class="off"></i></span></span>
   <span class="spacer"></span>
@@ -615,7 +615,7 @@
       <div class="field row"><label style="margin:0">日期</label><input class="input mono" style="width:200px;font-size:0.8462rem" value="2026-10-23 20:00:00"></div>
     </div>
     <div class="mpage">
-      <div class="field"><label>大纲骨架（生成到正文）</label><textarea class="input mono" rows="6" style="font-size:0.8846rem">## 背景
+      <div class="field"><div style="display:flex;align-items:center;justify-content:space-between"><label>大纲骨架（生成到正文）</label><span class="tpl-link" onclick="tplFromWizard()">从模板中心选择…</span></div><textarea class="input mono" id="nOutline" rows="6" style="font-size:0.8846rem">## 背景
 ## 实现思路
 ## 关键代码
 ## 踩坑记录
@@ -632,7 +632,7 @@ description: （你的简述）
 date: 2026-10-23 20:00:00
 lastmod: 2026-10-23 20:00:00
 cover:
-categories: []
+categories: <span id="nFmCats">[]</span>
 tags: []
 author: Dotnet9
 draft: true
@@ -646,6 +646,32 @@ draft: true
   <div class="mf">
     <button class="btn" onclick="stepModal('mNew',-1)">上一步</button>
     <button class="btn primary" id="mNewNext" onclick="stepModal('mNew',1)">下一步</button>
+  </div>
+</div></div>
+
+<!-- ============ 弹层：模板中心 ============ -->
+<div class="mask" id="mTemplates"><div class="modal tpl-modal">
+  <div class="mh"><h3>模板中心</h3><span class="x" onclick="closeModal('mTemplates')">×</span></div>
+  <div class="mb">
+    <div class="tpl-toolbar">
+      <input class="input" id="tplSearch" placeholder="搜索模板名称、说明或章节关键词…" oninput="renderTplList()">
+      <div class="seg" id="tplCatSeg">
+        <button data-c="all" class="active" onclick="setTplCat('all')">全部</button>
+        <button data-c="dev" onclick="setTplCat('dev')">软件研发</button>
+        <button data-c="ops" onclick="setTplCat('ops')">运维</button>
+        <button data-c="my" onclick="setTplCat('my')">我的模板</button>
+      </div>
+    </div>
+    <div class="tpl-body">
+      <div class="tpl-list" id="tplList"></div>
+      <div class="tpl-prev" id="tplPrev"></div>
+    </div>
+  </div>
+  <div class="mf">
+    <span class="tpl-foot-note">共 <span id="tplCount">0</span> 篇 · 内置随应用版本更新 · 我的存于用户模板目录，可自行纳入版本管理</span>
+    <span class="spacer"></span>
+    <button class="btn" onclick="closeModal('mTemplates')">关闭</button>
+    <button class="btn primary" id="tplUse" onclick="useTemplate()" disabled>使用此模板</button>
   </div>
 </div></div>
 
@@ -834,8 +860,71 @@ function stepModal(id,d){const m=document.getElementById(id),n=m.querySelectorAl
 function finishModal(id){ // 末页「创建并打开/完成」才真正执行：确认页必须先展示（主钮文案与进度点全亮依赖此约定）
   if(id==='mNew')toast('已创建 2026/10/new-article-slug.md · 进入写作页');
   closeModal(id);}
-document.getElementById('btnNew').onclick=()=>openModal('mNew');
+document.getElementById('btnNew').onclick=()=>openNewWizard();
 document.querySelectorAll('.mask').forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('open')});
+/* ---------- 模板中心（#mTemplates）：国标文档模板 + 用户模板，选择后带入新建向导 ----------
+   内容规范：软件研发线依 GB/T 8567-2006 章节结构；运维线参照 GB/T 28827.1-2022 过程要素。
+   实现口径：模板中心管选择（搜索/分类/预览），NewArticleModal 管落地（大纲+front-matter 默认值预填），
+   正文生成仍走 ArticleScaffolder；md 原文与 C# 端共用同一份数据结构。 */
+const TEMPLATES=window.VoxTemplates||[];
+let tplCat='all',tplSel=-1;
+function tplMdHtml(src){
+  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline=s=>esc(s).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  const flushP=buf=>buf.length?'<p>'+buf.map(inline).join('<br>')+'</p>':'';
+  const lines=src.split('\n');let out='',pbuf=[],i=0;
+  while(i<lines.length){
+    const L=lines[i];
+    if(/^```/.test(L)){out+=flushP(pbuf);pbuf=[];const code=[];i++;while(i<lines.length&&!/^```/.test(lines[i])){code.push(lines[i]);i++;}i++;out+='<pre class="tpl-code"><code>'+esc(code.join('\n'))+'</code></pre>';continue;}
+    if(/^\|/.test(L)){out+=flushP(pbuf);pbuf=[];const rows=[];while(i<lines.length&&/^\|/.test(lines[i])){rows.push(lines[i]);i++;}
+      const cells=r=>r.replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>inline(c.trim()));
+      const body=rows.length>2?rows.slice(2).map(cells):[];
+      out+='<table><thead><tr>'+cells(rows[0]).map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+body.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';continue;}
+    const hm=L.match(/^(#{1,4}) (.+)$/);
+    if(hm){out+=flushP(pbuf);pbuf=[];const lv=hm[1].length;out+='<h'+lv+'>'+inline(hm[2])+'</h'+lv+'>';i++;continue;}
+    if(/^> ?/.test(L)){out+=flushP(pbuf);pbuf=[];const q=[];while(i<lines.length&&/^> ?/.test(lines[i])){q.push(lines[i].replace(/^> ?/,''));i++;}out+='<blockquote><p>'+q.map(inline).join('<br>')+'</p></blockquote>';continue;}
+    if(/^(?:-|\d+\.) /.test(L)){out+=flushP(pbuf);pbuf=[];const ol=/^\d+\./.test(L);const tag=ol?'ol':'ul';const items=[];
+      while(i<lines.length&&/^(?:-|\d+\.) /.test(lines[i])){items.push(lines[i].replace(/^(?:-|\d+\.) /,''));i++;}
+      out+='<'+tag+'>'+items.map(it=>'<li>'+inline(it)+'</li>').join('')+'</'+tag+'>';continue;}
+    if(!L.trim()){out+=flushP(pbuf);pbuf=[];i++;continue;}
+    pbuf.push(L);i++;
+  }
+  return out+flushP(pbuf);
+}
+function tplFiltered(){const q=($('tplSearch').value||'').trim().toLowerCase();
+  return TEMPLATES.map((t,i)=>({t,i})).filter(x=>(tplCat==='all'||x.t.cat===tplCat)&&(!q||(x.t.name+' '+x.t.desc+' '+x.t.std+' '+x.t.md).toLowerCase().includes(q)));}
+function renderTplList(){
+  const items=tplFiltered();
+  if(tplSel<0||!items.some(x=>x.i===tplSel))tplSel=items.length?items[0].i:-1;
+  let html='';
+  if(tplCat==='my'&&items.length)html+='<div class="tpl-hint">目录：%AppData%\\Vox\\templates<br>放入 .md 即成为模板，是否纳入版本管理由你决定。</div>';
+  html+=items.map(x=>'<div class="tpl-it'+(x.i===tplSel?' sel':'')+'" data-i="'+x.i+'" onclick="selectTpl('+x.i+')"><div class="tpl-it-head"><b>'+x.t.name+'</b><span class="tpl-badge'+(x.t.cat==='my'?' mine':'')+'">'+(x.t.cat==='my'?'我的':'内置')+'</span></div><small>'+x.t.desc+'</small></div>').join('');
+  if(!items.length)html+='<div class="tpl-empty">没有匹配的模板，换个关键词试试</div>';
+  $('tplList').innerHTML=html;
+  $('tplCount').textContent=items.length;
+  renderTplPrev();}
+function renderTplPrev(){
+  const box=$('tplPrev'),use=$('tplUse');
+  if(tplSel<0){box.innerHTML='<div class="tpl-empty">左侧选择一篇模板查看预览</div>';use.disabled=true;return;}
+  const t=TEMPLATES[tplSel];use.disabled=false;
+  const chips=t.categories.map(c=>'<span class="chip">分类 '+c+'</span>').concat(t.tags.map(g=>'<span class="chip">标签 '+g+'</span>')).join('');
+  box.innerHTML='<div class="tpl-prev-meta"><span class="std">'+t.std+' · '+(t.draft?'以草稿创建':'直接创建')+'</span>'+chips+'</div><div class="article">'+tplMdHtml(t.md)+'</div>';}
+function selectTpl(i){tplSel=i;document.querySelectorAll('#tplList .tpl-it').forEach(el=>el.classList.toggle('sel',+el.dataset.i===i));renderTplPrev();}
+function setTplCat(c){tplCat=c;document.querySelectorAll('#tplCatSeg button').forEach(b=>b.classList.toggle('active',b.dataset.c===c));renderTplList();}
+function openTemplates(){tplCat='all';tplSel=-1;$('tplSearch').value='';document.querySelectorAll('#tplCatSeg button').forEach(b=>b.classList.toggle('active',b.dataset.c==='all'));renderTplList();openModal('mTemplates');}
+function useTemplate(){
+  if(tplSel<0)return;const t=TEMPLATES[tplSel];
+  closeModal('mTemplates');
+  const outline=t.md.split('\n').filter(l=>/^## /.test(l)).join('\n');
+  if(outline)$('nOutline').value=outline;
+  $('nFmCats').textContent='['+t.categories.join(' / ')+']';
+  openModal('mNew');cur['mNew']=2;showPage('mNew');
+  toast('已带入模板：《'+t.name+'》· 大纲与元数据默认值已填入，标题待你定');}
+function tplFromWizard(){closeModal('mNew');openTemplates();}
+/* 新建向导每次打开都是全新状态：大纲还原默认骨架、front-matter 分类清空（模板带入值只属于当次会话） */
+const DEFAULT_OUTLINE='## 背景\n## 实现思路\n## 关键代码\n## 踩坑记录\n## 总结';
+function openNewWizard(){$('nOutline').value=DEFAULT_OUTLINE;$('nFmCats').textContent='[]';openModal('mNew');}
+$('miTpl').onclick=()=>{closeModal2();openTemplates();};
 /* ---------- 外观 / 语言（标题栏弹层，原「设置→外观」已移除） ---------- */
 let themeMode='light',sysDark=null;
 function applyTheme(){document.documentElement.dataset.theme=themeMode==='auto'?(sysDark?'dark':'light'):themeMode;}
@@ -1249,7 +1338,7 @@ $('mHelpBtn').onclick=e=>{e.stopPropagation();$('mHelp').classList.toggle('open'
 function closeMenus(){$('mFile').classList.remove('open');$('mHelp').classList.remove('open');}
 document.addEventListener('click',()=>{closeModal2();closeMenus();});
 function closeModal2(){$('mFile').classList.remove('open');}
-$('miNew').onclick=()=>{closeModal2();openModal('mNew');};
+$('miNew').onclick=()=>{closeModal2();openNewWizard();};
 $('miMeta').onclick=()=>{closeModal2();openMetaModal();};
 $('miImg').onclick=()=>{closeModal2();openModal('mImg');};
 $('miUpdate').onclick=()=>{closeModal2();openUpdateCheck();};
