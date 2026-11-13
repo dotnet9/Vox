@@ -3684,7 +3684,6 @@ public sealed class WritePage : UserControl
         _aiPop = new Border
         {
             Width = savedWidth,
-            Height = 520,
             Padding = new Thickness(14, 12, 14, 14),
             CornerRadius = new CornerRadius(14),
             BorderThickness = new Thickness(1),
@@ -3695,6 +3694,7 @@ public sealed class WritePage : UserControl
             ZIndex = 46,
             BoxShadow = BoxShadows.Parse("0 18 50 0 #29000000, 0 4 14 0 #14000000"),
             Child = AttachAiResizeHandle(body),
+            Height = Math.Clamp(AppState.Instance.Settings.AiPanelHeight, 320, 560),
         };
         Res(_aiPop, Border.BackgroundProperty, "VoxSurface");
         Res(_aiPop, Border.BorderBrushProperty, "VoxLine");
@@ -3744,7 +3744,45 @@ public sealed class WritePage : UserControl
             AppState.Instance.Settings.AiPanelWidth = (int)Math.Clamp(_aiPop.Width, 380, 640);
             AppState.Instance.SaveSettings();
         };
-        return new Grid { Children = { handle, body } };
+
+        // 下缘高度手柄（2026-11-14）：320–560，与宽度同口径持久化
+        var vHandle = new Border
+        {
+            Height = 8,
+            Margin = new Thickness(0, 0, 0, -2),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Cursor = new Cursor(StandardCursorType.SizeNorthSouth),
+            Background = Brushes.Transparent,
+        };
+        double? startHeight = null;
+        double startY = 0;
+        vHandle.PointerPressed += (_, e) =>
+        {
+            startHeight = _aiPop.Height;
+            startY = e.GetPosition(_aiPop).Y;
+            e.Pointer.Capture(vHandle);
+            e.Handled = true;
+        };
+        vHandle.PointerMoved += (_, e) =>
+        {
+            if (startHeight is not double height) return;
+            if (e.GetCurrentPoint(vHandle).Properties.IsLeftButtonPressed is false)
+            {
+                startHeight = null;
+                return;
+            }
+            // 向下拖增高：Y 以面板上缘为原点
+            _aiPop.Height = Math.Clamp(height + (e.GetPosition(_aiPop).Y - startY), 320, 560);
+        };
+        vHandle.PointerReleased += (_, e) =>
+        {
+            startHeight = null;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            AppState.Instance.Settings.AiPanelHeight = (int)Math.Clamp(_aiPop.Height, 320, 560);
+            AppState.Instance.SaveSettings();
+        };
+        return new Grid { Children = { handle, vHandle, body } };
     }
 
     private Border BuildAiChip(string presetKey)
