@@ -3400,6 +3400,9 @@ public sealed class WritePage : UserControl
         _aiInput.Focus();
     }
 
+    /// <summary>关闭 AI 面板（AOT 视觉验证收尾用；正常交互走 × 与面板外点击）。</summary>
+    internal void CloseAiPanel() => _aiPop.IsVisible = false;
+
     /// <summary>右键选段（原型口径）：已有选区时尊重选区（点在选区内右键不改选）；否则高亮光标段落，随 SelectionChanged 出浮钮。</summary>
     private void SelectParagraphForAi()
     {
@@ -3696,6 +3699,7 @@ public sealed class WritePage : UserControl
             Child = AttachAiResizeHandle(body),
             Height = Math.Clamp(AppState.Instance.Settings.AiPanelHeight, 320, 560),
         };
+        _aiPop.Classes.Add("ai-pop"); // AOT 视觉验证定位用（RuntimeVerification 抓 AI 面板截图）
         Res(_aiPop, Border.BackgroundProperty, "VoxSurface");
         Res(_aiPop, Border.BorderBrushProperty, "VoxLine");
         return _aiPop;
@@ -4230,7 +4234,7 @@ public sealed class WritePage : UserControl
         _aiSend.Classes.Set("primary", !busy);
     }
 
-    private void AiOpenPanel()
+    internal void AiOpenPanel()
     {
         _aiPop.IsVisible = true;
         AiSeedWelcome();

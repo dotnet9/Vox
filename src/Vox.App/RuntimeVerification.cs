@@ -101,6 +101,16 @@ internal static class RuntimeVerification
                         renders++;
                         if (page == "write")
                         {
+                            // AI 会话面板视觉回归素材（composer 底栏/气泡/思考折叠条，2026-11-13 重做后纳入验证集）
+                            if (host?.Content is WritePage writerPanel) writerPanel.AiOpenPanel();
+                            WaitUntil(() => window.GetVisualDescendants().OfType<Border>()
+                                .Any(border => border.Classes.Contains("ai-pop") && border.IsVisible));
+                            using var aiBitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
+                            aiBitmap.Render(window);
+                            if (culture == "zh-CN")
+                                aiBitmap.Save(Path.Combine(root, "ai-panel" + (dark ? "-dark.png" : "-light.png")));
+                            renders++;
+                            if (host?.Content is WritePage closer) closer.CloseAiPanel();
                             SwitchNavigation(tree: true);
                             WaitUntil(() => list.ItemCount == 1003);
                             using var treeBitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
