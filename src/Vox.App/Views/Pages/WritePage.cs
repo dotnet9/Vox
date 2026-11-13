@@ -27,6 +27,13 @@ using CodeWF.Avalonia.MindView.Markdown;
 using Markdig;
 using StreamMark.Avalonia;
 using TKCode.Arc.Icons.Lucide;
+using ArcButton = TKCode.Arc.Button;
+using ArcButtonVariant = TKCode.Arc.ButtonVariant;
+using ArcCopyButton = TKCode.Arc.CopyButton;
+using ArcControlSize = TKCode.Arc.ControlSize;
+using ArcPopover = TKCode.Arc.Popover;
+using ArcPopoverAlignment = TKCode.Arc.PopoverAlignment;
+using ArcPopoverPlacement = TKCode.Arc.PopoverPlacement;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
@@ -172,7 +179,6 @@ public sealed class WritePage : UserControl
     private StackPanel _aiMsgList = null!;
     private Border _aiCtxBar = null!;
     private WrapPanel _aiCtxList = null!;
-    private TextBlock _aiModelTag = null!;
     private Button _aiSend = null!;
     private bool _aiBusy;
     private int _aiGeneration;
@@ -185,6 +191,35 @@ public sealed class WritePage : UserControl
     private TextBlock _aiSelPillRange = null!;
     private bool _aiSelDragging;
     private ((int Offset, int Length) Range, bool IsSelection)? _aiSelAnchor;
+
+    // ZCode 口径（2026-11-13 用户拍板重做）：会话自主度三档 + 模型/思考选择器，均挂在输入行下的 composer 底栏。
+    private AiChatMode _aiMode = AiChatMode.Discuss;
+    private bool _aiThinking = true;
+    private ArcButton _aiModeButton = null!;
+    private ArcButton _aiModelButton = null!;
+    private ArcPopover? _aiModePop;
+    private ArcPopover? _aiModelPop;
+    private readonly Dictionary<AiChatMode, LucideIcon> _aiModeChecks = [];
+    private readonly Dictionary<(string Provider, string Model), LucideIcon> _aiModelChecks = [];
+
+    /// <summary>会话自主度：仅讨论=结果留在会话；确认后写入=引用选区时出 diff 卡采纳；自动插入=完成即落光标处。</summary>
+    private enum AiChatMode
+    {
+        Discuss,
+        ConfirmWrite,
+        AutoInsert,
+    }
+
+    /// <summary>模型选择器的预设清单（服务商分组 + 常用模型行；GLM 组附带思考开关）。</summary>
+    private static readonly (string Provider, string[] Models)[] AiModelChoices =
+    [
+        ("GLM", ["glm-5.3-flash", "glm-5.3"]),
+        ("DeepSeek", ["deepseek-chat"]),
+        ("OpenAI", ["gpt-4o"]),
+        ("Claude", ["claude-sonnet-4-5"]),
+        ("Ollama", ["qwen3:14b"]),
+    ];
+
 
     /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>
     private bool _attached;
@@ -3522,16 +3557,6 @@ public sealed class WritePage : UserControl
         clear[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Clear");
         clear.Click += (_, _) => ClearAiChat();
         head.Children.Add(clear.Dock(Dock.Right));
-        _aiModelTag = new TextBlock
-        {
-            Text = AppState.Instance.Settings.LlmModel,
-            FontFamily = MonoFont,
-            FontSize = Fs(10),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0, 0, 0),
-        };
-        Res(_aiModelTag, TextBlock.ForegroundProperty, "VoxMuted");
-        head.Children.Add(_aiModelTag.Dock(Dock.Right));
         var spark = new TextBlock
         {
             Text = "✦",
@@ -3606,13 +3631,16 @@ public sealed class WritePage : UserControl
         _aiSend.Click += (_, _) => _ = OnAiSendClickedAsync();
         var inputRow = new DockPanel { LastChildFill = true, Children = { _aiSend.Dock(Dock.Right), _aiInput } };
 
+        // ZCode 口径 composer 底栏：左=自主度模式（仅讨论/确认后写入/自动插入），右=模型+思考选择器。
+        var composerFooter = BuildAiComposerFooter();
+
         // 原型 ai-chat 高度 min(560px, 100% - 58px)：消息区吃满剩余高度（* 行），头/chips/输入行自适应。
         var body = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto,Auto"),
             Children =
             {
-                head, _aiCtxBar, _aiMsgScroll, chips, inputRow,
+                head, _aiCtxBar, _aiMsgScroll, chips, inputRow, composerFooter,
             },
         };
         Grid.SetRow(head, 0);
@@ -3620,6 +3648,7 @@ public sealed class WritePage : UserControl
         Grid.SetRow(_aiMsgScroll, 2);
         Grid.SetRow(chips, 3);
         Grid.SetRow(inputRow, 4);
+        Grid.SetRow(composerFooter, 5);
         _aiPop = new Border
         {
             Width = 420,
@@ -3667,6 +3696,271 @@ public sealed class WritePage : UserControl
             Res(label, TextBlock.ForegroundProperty, "VoxMuted");
         };
         return chip;
+    }
+
+    /// <summary>composer 底栏（ZCode 口径，2026-11-13 用户拍板重做）：左自主度模式下拉、右模型选择器，Arc Popover 挂触发钮。</summary>
+    private Grid BuildAiComposerFooter()
+    {
+        _aiModeButton = new ArcButton
+        {
+            Variant = ArcButtonVariant.Ghost,
+            Size = ArcControlSize.Small,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+        };
+        UpdateAiModeButton();
+        _aiModePop = new ArcPopover
+        {
+            Trigger = _aiModeButton,
+            Placement = ArcPopoverPlacement.Top,
+            Alignment = ArcPopoverAlignment.Start,
+            Content = BuildAiModePopoverContent(),
+        };
+
+        _aiModelButton = new ArcButton
+        {
+            Variant = ArcButtonVariant.Ghost,
+            Size = ArcControlSize.Small,
+            HorizontalContentAlignment = HorizontalAlignment.Right,
+        };
+        UpdateAiModelButton();
+        _aiModelPop = new ArcPopover
+        {
+            Trigger = _aiModelButton,
+            Placement = ArcPopoverPlacement.Top,
+            Alignment = ArcPopoverAlignment.End,
+            Content = BuildAiModelPopoverContent(),
+        };
+
+        var footer = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            Margin = new Thickness(0, 8, 0, 0),
+            Children = { _aiModeButton, _aiModelButton },
+        };
+        Grid.SetColumn(_aiModelButton, 2);
+        return footer;
+    }
+
+    /// <summary>自主度模式单行：图标 + 标签/说明 + 选中勾；点击切换并刷新触发钮与勾标。</summary>
+    private Border BuildAiModeRow(AiChatMode mode, LucideIconKind icon, string labelKey, string descKey)
+    {
+        var modeIcon = new LucideIcon
+        {
+            Kind = icon,
+            Width = 15,
+            Height = 15,
+            StrokeThickness = 1.8,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var label = new TextBlock { FontSize = Fs(11.5), FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        label[!TextBlock.TextProperty] = I18n.Bind(labelKey);
+        Res(label, TextBlock.ForegroundProperty, "VoxFg");
+        var desc = new TextBlock { FontSize = Fs(10), TextWrapping = TextWrapping.Wrap };
+        desc[!TextBlock.TextProperty] = I18n.Bind(descKey);
+        Res(desc, TextBlock.ForegroundProperty, "VoxMuted");
+        var check = new LucideIcon
+        {
+            Kind = LucideIconKind.Check,
+            Width = 14,
+            Height = 14,
+            StrokeThickness = 2.2,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = _aiMode == mode,
+        };
+        Res(check, LucideIcon.ForegroundProperty, "VoxAccent");
+        _aiModeChecks[mode] = check;
+        var row = new Border
+        {
+            Padding = new Thickness(10, 8),
+            CornerRadius = new CornerRadius(8),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Child = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnSpacing = 9,
+                Children =
+                {
+                    modeIcon,
+                    new StackPanel { Spacing = 1, Children = { label, desc } },
+                    check,
+                },
+            },
+        };
+        Grid.SetColumn(check, 2);
+        row.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            _aiMode = mode;
+            UpdateAiModeButton();
+            _aiModePop!.IsOpen = false;
+        };
+        return row;
+    }
+
+    private StackPanel BuildAiModePopoverContent()
+    {
+        var list = new StackPanel { Width = 254 };
+        list.Children.Add(BuildAiModeRow(AiChatMode.Discuss, LucideIconKind.MessageSquareText, "Vox.Ai.Mode.Discuss", "Vox.Ai.Mode.DiscussDesc"));
+        list.Children.Add(BuildAiModeRow(AiChatMode.ConfirmWrite, LucideIconKind.SquareCheckBig, "Vox.Ai.Mode.Confirm", "Vox.Ai.Mode.ConfirmDesc"));
+        list.Children.Add(BuildAiModeRow(AiChatMode.AutoInsert, LucideIconKind.ArrowDownToLine, "Vox.Ai.Mode.Auto", "Vox.Ai.Mode.AutoDesc"));
+        return list;
+    }
+
+    /// <summary>模型选择器内容（ZCode 口径）：服务商分组 + 模型行 + 当前勾标；GLM 组附思考开关（私有参数，会话级）。</summary>
+    private StackPanel BuildAiModelPopoverContent()
+    {
+        var list = new StackPanel { Width = 272 };
+        var firstGroup = true;
+        foreach (var (provider, models) in AiModelChoices)
+        {
+            var header = new TextBlock
+            {
+                FontSize = Fs(10.5),
+                FontWeight = FontWeight.SemiBold,
+                Margin = new Thickness(4, firstGroup ? 2 : 10, 4, 3),
+            };
+            header[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.Provider." + provider);
+            Res(header, TextBlock.ForegroundProperty, "VoxMuted");
+            list.Children.Add(header);
+            foreach (var model in models)
+            {
+                var modelName = new TextBlock
+                {
+                    Text = model,
+                    FontFamily = MonoFont,
+                    FontSize = Fs(11),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                Res(modelName, TextBlock.ForegroundProperty, "VoxFg");
+                var check = new LucideIcon
+                {
+                    Kind = LucideIconKind.Check,
+                    Width = 14,
+                    Height = 14,
+                    StrokeThickness = 2.2,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    IsVisible = IsCurrentModel(provider, model),
+                };
+                Res(check, LucideIcon.ForegroundProperty, "VoxAccent");
+                _aiModelChecks[(provider, model)] = check;
+                var row = new Border
+                {
+                    Padding = new Thickness(10, 7),
+                    CornerRadius = new CornerRadius(8),
+                    Cursor = new Cursor(StandardCursorType.Hand),
+                    Child = new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                        Children = { modelName, check },
+                    },
+                };
+                Grid.SetColumn(check, 1);
+                var providerKey = provider;
+                row.PointerPressed += (_, e) =>
+                {
+                    e.Handled = true;
+                    SelectAiModel(providerKey, model);
+                };
+                list.Children.Add(row);
+            }
+            if (provider != "GLM") continue;
+            // 思考开关：BigModel 私有参数（thinking.type），会话级记忆，仅对 GLM 请求生效（LlmService 仅 GLM 附带）。
+            var thinkLabel = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
+            thinkLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Chat.Thinking");
+            Res(thinkLabel, TextBlock.ForegroundProperty, "VoxFg");
+            var thinkIcon = new LucideIcon { Kind = LucideIconKind.BrainCog, Width = 15, Height = 15, StrokeThickness = 1.8, VerticalAlignment = VerticalAlignment.Center };
+            var thinkToggle = new ToggleButton { Classes = { "vswitch" }, IsChecked = _aiThinking };
+            thinkToggle.IsCheckedChanged += (_, _) => _aiThinking = thinkToggle.IsChecked == true;
+            list.Children.Add(new Border
+            {
+                Padding = new Thickness(10, 7),
+                CornerRadius = new CornerRadius(8),
+                Child = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                    ColumnSpacing = 9,
+                    Children = { thinkIcon, thinkLabel, thinkToggle },
+                },
+            });
+            Grid.SetColumn(thinkLabel, 1);
+            Grid.SetColumn(thinkToggle, 2);
+            firstGroup = false;
+        }
+        return list;
+    }
+
+    private static bool IsCurrentModel(string provider, string model)
+    {
+        var settings = AppState.Instance.Settings;
+        return string.Equals(settings.LlmProvider, provider, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(settings.LlmModel, model, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SelectAiModel(string provider, string model)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.LlmProvider = provider;
+        settings.LlmModel = model;
+        // 广播 SettingsChanged：设置页（服务商/模型名）与下次会话同源，避免两处口径漂移。
+        AppState.Instance.SaveSettings();
+        UpdateAiModelButton();
+        _aiModelPop!.IsOpen = false;
+        _shell.ShowToast(TF("Vox.Ai.Model.Switched", $"{T("Vox.Settings.Llm.Provider." + provider)} · {model}"));
+    }
+
+    private void UpdateAiModeButton()
+    {
+        var (icon, labelKey) = _aiMode switch
+        {
+            AiChatMode.ConfirmWrite => (LucideIconKind.SquareCheckBig, "Vox.Ai.Mode.Confirm"),
+            AiChatMode.AutoInsert => (LucideIconKind.ArrowDownToLine, "Vox.Ai.Mode.Auto"),
+            _ => (LucideIconKind.MessageSquareText, "Vox.Ai.Mode.Discuss"),
+        };
+        var label = new TextBlock { Text = T(labelKey), FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
+        Res(label, TextBlock.ForegroundProperty, "VoxFg");
+        _aiModeButton.Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+            Children =
+            {
+                new LucideIcon { Kind = icon, Width = 13, Height = 13, StrokeThickness = 1.8, VerticalAlignment = VerticalAlignment.Center },
+                label,
+                new LucideIcon { Kind = LucideIconKind.ChevronDown, Width = 11, Height = 11, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center },
+            },
+        };
+        foreach (var (mode, check) in _aiModeChecks)
+        {
+            check.IsVisible = mode == _aiMode;
+        }
+    }
+
+    private void UpdateAiModelButton()
+    {
+        var settings = AppState.Instance.Settings;
+        var label = new TextBlock
+        {
+            Text = $"{T("Vox.Settings.Llm.Provider." + settings.LlmProvider)} · {settings.LlmModel}",
+            FontFamily = MonoFont,
+            FontSize = Fs(10.5),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(label, TextBlock.ForegroundProperty, "VoxFg");
+        _aiModelButton.Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+            Children =
+            {
+                new LucideIcon { Kind = LucideIconKind.Bot, Width = 13, Height = 13, StrokeThickness = 1.8, VerticalAlignment = VerticalAlignment.Center },
+                label,
+                new LucideIcon { Kind = LucideIconKind.ChevronDown, Width = 11, Height = 11, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center },
+            },
+        };
+        foreach (var ((provider, model), check) in _aiModelChecks)
+        {
+            check.IsVisible = IsCurrentModel(provider, model);
+        }
     }
 
     /// <summary>居中浅色系统注（欢迎语 / 已写入 / 已停止），加进消息流末尾。</summary>
@@ -3794,7 +4088,7 @@ public sealed class WritePage : UserControl
     {
         _aiPop.IsVisible = true;
         AiSeedWelcome();
-        _aiModelTag.Text = AppState.Instance.Settings.LlmModel;
+        UpdateAiModelButton();
         _aiInput.Focus();
     }
 
@@ -3842,9 +4136,29 @@ public sealed class WritePage : UserControl
 
         _aiInput.Text = string.Empty;
         AddAiUserBubble(input);
+        // 确认后写入模式：快照发送时的首个引用 chip（offset 区间 + 原文），回复落定后据此出 diff 采纳卡。
+        // 区间在生成期间被改动时 AcceptAiAsync 已有保护（退化为光标处插入）。
+        AiChatContext? chatCtx = _aiCtx.Count > 0 ? _aiCtx[0] : null;
         _aiTurns.Add(new LlmChatTurn("user", BuildAiChatUserContent(input)));
         var outcome = await AiStreamIntoBotAsync(AiPrompts.SystemPrompt + AiChatSystemSuffix, _aiTurns);
-        if (outcome.Text.Length > 0) AddAiBotOps(outcome.Body, outcome.Text, offer: null);
+        if (outcome.Text.Length == 0) return;
+        switch (_aiMode)
+        {
+            case AiChatMode.AutoInsert:
+                // ZCode 自主口径：回复完成直接落到光标处（InsertAiTextAsync 含换行规整、审计与绿色注）。
+                _ = InsertAiTextAsync(outcome.Text);
+                AddAiBotOps(outcome.Body, outcome.Text, offer: null, autoInserted: true);
+                break;
+            case AiChatMode.ConfirmWrite when chatCtx is not null:
+                var offer = new AiOffer(
+                    "Chat", T("Vox.Ai.Mode.Confirm"), chatCtx.Label,
+                    chatCtx.Offset, chatCtx.Length, chatCtx.Text, true) with { Elapsed = outcome.Elapsed };
+                AddAiBotOps(outcome.Body, outcome.Text, offer);
+                break;
+            default:
+                AddAiBotOps(outcome.Body, outcome.Text, offer: null);
+                break;
+        }
     }
 
     /// <summary>预设指令（原型 chips）：单轮生成，流式落定后追加 diff 采纳卡，回复一并入会话历史。</summary>
@@ -3927,7 +4241,6 @@ public sealed class WritePage : UserControl
         var epoch = _aiChatEpoch;
         _aiCts?.Cancel(); // Cancel 已释放旧 CTS 的 CancelAfter 计时器，直接换新实例
         _aiCts = new CancellationTokenSource();
-        _aiModelTag.Text = settings.LlmModel;
 
         var botBody = AddAiBotBubble();
         // 等待指示（原型三点动画的位置）：首段增量到达即摘除，网络首字延迟期间气泡不再空白
@@ -3955,7 +4268,8 @@ public sealed class WritePage : UserControl
                     _aiMsgScroll.ScrollToEnd();
                 });
             },
-            cancellationToken: _aiCts.Token);
+            cancellationToken: _aiCts.Token,
+            disableThinking: !_aiThinking); // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
         stream.Complete();
         var partial = string.Empty;
         lock (gate)
@@ -4043,21 +4357,45 @@ public sealed class WritePage : UserControl
         return text[..cut] + "…";
     }
 
-    /// <summary>回复落定后的操作排：自定义回复 = 插入光标/复制；预设改稿 = 写入位置 + diff 卡 + 采纳（＋N 行）/放弃。</summary>
-    private void AddAiBotOps(StackPanel botBody, string text, AiOffer? offer)
+    /// <summary>回复落定后的操作排：自定义回复 = 插入光标/复制（Arc 小钮）；预设改稿 = 写入位置 + diff 卡 + 采纳（＋N 行）/放弃。
+    /// <paramref name="autoInserted"/>=自动插入模式已落正文，操作条只留复制（2026-11-13 ZCode 口径重做）。</summary>
+    private void AddAiBotOps(StackPanel botBody, string text, AiOffer? offer, bool autoInserted = false)
     {
         var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         if (offer == null)
         {
-            var insert = new Button { Classes = { "btn", "sm", "primary" } };
-            insert[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Insert");
-            insert.Click += (_, _) =>
+            if (!autoInserted)
             {
-                DisableAiOps(ops);
-                _ = InsertAiTextAsync(text);
+                var insertIcon = new LucideIcon { Kind = LucideIconKind.ArrowDownToLine, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
+                var insertLabel = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
+                insertLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Chat.Insert");
+                var insert = new ArcButton
+                {
+                    Variant = ArcButtonVariant.Primary,
+                    Size = ArcControlSize.Small,
+                    Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 5,
+                        Children = { insertIcon, insertLabel },
+                    },
+                };
+                insert.Click += (_, _) =>
+                {
+                    DisableAiOps(ops);
+                    _ = InsertAiTextAsync(text);
+                };
+                ops.Children.Add(insert);
+            }
+            // Arc CopyButton：点击即复制并自带对勾回执态；自动插入模式下这是唯一动作。
+            var copy = new ArcCopyButton
+            {
+                Value = text,
+                Variant = TKCode.Arc.CopyButtonVariant.Outline,
+                IsIconOnly = true,
             };
-            ops.Children.Add(insert);
-            ops.Children.Add(MakeAiCopyButton(text, ops));
+            TKCode.Arc.Tooltip.SetTip(copy, T("Vox.Ai.Copy"));
+            ops.Children.Add(copy);
             botBody.Children.Add(ops);
             _aiMsgScroll.ScrollToEnd();
             return;

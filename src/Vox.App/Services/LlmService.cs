@@ -71,6 +71,7 @@ public static class LlmService
         string user,
         int maxTokens = 1400,
         TimeSpan? timeout = null,
+        bool disableThinking = false,
         CancellationToken cancellationToken = default)
     {
         var preset = LlmPresets.Get(provider);
@@ -89,7 +90,7 @@ public static class LlmService
             var isClaude = preset.Key == "Claude";
             using var request = isClaude
                 ? BuildAnthropic(preset, resolvedModel, apiKey!, system, user, maxTokens)
-                : BuildOpenAiCompatible(preset, resolvedModel, apiKey, system, user, maxTokens);
+                : BuildOpenAiCompatible(preset, resolvedModel, apiKey, system, user, maxTokens, disableThinking);
             using var response = await Http.SendAsync(request, cts.Token);
             var raw = await response.Content.ReadAsStringAsync(cts.Token);
             watch.Stop();
@@ -134,6 +135,7 @@ public static class LlmService
         Action<string> onDelta,
         int maxTokens = 1400,
         TimeSpan? timeout = null,
+        bool disableThinking = false,
         CancellationToken cancellationToken = default)
     {
         var preset = LlmPresets.Get(provider);
@@ -182,6 +184,7 @@ public static class LlmService
                     {
                         Model = resolvedModel, Messages = [.. messages], MaxTokens = maxTokens, Stream = true,
                     };
+                    ApplyThinking(payload, preset.Key, disableThinking);
                     request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/chat/completions")
                     {
                         Content = new StringContent(
@@ -244,8 +247,17 @@ public static class LlmService
         }
     }
 
+    /// <summary>GLM 私有 thinking 开关：仅 GLM 附带（OpenAI 拒绝未知参数），其余服务商不冒进。</summary>
+    private static void ApplyThinking(OpenAiRequest payload, string providerKey, bool disableThinking)
+    {
+        if (disableThinking && providerKey == "GLM")
+        {
+            payload.Thinking = new ThinkingConfig();
+        }
+    }
+
     private static HttpRequestMessage BuildOpenAiCompatible(
-        LlmPreset preset, string model, string? apiKey, string system, string user, int maxTokens)
+        LlmPreset preset, string model, string? apiKey, string system, string user, int maxTokens, bool disableThinking = false)
     {
         var payload = new OpenAiRequest
         {
@@ -257,6 +269,9 @@ public static class LlmService
             ],
             MaxTokens = maxTokens,
         };
+        // glm-5.x 为自适应推理模型，简单提问也可能思考取尽 max_tokens 致 content 为空
+        // （2026-11-13 测试连接“模型没有返回内容”实测复现），调用方可禁思考。
+        ApplyThinking(payload, preset.Key, disableThinking);
         var request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/chat/completions")
         {
             Content = new StringContent(
@@ -363,6 +378,13 @@ public sealed class OpenAiRequest
     [JsonPropertyName("max_tokens")] public int MaxTokens { get; set; } = 1400;
     [JsonPropertyName("temperature")] public double Temperature { get; set; } = 0.6;
     [JsonPropertyName("stream")] public bool Stream { get; set; }
+    [JsonPropertyName("thinking")] public ThinkingConfig? Thinking { get; set; }
+}
+
+/// <summary>GLM 私有推理开关（BigModel）。DefaultIgnoreCondition=WhenWritingNull 保证其余服务商不收到该字段。</summary>
+public sealed class ThinkingConfig
+{
+    [JsonPropertyName("type")] public string Type { get; set; } = "disabled";
 }
 
 public sealed class OpenAiResponse

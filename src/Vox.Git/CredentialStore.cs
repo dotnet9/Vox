@@ -80,7 +80,7 @@ public sealed class WindowsCredentialStore : ICredentialStore
             try
             {
                 Marshal.Copy(blob, 0, cred.CredentialBlob, blob.Length);
-                if (CredWrite(ref cred, 0)) return;
+                if (CredWrite(cred, 0)) return;
             }
             finally
             {
@@ -91,6 +91,13 @@ public sealed class WindowsCredentialStore : ICredentialStore
         throw new InvalidOperationException(
             $"写入 Windows 凭据管理器失败（Win32 错误码 {error}；域策略机器请确认允许凭据 Enterprise 持久化）。");
     }
+
+    // CREDENTIAL 为含 string 的非 blittable 类：必须按值传（存根产出 CREDENTIAL*，2026-11-13 头字节
+    // 探针实证）。此前写 `ref` 在现代 .NET 下按二级指针封送，CredWrite 读到的 Flags/Type/BlobSize/
+    // Persist 全是堆指针字节 → ERROR_INVALID_PARAMETER(87)，两档持久化全灭——曾误诊为域策略。
+    // CredWrite 对结构体只读，无需 ref 回写语义。
+    [DllImport("advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CredWrite(CREDENTIAL credential, int flags);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private sealed class CREDENTIAL
@@ -111,9 +118,6 @@ public sealed class WindowsCredentialStore : ICredentialStore
 
     [DllImport("advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CredRead(string target, int type, int flags, out IntPtr credentialPtr, out int size);
-
-    [DllImport("advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool CredWrite(ref CREDENTIAL credential, int flags);
 
     [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CredDelete(string target, int type, int flags);

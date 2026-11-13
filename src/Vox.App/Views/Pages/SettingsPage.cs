@@ -570,8 +570,10 @@ public sealed class SettingsPage : UserControl
         _llmTest.IsEnabled = false;
         try
         {
+            // maxTokens 256 + GLM 禁思考：glm-5.x 自适应推理可能把 8 token 全烧在思考上致正文空
+            // （2026-11-13 “模型没有返回内容”实测）；禁思考后测试确定秒回。
             var result = await LlmService.CompleteAsync(preset.Key, settings.LlmModel,
-                "你是连接测试助手，只回复 OK。", "ping", maxTokens: 8, timeout: TimeSpan.FromSeconds(25));
+                "你是连接测试助手，只回复 OK。", "ping", maxTokens: 256, timeout: TimeSpan.FromSeconds(25), disableThinking: true);
             _shell.ShowToast(result.Ok
                 ? TF("Vox.Settings.Llm.TestOk", settings.LlmModel)
                 : TF("Vox.Settings.Llm.TestFail", result.Error ?? string.Empty));

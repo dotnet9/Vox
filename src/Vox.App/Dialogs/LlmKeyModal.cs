@@ -45,9 +45,19 @@ public sealed class LlmKeyModal : Border
 
         var label = Modal.Label(T("Vox.Settings.Llm.ApiKey"));
         body.Children.Add(label);
-        _keyBox = Modal.Input(mono: true, watermark: T("Vox.Settings.Llm.KeyPlaceholder"));
-        _keyBox.PasswordChar = '●';
-        _keyBox.Text = LlmService.GetApiKey(provider) ?? string.Empty;
+        // Arc PasswordField（2026-11-13 用户反馈）：默认掩码 + 眼形按钮切换明文，取代原生 PasswordChar 方案；
+        // 字段内标签隐藏只作可访问名，视觉标签沿用弹层既有 Modal.Label 行。切换钮文案随语言切换。
+        _keyBox = new TKCode.Arc.PasswordField
+        {
+            Label = T("Vox.Settings.Llm.ApiKey"),
+            IsLabelVisible = false,
+            Placeholder = T("Vox.Settings.Llm.KeyPlaceholder"),
+            FontSize = 11,
+            FontFamily = FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace"),
+            Text = LlmService.GetApiKey(provider) ?? string.Empty,
+        };
+        _keyBox[!TKCode.Arc.PasswordField.ShowPasswordTextProperty] = I18n.Bind("Vox.Settings.Llm.KeyShow");
+        _keyBox[!TKCode.Arc.PasswordField.HidePasswordTextProperty] = I18n.Bind("Vox.Settings.Llm.KeyHide");
         body.Children.Add(_keyBox);
 
         var cancel = new Button { Classes = { "btn", "ghost" } };
