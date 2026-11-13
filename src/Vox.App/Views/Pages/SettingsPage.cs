@@ -25,6 +25,7 @@ public sealed class SettingsPage : UserControl
     private readonly ArcInput _repoInput = new() { IsReadOnly = true, FontSize = 11, IsLabelVisible = false };
     private readonly TextBlock _indexInfo = new();
     private readonly ArcInput _cdnInput = new() { Width = 280, FontSize = 11, IsLabelVisible = false };
+    private readonly ArcInput _tplInput = new() { Width = 380, FontSize = 11, IsLabelVisible = false };
     private readonly TextBlock _patInfo = new();
     private readonly MiniSelect _llmProvider = new() { Width = 130 };
     private readonly ArcInput _llmModel = new() { Width = 200, FontSize = 11, IsLabelVisible = false };
@@ -138,6 +139,18 @@ public sealed class SettingsPage : UserControl
         indexRow.Children.Add(_indexInfo);
         indexRow.Children.Add(rescan);
         repoCard.Add(Row("Vox.Settings.Repo.Index", indexRow));
+        // ---------- 模板目录（模板中心「我的模板」来源，2026-11-13）：空 = 默认目录，失焦保存并回填生效值 ----------
+        _tplInput[!ArcInput.LabelProperty] = I18n.Bind("Vox.Settings.Tpl.Directory");
+        _tplInput.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
+        _tplInput.Text = TemplateLibrary.UserDirectory(AppState.Instance.Settings);
+        _tplInput.LostFocus += (_, _) =>
+        {
+            var path = _tplInput.Text.Trim();
+            SaveSetting(s => s.TemplatesPath = string.IsNullOrWhiteSpace(path) ? null : path);
+            _tplInput.Text = TemplateLibrary.UserDirectory(AppState.Instance.Settings);
+            _shell.ShowToast(T("Vox.Settings.Tpl.DirectorySaved"));
+        };
+        repoCard.Add(Row("Vox.Settings.Tpl.Directory", _tplInput));
         writeTab.Children.Add(repoCard.Host);
 
         // ---------- 链接策略 ----------

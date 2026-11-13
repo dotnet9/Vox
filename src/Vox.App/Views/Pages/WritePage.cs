@@ -4692,21 +4692,43 @@ public sealed class WritePage : UserControl
 
     // ---------- 弹层入口 ----------
 
-    public void OpenNewArticle()
+    public void OpenNewArticle() => OpenNewArticle(null);
+
+    /// <summary>新建文章（template 非空 = 从模板中心带入：大纲与 front matter 默认值预填，直接落大纲步）。</summary>
+    public void OpenNewArticle(DocumentTemplate? template)
     {
         if (_repoRoot == null)
         {
             _shell.ShowToast(T("Vox.Write.Msg.NeedRepo"));
             return;
         }
-        _shell.ShowModal(new NewArticleModal(_shell, _repoRoot, async created =>
+        _shell.ShowModal(new NewArticleModal(_shell, _repoRoot, ArticleCreatedAsync, template, OpenTemplateCenter));
+        if (template != null)
         {
-            AppState.Instance.NotifyRepoChanged();
-            Services.PublishHub.Invalidate();
-            await Task.Delay(60);
-            var article = AppState.Instance.Scan?.FindArticle(created.MarkdownPath);
-            if (article != null) await OpenArticleAsync(article);
-        }));
+            _shell.ShowToast(TF("Vox.Wizard.New.TemplateApplied", template.Name));
+        }
+    }
+
+    /// <summary>模板中心弹层（文件菜单「模板中心…」/ 新建向导大纲步「从模板中心选择…」入口）。</summary>
+    public void OpenTemplateCenter()
+    {
+        var directory = TemplateLibrary.UserDirectory(AppState.Instance.Settings);
+        var (user, errors) = TemplateLibrary.LoadUserTemplates(directory);
+        if (errors.Count > 0)
+        {
+            _shell.ShowToast(TF("Vox.Tpl.UserLoadFailed", errors.Count));
+        }
+        var templates = TemplateLibrary.LoadBuiltins().Concat(user).ToList();
+        _shell.ShowModal(new Dialogs.TemplateCenterModal(_shell, templates, directory, OpenNewArticle));
+    }
+
+    private async Task ArticleCreatedAsync(ScaffoldedArticle created)
+    {
+        AppState.Instance.NotifyRepoChanged();
+        Services.PublishHub.Invalidate();
+        await Task.Delay(60);
+        var article = AppState.Instance.Scan?.FindArticle(created.MarkdownPath);
+        if (article != null) await OpenArticleAsync(article);
     }
 
     /// <summary>文章元数据弹层（「在弹层中编辑全部…」/文件菜单入口；面板元数据页签的就地编辑之外承载全量编辑）。</summary>

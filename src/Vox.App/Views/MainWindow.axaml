@@ -50,6 +50,7 @@
     <arc:MenuEntry x:Name="MiOpenFile" Header="打开文件…" />
     <arc:MenuEntrySeparator />
     <arc:MenuEntry x:Name="MiNew" Header="新建文章" />
+    <arc:MenuEntry x:Name="MiTpl" Header="模板中心…" />
     <arc:MenuEntry x:Name="MiMeta" Header="文章元数据…" />
     <arc:MenuEntry x:Name="MiImg" Header="图片入库…" />
   </arc:DropdownMenu>

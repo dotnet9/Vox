@@ -284,6 +284,7 @@ public partial class MainWindow : Window
         MiOpenDir[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenDirectory");
         MiOpenFile[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.OpenFile");
         MiNew[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.NewArticle");
+        MiTpl[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.TemplateCenter");
         MiMeta[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.Metadata");
         MiImg[!ArcMenu.MenuEntry.HeaderProperty] = I18n.Bind("Vox.Write.Menu.ImageIntake");
         FileMenu[!ArcMenu.DropdownMenu.LabelProperty] = I18n.Bind("Vox.Shell.Menu.File");
@@ -720,6 +721,7 @@ public partial class MainWindow : Window
     private void WireChromeCommands()
     {
         MiNew.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenNewArticle()));
+        MiTpl.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenTemplateCenter()));
         MiMeta.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenMeta()));
         MiImg.Command = new DelegateCommand(_ => WriteCommand(p => p.OpenImageIntake()));
         MiUpdate.Command = new DelegateCommand(_ => Services.UpdateSession.Instance.OpenFromMenu());

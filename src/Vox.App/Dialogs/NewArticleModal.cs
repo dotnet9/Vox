@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -12,12 +13,18 @@ using static Vox.App.Infrastructure.I18n;
 
 namespace Vox.App.Dialogs;
 
-/// <summary>新建文章向导（原型 #mNew）：标题 → 简述/日期 → 大纲骨架 → 确认创建。</summary>
+/// <summary>
+/// 新建文章向导（原型 #mNew）：标题 → 简述/日期 → 大纲骨架 → 确认创建。
+/// 2026-11-13 模板中心联动：可选传入 DocumentTemplate——大纲骨架与 front matter 默认值（分类/标签/草稿）
+/// 预填并直接跳到大纲步；onOpenTemplateCenter 非空时大纲步显示「从模板中心选择…」入口。
+/// </summary>
 public sealed class NewArticleModal : Border
 {
     private readonly MainWindow _shell;
     private readonly string _repoRoot;
     private readonly Func<ScaffoldedArticle, Task> _onCreated;
+    private readonly IReadOnlyList<string> _templateCategories;
+    private readonly IReadOnlyList<string> _templateTags;
 
     private readonly Grid _stepsBar = new()
     {
@@ -38,11 +45,18 @@ public sealed class NewArticleModal : Border
     private readonly Button _nextButton;
     private int _step;
 
-    public NewArticleModal(MainWindow shell, string repoRoot, Func<ScaffoldedArticle, Task> onCreated)
+    public NewArticleModal(
+        MainWindow shell,
+        string repoRoot,
+        Func<ScaffoldedArticle, Task> onCreated,
+        DocumentTemplate? template = null,
+        Action? onOpenTemplateCenter = null)
     {
         _shell = shell;
         _repoRoot = repoRoot;
         _onCreated = onCreated;
+        _templateCategories = template?.Categories ?? [];
+        _templateTags = template?.Tags ?? [];
 
         var (modal, body, footer, close) = Modal.Create(T("Vox.Wizard.New.Title"), 560, 640);
         Classes.AddRange(modal.Classes);
@@ -96,9 +110,26 @@ public sealed class NewArticleModal : Border
         dateRow.Children.Add(dateHint);
         step2.Children.Add(dateRow);
 
-        // 第 3 步：大纲骨架 + 草稿开关
+        // 第 3 步：大纲骨架 + 草稿开关（模板中心入口在标签行右侧，原型 #mNew 第 3 步同款）
         var step3 = new StackPanel { Spacing = 4 };
-        step3.Children.Add(BoundLabel("Vox.Wizard.New.FieldOutline"));
+        var outlineLabelRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var outlineLabel = BoundLabel("Vox.Wizard.New.FieldOutline");
+        Grid.SetColumn(outlineLabel, 0);
+        outlineLabelRow.Children.Add(outlineLabel);
+        if (onOpenTemplateCenter != null)
+        {
+            var tplLink = new TextBlock { FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, Cursor = new Cursor(StandardCursorType.Hand) };
+            tplLink[!TextBlock.TextProperty] = I18n.Bind("Vox.Wizard.New.OpenTemplateCenter");
+            WritePage.Res(tplLink, TextBlock.ForegroundProperty, "VoxAccent");
+            tplLink.PointerPressed += (_, _) =>
+            {
+                shell.CloseModal();
+                onOpenTemplateCenter();
+            };
+            Grid.SetColumn(tplLink, 1);
+            outlineLabelRow.Children.Add(tplLink);
+        }
+        step3.Children.Add(outlineLabelRow);
         step3.Children.Add(_outlineInput);
         var draftRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
         draftRow.Children.Add(_draftSwitch);
@@ -154,6 +185,14 @@ public sealed class NewArticleModal : Border
         footer.Children.Add(_nextButton);
 
         RefreshSlugPreview();
+        if (template != null)
+        {
+            // 模板带入：大纲骨架预填二级标题、草稿口径随模板、直接落到大纲步（标题仍由用户定）
+            var outline = DocumentTemplate.ExtractOutline(template.Markdown);
+            if (outline.Count > 0) _outlineInput.Text = string.Join("\n", outline);
+            _draftSwitch.IsChecked = template.Draft;
+            _step = 2;
+        }
         ShowStep();
     }
 
@@ -221,7 +260,9 @@ public sealed class NewArticleModal : Border
                     $"slug: {Slug}\n" +
                     $"description: {(string.IsNullOrWhiteSpace(_descInput.Text) ? T("Vox.Wizard.New.DescEmpty") : _descInput.Text.Trim())}\n" +
                     $"date: {date:yyyy-MM-dd HH:mm:ss}\n" +
-                    "cover:\ncategories: []\ntags: []\n" +
+                    "cover:\n" +
+                    $"categories: [{string.Join(", ", _templateCategories)}]\n" +
+                    $"tags: [{string.Join(", ", _templateTags)}]\n" +
                     "author: Dotnet9\n" +
                     $"draft: {(_draftSwitch.IsChecked == true ? "true" : "false")}\n" +
                     "---\n\n" +
@@ -244,6 +285,8 @@ public sealed class NewArticleModal : Border
                     .Select(l => l.Trim())
                     .Where(l => l.Length > 0)
                     .ToList(),
+                Categories = _templateCategories,
+                Tags = _templateTags,
                 Draft = _draftSwitch.IsChecked == true,
                 Author = "Dotnet9",
             };
