@@ -35,6 +35,7 @@ public sealed class ImagesPage : UserControl
     private readonly Controls.MiniSelect _sortFilter = new(); // 排序入口（2026-11-13 此前固定按路径）
     private readonly ArcInput _search = new() { Width = 200, IsLabelVisible = false };
     private readonly WrapPanel _grid = new() { Orientation = Orientation.Horizontal };
+    private Grid? _emptyOverlay; // 空态覆盖层：WrapPanel 子项不拉伸，直接塞 grid 会贴左上（2026-11-13 截图发现）
     private readonly ScrollViewer _gridScroll = new();
     private readonly StackPanel _detailHost = new();
     private readonly TextBlock _footer = new() { FontSize = 11 };
@@ -128,7 +129,11 @@ public sealed class ImagesPage : UserControl
 
         // 主体：左缩略图墙 + 右详情面板
         _grid.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _gridScroll.Content = _grid;
+        var gridLayer = new Panel();
+        gridLayer.Children.Add(_grid);
+        _emptyOverlay = new Grid { IsVisible = false };
+        gridLayer.Children.Add(_emptyOverlay);
+        _gridScroll.Content = gridLayer;
         _gridScroll.SizeChanged += (_, _) => LayoutImageCards();
         var detailBorder = new Border
         {
@@ -277,6 +282,7 @@ public sealed class ImagesPage : UserControl
         _footer.Text = TF("Vox.Images.Stats.Footer", items.Count, AppState.Instance.Scan?.Images.Count ?? 0);
         RenderBatchBar();
 
+        if (_emptyOverlay is { IsVisible: true } overlay) overlay.IsVisible = false;
         if (_thumbCache.Count > 600) _thumbCache.Clear(); // 粗略上限：防止长会话内存膨胀
         _ = DecodeThumbsAsync(_thumbGeneration);
 
@@ -284,16 +290,18 @@ public sealed class ImagesPage : UserControl
 
         if (!_grid.Children.Any())
         {
-            // Arc EmptyState（Small）替代裸文字空态（2026-11-13 与 AI 会话/原型空态口径一致）
-            var empty = new TKCode.Arc.EmptyState
+            // Arc EmptyState（Small）替代裸文字空态（2026-11-13 与 AI 会话/原型空态口径一致）；
+            // 放 overlay 层（Panel 拉伸 + Grid 双向居中），塞进 WrapPanel 会贴左上
+            _emptyOverlay!.Children.Clear();
+            _emptyOverlay.Children.Add(new TKCode.Arc.EmptyState
             {
                 Size = ArcControlSize.Small,
                 Icon = Lucide.Geometry(LucideIconKind.ImageOff),
                 Title = T("Vox.Images.Empty"),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 32),
-            };
-            _grid.Children.Add(empty);
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            _emptyOverlay.IsVisible = true;
         }
 
         LayoutImageCards();
