@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using CodeWF.Avalonia.DataGrid;
+using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
 using Vox.App.Services;
 using Vox.App.Views;
@@ -612,6 +613,8 @@ public sealed class LibraryPage : UserControl
     {
         var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Edit") };
         edit.Click += async (_, _) => await EditAsync(row.Article);
+        var rename = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Library.Action.Rename") };
+        rename.Click += (_, _) => _ = RenameArticleAsync(row.Article);
         var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Library.Action.Publish") };
         publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
         return new StackPanel
@@ -621,8 +624,111 @@ public sealed class LibraryPage : UserControl
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 2, 12, 2),
-            Children = { edit, publish },
+            Children = { edit, rename, publish },
         };
+    }
+
+    /// <summary>文章重命名（文件名级，2026-11-14 补文档管理核心缺口）：当前打开文章先落盘再移动；
+    /// 冲突/非法字符拦截；移动后重扫并回指写作页。发布状态映射随重扫重建。</summary>
+    private async Task RenameArticleAsync(Article article)
+    {
+        var root = AppState.Instance.CurrentRepoRoot;
+        if (root == null) return;
+        var oldRelative = article.MarkdownPath.Replace('/', Path.DirectorySeparatorChar);
+        var oldPath = Path.Combine(root, oldRelative);
+        if (!File.Exists(oldPath))
+        {
+            _shell.ShowToast(T("Vox.Library.Rename.Gone"));
+            return;
+        }
+        var oldName = Path.GetFileName(oldPath);
+
+        var (modal, body, footer, close) = Modal.Create(T("Vox.Library.Rename.Title"), 460, 260);
+        var input = new TextBox { Classes = { "vinput" }, Text = oldName };
+        body.Children.Add(new TextBlock
+        {
+            Text = T("Vox.Library.Rename.Hint"),
+            FontSize = 11.5,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 10),
+        });
+        body.Children.Add(input);
+        var cancel = new Button { Classes = { "btn" } };
+        cancel.Content = T("Vox.Common.Action.Cancel");
+        cancel.Click += (_, _) => _shell.CloseModal();
+        footer.Children.Add(cancel);
+        var confirm = new Button { Classes = { "btn", "primary" } };
+        confirm.Content = T("Vox.Library.Rename.Confirm");
+        footer.Children.Add(confirm);
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        close.Click += (_, _) => tcs.TrySetResult(false);
+        cancel.Click += (_, _) => tcs.TrySetResult(false);
+        confirm.Click += (_, _) =>
+        {
+            var newName = (input.Text ?? string.Empty).Trim();
+            if (newName.Equals(oldName, StringComparison.OrdinalIgnoreCase))
+            {
+                _shell.ShowToast(T("Vox.Library.Rename.Unchanged"));
+                return;
+            }
+            tcs.TrySetResult(true);
+            input.Tag = newName; // 借 Tag 把输入带出弹层（弹层关闭后控件仍在）
+        };
+        modal.DetachedFromVisualTree += (_, _) => tcs.TrySetResult(false);
+        _shell.ShowModal(modal); // ConfirmDialog 同口径：modal 本体即弹层
+        input.Focus();
+        if (!await tcs.Task) return;
+        var newName = input.Tag as string ?? string.Empty;
+        if (newName.Length == 0) return;
+
+        newName = Path.GetFileName(newName); // 防路径穿越
+        if (!newName.EndsWith(".md", StringComparison.OrdinalIgnoreCase)) newName += ".md";
+        if (newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            _shell.ShowToast(T("Vox.Library.Rename.Invalid"));
+            return;
+        }
+        var newPath = Path.Combine(Path.GetDirectoryName(oldPath)!, newName);
+        if (File.Exists(newPath))
+        {
+            _shell.ShowToast(T("Vox.Library.Rename.Conflict"));
+            return;
+        }
+
+        var wasOpen = _shell.CachedWritePage?.CurrentArticle?.MarkdownPath == article.MarkdownPath;
+        if (wasOpen) _shell.CachedWritePage!.SaveCurrent(silent: true); // 打开中先落盘，防丢编辑
+        try
+        {
+            File.Move(oldPath, newPath);
+        }
+        catch (Exception ex)
+        {
+            _shell.ShowToast(TF("Vox.Library.Rename.Failed", ex.Message));
+            return;
+        }
+        PublishHub.Invalidate();
+        AppState.Instance.Rescan();
+        _shell.ShowToast(TF("Vox.Library.Rename.Done", newName));
+        if (wasOpen && _shell.CachedWritePage is { } writer)
+        {
+            // 重扫完成后回指写作页：从新扫描结果取新路径文章并打开
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline)
+            {
+                var rescanned = AppState.Instance.Scan?.Articles.FirstOrDefault(
+                    a => a.MarkdownPath.Replace('/', Path.DirectorySeparatorChar)
+                         .Equals(Path.Combine(Path.GetDirectoryName(oldRelative)!, newName), StringComparison.OrdinalIgnoreCase));
+                if (rescanned != null)
+                {
+                    _shell.ShowPage("write");
+                    _ = writer.OpenArticleAsync(rescanned);
+                    return;
+                }
+                await Task.Delay(120);
+            }
+            _shell.ShowToast(T("Vox.Library.Rename.ReopenFailed"));
+        }
     }
 
     private void RebuildTable()

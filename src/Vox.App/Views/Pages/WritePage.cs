@@ -2933,7 +2933,7 @@ public sealed class WritePage : UserControl
         return true;
     }
 
-    private bool SaveCurrent(bool silent = false)
+    internal bool SaveCurrent(bool silent = false)
     {
         if (_current == null || _repoRoot == null) return false;
         try
