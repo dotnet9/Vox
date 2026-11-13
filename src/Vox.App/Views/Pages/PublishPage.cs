@@ -1480,13 +1480,28 @@ public sealed class PublishPage : UserControl
             ColumnSpacing = 10,
             Margin = new Thickness(0, 4, 0, 16),
         };
-        foreach (var (card, column, labelKey) in new[]
+        foreach (var (card, column, labelKey, filterKey) in new[]
                  {
-                     (_statOk, 0, "Vox.Publish.Card.Ok"), (_statStale, 1, "Vox.Publish.Card.Stale"),
-                     (_statOff, 2, "Vox.Publish.Card.Off"), (_statErr, 3, "Vox.Publish.Card.Error"),
+                     ((TextBlock)_statOk, 0, "Vox.Publish.Card.Ok", "Ok"),
+                     ((TextBlock)_statStale, 1, "Vox.Publish.Card.Stale", "OnlyStale"),
+                     ((TextBlock)_statOff, 2, "Vox.Publish.Card.Off", "OnlyPending"),
+                     ((TextBlock)_statErr, 3, "Vox.Publish.Card.Error", "OnlyFailed"),
                  })
         {
             var stat = StatCard(card, labelKey);
+            // 点击汇总卡 = 切到该状态筛选（与文章库统计卡快捷筛选口径一致，2026-11-13）
+            stat.Cursor = new Cursor(StandardCursorType.Hand);
+            var key = filterKey;
+            stat.PointerReleased += (_, e) =>
+            {
+                e.Handled = true;
+                var label = T("Vox.Publish.Filter." + (key == "Ok" ? "AllArticles" : key));
+                if (_matrixFilterKeys.TryGetValue(label, out _))
+                {
+                    _matrixFilter.Selected = label;
+                    RefreshMatrix();
+                }
+            };
             overview.Children.Add(stat);
             Grid.SetColumn(stat, column);
         }
