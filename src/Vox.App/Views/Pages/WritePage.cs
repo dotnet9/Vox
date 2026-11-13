@@ -3484,8 +3484,15 @@ public sealed class WritePage : UserControl
                 Text = ctx.Label,
                 FontSize = Fs(10.5),
                 VerticalAlignment = VerticalAlignment.Center,
+                Cursor = new Cursor(StandardCursorType.Hand),
             };
             Res(label, TextBlock.ForegroundProperty, "VoxFg");
+            TKCode.Arc.Tooltip.SetTip(label, T("Vox.Ai.Chat.JumpToSource"));
+            label.PointerPressed += (_, e) =>
+            {
+                e.Handled = true;
+                JumpEditorToContext(ctx);
+            };
             var remove = new TextBlock
             {
                 Text = "×",
