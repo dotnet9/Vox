@@ -631,6 +631,8 @@ public sealed class LibraryPage : UserControl
         edit.Click += async (_, _) => await EditAsync(row.Article);
         var rename = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Library.Action.Rename") };
         rename.Click += (_, _) => _ = RenameArticleAsync(row.Article);
+        var delete = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Delete") };
+        delete.Click += (_, _) => _ = DeleteArticleAsync(row.Article);
         var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Library.Action.Publish") };
         publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
         return new StackPanel
@@ -640,8 +642,40 @@ public sealed class LibraryPage : UserControl
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 2, 12, 2),
-            Children = { edit, rename, publish },
+            Children = { edit, rename, delete, publish },
         };
+    }
+
+    /// <summary>文章删除（Git 工作区删除，推送前可回滚；2026-11-14 补文档管理核心缺口）：
+    /// 统一确认对话框（破坏性红色主钮）；删除当前打开文章前先落盘编辑，重扫后写作页由下一次打开修复。</summary>
+    private async Task DeleteArticleAsync(Article article)
+    {
+        var root = AppState.Instance.CurrentRepoRoot;
+        if (root == null) return;
+        var relative = article.MarkdownPath.Replace('/', Path.DirectorySeparatorChar);
+        var path = Path.Combine(root, relative);
+        if (!File.Exists(path))
+        {
+            _shell.ShowToast(T("Vox.Library.Rename.Gone"));
+            return;
+        }
+        var ok = await ConfirmDialog.Show(_shell, T("Vox.Library.Delete.Title"),
+            TF("Vox.Library.Delete.Body", article.Title), T("Vox.Library.Delete.Confirm"), destructive: true);
+        if (!ok) return;
+        var wasOpen = _shell.CachedWritePage?.CurrentArticle?.MarkdownPath == article.MarkdownPath;
+        if (wasOpen) _shell.CachedWritePage!.SaveCurrent(silent: true); // 落盘编辑再删（autoSave 以 _dirty 判定，不会复活文件）
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            _shell.ShowToast(TF("Vox.Library.Delete.Failed", ex.Message));
+            return;
+        }
+        PublishHub.Invalidate();
+        AppState.Instance.Rescan();
+        _shell.ShowToast(T("Vox.Library.Delete.Done"));
     }
 
     /// <summary>文章重命名（文件名级，2026-11-14 补文档管理核心缺口）：当前打开文章先落盘再移动；
