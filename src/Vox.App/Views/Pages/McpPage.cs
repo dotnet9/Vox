@@ -10,6 +10,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CodeWF.Avalonia.DataGrid;
+using TKCode.Arc.Icons.Lucide;
+using ArcControlSize = TKCode.Arc.ControlSize;
 using Vox.App.Controls;
 using Vox.App.Dialogs;
 using Vox.App.Infrastructure;
@@ -989,21 +991,15 @@ public sealed class McpPage : UserControl
 
         if (_toolHost.Children.Count == 0)
         {
-            var empty = new Border
+            // Arc EmptyState（Small）替代手搓 Border 盒（2026-11-13 与图片库/文章库空态口径一致）
+            var empty = new TKCode.Arc.EmptyState
             {
-                BorderThickness = new Thickness(1),
-                BorderBrush = Brushes.Transparent,
-                CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(26),
-                Child = new TextBlock
-                {
-                    Text = TF("Vox.Mcp.Tools.Empty", query),
-                    FontSize = 11.5,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                },
+                Size = ArcControlSize.Small,
+                Icon = Lucide.Geometry(LucideIconKind.Wrench),
+                Title = TF("Vox.Mcp.Tools.Empty", query),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 18),
             };
-            Res(empty, Border.BorderBrushProperty, "VoxLine");
-            Res((TextBlock)empty.Child!, TextBlock.ForegroundProperty, "VoxFaint");
             _toolHost.Children.Add(empty);
         }
     }
