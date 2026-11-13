@@ -64,6 +64,13 @@ public sealed class LibraryPage : UserControl
     public LibraryPage(MainWindow shell)
     {
         _shell = shell;
+        // Ctrl+F 聚焦搜索框（页面级快捷键；搜索框已带占位提示，2026-11-14）
+        KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.F || !e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+            _search.Focus();
+            e.Handled = true;
+        };
         BuildLayout();
         DetachedFromVisualTree += (_, _) =>
         {
