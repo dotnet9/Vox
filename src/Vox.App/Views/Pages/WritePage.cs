@@ -3712,6 +3712,9 @@ public sealed class WritePage : UserControl
             Cursor = new Cursor(StandardCursorType.SizeWestEast),
             Background = Brushes.Transparent,
         };
+        // 悬停提示：淡色竖线提示可拖（平时透明，2026-11-13）
+        handle.PointerEntered += (_, _) => Res(handle, Border.BackgroundProperty, "VoxLine");
+        handle.PointerExited += (_, _) => Res(handle, Border.BackgroundProperty, "VoxSurface");
         double? startWidth = null;
         double startX = 0;
         handle.PointerPressed += (_, e) =>
