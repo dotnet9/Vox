@@ -212,15 +212,8 @@ public sealed class WritePage : UserControl
         AutoInsert,
     }
 
-    /// <summary>模型选择器的预设清单（服务商分组 + 常用模型行；GLM 组附带思考开关）。</summary>
-    private static readonly (string Provider, string[] Models)[] AiModelChoices =
-    [
-        ("GLM", ["glm-5.3-flash", "glm-5.3"]),
-        ("DeepSeek", ["deepseek-chat"]),
-        ("OpenAI", ["gpt-4o"]),
-        ("Claude", ["claude-sonnet-4-5"]),
-        ("Ollama", ["qwen3:14b"]),
-    ];
+    /// <summary>模型选择器的预设清单：与设置页下拉共用 LlmPresets.ModelChoices（口径同源）。</summary>
+    private static readonly (string Provider, string[] Models)[] AiModelChoices = LlmPresets.ModelChoices;
 
 
     /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>

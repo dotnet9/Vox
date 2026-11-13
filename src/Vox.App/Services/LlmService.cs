@@ -26,6 +26,16 @@ public static class LlmPresets
     public static LlmPreset Get(string? key) =>
         All.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)) ?? All[0];
 
+    /// <summary>常用模型清单（服务商分组）：AI 会话模型选择器与设置页模型下拉共用，保证两处口径一致。</summary>
+    public static readonly (string Provider, string[] Models)[] ModelChoices =
+    [
+        ("GLM", ["glm-5.3-flash", "glm-5.3"]),
+        ("DeepSeek", ["deepseek-chat"]),
+        ("OpenAI", ["gpt-4o"]),
+        ("Claude", ["claude-sonnet-4-5"]),
+        ("Ollama", ["qwen3:14b"]),
+    ];
+
     public static string DisplayName(LlmPreset preset) => I18n.T("Vox.Settings.Llm.Provider." + preset.Key);
 }
 

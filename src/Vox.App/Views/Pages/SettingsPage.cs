@@ -31,7 +31,7 @@ public sealed class SettingsPage : UserControl
     private readonly ArcInput _tplInput = new() { Width = 380, FontSize = 11, IsLabelVisible = false };
     private readonly TextBlock _patInfo = new();
     private readonly MiniSelect _llmProvider = new() { Width = 130 };
-    private readonly ArcInput _llmModel = new() { Width = 200, FontSize = 11, IsLabelVisible = false };
+    private readonly MiniSelect _llmModel = new() { Width = 260 }; // 与 AI 面板选择器同源清单（LlmPresets.ModelChoices），2026-11-13 交互统一
     private readonly Border _llmKeyBadge = new();
     private readonly TextBlock _llmKeyMask = new() { FontSize = 11 };
     private readonly Border _mcpDot = new()
@@ -226,10 +226,8 @@ public sealed class SettingsPage : UserControl
             FontSize = 10.5,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        _llmModel[!ArcInput.LabelProperty] = I18n.Bind("Vox.Settings.Llm.Title");
-        _llmModel.FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace");
-        _llmModel.Text = llmSettings.LlmModel;
-        _llmModel.LostFocus += (_, _) => SaveSetting(s => s.LlmModel = _llmModel.Text?.Trim() ?? string.Empty);
+        LoadModelChoices(llmSettings.LlmProvider, llmSettings.LlmModel);
+        _llmModel.SelectionChanged += model => SaveSetting(s => s.LlmModel = model);
         _llmProvider.Items = LlmPresets.All.Select(LlmPresets.DisplayName).ToList();
         _llmProvider.Selected = LlmPresets.DisplayName(llmPreset);
         _llmProvider.SelectionChanged += label =>
@@ -241,7 +239,7 @@ public sealed class SettingsPage : UserControl
                 s.LlmProvider = preset.Key;
                 s.LlmModel = preset.DefaultModel;
             });
-            _llmModel.Text = preset.DefaultModel;
+            LoadModelChoices(preset.Key, preset.DefaultModel);
             endpointText.Text = preset.BaseUrl;
             RefreshLlmKey();
             _shell.ShowToast(TF("Vox.Settings.Llm.ProviderSwitched", LlmPresets.DisplayName(preset), preset.DefaultModel));
@@ -249,7 +247,6 @@ public sealed class SettingsPage : UserControl
         // 服务商与模型名分行（2026-13 用户反馈：同行挤压致下拉文字截断、表单不清）
         _llmProvider.Width = 220;
         llmCard.Add(Row("Vox.Settings.Llm.Provider", _llmProvider));
-        _llmModel.Width = 260;
         llmCard.Add(Row("Vox.Settings.Llm.ModelName", _llmModel));
         var endpointDesc = new TextBlock { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
         endpointDesc[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.EndpointDesc");
@@ -521,6 +518,20 @@ public sealed class SettingsPage : UserControl
             ? TF("Vox.Settings.Git.PatConfigured", $"{pat[..Math.Min(8, pat.Length)]}****")
             : T("Vox.Settings.Git.PatNotSet");
         Res(_patInfo, TextBlock.ForegroundProperty, "VoxMuted");
+    }
+
+    /// <summary>按服务商填充模型下拉：自定义模型名不在清单时保留为附加项（不吞用户配置）。</summary>
+    private void LoadModelChoices(string providerKey, string currentModel)
+    {
+        var choice = LlmPresets.ModelChoices.FirstOrDefault(c =>
+            string.Equals(c.Provider, providerKey, StringComparison.OrdinalIgnoreCase));
+        var items = (choice.Provider is null ? [] : choice.Models).ToList();
+        if (items.Count == 0 || !items.Contains(currentModel))
+        {
+            items.Insert(0, string.IsNullOrWhiteSpace(currentModel) ? items.FirstOrDefault() ?? string.Empty : currentModel);
+        }
+        _llmModel.Items = items;
+        _llmModel.Selected = currentModel;
     }
 
     private void RefreshLlmKey()
