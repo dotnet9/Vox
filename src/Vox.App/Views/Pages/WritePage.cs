@@ -198,6 +198,7 @@ public sealed class WritePage : UserControl
     private bool _aiThinking = true;
     private ArcButton _aiModeButton = null!;
     private ArcButton _aiModelButton = null!;
+    private Func<Task>? _aiRetry; // 当前会话的重试闭包（失败重试 / 重新生成共用），清空会话即作废
     private ArcPopover? _aiModePop;
     private ArcPopover? _aiModelPop;
     private readonly Dictionary<AiChatMode, LucideIcon> _aiModeChecks = [];
@@ -4107,6 +4108,7 @@ public sealed class WritePage : UserControl
         SetAiBusy(false);
         _aiTurns.Clear();
         _aiCtx.Clear();
+        _aiRetry = null;
         RenderAiCtx();
         _aiMsgList.Children.Clear();
         AiSeedWelcome();
@@ -4141,7 +4143,23 @@ public sealed class WritePage : UserControl
         // 区间在生成期间被改动时 AcceptAiAsync 已有保护（退化为光标处插入）。
         AiChatContext? chatCtx = _aiCtx.Count > 0 ? _aiCtx[0] : null;
         _aiTurns.Add(new LlmChatTurn("user", BuildAiChatUserContent(input)));
-        var outcome = await AiStreamIntoBotAsync(AiPrompts.SystemPrompt + AiChatSystemSuffix, _aiTurns);
+        var epoch = _aiChatEpoch;
+        var system = AiPrompts.SystemPrompt + AiChatSystemSuffix;
+        // 重试闭包：失败重试与「重新生成」共用——user 轮已在史，直接重流（清空会话后闭包自动作废）。
+        _aiRetry = async () =>
+        {
+            if (_aiBusy || epoch != _aiChatEpoch) return;
+            var outcome = await AiStreamIntoBotAsync(system, _aiTurns);
+            await HandleChatOutcomeAsync(outcome, chatCtx);
+        };
+        var outcome = await AiStreamIntoBotAsync(system, _aiTurns);
+        await HandleChatOutcomeAsync(outcome, chatCtx);
+    }
+
+    /// <summary>自定义回复落定后的模式分发（发送与重试共用）。</summary>
+    private async Task HandleChatOutcomeAsync(
+        (StackPanel Body, string Text, TimeSpan Elapsed) outcome, AiChatContext? chatCtx)
+    {
         if (outcome.Text.Length == 0) return;
         switch (_aiMode)
         {
@@ -4217,10 +4235,21 @@ public sealed class WritePage : UserControl
         var prompt = AiPrompts.Build(presetKey, body, caret, selection, string.Empty);
         // 预设也是会话的一轮：提问入史（此前只入回复，历史会以 assistant 开头），后续多轮据此续聊。
         _aiTurns.Add(new LlmChatTurn("user", prompt.User));
+        var epoch = _aiChatEpoch;
+        // 预设重试闭包：同一 prompt 重流，diff 卡按原 offer 重建。
+        _aiRetry = async () =>
+        {
+            if (_aiBusy || epoch != _aiChatEpoch) return;
+            var outcome = await AiStreamIntoBotAsync(prompt.System, _aiTurns);
+            if (outcome.Text.Length > 0)
+            {
+                // 生成耗时随流式结果回填，审计里的 DurationMs 才是真实时长
+                AddAiBotOps(outcome.Body, outcome.Text, offerDraft with { Elapsed = outcome.Elapsed });
+            }
+        };
         var outcome = await AiStreamIntoBotAsync(prompt.System, _aiTurns);
         if (outcome.Text.Length > 0)
         {
-            // 生成耗时随流式结果回填，审计里的 DurationMs 才是真实时长
             AddAiBotOps(outcome.Body, outcome.Text, offerDraft with { Elapsed = outcome.Elapsed });
         }
     }
@@ -4295,6 +4324,7 @@ public sealed class WritePage : UserControl
         if (!result.Ok && !stopped)
         {
             AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Failed", result.Error ?? T("Vox.Ai.Error.Empty")), "VoxDanger");
+            AddAiRetryButton(botBody);
             return (botBody, string.Empty, result.Elapsed);
         }
         if (stopped)
@@ -4458,6 +4488,34 @@ public sealed class WritePage : UserControl
         }
     }
 
+    /// <summary>失败气泡内的重试钮：复用发送时注册的重试闭包（同一 user 轮重流），点击即禁用防连点。</summary>
+    private void AddAiRetryButton(StackPanel botBody)
+    {
+        var retry = _aiRetry;
+        if (retry is null) return;
+        var icon = new LucideIcon { Kind = LucideIconKind.RefreshCw, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
+        label[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Retry");
+        var button = new ArcButton
+        {
+            Variant = ArcButtonVariant.Secondary,
+            Size = ArcControlSize.Small,
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 5,
+                Children = { icon, label },
+            },
+        };
+        button.Click += (_, _) =>
+        {
+            button.IsEnabled = false;
+            _ = retry();
+        };
+        botBody.Children.Add(button);
+        _aiMsgScroll.ScrollToEnd();
+    }
+
     private const string AiChatSystemSuffix =
         "\n这是编辑器内的多轮会话：回答保持简洁、直接可用；若给出改写文本，只输出新文本本身，不要解释。";
 
@@ -4529,6 +4587,31 @@ public sealed class WritePage : UserControl
             };
             TKCode.Arc.Tooltip.SetTip(copy, T("Vox.Ai.Copy"));
             ops.Children.Add(copy);
+            // 重新生成（Trae 口径）：仅讨论模式提供——弹掉末尾 assistant 轮后按重试闭包重流，旧气泡保留为历史。
+            if (_aiMode == AiChatMode.Discuss && _aiRetry is { } regenerate)
+            {
+                var regenIcon = new LucideIcon { Kind = LucideIconKind.RefreshCw, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
+                var regenLabel = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
+                regenLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Regenerate");
+                var regen = new ArcButton
+                {
+                    Variant = ArcButtonVariant.Ghost,
+                    Size = ArcControlSize.Small,
+                    Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 5,
+                        Children = { regenIcon, regenLabel },
+                    },
+                };
+                regen.Click += (_, _) =>
+                {
+                    DisableAiOps(ops);
+                    if (_aiTurns.Count > 0 && _aiTurns[^1].Role == "assistant") _aiTurns.RemoveAt(_aiTurns.Count - 1);
+                    _ = regenerate();
+                };
+                ops.Children.Add(regen);
+            }
             botBody.Children.Add(ops);
             _aiMsgScroll.ScrollToEnd();
             return;
