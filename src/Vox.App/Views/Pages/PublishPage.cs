@@ -680,9 +680,9 @@ public sealed class PublishPage : UserControl
         menu.Items.Add(Item(T("Vox.Sync.Menu.CopyFullPath"), () => CopyToClipboard(localPath)));
         menu.Items.Add(Item(T("Vox.Sync.Menu.CopyRelative"), () => CopyToClipboard(change.Path)));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item(T("Vox.Sync.Menu.ShowInExplorer"), () => ShellOpen("explorer.exe", $"/select,\"{localPath}\""), enabled: !isDeleted));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.ShowInExplorer"), () => RevealPath(localPath), enabled: !isDeleted));
         menu.Items.Add(Item(T("Vox.Sync.Menu.OpenInVsCode"), () => ShellOpen("code", $"\"{localPath}\""), enabled: !isDeleted));
-        menu.Items.Add(Item(T("Vox.Sync.Menu.OpenDefault"), () => ShellOpen("cmd.exe", $"/c start \"\" \"{localPath}\""), enabled: !isDeleted));
+        menu.Items.Add(Item(T("Vox.Sync.Menu.OpenDefault"), () => ShellOpenUrl(localPath), enabled: !isDeleted));
         row.ContextMenu = menu;
     }
 
@@ -723,6 +723,42 @@ public sealed class PublishPage : UserControl
         catch
         {
             // 无对应程序时静默。
+        }
+    }
+
+    /// <summary>跨平台打开 URL/文件（与 ImagesPage.RevealInExplorer 同口径）：cmd.exe start 仅 Windows 可用的口径修复（2026-11-13）。</summary>
+    private static void ShellOpenUrl(string url)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                ShellOpen("cmd.exe", "/c start \"\" \"" + url + "\"");
+            else if (OperatingSystem.IsMacOS())
+                ShellOpen("open", "\"" + url + "\"");
+            else if (OperatingSystem.IsLinux())
+                ShellOpen("xdg-open", "\"" + url + "\"");
+        }
+        catch
+        {
+            // 无默认程序时静默。
+        }
+    }
+
+    /// <summary>跨平台在文件管理器中显示文件（Windows 高亮选中 / macOS open -R / Linux 打开所在目录）。</summary>
+    private static void RevealPath(string path)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                ShellOpen("explorer.exe", $"/select,\"{path}\"");
+            else if (OperatingSystem.IsMacOS())
+                ShellOpen("open", $"-R \"{path}\"");
+            else if (OperatingSystem.IsLinux())
+                ShellOpen("xdg-open", $"\"{Path.GetDirectoryName(Path.GetFullPath(path))}\"");
+        }
+        catch
+        {
+            // 无文件管理器时静默。
         }
     }
 
@@ -1353,7 +1389,7 @@ public sealed class PublishPage : UserControl
                 link.PointerReleased += (_, e) =>
                 {
                     e.Handled = true; // 不触发行展开
-                    ShellOpen("cmd.exe", "/c start \"\" \"" + url + "\"");
+                    ShellOpenUrl(url);
                 };
                 link.Margin = new Thickness(0, 0, 10, 0);
                 dock.Children.Add(link.Dock(Dock.Right));
@@ -2137,7 +2173,7 @@ public sealed class PublishPage : UserControl
             link.PointerReleased += (_, e) =>
             {
                 e.Handled = true;
-                ShellOpen("cmd.exe", "/c start \"\" \"" + url + "\"");
+                ShellOpenUrl(url);
             };
             stack.Children.Add(link);
         }
