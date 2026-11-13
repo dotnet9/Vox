@@ -105,9 +105,18 @@ public sealed class ImagesPage : UserControl
             selects.Children.Add(f);
         }
         filters.Children.Add(selects);
+        // 搜索 300ms 防抖（与 LibraryPage 同口径）：Rebuild 会重建统计/筛选/网格，逐键执行在打字时卡顿
+        var searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        searchDebounce.Tick += (_, _) =>
+        {
+            searchDebounce.Stop();
+            Rebuild();
+        };
         _search.PropertyChanged += (_, e) =>
         {
-            if (e.Property == TextBox.TextProperty) Rebuild();
+            if (e.Property != TextBox.TextProperty) return;
+            searchDebounce.Stop();
+            searchDebounce.Start();
         };
         host.Children.Add(filters);
 
@@ -398,8 +407,16 @@ public sealed class ImagesPage : UserControl
         };
         card.PointerReleased += (_, _) =>
         {
+            if (_selectedPath == image.RelativePath) return;
             _selectedPath = image.RelativePath;
+            // 点选仍需重建网格（选中环包裹结构变化），但滚动位置必须保持——此前每次点选视口都跳回顶部（2026-11-13）
+            var offset = _gridScroll.Offset;
             RebuildGrid();
+            Dispatcher.UIThread.Post(() =>
+            {
+                var max = Math.Max(0, _gridScroll.Extent.Height - _gridScroll.Viewport.Height);
+                _gridScroll.Offset = new Vector(offset.X, Math.Clamp(offset.Y, 0, max));
+            }, DispatcherPriority.Loaded);
             RebuildDetail();
         };
         if (!selected)
