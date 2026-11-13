@@ -24,6 +24,8 @@ public sealed class LibraryPage : UserControl
 {
     private readonly MainWindow _shell;
     private WrapPanel _statsHost = new();
+    private string _libSortKey = "Date"; // 表格排序键：Title/Date/WordCount（Sorting 事件维护）
+    private bool _libSortAsc;
     private readonly DataGrid _libGrid = new();
     // 空态换 Arc EmptyState（Small，与图片库/AI 会话口径一致，2026-11-13）
     private readonly TKCode.Arc.EmptyState _libEmpty = new()
@@ -419,7 +421,6 @@ public sealed class LibraryPage : UserControl
     private void ConfigureGrid()
     {
         _libGrid.AutoGenerateColumns = false;
-        _libGrid.CanUserSortColumns = false;
         _libGrid.CanUserReorderColumns = false;
         _libGrid.CanUserResizeColumns = false;
         _libGrid.IsReadOnly = true;
@@ -434,17 +435,40 @@ public sealed class LibraryPage : UserControl
         _libGrid.CornerRadius = new CornerRadius(0);
         Res(_libGrid, TemplatedControl.BackgroundProperty, "VoxSurface");
 
-        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Title"), new DataGridLength(1, DataGridLengthUnitType.Star), TitleCell));
-        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Date"), new DataGridLength(84), row => Cell(row.YearMonth, false)));
+        var titleCol = Column(T("Vox.Library.Column.Title"), new DataGridLength(1, DataGridLengthUnitType.Star), TitleCell);
+        titleCol.SortMemberPath = "Title";
+        _libGrid.Columns.Add(titleCol);
+        var dateCol = Column(T("Vox.Library.Column.Date"), new DataGridLength(84), row => Cell(row.YearMonth, false));
+        dateCol.SortMemberPath = "Date";
+        _libGrid.Columns.Add(dateCol);
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Category"), new DataGridLength(110), row => Cell(string.Join("、", row.Article.Meta.Categories), true)));
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Tags"), new DataGridLength(150), row => Cell(string.Join(" · ", row.Article.Meta.Tags), true)));
         // 评审修订（原型 D5）：字数右对齐（tabular-nums 由字体等宽口径承担）。
         var wordsCell = Column(T("Vox.Library.Column.Words"), new DataGridLength(72), row => Cell(row.Article.WordCount.ToString("N0"), false));
+        wordsCell.SortMemberPath = "WordCount";
         _libGrid.Columns.Add(wordsCell);
         // 评审修订（原型 D5）：四个平台状态点列合并为单列「分发」，逐点 tooltip 带平台名与说明。
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Distribution"), new DataGridLength(112), DistributionCell));
         _libGrid.Columns.Add(Column(string.Empty, new DataGridLength(148), ActionCell));
 
+        // 列排序（2026-11-13 此前 CanUserSortColumns=false 只能按日期倒序一种口径）：
+        // 模板列没有内建排序，走 Sorting 事件手工排底层列表（排序键在 RebuildTable 应用）。
+        _libGrid.Sorting += (_, e) =>
+        {
+            e.Handled = true;
+            var key = e.Column.SortMemberPath ?? string.Empty;
+            if (_libSortKey == key)
+            {
+                _libSortAsc = !_libSortAsc;
+            }
+            else
+            {
+                _libSortKey = key;
+                _libSortAsc = key != "Date"; // 日期默认降序（新在前），其余升序
+            }
+            e.Column.SortMemberPath = key;
+            RebuildTable();
+        };
         _libGrid.EnableDefaults(enableSorting: false);
         _libGrid.LoadingRow += (_, e) => e.Row.Cursor = new Cursor(StandardCursorType.Hand);
         _libGrid.DoubleTapped += (_, e) =>
@@ -592,6 +616,18 @@ public sealed class LibraryPage : UserControl
         _page = Math.Clamp(_page, 0, totalPages - 1);
         var pageItems = all.Skip(_page * _pageSize).Take(_pageSize).ToList();
 
+        pageItems = _libSortKey switch
+        {
+            "Title" => _libSortAsc
+                ? pageItems.OrderBy(a => a.Meta.Title, StringComparer.CurrentCulture).ToList()
+                : pageItems.OrderByDescending(a => a.Meta.Title, StringComparer.CurrentCulture).ToList(),
+            "WordCount" => _libSortAsc
+                ? pageItems.OrderBy(a => a.WordCount).ToList()
+                : pageItems.OrderByDescending(a => a.WordCount).ToList(),
+            _ => _libSortAsc
+                ? pageItems.OrderBy(a => a.Meta.Date).ToList()
+                : pageItems.OrderByDescending(a => a.Meta.Date).ToList(),
+        };
         var rows = PublishHub.Rows().ToDictionary(r => r.MarkdownPath);
         _libGrid.ItemsSource = pageItems.Select(a => new LibRowModel(a, rows.GetValueOrDefault(a.MarkdownPath))).ToList();
         _libEmpty.IsVisible = pageItems.Count == 0;
