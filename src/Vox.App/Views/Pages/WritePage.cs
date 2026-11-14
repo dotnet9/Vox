@@ -4520,7 +4520,7 @@ public sealed class WritePage : UserControl
         var view = new MarkdownView { Stream = stream };
         botBody.Children.Add(view);
         var result = await LlmService.StreamAsync(
-            preset.Key, settings.LlmModel, system, turns,
+            preset.Key, settings.LlmModel, system, BuildRequestTurns(turns),
             chunk =>
             {
                 lock (gate)
@@ -4781,24 +4781,117 @@ public sealed class WritePage : UserControl
     private const string AiChatSystemSuffix =
         "\n这是编辑器内的多轮会话：回答保持简洁、直接可用；若给出改写文本，只输出新文本本身，不要解释。";
 
-    /// <summary>自定义提问的用户消息体：指令 + 上下文 chip 原文（无 chip 时附当前文章头部）。</summary>
+    private const int AiContextBudget = 30000; // 全文轮附加预算（Trae 口径上限；glm-5.3-flash 1M 上下文成本可忽略）
+
+    // 分层按需上下文（2026-11-14，用户拍板）：每轮全量重发全文在"几十次迭代"场景是 O(N²) 成本
+    // （30 轮 × 7k token ≈ 30 万），且文章每轮被改、前缀缓存失效。改为：
+    // 地图恒定（全局结构感 ~200 token）+ 选区轮带前后衔接段（~1k token）+ 全文轮按需附加；
+    // 历史窗口单独压缩（BuildRequestTurns）。地图/标记为提示词内部结构文本，模型直接理解，不做 i18n。
+
+    /// <summary>文章地图：标题结构 + 每节字数（恒定 ~200 token 的全局结构感）。</summary>
+    private static string BuildArticleMap(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return "（文章为空）";
+        var lines = body.Split('\n');
+        var map = new StringBuilder();
+        var headingIndexes = new List<int>();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            if (line.StartsWith("#") && line.Length > 1 && line[1] == ' ')
+            {
+                headingIndexes.Add(i);
+                if (headingIndexes.Count > 1)
+                {
+                    var sectionChars = lines[(headingIndexes[^2] + 1)..i].Sum(l => l.Length);
+                    map.Append('（').Append(sectionChars).Append("字）\n");
+                }
+                map.Append(line.TrimEnd('#', ' ')).Append('\n');
+            }
+        }
+        var tailChars = headingIndexes.Count > 0
+            ? lines[(headingIndexes[^1] + 1)..].Sum(l => l.Length)
+            : body.Length;
+        map.Append('（').Append(tailChars).Append("字）");
+        if (headingIndexes.Count == 0) map.Insert(0, "（无标题结构 · ");
+        return map.ToString();
+    }
+
+    /// <summary>请求级历史窗口（激进压缩）：最近 8 条消息原文 + 首条目标 + 中段议题轨迹。
+    /// _aiTurns 仍保存完整历史（真值），压缩只在组装请求时生效——成本 O(N²)→O(N)。</summary>
+    private List<LlmChatTurn> BuildRequestTurns(List<LlmChatTurn> turns)
+    {
+        if (turns.Count <= 10) return [.. turns];
+        var result = new List<LlmChatTurn> { new("user", TruncateGrapheme(turns[0].Content, 300)) };
+        var agenda = new StringBuilder("（更早的对话已压缩；以下是此前的议题轨迹，最新正文与引用以本轮消息为准）");
+        for (var i = 1; i < turns.Count - 8; i++)
+        {
+            if (turns[i].Role == "user") agenda.Append("\n· ").Append(TruncateGrapheme(turns[i].Content, 100));
+        }
+        result.Add(new LlmChatTurn("user", agenda.ToString()));
+        result.AddRange(turns[^8..]);
+        return result;
+    }
+
+    /// <summary>自定义提问的用户消息体（分层按需）：
+    /// 无 chip（全文性问题）→ 全文按需附加（30000 预算）；
+    /// 有 chip（选区问题，占绝大多数迭代轮次）→ 选区 ± 前后 400 字衔接文 + 文章地图，~1k token/轮。
+    /// 区间定位偏移优先，正文已改按原文回退搜索，找不到文末附录兜底。</summary>
     private string BuildAiChatUserContent(string input)
     {
         var builder = new StringBuilder(input);
         var body = _editorView.Text ?? string.Empty;
-        if (_aiCtx.Count > 0)
+        var map = BuildArticleMap(body);
+
+        if (_aiCtx.Count == 0)
         {
-            foreach (var ctx in _aiCtx)
+            builder.Append("\n\n").Append(map)
+                .Append("\n\n[").Append(T("Vox.Ai.Chat.WholeArticle")).Append("]\n")
+                .Append(TruncateGrapheme(body, AiContextBudget));
+            return builder.ToString();
+        }
+
+        // 选区轮：引用上下文窗口（选区 ± 400 字），多 chip 时首个入窗、其余附录
+        var context = new StringBuilder();
+        context.Append("\n\n[文章地图]\n").Append(map)
+            .Append("\n\n[引用上下文]（⟦⟧ 标记引用区间，前后为衔接文）\n");
+        var fallback = new List<AiChatContext>();
+        var primary = _aiCtx[0];
+        var start = Math.Clamp(primary.Offset, 0, body.Length);
+        var end = Math.Clamp(primary.Offset + primary.Length, 0, body.Length);
+        if (end <= start || body.Substring(start, end - start) != primary.Text)
+        {
+            // 正文已改：按原文回退搜索定位
+            var found = primary.Text.Length > 0 ? body.IndexOf(primary.Text, StringComparison.Ordinal) : -1;
+            if (found >= 0)
             {
-                builder.Append("\n\n[").Append(ctx.Label).Append("]\n")
-                    .Append(TruncateGrapheme(ctx.Text, 2000));
+                start = found;
+                end = found + primary.Text.Length;
+            }
+            else
+            {
+                fallback.Add(primary); // 原文已不在正文：附录兜底
             }
         }
-        else
+        if (end > start)
         {
-            builder.Append("\n\n[").Append(T("Vox.Ai.Chat.WholeArticle")).Append("]\n")
-                .Append(TruncateGrapheme(body, 5000));
+            var beforeStart = Math.Max(0, start - 400);
+            var afterEnd = Math.Min(body.Length, end + 400);
+            context.Append(body[beforeStart..start])
+                .Append("⟦").Append(primary.Text).Append("⟧")
+                .Append(body[end..afterEnd]);
         }
+        foreach (var ctx in _aiCtx.Skip(1))
+        {
+            context.Append("\n\n[").Append(ctx.Label).Append("]\n")
+                .Append(TruncateGrapheme(ctx.Text, 2000));
+        }
+        foreach (var ctx in fallback)
+        {
+            context.Append("\n\n[").Append(ctx.Label).Append("]\n")
+                .Append(TruncateGrapheme(ctx.Text, 2000));
+        }
+        builder.Append(context);
         return builder.ToString();
     }
 

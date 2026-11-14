@@ -108,7 +108,7 @@ internal static class RuntimeVerification
                             using var aiBitmap = new RenderTargetBitmap(new PixelSize(1280, 820));
                             aiBitmap.Render(window);
                             if (culture == "zh-CN")
-                                aiBitmap.Save(Path.Combine(root, "ai-panel" + (dark ? "-dark.png" : "-light.png")));
+                                aiBitmap.Save(Path.Combine(root, "ai-panel" + (dark ? "-dark.png" : "-light.png")), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                             renders++;
                             if (host?.Content is WritePage closer) closer.CloseAiPanel();
                             SwitchNavigation(tree: true);
