@@ -217,9 +217,6 @@ public sealed class WritePage : UserControl
         AutoInsert,
     }
 
-    /// <summary>模型选择器的预设清单：与设置页下拉共用 LlmPresets.ModelChoices（口径同源）。</summary>
-    private static readonly (string Provider, string[] Models)[] AiModelChoices = LlmPresets.ModelChoices;
-
 
     /// <summary>可视树在挂标志（语言切换会重建页面，旧实例据此全面挂起）。</summary>
     private bool _attached;
@@ -3935,31 +3932,27 @@ public sealed class WritePage : UserControl
     }
 
     /// <summary>模型选择器内容（ZCode 口径）：服务商分组 + 模型行 + 当前勾标；GLM 组附思考开关（私有参数，会话级）。</summary>
+    /// <summary>模型选择器弹层（2026-11-14 配置驱动重做）：只列已配置且启用的供应商 × 其模型清单（平铺行）；
+    /// 思考开关仅当前激活供应商声明支持时显示；末行"在设置中管理"入口。</summary>
     private StackPanel BuildAiModelPopoverContent()
     {
         var list = new StackPanel { Width = 272 };
-        var firstGroup = true;
-        foreach (var (provider, models) in AiModelChoices)
+        var settings = AppState.Instance.Settings;
+        var providers = settings.LlmProviders.Where(p => p.Enabled).ToList();
+        foreach (var provider in providers)
         {
-            var header = new TextBlock
+            foreach (var model in provider.Models)
             {
-                FontSize = Fs(10.5),
-                FontWeight = FontWeight.SemiBold,
-                Margin = new Thickness(4, firstGroup ? 2 : 10, 4, 3),
-            };
-            header[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Llm.Provider." + provider);
-            Res(header, TextBlock.ForegroundProperty, "VoxMuted");
-            list.Children.Add(header);
-            foreach (var model in models)
-            {
-                var modelName = new TextBlock
+                var rowLabel = new TextBlock
                 {
-                    Text = model,
+                    Text = $"{provider.Name} · {model}",
                     FontFamily = MonoFont,
                     FontSize = Fs(11),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
-                Res(modelName, TextBlock.ForegroundProperty, "VoxFg");
+                Res(rowLabel, TextBlock.ForegroundProperty, "VoxFg");
+                var isActive = settings.LlmActiveProvider == provider.Id && settings.LlmModel == model;
                 var check = new LucideIcon
                 {
                     Kind = LucideIconKind.Check,
@@ -3967,10 +3960,10 @@ public sealed class WritePage : UserControl
                     Height = 14,
                     StrokeThickness = 2.2,
                     VerticalAlignment = VerticalAlignment.Center,
-                    IsVisible = IsCurrentModel(provider, model),
+                    IsVisible = isActive,
                 };
                 Res(check, LucideIcon.ForegroundProperty, "VoxAccent");
-                _aiModelChecks[(provider, model)] = check;
+                _aiModelChecks[(provider.Id, model)] = check;
                 var row = new Border
                 {
                     Padding = new Thickness(10, 7),
@@ -3979,20 +3972,25 @@ public sealed class WritePage : UserControl
                     Child = new Grid
                     {
                         ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                        Children = { modelName, check },
+                        Children = { rowLabel, check },
                     },
                 };
                 Grid.SetColumn(check, 1);
-                var providerKey = provider;
+                TKCode.Arc.Tooltip.SetTip(row, provider.Name);
+                var providerId = provider.Id;
                 row.PointerPressed += (_, e) =>
                 {
                     e.Handled = true;
-                    SelectAiModel(providerKey, model);
+                    SelectAiModel(providerId, model);
                 };
                 list.Children.Add(row);
             }
-            if (provider != "GLM") continue;
-            // 思考开关：BigModel 私有参数（thinking.type），会话级记忆，仅对 GLM 请求生效（LlmService 仅 GLM 附带）。
+        }
+
+        // 思考开关：仅激活供应商声明支持（GLM 私有 thinking）时显示
+        var active = LlmService.GetProvider(settings.LlmActiveProvider);
+        if (active is { ThinkingSupported: true })
+        {
             var thinkLabel = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
             thinkLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Chat.Thinking");
             Res(thinkLabel, TextBlock.ForegroundProperty, "VoxFg");
@@ -4012,28 +4010,29 @@ public sealed class WritePage : UserControl
             });
             Grid.SetColumn(thinkLabel, 1);
             Grid.SetColumn(thinkToggle, 2);
-            firstGroup = false;
         }
+
+        // 管理入口：新供应商在设置页配置后这里即出现
+        var manageRow = new Border
+        {
+            Padding = new Thickness(10, 7),
+            CornerRadius = new CornerRadius(8),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Child = new TextBlock
+            {
+                Text = T("Vox.Settings.Llm.ManagerTitle"),
+                FontSize = Fs(10.5),
+            },
+        };
+        Res((TextBlock)manageRow.Child!, TextBlock.ForegroundProperty, "VoxMuted");
+        manageRow.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            _aiModelPop!.IsOpen = false;
+            _shell.ShowPage("settings");
+        };
+        list.Children.Add(manageRow);
         return list;
-    }
-
-    private static bool IsCurrentModel(string provider, string model)
-    {
-        var settings = AppState.Instance.Settings;
-        return string.Equals(settings.LlmProvider, provider, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(settings.LlmModel, model, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void SelectAiModel(string provider, string model)
-    {
-        var settings = AppState.Instance.Settings;
-        settings.LlmProvider = provider;
-        settings.LlmModel = model;
-        // 广播 SettingsChanged：设置页（服务商/模型名）与下次会话同源，避免两处口径漂移。
-        AppState.Instance.SaveSettings();
-        UpdateAiModelButton();
-        _aiModelPop!.IsOpen = false;
-        _shell.ShowToast(TF("Vox.Ai.Model.Switched", $"{T("Vox.Settings.Llm.Provider." + provider)} · {model}"));
     }
 
     private void UpdateAiModeButton()
@@ -4066,9 +4065,10 @@ public sealed class WritePage : UserControl
     private void UpdateAiModelButton()
     {
         var settings = AppState.Instance.Settings;
+        var providerName = LlmService.GetProvider(settings.LlmActiveProvider)?.Name ?? settings.LlmProvider;
         var label = new TextBlock
         {
-            Text = $"{T("Vox.Settings.Llm.Provider." + settings.LlmProvider)} · {settings.LlmModel}",
+            Text = $"{providerName} · {settings.LlmModel}",
             FontFamily = MonoFont,
             FontSize = Fs(10.5),
             VerticalAlignment = VerticalAlignment.Center,
@@ -4085,10 +4085,24 @@ public sealed class WritePage : UserControl
                 new LucideIcon { Kind = LucideIconKind.ChevronDown, Width = 11, Height = 11, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center },
             },
         };
-        foreach (var ((provider, model), check) in _aiModelChecks)
+        foreach (var ((providerId, model), check) in _aiModelChecks)
         {
-            check.IsVisible = IsCurrentModel(provider, model);
+            var st = AppState.Instance.Settings;
+            check.IsVisible = st.LlmActiveProvider == providerId && st.LlmModel == model;
         }
+    }
+
+    private void SelectAiModel(string providerId, string model)
+    {
+        var settings = AppState.Instance.Settings;
+        settings.LlmActiveProvider = providerId;
+        settings.LlmModel = model;
+        // 广播 SettingsChanged：设置页与下次会话同源，避免两处口径漂移。
+        AppState.Instance.SaveSettings();
+        UpdateAiModelButton();
+        _aiModelPop!.IsOpen = false;
+        var name = LlmService.GetProvider(providerId)?.Name ?? providerId;
+        _shell.ShowToast(TF("Vox.Ai.Model.Switched", $"{name} · {model}"));
     }
 
     /// <summary>居中浅色系统注（欢迎语 / 已写入 / 已停止），加进消息流末尾。</summary>
@@ -4373,8 +4387,8 @@ public sealed class WritePage : UserControl
             return;
         }
         var settings = AppState.Instance.Settings;
-        var preset = LlmPresets.Get(settings.LlmProvider);
-        if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
+        var provider = LlmService.GetProvider(settings.LlmActiveProvider);
+        if (provider is null || !LlmService.HasApiKey(provider.Id))
         {
             AddAiNoKeyBubble();
             return;
@@ -4443,8 +4457,8 @@ public sealed class WritePage : UserControl
             return;
         }
         var settings = AppState.Instance.Settings;
-        var preset = LlmPresets.Get(settings.LlmProvider);
-        if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
+        var provider = LlmService.GetProvider(settings.LlmActiveProvider);
+        if (provider is null || !LlmService.HasApiKey(provider.Id))
         {
             AddAiNoKeyBubble();
             return;
@@ -4518,7 +4532,6 @@ public sealed class WritePage : UserControl
         string system, List<LlmChatTurn> turns)
     {
         var settings = AppState.Instance.Settings;
-        var preset = LlmPresets.Get(settings.LlmProvider);
         _aiBusy = true;
         SetAiBusy(true);
         _aiGeneration++;
@@ -4551,7 +4564,7 @@ public sealed class WritePage : UserControl
         var view = new MarkdownView { Stream = stream };
         botBody.Children.Add(view);
         var result = await LlmService.StreamAsync(
-            preset.Key, settings.LlmModel, system, BuildRequestTurns(turns),
+            settings.LlmActiveProvider, settings.LlmModel, system, BuildRequestTurns(turns),
             chunk =>
             {
                 lock (gate)

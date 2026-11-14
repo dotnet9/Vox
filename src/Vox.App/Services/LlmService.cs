@@ -5,38 +5,26 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Vox.App.Infrastructure;
 using Vox.Core.Llm;
+using LlmProviderConfig = Vox.Core.LlmProviderConfig;
 using Vox.Git;
 
 namespace Vox.App.Services;
 
-/// <summary>大模型服务商预置：OpenAI 兼容端点（DeepSeek / OpenAI / Ollama），Claude 走 messages 协议。</summary>
-public sealed record LlmPreset(string Key, string BaseUrl, string DefaultModel, bool NeedsKey);
+/// <summary>添加供应商的预设模板（ZCode 口径）：名称/端点/协议/预置模型/思考支持——选中即创建可编辑配置。</summary>
+public sealed record LlmPreset(string Name, string BaseUrl, string Protocol, string[] Models, bool Thinking);
 
 public static class LlmPresets
 {
     public static readonly LlmPreset[] All =
     [
-        new("GLM", "https://open.bigmodel.cn/api/coding/paas/v4", "glm-5.3-flash", true),
-        new("DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat", true),
-        new("OpenAI", "https://api.openai.com/v1", "gpt-4o", true),
-        new("Claude", "https://api.anthropic.com/v1", "claude-sonnet-4-5", true),
-        new("Ollama", "http://127.0.0.1:11434/v1", "qwen3:14b", false),
+        new("GLM 编码套餐", "https://open.bigmodel.cn/api/coding/paas/v4", "openai", ["glm-5.3-flash", "glm-5.3"], true),
+        new("GLM API", "https://open.bigmodel.cn/api/paas/v4", "openai", ["glm-5.3-flash", "glm-5.3"], true),
+        new("DeepSeek", "https://api.deepseek.com/v1", "openai", ["deepseek-chat", "deepseek-reasoner"], true),
+        new("OpenAI", "https://api.openai.com/v1", "openai", ["gpt-4o", "gpt-4o-mini"], false),
+        new("Anthropic", "https://api.anthropic.com/v1", "anthropic", ["claude-sonnet-4-5"], false),
+        new("Ollama 本机", "http://127.0.0.1:11434/v1", "openai", ["qwen3:14b"], false),
+        new("自定义", "", "openai", [], false),
     ];
-
-    public static LlmPreset Get(string? key) =>
-        All.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)) ?? All[0];
-
-    /// <summary>常用模型清单（服务商分组）：AI 会话模型选择器与设置页模型下拉共用，保证两处口径一致。</summary>
-    public static readonly (string Provider, string[] Models)[] ModelChoices =
-    [
-        ("GLM", ["glm-5.3-flash", "glm-5.3"]),
-        ("DeepSeek", ["deepseek-chat"]),
-        ("OpenAI", ["gpt-4o"]),
-        ("Claude", ["claude-sonnet-4-5"]),
-        ("Ollama", ["qwen3:14b"]),
-    ];
-
-    public static string DisplayName(LlmPreset preset) => I18n.T("Vox.Settings.Llm.Provider." + preset.Key);
 }
 
 public sealed record LlmResult(bool Ok, string Text, string? Error, TimeSpan Elapsed);
@@ -51,13 +39,16 @@ public static class LlmService
     // 保留默认 100s 会先于 CancelAfter 掐断长流，120s 的流式上限便永远不可达。
     private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
 
-    public static string CredentialKey(string provider) => "llm/" + provider.ToLowerInvariant();
-
-    public static string? GetApiKey(string provider)
+    /// <summary>按配置 Id 取 Key：新键 vox/secret/llm/p/&lt;id&gt;；缺失时回退旧键 llm/glm（迁移前的 GLM 单提供商口径）。</summary>
+    public static string? GetApiKey(string providerId)
     {
         try
         {
-            return CredentialStoreFactory.Create().Get(CredentialKey(provider));
+            var store = CredentialStoreFactory.Create();
+            var key = store.Get("llm/p/" + providerId);
+            if (!string.IsNullOrWhiteSpace(key)) return key;
+            // 旧键迁移读：只认 glm（迁移前的单提供商）
+            return providerId.Equals("glm", StringComparison.OrdinalIgnoreCase) ? store.Get("llm/glm") : null;
         }
         catch
         {
@@ -65,17 +56,27 @@ public static class LlmService
         }
     }
 
-    public static bool HasApiKey(string provider) => !string.IsNullOrWhiteSpace(GetApiKey(provider));
+    public static bool HasApiKey(string providerId) => !string.IsNullOrWhiteSpace(GetApiKey(providerId));
 
-    public static void SaveApiKey(string provider, string key)
+    public static void SaveApiKey(string providerId, string key)
     {
         var store = CredentialStoreFactory.Create();
-        if (string.IsNullOrWhiteSpace(key)) store.Delete(CredentialKey(provider));
-        else store.Save(CredentialKey(provider), key.Trim());
+        if (string.IsNullOrWhiteSpace(key)) store.Delete("llm/p/" + providerId);
+        else store.Save("llm/p/" + providerId, key.Trim());
+    }
+
+    /// <summary>按 Id 取供应商配置；找不到回退第一个已启用项（设置清空时的容错）。</summary>
+    public static LlmProviderConfig? GetProvider(string? providerId)
+    {
+        var providers = AppState.Instance.Settings.LlmProviders;
+        if (providers.Count == 0) return null;
+        return providers.FirstOrDefault(p => p.Id == providerId)
+            ?? providers.FirstOrDefault(p => p.Enabled)
+            ?? providers[0];
     }
 
     public static async Task<LlmResult> CompleteAsync(
-        string provider,
+        string providerId,
         string model,
         string system,
         string user,
@@ -84,10 +85,10 @@ public static class LlmService
         bool disableThinking = false,
         CancellationToken cancellationToken = default)
     {
-        var preset = LlmPresets.Get(provider);
-        var resolvedModel = string.IsNullOrWhiteSpace(model) ? preset.DefaultModel : model.Trim();
-        var apiKey = GetApiKey(preset.Key);
-        if (preset.NeedsKey && string.IsNullOrWhiteSpace(apiKey))
+        var provider = GetProvider(providerId) ?? throw new InvalidOperationException(I18n.T("Vox.Ai.Error.NoProvider"));
+        var resolvedModel = string.IsNullOrWhiteSpace(model) ? provider.Models.FirstOrDefault() ?? "gpt-4o" : model.Trim();
+        var apiKey = GetApiKey(provider.Id);
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             return new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Error.NoKey"), TimeSpan.Zero);
         }
@@ -97,10 +98,10 @@ public static class LlmService
         var watch = Stopwatch.StartNew();
         try
         {
-            var isClaude = preset.Key == "Claude";
+            var isClaude = provider.Protocol == "anthropic";
             using var request = isClaude
-                ? BuildAnthropic(preset, resolvedModel, apiKey!, system, user, maxTokens)
-                : BuildOpenAiCompatible(preset, resolvedModel, apiKey, system, user, maxTokens, disableThinking);
+                ? BuildAnthropic(provider, resolvedModel, apiKey, system, user, maxTokens)
+                : BuildOpenAiCompatible(provider, resolvedModel, apiKey, system, user, maxTokens, disableThinking);
             using var response = await Http.SendAsync(request, cts.Token);
             var raw = await response.Content.ReadAsStringAsync(cts.Token);
             watch.Stop();
@@ -138,7 +139,7 @@ public static class LlmService
     /// 超时或流内错误返回失败。解析逻辑在 Vox.Core.Llm.LlmStreamParser（有单测）。
     /// </summary>
     public static async Task<LlmResult> StreamAsync(
-        string provider,
+        string providerId,
         string model,
         string system,
         IReadOnlyList<LlmChatTurn> turns,
@@ -149,10 +150,10 @@ public static class LlmService
         Action<string>? onReasoning = null,
         CancellationToken cancellationToken = default)
     {
-        var preset = LlmPresets.Get(provider);
-        var resolvedModel = string.IsNullOrWhiteSpace(model) ? preset.DefaultModel : model.Trim();
-        var apiKey = GetApiKey(preset.Key);
-        if (preset.NeedsKey && string.IsNullOrWhiteSpace(apiKey))
+        var provider = GetProvider(providerId) ?? throw new InvalidOperationException(I18n.T("Vox.Ai.Error.NoProvider"));
+        var resolvedModel = string.IsNullOrWhiteSpace(model) ? provider.Models.FirstOrDefault() ?? "gpt-4o" : model.Trim();
+        var apiKey = GetApiKey(provider.Id);
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             return new LlmResult(false, string.Empty, I18n.T("Vox.Ai.Error.NoKey"), TimeSpan.Zero);
         }
@@ -162,7 +163,7 @@ public static class LlmService
         var watch = Stopwatch.StartNew();
         try
         {
-            var isClaude = preset.Key == "Claude";
+            var isClaude = provider.Protocol == "anthropic";
             // 历史先整形（首条 user、角色交替）：预设指令 / 失败重试等路径攒出的历史可能有连续同角色，Anthropic 协议会直接 400。
             var normalized = LlmChatHistory.Normalize(turns);
             var messages = normalized.Select(t => new LlmMessage { Role = t.Role, Content = t.Content }).ToList();
@@ -180,7 +181,7 @@ public static class LlmService
                     {
                         Model = resolvedModel, MaxTokens = maxTokens, System = system, Messages = [.. messages], Stream = true,
                     };
-                    request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/messages")
+                    request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl.TrimEnd('/') + "/messages")
                     {
                         Content = new StringContent(
                             JsonSerializer.Serialize(payload, LlmJsonContext.Default.AnthropicRequest),
@@ -195,8 +196,8 @@ public static class LlmService
                     {
                         Model = resolvedModel, Messages = [.. messages], MaxTokens = maxTokens, Stream = true,
                     };
-                    ApplyThinking(payload, preset.Key, disableThinking);
-                    request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/chat/completions")
+                    ApplyThinking(payload, provider, disableThinking);
+                    request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl.TrimEnd('/') + "/chat/completions")
                     {
                         Content = new StringContent(
                             JsonSerializer.Serialize(payload, LlmJsonContext.Default.OpenAiRequest),
@@ -262,17 +263,17 @@ public static class LlmService
         }
     }
 
-    /// <summary>GLM 私有 thinking 开关：仅 GLM 附带（OpenAI 拒绝未知参数），其余服务商不冒进。</summary>
-    private static void ApplyThinking(OpenAiRequest payload, string providerKey, bool disableThinking)
+    /// <summary>GLM 私有 thinking 开关：仅声明支持的供应商附带（OpenAI 拒绝未知参数），其余不冒进。</summary>
+    private static void ApplyThinking(OpenAiRequest payload, LlmProviderConfig provider, bool disableThinking)
     {
-        if (disableThinking && providerKey == "GLM")
+        if (disableThinking && provider.ThinkingSupported)
         {
             payload.Thinking = new ThinkingConfig();
         }
     }
 
     private static HttpRequestMessage BuildOpenAiCompatible(
-        LlmPreset preset, string model, string? apiKey, string system, string user, int maxTokens, bool disableThinking = false)
+        LlmProviderConfig provider, string model, string? apiKey, string system, string user, int maxTokens, bool disableThinking = false)
     {
         var payload = new OpenAiRequest
         {
@@ -286,8 +287,8 @@ public static class LlmService
         };
         // glm-5.x 为自适应推理模型，简单提问也可能思考取尽 max_tokens 致 content 为空
         // （2026-11-13 测试连接“模型没有返回内容”实测复现），调用方可禁思考。
-        ApplyThinking(payload, preset.Key, disableThinking);
-        var request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/chat/completions")
+        ApplyThinking(payload, provider, disableThinking);
+        var request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl.TrimEnd('/') + "/chat/completions")
         {
             Content = new StringContent(
                 JsonSerializer.Serialize(payload, LlmJsonContext.Default.OpenAiRequest),
@@ -301,7 +302,7 @@ public static class LlmService
     }
 
     private static HttpRequestMessage BuildAnthropic(
-        LlmPreset preset, string model, string apiKey, string system, string user, int maxTokens)
+        LlmProviderConfig provider, string model, string apiKey, string system, string user, int maxTokens)
     {
         var payload = new AnthropicRequest
         {
@@ -310,7 +311,7 @@ public static class LlmService
             System = system,
             Messages = [new LlmMessage { Role = "user", Content = user }],
         };
-        var request = new HttpRequestMessage(HttpMethod.Post, preset.BaseUrl.TrimEnd('/') + "/messages")
+        var request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl.TrimEnd('/') + "/messages")
         {
             Content = new StringContent(
                 JsonSerializer.Serialize(payload, LlmJsonContext.Default.AnthropicRequest),

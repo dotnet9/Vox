@@ -7,5 +7,7 @@ namespace Vox.Core;
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(VoxSettings))]
+[JsonSerializable(typeof(LlmProviderConfig))]
+[JsonSerializable(typeof(List<LlmProviderConfig>))]
 [JsonSerializable(typeof(Dictionary<string, Dictionary<string, ChannelSnapshot>>))]
 public sealed partial class VoxJsonContext : JsonSerializerContext;

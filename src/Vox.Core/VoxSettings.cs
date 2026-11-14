@@ -7,6 +7,20 @@ namespace Vox.Core;
 /// 应用设置：仓库路径、链接策略（D6 修订：正文唯一规范形态 = 相对路径，CDN 域名只是可配置投影）、
 /// 外观（语言 / 明暗 / 强调色 / 动效级别）。存 %AppData%/Vox/settings.json。
 /// </summary>
+/// <summary>已配置的模型供应商（ZCode 口径）：BaseUrl/协议/模型清单可编辑；API Key 存凭据管理器。</summary>
+public sealed class LlmProviderConfig
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Name { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = string.Empty;
+    /// <summary>openai | anthropic。</summary>
+    public string Protocol { get; set; } = "openai";
+    public List<string> Models { get; set; } = [];
+    /// <summary>是否支持思考开关（GLM 私有 thinking 参数；其余供应商 false 不下发）。</summary>
+    public bool ThinkingSupported { get; set; }
+    public bool Enabled { get; set; } = true;
+}
+
 public sealed class VoxSettings
 {
     public string? RepoPath { get; set; }
@@ -90,11 +104,18 @@ public sealed class VoxSettings
     /// <summary>AI 会话面板高度（320–560，拖拽下缘调节，2026-11-14）。</summary>
     public int AiPanelHeight { get; set; } = 520;
 
-    /// <summary>大模型服务商标识（GLM / DeepSeek / OpenAI / Claude / Ollama），密钥按服务商存凭据管理器。</summary>
-    public string LlmProvider { get; set; } = "GLM";
+    /// <summary>已配置的模型供应商库（ZCode 口径，2026-11-14）：会话选择器只显示这里的已启用项。
+    /// Key 不进 settings——存凭据管理器 vox/secret/llm/p/<Id>（旧 llm/glm 键读取时自动迁移）。</summary>
+    public List<LlmProviderConfig> LlmProviders { get; set; } = [];
 
-    /// <summary>模型名（随服务商切换写默认值，可手改）。</summary>
+    /// <summary>当前会话激活的供应商 Id（LlmProviders 中的项）。</summary>
+    public string LlmActiveProvider { get; set; } = string.Empty;
+
+    /// <summary>激活供应商下的模型名（会话选择器写回）。</summary>
     public string LlmModel { get; set; } = "glm-5.3-flash";
+
+    /// <summary>旧字段（迁移前口径，2026-11-14 起闲置保留兼容旧 JSON）。</summary>
+    public string LlmProvider { get; set; } = "GLM";
 
     /// <summary>MCP 本机服务开关（仅监听 127.0.0.1，Bearer Token 鉴权）。</summary>
     public bool McpEnabled { get; set; }
@@ -160,6 +181,7 @@ public static class SettingsStore
         }
     }
 
+
     public static void Save(VoxSettings settings, string? path = null)
     {
         path ??= DefaultPath();
@@ -167,3 +189,5 @@ public static class SettingsStore
         File.WriteAllText(path, JsonSerializer.Serialize(settings, VoxJsonContext.Default.VoxSettings));
     }
 }
+
+// 占位（实际类体插入见下一步）
