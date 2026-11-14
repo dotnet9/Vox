@@ -255,7 +255,7 @@ public static class AiAgentLoop
                 // 参数非法时直通引擎（引擎返回错误内容，行为与 MCP 客户端一致）
                 var outcome = await server.CallTool(
                     argsNode is null ? new JsonObject { ["name"] = name } : new JsonObject { ["name"] = name, ["arguments"] = argsNode },
-                    "内置AI", CancellationToken.None);
+                    "内置AI", roundCts.Token);
                 sw.Stop();
                 var resultText = string.Join("\n", (outcome.Content ?? [])
                     .OfType<ModelContextProtocol.Protocol.TextContentBlock>()
