@@ -1242,6 +1242,8 @@
   "Vox.Ai.Restored": "Restored {0} messages from the last session; feel free to continue",
   "Vox.Ai.ToolOpenArticle": "Click to open article",
   "Vox.Ai.ToolArticleNotFound": "Not found in library: {0}",
+  "Vox.Ai.ToolOpenImages": "Open image library",
+  "Vox.Ai.ToolOpenPublish": "Open publish center",
   "Vox.App.Confirm.ExitTitle": "Unsaved changes",
   "Vox.App.Confirm.ExitMsg": "The current article has unsaved body or metadata changes. They will be lost on exit.",
   "Vox.App.Confirm.ExitOk": "Discard and exit",

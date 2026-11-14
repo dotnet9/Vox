@@ -1241,6 +1241,8 @@
   "Vox.Ai.Restored": "前回のセッションから{0}件のメッセージを復元しました。続きをどうぞ",
   "Vox.Ai.ToolOpenArticle": "クリックで記事を開く",
   "Vox.Ai.ToolArticleNotFound": "ライブラリに見つかりません：{0}",
+  "Vox.Ai.ToolOpenImages": "画像ライブラリを開く",
+  "Vox.Ai.ToolOpenPublish": "公開センターを開く",
   "Vox.App.Confirm.ExitTitle": "未保存の変更があります",
   "Vox.App.Confirm.ExitMsg": "現在の記事には未保存の本文またはメタデータの変更があります。終了すると失われます。",
   "Vox.App.Confirm.ExitOk": "破棄して終了",

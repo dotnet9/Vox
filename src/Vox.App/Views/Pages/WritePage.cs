@@ -4958,24 +4958,43 @@ public sealed class WritePage : UserControl
         Grid.SetColumn(nameText, 1);
         Grid.SetColumn(argsText, 1);
         Grid.SetColumn(stateText, 2);
-        // 文章类工具完成态：点卡片直达编辑器（2026-11-15）——AI 提到哪篇文章，一键打开验证
-        if (run.Ok && run.ResultSummary != "执行中…" &&
-            run.Name is "article_read" or "article_create" or "article_meta")
+        // 完成态工具卡可导航（2026-11-15）：文章类点卡直达编辑器，图片类跳图片库，
+        // git/发布类跳发布中心——AI 提到什么，一键去现场验证。
+        if (run.Ok && run.ResultSummary != "执行中…")
         {
-            var articlePath = ExtractArticlePath(run.ArgsSummary + " " + run.ResultSummary);
-            if (articlePath != null)
+            switch (run.Name)
             {
-                card.Cursor = new Cursor(StandardCursorType.Hand);
-                TKCode.Arc.Tooltip.SetTip(card, T("Vox.Ai.ToolOpenArticle"));
-                var path = articlePath;
-                card.PointerPressed += (_, e) =>
+                case "article_read" or "article_create" or "article_meta":
                 {
-                    e.Handled = true;
-                    _ = OpenArticleByRepoPathAsync(path);
-                };
+                    var articlePath = ExtractArticlePath(run.ArgsSummary + " " + run.ResultSummary);
+                    if (articlePath != null)
+                    {
+                        WireCardNavigation(card, T("Vox.Ai.ToolOpenArticle"),
+                            () => _ = OpenArticleByRepoPathAsync(articlePath));
+                    }
+                    break;
+                }
+                case "image_import" or "image_list" or "image_usage":
+                    WireCardNavigation(card, T("Vox.Ai.ToolOpenImages"), () => _shell.ShowPage("images"));
+                    break;
+                case "git_status" or "git_commit" or "git_push" or "publish_status" or "publish_check":
+                    WireCardNavigation(card, T("Vox.Ai.ToolOpenPublish"), () => _shell.ShowPage("publish"));
+                    break;
             }
         }
         botBody.Children.Add(card);
+    }
+
+    /// <summary>工具卡统一导航行为：手型光标 + Tooltip + 整卡点击（2026-11-15）。</summary>
+    private static void WireCardNavigation(Border card, string tip, Action navigate)
+    {
+        card.Cursor = new Cursor(StandardCursorType.Hand);
+        TKCode.Arc.Tooltip.SetTip(card, tip);
+        card.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            navigate();
+        };
     }
 
     /// <summary>从工具参数/结果摘要里提取仓库相对文章路径（2026/xx/slug.md）。</summary>
