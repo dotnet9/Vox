@@ -4345,7 +4345,11 @@ public sealed class WritePage : UserControl
                 _aiTurns.Add(new LlmChatTurn("assistant", t.Content));
             }
         }
-        if (_aiTurns.Count > 0) _aiMsgScroll.ScrollToEnd();
+        if (_aiTurns.Count > 0)
+        {
+            AddAiNote(TF("Vox.Ai.Restored", saved.Count)); // 明示来源：以下对话恢复自上次退出，非本次新会话
+            _aiMsgScroll.ScrollToEnd();
+        }
     }
 
     /// <summary>清空会话确认（破坏性操作防护，2026-11-15）：有内容时先弹统一确认框，空会话静默清空。</summary>

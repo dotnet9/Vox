@@ -1239,6 +1239,7 @@
   "Vox.Ai.Chat.ClearDone": "会话已清空",
   "Vox.Ai.Confirm.ClearTitle": "清空会话",
   "Vox.Ai.Confirm.ClearMsg": "将删除当前会话的全部消息与上下文，此操作不可撤销。",
+  "Vox.Ai.Restored": "已恢复上次会话的 {0} 条消息，可继续追问",
   "Vox.App.Confirm.ExitTitle": "有未保存的修改",
   "Vox.App.Confirm.ExitMsg": "当前文章存在未保存的正文或元数据修改，退出后将丢失。",
   "Vox.App.Confirm.ExitOk": "丢弃并退出",

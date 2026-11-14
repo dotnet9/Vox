@@ -1239,6 +1239,7 @@
   "Vox.Ai.Chat.ClearDone": "Chat cleared",
   "Vox.Ai.Confirm.ClearTitle": "Clear conversation",
   "Vox.Ai.Confirm.ClearMsg": "This removes all messages and context in the current conversation. This cannot be undone.",
+  "Vox.Ai.Restored": "Restored {0} messages from the last session; feel free to continue",
   "Vox.App.Confirm.ExitTitle": "Unsaved changes",
   "Vox.App.Confirm.ExitMsg": "The current article has unsaved body or metadata changes. They will be lost on exit.",
   "Vox.App.Confirm.ExitOk": "Discard and exit",
