@@ -567,6 +567,29 @@ public partial class MainWindow : Window
         ShowModal(new Dialogs.PublishDialog(this, article));
     }
 
+    // ---------- 全局 AI 会话（2026-11-14 ZCode 口径）：面板视觉层挂在 MainWindow，全工作区可用 ----------
+
+    /// <summary>写作页构造后把 AI 面板从页内摘出挂到全局宿主：切换工作区面板不销毁、会话历史跨页保留。
+    /// 面板逻辑（发送/流式/工具）仍在 WritePage——页面实例被 _pages 缓存，跨页存活。</summary>
+    private WritePage PromoteAfter(WritePage page)
+    {
+        PromoteAiPanel(page);
+        return page;
+    }
+
+    public void PromoteAiPanel(WritePage? page = null)
+    {
+        var write = page ?? CachedWritePage; // 必须用传入实例：GetPage("write") 构造期调用时 _pages 尚未缓存（此前误用 CachedWritePage 恒 null 静默返回，2026-11-14 实锤）
+        if (write is null || AiGlobalHost.Content is not null) return;
+        var panel = write.DetachAiChatPanel();
+        if (panel is null) return;
+        // 面板原对齐于 _srcCard（右下、margin 12/46）——全局宿主口径与原型一致（right 12 / bottom 46）
+        panel.Margin = new Avalonia.Thickness(0, 0, 12, 60);
+        panel.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+        panel.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
+        AiGlobalHost.Content = panel;
+    }
+
     // ---------- 文件名行（写作页联动） ----------
 
     private TextBlock? _fileWordCount; // 标题栏实时正文字数（写作页编辑回传，懒建）
@@ -1059,6 +1082,8 @@ public partial class MainWindow : Window
     {
         _currentKey = key;
         PageHost.Content = GetPage(key);
+        System.IO.File.AppendAllText(@"D:\github\temp_files\uia\host-state.log",
+            "[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] ShowPage " + key + ": AiGlobalHost.Content=" + (AiGlobalHost.Content?.GetType().Name ?? "null") + Environment.NewLine);
         MarkActive(key);
     }
 
@@ -1087,7 +1112,7 @@ public partial class MainWindow : Window
         {
             page = key switch
             {
-                "write" => new WritePage(this),
+                "write" => PromoteAfter(new WritePage(this)),
                 "library" => new LibraryPage(this),
                 "images" => new ImagesPage(this),
                 "publish" => new PublishPage(this),

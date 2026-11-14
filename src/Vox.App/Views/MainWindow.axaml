@@ -131,9 +131,10 @@
         </Panel>
       </Border>
 
-      <!-- 主区：页面宿主 + 弹层遮罩 + toast -->
+      <!-- 主区：页面宿主 + 全局 AI 会话悬浮（面板运行时从写作页 reparent 到此，全工作区可用） + 弹层遮罩 + toast -->
       <Panel Grid.Column="1">
         <ContentControl x:Name="PageHost"/>
+        <ContentControl x:Name="AiGlobalHost"/>
         <!-- 全局搜索浮层（原型 #searchOv/.search-panel：深色遮罩 + 600px 圆角 14 面板） -->
         <Border x:Name="SearchOverlay" Background="#59000000" IsVisible="False" ZIndex="60">
           <Border Width="600" VerticalAlignment="Top" Margin="0,64,0,0"

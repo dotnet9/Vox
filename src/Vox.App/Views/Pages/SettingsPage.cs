@@ -216,16 +216,20 @@ public sealed class SettingsPage : UserControl
         Grid.SetColumn(providerDetail, 1);
         llmCard.Add(managerGrid);
 
-        var addProvider = new ArcButton { Variant = ArcButtonVariant.Secondary, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
+        // 描述行右侧挂"添加供应商"（ZCode 口径：页头右上，2026-11-14 用户反馈从底部移上来）
+        var addProvider = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small };
         addProvider[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Llm.AddProvider");
-        llmCard.Add(addProvider);
-        var addProviderPop = new ArcPopover { Placement = ArcPopoverPlacement.Bottom, Alignment = ArcPopoverAlignment.Start };
+        var addProviderPop = new ArcPopover { Placement = ArcPopoverPlacement.Bottom, Alignment = ArcPopoverAlignment.End };
         ArcPopover.SetAttach(addProvider, addProviderPop);
         addProviderPop.Content = BuildProviderPresetList(() =>
         {
             addProviderPop.IsOpen = false;
             RefreshProviderManager();
         });
+        var llmBody = (StackPanel)llmCard.Host.Child!; // Card 结构：Border.Child = StackPanel [标题, 描述]
+        var descRow = llmBody.Children[1];
+        llmBody.Children.RemoveAt(1);
+        llmBody.Children.Insert(1, new DockPanel { LastChildFill = false, Children = { addProvider.Dock(Dock.Right), descRow } });
 
         var llmSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = AppState.Instance.Settings.LlmEnabled };
         var llmSwitchDesc = new TextBlock { FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
@@ -242,7 +246,16 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal, Spacing = 10,
             Children = { llmSwitch, llmSwitchDesc },
         }));
-        aiTab.Children.Add(llmCard.Host);
+        // 分区内容套固定高度内滚动：AI 卡较高（供应商管理 ~700px），外层 FluidTab 视口滚动会触发
+        // scroll-spy 弹回写作分区（2026-11-14 用户反馈"滚动自动切换"）；固定高度后分区稳定，内部滚动。
+        var aiScroll = new ScrollViewer
+        {
+            Height = 700,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = llmCard.Host,
+        };
+        aiTab.Children.Add(aiScroll);
         RefreshProviderManager();
 
         // ---------- 关于 ----------
@@ -466,13 +479,14 @@ public sealed class SettingsPage : UserControl
         {
             var active = settings.LlmActiveProvider == provider.Id;
             var hasKey = LlmService.HasApiKey(provider.Id);
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            var dot = new Avalonia.Controls.Shapes.Ellipse { Width = 7, Height = 7, VerticalAlignment = VerticalAlignment.Center };
-            dot.Fill = hasKey ? TryGetBrush("VoxOk") : TryGetBrush("VoxWarn");
-            row.Children.Add(dot);
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
             var name = new TextBlock { Text = provider.Name, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
             name[!TextBlock.ForegroundProperty] = I18n.Bind(active ? "VoxFg" : "VoxMuted");
             row.Children.Add(name);
+            var dot = new Avalonia.Controls.Shapes.Ellipse { Width = 7, Height = 7, VerticalAlignment = VerticalAlignment.Center };
+            dot.Fill = hasKey ? TryGetBrush("VoxOk") : TryGetBrush("VoxWarn");
+            Grid.SetColumn(dot, 1);
+            row.Children.Add(dot);
             var border = new Border
             {
                 Padding = new Thickness(10, 8),
@@ -492,15 +506,6 @@ public sealed class SettingsPage : UserControl
             };
             providerListHost.Children.Add(border);
         }
-        var addHint = new TextBlock
-        {
-            Text = T("Vox.Settings.Llm.AddProviderHint"),
-            FontSize = 10.5,
-            Margin = new Thickness(6, 8, 6, 0),
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Res(addHint, TextBlock.ForegroundProperty, "VoxFaint");
-        providerListHost.Children.Add(addHint);
     }
 
     private void RefreshProviderDetail()
@@ -524,8 +529,8 @@ public sealed class SettingsPage : UserControl
         }
 
         var host = new StackPanel { Spacing = 4 };
-        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        var nameBox = new TextBox { Text = provider.Name, MinWidth = 160 };
+        var header = new DockPanel { LastChildFill = false };
+        var nameBox = new TextBox { Text = provider.Name, Classes = { "vinput" }, Width = 200, FontSize = 13 };
         nameBox.LostFocus += (_, _) =>
         {
             if (provider.Name == nameBox.Text) return;
@@ -533,14 +538,15 @@ public sealed class SettingsPage : UserControl
             SaveProviders();
             RefreshProviderList();
         };
-        header.Children.Add(nameBox);
+        header.Children.Add(nameBox.Dock(Dock.Left));
         var enabledSwitch = new ToggleButton { Classes = { "vswitch" }, IsChecked = provider.Enabled, VerticalAlignment = VerticalAlignment.Center };
+        ToolTip.SetTip(enabledSwitch, T("Vox.Settings.Llm.EnabledLabel"));
         enabledSwitch.IsCheckedChanged += (_, _) =>
         {
             provider.Enabled = enabledSwitch.IsChecked == true;
             SaveProviders();
         };
-        header.Children.Add(enabledSwitch);
+        header.Children.Add(enabledSwitch.Dock(Dock.Right));
         host.Children.Add(header);
 
         host.Children.Add(FieldLabel("Vox.Settings.Llm.BaseUrl"));
@@ -554,7 +560,7 @@ public sealed class SettingsPage : UserControl
         host.Children.Add(urlBox);
 
         host.Children.Add(FieldLabel("Vox.Settings.Llm.ApiFormat"));
-        var protocol = new MiniSelect { Width = 240 };
+        var protocol = new MiniSelect { Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
         protocol.Items = [T("Vox.Settings.Llm.ProtocolOpenai"), T("Vox.Settings.Llm.ProtocolAnthropic")];
         protocol.Selected = provider.Protocol == "anthropic" ? protocol.Items[1] : protocol.Items[0];
         protocol.SelectionChanged += value =>
@@ -699,12 +705,17 @@ public sealed class SettingsPage : UserControl
         var list = new StackPanel { Width = 240 };
         foreach (var preset in LlmPresets.All)
         {
-            var row = new Border
+            // ArcButton + Click（2026-11-14 交互修复）：Border+PointerPressed 在 ArcPopup 内不响应
+            // （点击被弹层输入管线吞掉），Button 的 Click 语义在 Popup 子树内成熟可靠。
+            var presetCaptured = preset;
+            var onCreatedCaptured = onCreated;
+            var row = new ArcButton
             {
-                Padding = new Thickness(10, 8),
-                CornerRadius = new CornerRadius(8),
-                Cursor = new Cursor(StandardCursorType.Hand),
-                Child = new StackPanel
+                Variant = ArcButtonVariant.Ghost,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(10, 6),
+                Content = new StackPanel
                 {
                     Children =
                     {
@@ -713,23 +724,22 @@ public sealed class SettingsPage : UserControl
                     },
                 },
             };
-            Res((StackPanel)row.Child!, TextBlock.ForegroundProperty, "VoxMuted");
-            row.PointerPressed += (_, e) =>
+            Res((StackPanel)row.Content!, TextBlock.ForegroundProperty, "VoxMuted");
+            row.Click += (_, _) =>
             {
-                e.Handled = true;
                 var config = new LlmProviderConfig
                 {
-                    Name = preset.Name,
-                    BaseUrl = preset.BaseUrl,
-                    Protocol = preset.Protocol,
-                    Models = new List<string>(preset.Models),
-                    ThinkingSupported = preset.Thinking,
+                    Name = presetCaptured.Name,
+                    BaseUrl = presetCaptured.BaseUrl,
+                    Protocol = presetCaptured.Protocol,
+                    Models = new List<string>(presetCaptured.Models),
+                    ThinkingSupported = presetCaptured.Thinking,
                 };
                 AppState.Instance.Settings.LlmProviders.Add(config);
                 _selectedProviderId = config.Id;
                 SaveProviders();
-                onCreated();
-                _shell.ShowToast(TF("Vox.Settings.Llm.ProviderAdded", preset.Name));
+                onCreatedCaptured();
+                _shell.ShowToast(TF("Vox.Settings.Llm.ProviderAdded", presetCaptured.Name));
             };
             list.Children.Add(row);
         }

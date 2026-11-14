@@ -298,7 +298,14 @@ public sealed class WritePage : UserControl
             ApplyAiChrome();
             InspectExternalChange();
         };
-        DetachedFromVisualTree += (_, _) => { _attached = false; SuspendWatchers(); };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _attached = false; SuspendWatchers();
+            System.IO.File.AppendAllText(@"D:\github\temp_files\uia\host-state.log",
+                "[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] WritePage detach: _aiBtn.Parent=" + (_aiBtn.Parent?.GetType().Name ?? "null")
+                + ", _aiPop.Parent=" + (_aiPop.Parent?.GetType().Name ?? "null")
+                + ", _aiBtn.IsVisible=" + _aiBtn.IsVisible + Environment.NewLine);
+        };
 
         // 与 Vex 一致：脑图结构/样式从用户设置恢复，默认 Right + Quiet。
         var mapSettings = AppState.Instance.Settings;
@@ -3227,7 +3234,7 @@ public sealed class WritePage : UserControl
         ApplyAiChrome();
     }
 
-    private void ApplyAiChrome()
+    internal void ApplyAiChrome()
     {
         if (_aiBtn == null || !_attached) return;
         var enabled = AppState.Instance.Settings.LlmEnabled;
@@ -3559,7 +3566,15 @@ public sealed class WritePage : UserControl
     }
 
     /// <summary>AI 会话面板（原型同款）：模型徽章 + 清空/关闭、上下文 chip、消息流、预设 chips、输入行。</summary>
-    private Border BuildAiChatPanel()
+        /// <summary>把 AI 触发钮与面板从 _srcCard 摘出（MainWindow.PromoteAiPanel 用，全局悬浮跨工作区）。</summary>
+    internal Panel? DetachAiChatPanel()
+    {
+        if (_aiBtn.Parent is Panel host) host.Children.Remove(_aiBtn);
+        if (_aiPop.Parent is Panel host2) host2.Children.Remove(_aiPop);
+        return new Panel { Children = { _aiBtn, _aiPop } };
+    }
+
+    internal Border BuildAiChatPanel()
     {
         var head = new DockPanel { LastChildFill = true };
         var close = new Button
@@ -3867,7 +3882,7 @@ public sealed class WritePage : UserControl
     }
 
     /// <summary>自主度模式单行：图标 + 标签/说明 + 选中勾；点击切换并刷新触发钮与勾标。</summary>
-    private Border BuildAiModeRow(AiChatMode mode, LucideIconKind icon, string labelKey, string descKey)
+    private ArcButton BuildAiModeRow(AiChatMode mode, LucideIconKind icon, string labelKey, string descKey)
     {
         var modeIcon = new LucideIcon
         {
@@ -3894,12 +3909,14 @@ public sealed class WritePage : UserControl
         };
         Res(check, LucideIcon.ForegroundProperty, "VoxAccent");
         _aiModeChecks[mode] = check;
-        var row = new Border
+        var row = new ArcButton
         {
+            Variant = ArcButtonVariant.Ghost,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
             Padding = new Thickness(10, 8),
-            CornerRadius = new CornerRadius(8),
-            Cursor = new Cursor(StandardCursorType.Hand),
-            Child = new Grid
+            Background = Brushes.Transparent, // Ghost 变体覆盖为透明底
+            Content = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
                 ColumnSpacing = 9,
@@ -3912,9 +3929,8 @@ public sealed class WritePage : UserControl
             },
         };
         Grid.SetColumn(check, 2);
-        row.PointerPressed += (_, e) =>
+        row.Click += (_, _) =>
         {
-            e.Handled = true;
             _aiMode = mode;
             UpdateAiModeButton();
             _aiModePop!.IsOpen = false;
@@ -3964,12 +3980,14 @@ public sealed class WritePage : UserControl
                 };
                 Res(check, LucideIcon.ForegroundProperty, "VoxAccent");
                 _aiModelChecks[(provider.Id, model)] = check;
-                var row = new Border
+                var row = new ArcButton
                 {
+                    Variant = ArcButtonVariant.Ghost,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
                     Padding = new Thickness(10, 7),
-                    CornerRadius = new CornerRadius(8),
-                    Cursor = new Cursor(StandardCursorType.Hand),
-                    Child = new Grid
+                    Background = Brushes.Transparent,
+                    Content = new Grid
                     {
                         ColumnDefinitions = new ColumnDefinitions("*,Auto"),
                         Children = { rowLabel, check },
@@ -3978,11 +3996,7 @@ public sealed class WritePage : UserControl
                 Grid.SetColumn(check, 1);
                 TKCode.Arc.Tooltip.SetTip(row, provider.Name);
                 var providerId = provider.Id;
-                row.PointerPressed += (_, e) =>
-                {
-                    e.Handled = true;
-                    SelectAiModel(providerId, model);
-                };
+                row.Click += (_, _) => SelectAiModel(providerId, model);
                 list.Children.Add(row);
             }
         }
@@ -4001,6 +4015,7 @@ public sealed class WritePage : UserControl
             {
                 Padding = new Thickness(10, 7),
                 CornerRadius = new CornerRadius(8),
+                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromArgb(1, 0, 0, 0)), // alpha=1 不可见但参与命中测试（纯透明与 null 同样穿透，2026-11-14）
                 Child = new Grid
                 {
                     ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
@@ -4018,6 +4033,7 @@ public sealed class WritePage : UserControl
             Padding = new Thickness(10, 7),
             CornerRadius = new CornerRadius(8),
             Cursor = new Cursor(StandardCursorType.Hand),
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromArgb(1, 0, 0, 0)), // alpha=1 不可见但参与命中测试（纯透明与 null 同样穿透，2026-11-14）
             Child = new TextBlock
             {
                 Text = T("Vox.Settings.Llm.ManagerTitle"),
