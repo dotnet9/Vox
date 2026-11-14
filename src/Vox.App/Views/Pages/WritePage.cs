@@ -4580,7 +4580,7 @@ public sealed class WritePage : UserControl
         var view = new MarkdownView { Stream = stream };
         botBody.Children.Add(view);
         var result = await AiAgentLoop.RunAsync(
-            settings.LlmActiveProvider, settings.LlmModel, system, BuildWireTurns(turns),
+            settings.LlmActiveProvider, settings.LlmModel, system, BuildWireTurns(BuildRequestTurns(turns)),
             chunk =>
             {
                 lock (gate)
