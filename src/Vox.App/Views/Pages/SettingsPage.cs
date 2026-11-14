@@ -219,11 +219,11 @@ public sealed class SettingsPage : UserControl
 
         // ---------- 大模型供应商管理（ZCode 口径，2026-11-14）：左列表 + 右详情 ----------
         var llmCard = Card("Vox.Settings.Llm.Title", "Vox.Settings.Llm.Desc");
-        var managerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("168,*"), MinHeight = 280 };
+        var managerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("168,*") };
         var providerListBorder = new Border
         {
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Child = new ScrollViewer { Content = providerListHost },
+            VerticalAlignment = VerticalAlignment.Top,
+            Child = providerListHost,
         };
         Res(providerListBorder, Border.BackgroundProperty, "VoxSurface2");
         Res(providerListBorder, Border.CornerRadiusProperty, "VoxRadiusControl");
