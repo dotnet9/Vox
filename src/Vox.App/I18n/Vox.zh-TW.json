@@ -557,6 +557,8 @@
   "Vox.Ai.Chat.InlineNote": "正文中以 ⟦…開始/結束⟧ 標記了你引用的選區位置",
   "Vox.Ai.Chat.ContextHeadCut": "〔前文已省略〕",
   "Vox.Ai.Chat.ContextTailCut": "〔後文已省略〕",
+  "Vox.Ai.SaveNew": "存為新文章",
+  "Vox.Ai.SaveNew.Done": "已存為新文章：{0}",
   "Vox.Ai.Reasoning.ThinkingElapsed": "思考中… {0} 秒",
   "Vox.Mcp.Audit.Start": "啟動服務",
   "Vox.Mcp.Audit.Stop": "停止服務",

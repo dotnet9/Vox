@@ -3838,11 +3838,11 @@ public sealed class WritePage : UserControl
         UpdateAiModeButton();
         _aiModePop = new ArcPopover
         {
-            Trigger = _aiModeButton,
             Placement = ArcPopoverPlacement.Top,
             Alignment = ArcPopoverAlignment.Start,
             Content = BuildAiModePopoverContent(),
         };
+        ArcPopover.SetAttach(_aiModeButton, _aiModePop); // Attach 挂载：点击开合并 join 触发钮逻辑树（Trigger 式未挂树时永不弹出，2026-11-14 修复）
 
         _aiModelButton = new ArcButton
         {
@@ -3853,11 +3853,11 @@ public sealed class WritePage : UserControl
         UpdateAiModelButton();
         _aiModelPop = new ArcPopover
         {
-            Trigger = _aiModelButton,
             Placement = ArcPopoverPlacement.Top,
             Alignment = ArcPopoverAlignment.End,
             Content = BuildAiModelPopoverContent(),
         };
+        ArcPopover.SetAttach(_aiModelButton, _aiModelPop);
 
         var footer = new Grid
         {
@@ -4259,19 +4259,7 @@ public sealed class WritePage : UserControl
 
     private void AiSeedWelcome()
     {
-        if (_aiMsgList.Children.Count > 0) return;
-        // Arc EmptyState（Small 尺寸为侧面板设计）替代纯文字欢迎注：图 + 标题 + 用法提示。
-        var empty = new TKCode.Arc.EmptyState
-        {
-            Size = ArcControlSize.Small,
-            Icon = Lucide.Geometry(LucideIconKind.Sparkles),
-            Title = T("Vox.Ai.Chat.Ready"),
-            Description = T("Vox.Ai.Chat.EmptyDesc"),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 24, 0, 8),
-        };
-        _aiEmptyState = empty;
-        _aiMsgList.Children.Add(empty);
+        // 2026-11-14 用户反馈：会话区保持空白，只显示对话内容（问与响应）——欢迎屏/引导文字移除。
     }
 
     private void ClearAiChat()
@@ -4289,6 +4277,52 @@ public sealed class WritePage : UserControl
         _aiEmptyState = null;
         AiSeedWelcome();
         _shell.ShowToast(T("Vox.Ai.Chat.ClearDone"));
+    }
+
+    /// <summary>AI 回复存为新文章（写新文章闭环，2026-11-14）：回复正文 + front matter（标题取本轮输入），
+    /// 落到当月目录（冲突自动加序号），重扫后自动打开。未打开文章时插入光标无意义，这是唯一的落盘出口。</summary>
+    private async Task SaveReplyAsArticleAsync(string reply)
+    {
+        var root = AppState.Instance.CurrentRepoRoot;
+        if (root == null)
+        {
+            _shell.ShowToast(T("Vox.Ai.Error.NoArticle"));
+            return;
+        }
+        var title = TruncateGrapheme((_aiInput.Text ?? string.Empty).Trim(), 40);
+        if (title.Length == 0) title = TruncateGrapheme(reply.TrimStart('#', ' ', '\n'), 40);
+        var invalid = Path.GetInvalidFileNameChars();
+        var slug = string.Join(string.Empty, title.Where(c => !invalid.Contains(c) && !char.IsWhiteSpace(c))).ToLowerInvariant();
+        if (slug.Length == 0) slug = $"article-{DateTime.Now:yyyyMMdd-HHmmss}";
+        var dir = Path.Combine(root, DateTime.Now.ToString("yyyy"), DateTime.Now.ToString("MM"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"{slug}.md");
+        for (var n = 2; File.Exists(path); n++) path = Path.Combine(dir, $"{slug}-{n}.md");
+
+        var clean = reply.Trim() + "\n";
+        File.WriteAllText(path, clean);
+        YamlSidecar.SaveToMarkdown(path, new ArticleMeta
+        {
+            Title = title,
+            Slug = Path.GetFileNameWithoutExtension(path),
+            Date = DateTime.Now,
+        });
+        AppState.Instance.NotifyRepoChanged();
+        _shell.ShowToast(TF("Vox.Ai.SaveNew.Done", Path.GetFileName(path)));
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            var created = AppState.Instance.Scan?.Articles.FirstOrDefault(
+                a => a.MarkdownPath.Replace('/', Path.DirectorySeparatorChar)
+                     .Equals(Path.GetRelativePath(root, path), StringComparison.OrdinalIgnoreCase));
+            if (created != null)
+            {
+                _shell.ShowPage("write");
+                await OpenArticleAsync(created);
+                return;
+            }
+            await Task.Delay(120);
+        }
     }
 
     /// <summary>会话导出：问答记录拼 Markdown，另存对话框落盘（文档工作流：AI 产出可直接归档进仓库）。</summary>
@@ -4338,11 +4372,6 @@ public sealed class WritePage : UserControl
             _aiInput.Focus();
             return;
         }
-        if (_current == null)
-        {
-            AddAiNote(T("Vox.Ai.Error.NoArticle"), error: true);
-            return;
-        }
         var settings = AppState.Instance.Settings;
         var preset = LlmPresets.Get(settings.LlmProvider);
         if (preset.NeedsKey && !LlmService.HasApiKey(preset.Key))
@@ -4350,6 +4379,8 @@ public sealed class WritePage : UserControl
             AddAiNoKeyBubble();
             return;
         }
+        // 2026-11-14 用户反馈：未打开文章也允许对话（"写一篇新文章"不是修改）——无文章时无全文上下文，
+        // AutoInsert/确认写入自动降级为讨论口径；回复可"存为新文章"直接落地。
 
         _aiInput.Text = string.Empty;
         AddAiUserBubble(input);
@@ -4377,7 +4408,7 @@ public sealed class WritePage : UserControl
         if (outcome.Text.Length == 0) return;
         switch (_aiMode)
         {
-            case AiChatMode.AutoInsert:
+            case AiChatMode.AutoInsert when _current != null:
                 // ZCode 自主口径：回复完成直接落到光标处（InsertAiTextAsync 含换行规整、审计与绿色注）。
                 _ = InsertAiTextAsync(outcome.Text);
                 AddAiBotOps(outcome.Body, outcome.Text, offer: null, autoInserted: true);
@@ -4910,6 +4941,34 @@ public sealed class WritePage : UserControl
         var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         if (offer == null)
         {
+            if (_current == null)
+            {
+                // 无打开文章：插入光标无意义——提供"存为新文章"直接落地（2026-11-14 写新文章闭环）
+                var saveNewIcon = new LucideIcon { Kind = LucideIconKind.FilePlus, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
+                var saveNewLabel = new TextBlock { FontSize = Fs(11), VerticalAlignment = VerticalAlignment.Center };
+                saveNewLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.SaveNew");
+                var saveNew = new ArcButton
+                {
+                    Variant = ArcButtonVariant.Primary,
+                    Size = ArcControlSize.Small,
+                    Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 5,
+                        Children = { saveNewIcon, saveNewLabel },
+                    },
+                };
+                saveNew.Click += (_, _) =>
+                {
+                    DisableAiOps(ops);
+                    _ = SaveReplyAsArticleAsync(text);
+                };
+                ops.Children.Add(saveNew);
+                ops.Children.Add(new ArcCopyButton { Value = text, Variant = TKCode.Arc.CopyButtonVariant.Outline, IsIconOnly = true });
+                botBody.Children.Add(ops);
+                _aiMsgScroll.ScrollToEnd();
+                return;
+            }
             if (!autoInserted)
             {
                 var insertIcon = new LucideIcon { Kind = LucideIconKind.ArrowDownToLine, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };

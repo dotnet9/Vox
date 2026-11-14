@@ -557,6 +557,8 @@
   "Vox.Ai.Chat.InlineNote": "the selection you quoted is marked inline with ⟦…begin/end⟧ in the full text below",
   "Vox.Ai.Chat.ContextHeadCut": "〔earlier text omitted〕",
   "Vox.Ai.Chat.ContextTailCut": "〔later text omitted〕",
+  "Vox.Ai.SaveNew": "Save as article",
+  "Vox.Ai.SaveNew.Done": "Saved as article: {0}",
   "Vox.Ai.Reasoning.ThinkingElapsed": "Thinking… {0}s",
   "Vox.Mcp.Audit.Start": "Service started",
   "Vox.Mcp.Audit.Stop": "Service stopped",

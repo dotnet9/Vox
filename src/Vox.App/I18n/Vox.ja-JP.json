@@ -557,6 +557,8 @@
   "Vox.Ai.Chat.InlineNote": "本文では ⟦…開始/終了⟧ で引用選択範囲を示しています",
   "Vox.Ai.Chat.ContextHeadCut": "〔前文省略〕",
   "Vox.Ai.Chat.ContextTailCut": "〔後文省略〕",
+  "Vox.Ai.SaveNew": "新規記事として保存",
+  "Vox.Ai.SaveNew.Done": "新規記事として保存：{0}",
   "Vox.Ai.Reasoning.ThinkingElapsed": "思考中… {0} 秒",
   "Vox.Mcp.Audit.Start": "サービス開始",
   "Vox.Mcp.Audit.Stop": "サービス停止",
