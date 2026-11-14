@@ -188,6 +188,9 @@ public sealed class WritePage : UserControl
     private CancellationTokenSource? _aiCts;
     private readonly List<AiChatContext> _aiCtx = [];
     private readonly List<LlmChatTurn> _aiTurns = [];
+    // 用户轮呈现文本平行栈（与 _aiTurns 的 user 轮按序对齐）：模型线存上下文包装文本，
+    // 持久化/导出走原始输入——恢复渲染不能把包装文本当气泡内容。
+    private readonly List<string> _aiUserDisplays = [];
     private Border _aiSelPill = null!;
     private TextBlock _aiSelPillLabel = null!;
     private TextBlock _aiSelPillRange = null!;
@@ -3722,6 +3725,7 @@ public sealed class WritePage : UserControl
         _aiPop.Classes.Add("ai-pop"); // AOT 视觉验证定位用（RuntimeVerification 抓 AI 面板截图）
         Res(_aiPop, Border.BackgroundProperty, "VoxSurface");
         Res(_aiPop, Border.BorderBrushProperty, "VoxLine");
+        RestoreAiSession(); // 重启恢复：聊天体就绪后静默重放上次会话（2026-11-15 持久化口径）
         return _aiPop;
     }
 
@@ -4292,6 +4296,53 @@ public sealed class WritePage : UserControl
         // 2026-11-14 用户反馈：会话区保持空白，只显示对话内容（问与响应）——欢迎屏/引导文字移除。
     }
 
+    /// <summary>会话历史落盘（重启恢复口径，2026-11-15）：turns 模型线 + 用户轮原始输入对齐成持久化结构。
+    /// user 轮序号即 _aiUserDisplays 游标——重试/重新生成只动 assistant 轮，不破坏对齐。</summary>
+    private void PersistAiSession()
+    {
+        var turns = new List<AiPersistTurn>();
+        var displayCursor = 0;
+        foreach (var turn in _aiTurns)
+        {
+            if (turn.Role == "user")
+            {
+                var display = displayCursor < _aiUserDisplays.Count ? _aiUserDisplays[displayCursor] : turn.Content;
+                displayCursor++;
+                turns.Add(new AiPersistTurn("user", display, turn.Content));
+            }
+            else
+            {
+                turns.Add(new AiPersistTurn("assistant", turn.Content, turn.Content));
+            }
+        }
+        AiSessionStore.Save(turns);
+    }
+
+    /// <summary>重启恢复（面板构建完成后调一次）：turns 重建模型线（续聊有上下文），UI 静态重放
+    /// 用户气泡与回复正文（MarkdownView 直接设全文，无流式效果）；失败/停止的空轮不入档无从恢复。</summary>
+    private void RestoreAiSession()
+    {
+        var saved = AiSessionStore.Load();
+        foreach (var t in saved)
+        {
+            if (t.Role == "user")
+            {
+                AddAiUserBubble(t.Display);
+                _aiUserDisplays.Add(t.Display);
+                _aiTurns.Add(new LlmChatTurn("user", t.Content));
+            }
+            else
+            {
+                var botBody = AddAiBotBubble();
+                botBody.Children.Add(new MarkdownView { Markdown = t.Content });
+                AddAiBotOps(botBody, t.Content, offer: null);
+                _aiExportLog.Add(("assistant", t.Content));
+                _aiTurns.Add(new LlmChatTurn("assistant", t.Content));
+            }
+        }
+        if (_aiTurns.Count > 0) _aiMsgScroll.ScrollToEnd();
+    }
+
     /// <summary>清空会话确认（破坏性操作防护，2026-11-15）：有内容时先弹统一确认框，空会话静默清空。</summary>
     private async Task ClearAiChatConfirmAsync()
     {
@@ -4311,6 +4362,8 @@ public sealed class WritePage : UserControl
         _aiCts?.Cancel();
         SetAiBusy(false);
         _aiTurns.Clear();
+        _aiUserDisplays.Clear();
+        AiSessionStore.Clear(); // 清空联动删档：下次启动不复活已清掉的会话
         _aiCtx.Clear();
         _aiRetry = null;
         _aiExportLog.Clear();
@@ -4430,6 +4483,7 @@ public sealed class WritePage : UserControl
         // 区间在生成期间被改动时 AcceptAiAsync 已有保护（退化为光标处插入）。
         AiChatContext? chatCtx = _aiCtx.Count > 0 ? _aiCtx[0] : null;
         _aiTurns.Add(new LlmChatTurn("user", BuildAiChatUserContent(input)));
+        _aiUserDisplays.Add(input);
         var epoch = _aiChatEpoch;
         var system = AiPrompts.SystemPrompt + AiChatSystemSuffix;
         // 重试闭包：失败重试与「重新生成」共用——user 轮已在史，直接重流（清空会话后闭包自动作废）。
@@ -4530,6 +4584,7 @@ public sealed class WritePage : UserControl
         var prompt = AiPrompts.Build(presetKey, body, caret, selection, string.Empty);
         // 预设也是会话的一轮：提问入史（此前只入回复，历史会以 assistant 开头），后续多轮据此续聊。
         _aiTurns.Add(new LlmChatTurn("user", prompt.User));
+        _aiUserDisplays.Add(displayName);
         var epoch = _aiChatEpoch;
         // 预设重试闭包：同一 prompt 重流，diff 卡按原 offer 重建。
         _aiRetry = async () =>
@@ -4650,6 +4705,7 @@ public sealed class WritePage : UserControl
             if (text.Length > 0)
             {
                 turns.Add(new LlmChatTurn("assistant", text)); // 半截回复留作后续上下文
+                PersistAiSession(); // 停止也落盘：半截回复是有效历史，重启恢复不丢
                 AppendAiBubbleLine(botBody, T("Vox.Ai.Incomplete"), "VoxFaint");
             }
             AddAiNote(T("Vox.Ai.Stopped"));
@@ -4659,6 +4715,7 @@ public sealed class WritePage : UserControl
         {
             // 流内错误但已有部分文本：内容保留并标注中断原因，不给操作钮。
             turns.Add(new LlmChatTurn("assistant", text));
+            PersistAiSession(); // 流内错误但已有部分文本：内容有效，同样落盘
             AppendAiBubbleLine(botBody, TF("Vox.Ai.Error.Interrupted", result.Error), "VoxDanger");
             return (botBody, string.Empty, result.Elapsed);
         }
@@ -4666,6 +4723,7 @@ public sealed class WritePage : UserControl
         {
             turns.Add(new LlmChatTurn("assistant", text));
             _aiExportLog.Add(("assistant", text));
+            PersistAiSession(); // 回复落定即持久化（重启恢复口径）
         }
         return (botBody, text, result.Elapsed);
     }

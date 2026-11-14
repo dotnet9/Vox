@@ -9,5 +9,6 @@ namespace Vox.Core;
 [JsonSerializable(typeof(VoxSettings))]
 [JsonSerializable(typeof(LlmProviderConfig))]
 [JsonSerializable(typeof(List<LlmProviderConfig>))]
+[JsonSerializable(typeof(List<AiPersistTurn>))]
 [JsonSerializable(typeof(Dictionary<string, Dictionary<string, ChannelSnapshot>>))]
 public sealed partial class VoxJsonContext : JsonSerializerContext;
