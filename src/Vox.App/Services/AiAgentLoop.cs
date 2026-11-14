@@ -250,7 +250,6 @@ public static class AiAgentLoop
             {
                 var sw = Stopwatch.StartNew();
                 var argsSummary = ArgsSummary(argsJson);
-                onToolRun?.Invoke(new AiToolRun(name, argsSummary, false, "执行中…", TimeSpan.Zero)); // 开始态
                 JsonObject? argsNode = null;
                 try { argsNode = JsonNode.Parse(argsJson) as JsonObject; } catch { }
                 // 参数非法时直通引擎（引擎返回错误内容，行为与 MCP 客户端一致）
