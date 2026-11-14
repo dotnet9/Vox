@@ -3033,8 +3033,10 @@ public sealed class WritePage : UserControl
             return;
         }
         var autoSave = AppState.Instance.Settings.AutoSave;
-        if (autoSave && _current != null && _repoRoot != null && _watcher == null) StartWatcher();
-        else if ((!autoSave || _current == null) && _watcher != null) StopWatcher();
+        // 外部变更检测与自动保存解耦（2026-11-15）：AI 意图写盘（article_meta/article_create）与
+        // 外部编辑器改动在自动保存关闭时同样发生——面板不同步会静默回滚外部修改，watcher 常开。
+        if (_current != null && _repoRoot != null && _watcher == null) StartWatcher();
+        else if (_current == null && _watcher != null) StopWatcher();
         if (!autoSave) _autoSaveTimer.Stop();
         UpdateSaveState();
     }
