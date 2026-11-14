@@ -67,6 +67,36 @@ public static class LlmService
         else store.Save("llm/p/" + providerId, key.Trim());
     }
 
+    /// <summary>端点桥接（Agent 循环复用既有口径）。</summary>
+    public static string EndpointFor(string providerId) =>
+        GetProvider(providerId)?.BaseUrl.TrimEnd('/') ?? "https://api.openai.com/v1";
+
+    /// <summary>鉴权桥接：anthropic 协议走 x-api-key，其余 Bearer。</summary>
+    public static void AttachAuth(HttpRequestMessage request, string providerId, string? apiKeyOverride)
+    {
+        var provider = GetProvider(providerId);
+        var key = apiKeyOverride ?? GetApiKey(providerId) ?? string.Empty;
+        if (provider?.Protocol == "anthropic")
+        {
+            request.Headers.TryAddWithoutValidation("x-api-key", key);
+            request.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+        }
+        else
+        {
+            request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + key);
+        }
+    }
+
+    /// <summary>错误体描述（Agent 循环复用）。</summary>
+    public static string DescribeErrorPublic(string raw, int status) => DescribeError(raw, status);
+
+    /// <summary>thinking 参数（Agent 循环复用，签名供 AiAgentLoop 桥接）。</summary>
+    public static void ApplyThinkingPublic(object payload, string providerId, bool disableThinking)
+    {
+        if (payload is OpenAiRequest req && disableThinking && providerId.Equals("GLM", StringComparison.OrdinalIgnoreCase))
+            req.Thinking = new ThinkingConfig();
+    }
+
     /// <summary>按 Id 取供应商配置；找不到回退第一个已启用项（设置清空时的容错）。</summary>
     public static LlmProviderConfig? GetProvider(string? providerId)
     {

@@ -4579,8 +4579,8 @@ public sealed class WritePage : UserControl
         var stream = new MarkdownStream();
         var view = new MarkdownView { Stream = stream };
         botBody.Children.Add(view);
-        var result = await LlmService.StreamAsync(
-            settings.LlmActiveProvider, settings.LlmModel, system, BuildRequestTurns(turns),
+        var result = await AiAgentLoop.RunAsync(
+            settings.LlmActiveProvider, settings.LlmModel, system, BuildWireTurns(turns),
             chunk =>
             {
                 lock (gate)
@@ -4596,13 +4596,20 @@ public sealed class WritePage : UserControl
                     if (_aiFollowTail) _aiMsgScroll.ScrollToEnd(); // 用户上滚阅读时暂停贴底，滚回底部自动恢复
                 });
             },
-            cancellationToken: _aiCts.Token,
-            disableThinking: !_aiThinking, // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
             onReasoning: chunk => Dispatcher.UIThread.Post(() =>
             {
                 RemovePending(); // 思考开始即让位（折叠条接管状态；与占位同显会被误读为重叠）
                 reasoning.OnReasoning(chunk);
-            }));
+            }),
+            onToolRun: run => Dispatcher.UIThread.Post(() =>
+            {
+                RemovePending();
+                reasoning.OnContentStarted();
+                AddAiToolCard(botBody, run); // 意图执行卡片（ZCode 口径）：工具名+参数摘要+状态
+                if (_aiFollowTail) _aiMsgScroll.ScrollToEnd();
+            }),
+            cancellationToken: _aiCts.Token,
+            disableThinking: !_aiThinking); // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
         stream.Complete();
         var partial = string.Empty;
         lock (gate)
@@ -4838,6 +4845,47 @@ public sealed class WritePage : UserControl
         _aiMsgScroll.ScrollToEnd();
     }
 
+    /// <summary>意图执行卡片（ZCode 口径）：工具名+参数摘要+状态徽标；执行中→完成态由两次回调驱动。</summary>
+    private void AddAiToolCard(StackPanel botBody, AiToolRun run)
+    {
+        var card = new Border
+        {
+            Padding = new Thickness(8, 6),
+            CornerRadius = new CornerRadius(8),
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromArgb(1, 0, 0, 0)),
+            Child = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnSpacing = 8,
+            },
+        };
+        var icon = new LucideIcon
+        {
+            Kind = run.Ok && run.ResultSummary != "执行中…" ? LucideIconKind.CircleCheckBig : LucideIconKind.Wrench,
+            Width = 13, Height = 13, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(icon, LucideIcon.ForegroundProperty, run.Ok && run.ResultSummary != "执行中…" ? "VoxAccent" : "VoxMuted");
+        var nameText = new TextBlock { Text = run.Name, FontFamily = MonoFont, FontSize = Fs(10.5), VerticalAlignment = VerticalAlignment.Center };
+        Res(nameText, TextBlock.ForegroundProperty, "VoxFg");
+        var argsText = new TextBlock { Text = run.ArgsSummary, FontSize = Fs(10), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        Res(argsText, TextBlock.ForegroundProperty, "VoxMuted");
+        var stateText = new TextBlock { Text = run.ResultSummary, FontSize = Fs(10), VerticalAlignment = VerticalAlignment.Center };
+        Res(stateText, TextBlock.ForegroundProperty, run.ResultSummary == "执行中…" ? "VoxMuted" : "VoxFg");
+        var grid = (Grid)card.Child!;
+        grid.Children.Add(icon);
+        grid.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Children = { nameText, argsText },
+        });
+        grid.Children.Add(stateText);
+        Grid.SetColumn(nameText, 1);
+        Grid.SetColumn(argsText, 1);
+        Grid.SetColumn(stateText, 2);
+        botBody.Children.Add(card);
+    }
+
     private const string AiChatSystemSuffix =
         "\n这是编辑器内的多轮会话：回答保持简洁、直接可用；若给出改写文本，只输出新文本本身，不要解释。";
 
@@ -4879,6 +4927,18 @@ public sealed class WritePage : UserControl
 
     /// <summary>请求级历史窗口（激进压缩）：最近 8 条消息原文 + 首条目标 + 中段议题轨迹。
     /// _aiTurns 仍保存完整历史（真值），压缩只在组装请求时生效——成本 O(N²)→O(N)。</summary>
+    /// <summary>_aiTurns（对话线）→ Agent 线格式。助手消息以纯文本（含工具执行摘要）入线——
+    /// 线上历史不需要工具协议形态，只有本轮请求需要（AiAgentLoop 内部追加）。</summary>
+    private static List<Vox.App.Services.AiWireMessage> BuildWireTurns(List<LlmChatTurn> turns)
+    {
+        var result = new List<Vox.App.Services.AiWireMessage>();
+        foreach (var t in turns)
+        {
+            result.Add(new Vox.App.Services.AiWireMessage { Role = t.Role, Content = t.Content });
+        }
+        return result;
+    }
+
     private List<LlmChatTurn> BuildRequestTurns(List<LlmChatTurn> turns)
     {
         if (turns.Count <= 10) return [.. turns];
