@@ -41,9 +41,11 @@ public static class ConfirmDialog
             tcs.TrySetResult(result);
         }
 
-        close.Click += (_, _) => { shell.CloseModal(); Finish(false); };
-        cancel.Click += (_, _) => { shell.CloseModal(); Finish(false); };
-        confirm.Click += (_, _) => { shell.CloseModal(); Finish(true); };
+        close.Click += (_, _) => { Finish(false); shell.CloseModal(); };
+        cancel.Click += (_, _) => { Finish(false); shell.CloseModal(); };
+        // 先结算再关闭：CloseModal 会同步触发 DetachedFromVisualTree，若先关后结算，
+        // 兜底的 false 会抢先完成 Task，确认钮永远返回「取消」（实机复现：清空会话不生效）。
+        confirm.Click += (_, _) => { Finish(true); shell.CloseModal(); };
         // 遮罩点击 / Esc / 其他入口关闭：弹层离开可视树时未结算则按取消处理。
         modal.DetachedFromVisualTree += (_, _) => Finish(false);
 

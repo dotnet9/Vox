@@ -1237,6 +1237,8 @@
   "Vox.Ai.Chat.Ready": "会话已就绪 · 正文选中文字（或右键选段落）→「添加到会话」→ 直接提问",
   "Vox.Ai.Chat.Clear": "清空",
   "Vox.Ai.Chat.ClearDone": "会话已清空",
+  "Vox.Ai.Confirm.ClearTitle": "清空会话",
+  "Vox.Ai.Confirm.ClearMsg": "将删除当前会话的全部消息与上下文，此操作不可撤销。",
   "Vox.Ai.Chat.AddTo": "添加到会话",
   "Vox.Ai.Chat.Selection": "选区 · L{0}",
   "Vox.Ai.Chat.SelectionRange": "选区 · L{0}–L{1}",

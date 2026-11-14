@@ -3588,7 +3588,7 @@ public sealed class WritePage : UserControl
         head.Children.Add(close.Dock(Dock.Right));
         var clear = new Button { Classes = { "btn", "ghost", "sm" }, VerticalAlignment = VerticalAlignment.Center };
         clear[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Clear");
-        clear.Click += (_, _) => ClearAiChat();
+        clear.Click += (_, _) => _ = ClearAiChatConfirmAsync();
         head.Children.Add(clear.Dock(Dock.Right));
         var export = new Button { Classes = { "btn", "ghost", "sm" }, VerticalAlignment = VerticalAlignment.Center };
         export[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Export");
@@ -4290,6 +4290,18 @@ public sealed class WritePage : UserControl
     private void AiSeedWelcome()
     {
         // 2026-11-14 用户反馈：会话区保持空白，只显示对话内容（问与响应）——欢迎屏/引导文字移除。
+    }
+
+    /// <summary>清空会话确认（破坏性操作防护，2026-11-15）：有内容时先弹统一确认框，空会话静默清空。</summary>
+    private async Task ClearAiChatConfirmAsync()
+    {
+        if (_aiTurns.Count > 0)
+        {
+            var ok = await ConfirmDialog.Show(_shell, T("Vox.Ai.Confirm.ClearTitle"),
+                T("Vox.Ai.Confirm.ClearMsg"), T("Vox.Ai.Chat.Clear"), destructive: true);
+            if (!ok) return;
+        }
+        ClearAiChat();
     }
 
     private void ClearAiChat()
