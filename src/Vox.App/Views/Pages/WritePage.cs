@@ -161,6 +161,9 @@ public sealed class WritePage : UserControl
     private bool _loading;
     private bool _dirty;
 
+    /// <summary>未保存改动（正文或元数据）：退出守卫依据（自动保存关闭时关窗即丢失，2026-11-15）。</summary>
+    internal bool HasUnsavedEdits => (_dirty || _metaDirty) && _current != null;
+
     // 自动保存（2026-10-27 需求）：磁盘为唯一真值——2s 落盘定时、500ms 外部改动防抖、当前文件监视。
     private readonly DispatcherTimer _autoSaveTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer _externalTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };

@@ -34,10 +34,27 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, Control> _pages = new();
     private readonly List<(Button Btn, string Key)> _navButtons = new();
     private bool _navCollapsed = false; // 与 design/Vox.html 一致：首次启动默认展开导航
+    private bool _closeConfirmed = false; // 退出守卫确认后放行第二次 Close（2026-11-15）
+
+    /// <summary>退出守卫（2026-11-15）：写作页有未保存改动（正文/元数据）时先确认——自动保存关闭的
+    /// 用户关窗即丢改动。取消后放行标志放行第二次 Close；守卫只在有打开文章且确有脏标记时拦。</summary>
+    private async void OnClosingGuard(object? sender, WindowClosingEventArgs e)
+    {
+        if (_closeConfirmed) return;
+        if (CachedWritePage?.HasUnsavedEdits != true) return;
+
+        e.Cancel = true;
+        var ok = await ConfirmDialog.Show(this, I18n.T("Vox.App.Confirm.ExitTitle"),
+            I18n.T("Vox.App.Confirm.ExitMsg"), I18n.T("Vox.App.Confirm.ExitOk"), destructive: true);
+        if (!ok) return;
+        _closeConfirmed = true;
+        Close();
+    }
 
     public MainWindow()
     {
         Current = this;
+        Closing += OnClosingGuard;
         Closed += (_, _) =>
         {
             if (ReferenceEquals(Current, this)) Current = null;
