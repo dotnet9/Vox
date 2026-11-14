@@ -3152,11 +3152,26 @@ function aiSeed(){
   var act='<div class="ai-act"><span class="badge ok">已创建</span><span class="mono vlink" title="点击文件名打开（实现内）">2026/11/dotnet-11-highlights.md</span><span>正文 1,024 字 · 草稿</span></div>';
   var u=document.createElement('div');u.className='ai-msg user';u.innerHTML='<div>写一篇 .NET 11 新特性速览的文章，1000 字左右</div>';
   var b=document.createElement('div');b.className='ai-msg bot';b.innerHTML=tool+act+'<div>已按你的要求创建草稿（见上卡片，点击文件名打开）。要点：C# 14 / AOT 改进 / ASP.NET 合并运行时。需要扩充某一节直接说。</div>';
-  $('aiMsgs').appendChild(u);$('aiMsgs').appendChild(b);aiScroll();
+  // 发布意图示例（2026-11-15 实装）：git_commit/git_push 确认后执行，结果卡含分支同步状态
+  var gtool='<div class="ai-tool"><span class="badge ok">ok</span><span class="mono">git_status</span><span>分支 main · 1 个待提交变更</span></div>'
+    +'<div class="ai-tool"><span class="badge ok">okc</span><span class="mono">git_commit</span><span>入门篇 description 精简 · 1 个路径 · 确认卡放行</span></div>'
+    +'<div class="ai-tool"><span class="badge ok">okc</span><span class="mono">git_push</span><span>推送到远端 · ahead 0 / behind 0</span></div>';
+  var gact='<div class="ai-act"><span class="badge ok">已推送</span><span class="mono">main → origin/main</span><span>网站 Git 同步更新</span></div>';
+  var gu=document.createElement('div');gu.className='ai-msg user';gu.innerHTML='<div>查看变更，提交并推送</div>';
+  var gb=document.createElement('div');gb.className='ai-msg bot';gb.innerHTML=gtool+gact+'<div>提交 ✓（95498a4）并推送成功，网站已同步。写操作每次都会弹确认卡，拒绝即中断。</div>';
+  $('aiMsgs').appendChild(u);$('aiMsgs').appendChild(b);
+  $('aiMsgs').appendChild(gu);$('aiMsgs').appendChild(gb);aiScroll();
 }
 $('btnAi').onclick=function(e){e.stopPropagation();aiOpen($('aiPop').hidden);};
 $('aiClose').onclick=function(){aiOpen(false);};
-$('aiClear').onclick=function(e){e.stopPropagation();aiCtx=[];aiRenderCtx();$('aiMsgs').innerHTML='';aiSeed();toast('会话已清空');};
+$('aiClear').onclick=function(e){
+  e.stopPropagation();
+  // 与实现同口径：清空是破坏性操作，有内容先确认，空会话静默清空
+  var hasMsgs=$('aiMsgs').querySelector('.ai-msg')!==null;
+  var doClear=function(){aiCtx=[];aiRenderCtx();$('aiMsgs').innerHTML='';aiSeed();toast('会话已清空');};
+  if(!hasMsgs){doClear();return;}
+  uiConfirm('清空会话','将删除当前会话的全部消息与上下文，此操作不可撤销。','清空').then(function(ok){if(ok)doClear();});
+};
 document.addEventListener('click',function(e){
   var pop=$('aiPop');
   if(!pop.hidden&&!pop.contains(e.target)&&!$('btnAi').contains(e.target)){aiOpen(false);}
