@@ -19,8 +19,10 @@ public static class LlmPresets
     [
         new("GLM 编码套餐", "https://open.bigmodel.cn/api/coding/paas/v4", "openai", ["glm-5.3-flash", "glm-5.3"], true),
         new("GLM API", "https://open.bigmodel.cn/api/paas/v4", "openai", ["glm-5.3-flash", "glm-5.3"], true),
-        new("DeepSeek", "https://api.deepseek.com/v1", "openai", ["deepseek-chat", "deepseek-reasoner"], true),
-        new("OpenAI", "https://api.openai.com/v1", "openai", ["gpt-4o", "gpt-4o-mini"], false),
+        // DeepSeek：官方 model 参数现为 deepseek-flash（=V4.1-Flash-1017）/ deepseek-v4-pro；deepseek-chat 为过渡别名（将停用）。
+        // OpenAI：2026-11 官方模型页 ids（gpt-6.1-sol 为主推性价比旗舰；terra 视觉/写作，luna 快速低价）。
+        new("DeepSeek", "https://api.deepseek.com/v1", "openai", ["deepseek-flash", "deepseek-v4-pro", "deepseek-chat"], true),
+        new("OpenAI", "https://api.openai.com/v1", "openai", ["gpt-6.1-sol", "gpt-6-sol", "gpt-5.6-sol", "gpt-6.1-terra", "gpt-6-luna"], false),
         new("Anthropic", "https://api.anthropic.com/v1", "anthropic", ["claude-sonnet-4-5"], false),
         new("Ollama 本机", "http://127.0.0.1:11434/v1", "openai", ["qwen3:14b"], false),
         new("自定义", "", "openai", [], false),

@@ -172,12 +172,38 @@ public static class SettingsStore
         path ??= DefaultPath();
         try
         {
-            if (!File.Exists(path)) return new VoxSettings();
-            return JsonSerializer.Deserialize(File.ReadAllText(path), VoxJsonContext.Default.VoxSettings) ?? new VoxSettings();
+            var settings = File.Exists(path)
+                ? JsonSerializer.Deserialize(File.ReadAllText(path), VoxJsonContext.Default.VoxSettings) ?? new VoxSettings()
+                : new VoxSettings();
+            Migrate(settings);
+            return settings;
         }
         catch
         {
             return new VoxSettings();
+        }
+    }
+
+    /// <summary>供应商库迁移（2026-11-14）：旧单提供商口径（LlmProvider/LlmModel，Key 在 llm/glm）无库时
+    /// 自动播种 GLM 配置；每次 Load 保证激活项有效（最后一条被删时的容错）。</summary>
+    public static void Migrate(VoxSettings settings)
+    {
+        if (settings.LlmProviders.Count == 0)
+        {
+            settings.LlmProviders.Add(new LlmProviderConfig
+            {
+                Id = "glm",
+                Name = "GLM",
+                BaseUrl = "https://open.bigmodel.cn/api/coding/paas/v4",
+                Protocol = "openai",
+                Models = [settings.LlmModel, "glm-5.3"],
+                ThinkingSupported = true,
+            });
+            settings.LlmActiveProvider = "glm";
+        }
+        else if (settings.LlmProviders.All(p => p.Id != settings.LlmActiveProvider))
+        {
+            settings.LlmActiveProvider = settings.LlmProviders[0].Id;
         }
     }
 
