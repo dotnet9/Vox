@@ -4958,7 +4958,46 @@ public sealed class WritePage : UserControl
         Grid.SetColumn(nameText, 1);
         Grid.SetColumn(argsText, 1);
         Grid.SetColumn(stateText, 2);
+        // 文章类工具完成态：点卡片直达编辑器（2026-11-15）——AI 提到哪篇文章，一键打开验证
+        if (run.Ok && run.ResultSummary != "执行中…" &&
+            run.Name is "article_read" or "article_create" or "article_meta")
+        {
+            var articlePath = ExtractArticlePath(run.ArgsSummary + " " + run.ResultSummary);
+            if (articlePath != null)
+            {
+                card.Cursor = new Cursor(StandardCursorType.Hand);
+                TKCode.Arc.Tooltip.SetTip(card, T("Vox.Ai.ToolOpenArticle"));
+                var path = articlePath;
+                card.PointerPressed += (_, e) =>
+                {
+                    e.Handled = true;
+                    _ = OpenArticleByRepoPathAsync(path);
+                };
+            }
+        }
         botBody.Children.Add(card);
+    }
+
+    /// <summary>从工具参数/结果摘要里提取仓库相对文章路径（2026/xx/slug.md）。</summary>
+    private static string? ExtractArticlePath(string text)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"(\d{4}/\d{2}/[^""\s·，,]+\.md)");
+        return m.Success ? m.Groups[1].Value : null;
+    }
+
+    /// <summary>工具卡点击打开：按相对路径在库中定位文章并载入编辑器；查不到 toast 提示。</summary>
+    private async Task OpenArticleByRepoPathAsync(string relative)
+    {
+        var normalized = relative.Replace('\\', '/');
+        var articles = AppState.Instance.Scan?.Articles;
+        var article = articles?.FirstOrDefault(a =>
+            string.Equals(a.MarkdownPath, normalized, StringComparison.OrdinalIgnoreCase));
+        if (article == null)
+        {
+            _shell.ShowToast(TF("Vox.Ai.ToolArticleNotFound", relative));
+            return;
+        }
+        await OpenArticleAsync(article);
     }
 
     private const string AiChatSystemSuffix =

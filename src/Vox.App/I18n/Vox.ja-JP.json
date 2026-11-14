@@ -1239,6 +1239,8 @@
   "Vox.Ai.Confirm.ClearTitle": "会話をクリア",
   "Vox.Ai.Confirm.ClearMsg": "現在の会話のすべてのメッセージとコンテキストを削除します。この操作は元に戻せません。",
   "Vox.Ai.Restored": "前回のセッションから{0}件のメッセージを復元しました。続きをどうぞ",
+  "Vox.Ai.ToolOpenArticle": "クリックで記事を開く",
+  "Vox.Ai.ToolArticleNotFound": "ライブラリに見つかりません：{0}",
   "Vox.App.Confirm.ExitTitle": "未保存の変更があります",
   "Vox.App.Confirm.ExitMsg": "現在の記事には未保存の本文またはメタデータの変更があります。終了すると失われます。",
   "Vox.App.Confirm.ExitOk": "破棄して終了",
