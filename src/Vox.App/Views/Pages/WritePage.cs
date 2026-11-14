@@ -307,10 +307,6 @@ public sealed class WritePage : UserControl
         DetachedFromVisualTree += (_, _) =>
         {
             _attached = false; SuspendWatchers();
-            System.IO.File.AppendAllText(@"D:\github\temp_files\uia\host-state.log",
-                "[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] WritePage detach: _aiBtn.Parent=" + (_aiBtn.Parent?.GetType().Name ?? "null")
-                + ", _aiPop.Parent=" + (_aiPop.Parent?.GetType().Name ?? "null")
-                + ", _aiBtn.IsVisible=" + _aiBtn.IsVisible + Environment.NewLine);
         };
 
         // 与 Vex 一致：脑图结构/样式从用户设置恢复，默认 Right + Quiet。
