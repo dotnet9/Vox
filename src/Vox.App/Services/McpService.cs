@@ -80,6 +80,15 @@ public static class McpService
 
     public const string TokenKey = "mcp/token";
 
+    /// <summary>内置 AI 会话的授权口径（2026-11-15）：本人对话 + 每次写操作确认卡兜底——
+    /// git 与范围不随外部客户端授权（MCP 服务页的 Scope/AllowGit）降级；用户显式禁用的工具仍尊重。</summary>
+    public static McpOptions AgentOptions => BuildOptions() with
+    {
+        Scope = McpAccessScope.Repo,
+        AllowGit = true,
+        ConfirmWrites = true,
+    };
+
     public static McpOptions BuildOptions()
     {
         var settings = AppState.Instance.Settings;

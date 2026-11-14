@@ -59,13 +59,14 @@ public static class AiAgentLoop
 {
     private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
 
-    /// <summary>Agent 可用工具白名单（只读 + 无破坏写操作；正文写入走会话内 diff 流，不开放自动写）。</summary>
+    /// <summary>Agent 可用工具白名单（只读 + 确认流保护的写操作；正文写入走会话内 diff 流，不开放自动写）。
+    /// git 提交/推送 2026-11-15 纳入：外部仍受用户授权范围（Scope/AllowGit）与写入确认卡双重过滤。</summary>
     public static readonly string[] AllowedTools =
     [
         "article_list", "article_read", "article_search", "article_meta", "article_create",
         "image_list", "image_usage",
         "publish_status", "publish_check",
-        "git_status",
+        "git_status", "git_commit", "git_push",
         "outline_read", "stats_summary",
     ];
 
@@ -255,7 +256,7 @@ public static class AiAgentLoop
                 // 参数非法时直通引擎（引擎返回错误内容，行为与 MCP 客户端一致）
                 var outcome = await server.CallTool(
                     argsNode is null ? new JsonObject { ["name"] = name } : new JsonObject { ["name"] = name, ["arguments"] = argsNode },
-                    "内置AI", roundCts.Token);
+                    "内置AI", roundCts.Token, McpService.AgentOptions);
                 sw.Stop();
                 var resultText = string.Join("\n", (outcome.Content ?? [])
                     .OfType<ModelContextProtocol.Protocol.TextContentBlock>()

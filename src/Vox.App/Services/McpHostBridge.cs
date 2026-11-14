@@ -164,53 +164,39 @@ public sealed class McpHostBridge : IMcpHost
             ["message"] = "平台发布涉及平台凭据与外部可见副作用，请在 Vox 发布中心逐篇确认发布。",
         }.ToJsonString());
 
+    /// <summary>提交 / 推送不再吞异常（2026-11-15）：失败原因（SSH 密钥、网络、凭据）穿透到工具层，
+    /// 会话与审计拿到真实错误——此前一律 null 被上层误报成「git 服务未连接（App 未注入宿主）」。</summary>
     public Task<string?> GitCommitAsync(string message, IReadOnlyList<string>? paths, CancellationToken ct) => Task.Run(() =>
     {
-        try
+        var git = AppState.Instance.Git() ?? throw new InvalidOperationException("仓库未打开，无法提交");
+        var (name, email) = git.Identity();
+        var commit = paths is { Count: > 0 }
+            ? git.CommitPaths(paths, message, name, email)
+            : git.CommitAll(message, name, email);
+        NotifyContentChanged(null);
+        return (string?)new JsonObject
         {
-            var git = AppState.Instance.Git();
-            if (git == null) return null;
-            var (name, email) = git.Identity();
-            var commit = paths is { Count: > 0 }
-                ? git.CommitPaths(paths, message, name, email)
-                : git.CommitAll(message, name, email);
-            NotifyContentChanged(null);
-            return (string?)new JsonObject
-            {
-                ["sha"] = commit.Sha,
-                ["shortSha"] = commit.Sha[..7],
-                ["message"] = message,
-                ["paths"] = paths?.Count ?? 0,
-            }.ToJsonString();
-        }
-        catch
-        {
-            return null;
-        }
+            ["sha"] = commit.Sha,
+            ["shortSha"] = commit.Sha[..7],
+            ["message"] = message,
+            ["paths"] = paths?.Count ?? 0,
+        }.ToJsonString();
     }, ct);
 
     public Task<string?> GitPushAsync(CancellationToken ct) => Task.Run(() =>
     {
-        try
+        var git = AppState.Instance.Git() ?? throw new InvalidOperationException("仓库未打开，无法推送");
+        var pat = Vox.Git.CredentialStoreFactory.Create().GetPat("github.com");
+        git.Push(pat ?? string.Empty);
+        NotifyContentChanged(null);
+        var (branch, ahead, behind) = git.BranchState();
+        return (string?)new JsonObject
         {
-            var git = AppState.Instance.Git();
-            if (git == null) return null;
-            var pat = Vox.Git.CredentialStoreFactory.Create().GetPat("github.com");
-            git.Push(pat ?? string.Empty);
-            NotifyContentChanged(null);
-            var (branch, ahead, behind) = git.BranchState();
-            return (string?)new JsonObject
-            {
-                ["ok"] = true,
-                ["branch"] = branch,
-                ["ahead"] = ahead ?? 0,
-                ["behind"] = behind ?? 0,
-            }.ToJsonString();
-        }
-        catch
-        {
-            return null;
-        }
+            ["ok"] = true,
+            ["branch"] = branch,
+            ["ahead"] = ahead ?? 0,
+            ["behind"] = behind ?? 0,
+        }.ToJsonString();
     }, ct);
 
     private static JsonObject RowJson(ArticlePublishRow row)

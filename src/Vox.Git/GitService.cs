@@ -375,19 +375,53 @@ public sealed class GitService
         return repo.Commit(message, signature, signature);
     }
 
+    /// <summary>推送分支：HTTPS remote 走 PAT 凭据（LibGit2）；SSH remote（git@host / ssh://）LibGit2 无法代填
+    /// 密钥凭据，直接交给系统 git 命令行（用户已配置的 agent / 密钥生效）——此前 SSH 仓库推送恒失败且被
+    /// 上层吞成「服务未连接」（2026-11-15 实机复现后修复）。</summary>
     public void Push(string pat, string remoteName = "origin", string? branch = null)
     {
-        using var repo = new Repository(_repoRoot);
-        var remote = repo.Network.Remotes[remoteName];
-        var pushRef = $"refs/heads/{branch ?? repo.Head.FriendlyName}";
-        repo.Network.Push(remote, pushRef, new PushOptions
+        using (var repo = new Repository(_repoRoot))
         {
-            CredentialsProvider = (_, _, _) => new UsernamePasswordCredentials
+            var remote = repo.Network.Remotes[remoteName];
+            var pushRef = $"refs/heads/{branch ?? repo.Head.FriendlyName}";
+            if (remote.Url.StartsWith("git@", StringComparison.OrdinalIgnoreCase) ||
+                remote.Url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase))
             {
-                Username = pat,
-                Password = string.Empty,
-            },
-        });
+                PushViaSystemGit(remoteName, pushRef);
+                return;
+            }
+            repo.Network.Push(remote, pushRef, new PushOptions
+            {
+                CredentialsProvider = (_, _, _) => new UsernamePasswordCredentials
+                {
+                    Username = pat,
+                    Password = string.Empty,
+                },
+            });
+        }
+    }
+
+    /// <summary>系统 git 命令行推送：SSH 密钥/凭据管理器由用户环境自理；失败抛出真实 stderr（不再静默）。</summary>
+    private void PushViaSystemGit(string remoteName, string pushRef)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "git",
+            Arguments = $"push {remoteName} {pushRef}",
+            WorkingDirectory = _repoRoot,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var process = System.Diagnostics.Process.Start(psi)!;
+        var error = process.StandardError.ReadToEnd();
+        process.WaitForExit(120_000);
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(error) ? $"git push 退出码 {process.ExitCode}" : error.Trim());
+        }
     }
 }
 

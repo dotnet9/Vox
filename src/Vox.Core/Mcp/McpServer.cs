@@ -79,8 +79,9 @@ public sealed partial class McpServer
         return new ListToolsResult { Tools = tools };
     }
 
-    /// <summary>tools/call：按名称分发到工具实现；写入工具先经 Vox 应用内确认，全程审计。</summary>
-    public async Task<CallToolResult> CallTool(JsonObject? parameters, string client, CancellationToken ct)
+    /// <summary>tools/call：按名称分发到工具实现；写入工具先经 Vox 应用内确认，全程审计。
+    /// optionsOverride：进程内直调（内置 AI）的授权口径——外部客户端仍走 _options。</summary>
+    public async Task<CallToolResult> CallTool(JsonObject? parameters, string client, CancellationToken ct, McpOptions? optionsOverride = null)
     {
         var started = Stopwatch.GetTimestamp();
         var call = new CallState();
@@ -94,7 +95,7 @@ public sealed partial class McpServer
         {
             outcome = Fail($"未知工具：{name}", name);
         }
-        else if (!McpCatalog.IsVisible(tool, _options))
+        else if (!McpCatalog.IsVisible(tool, optionsOverride ?? _options))
         {
             outcome = Deny("工具在当前授权范围或开关下不可见。", tool.Name);
         }
