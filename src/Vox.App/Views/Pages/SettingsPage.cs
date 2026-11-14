@@ -38,14 +38,6 @@ public sealed class SettingsPage : UserControl
     private string? _selectedProviderId; // 供应商管理：当前选中项
     private readonly StackPanel providerListHost = new() { Spacing = 2 };
     private readonly ContentControl providerDetail = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch };
-    private readonly Border _mcpDot = new()
-    {
-        Width = 7,
-        Height = 7,
-        CornerRadius = new CornerRadius(4),
-        VerticalAlignment = VerticalAlignment.Center,
-    };
-    private readonly TextBlock _mcpState = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     private EventHandler<EventArgs>? _aboutVersionRefresh;
 
     public SettingsPage(MainWindow shell)
@@ -53,28 +45,19 @@ public sealed class SettingsPage : UserControl
         _shell = shell;
         BuildLayout();
         AppState.Instance.ScanChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshIndex);
-        McpService.StateChanged += OnMcpStateChanged;
-        McpService.CallAudited += OnMcpCallAudited;
         RefreshIndex();
         RefreshPat();
-        RefreshMcp();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        McpService.StateChanged -= OnMcpStateChanged;
-        McpService.CallAudited -= OnMcpCallAudited;
         if (_aboutVersionRefresh is not null)
         {
             I18nManager.Instance.CultureChanged -= _aboutVersionRefresh;
             _aboutVersionRefresh = null;
         }
     }
-
-    private void OnMcpStateChanged() => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshMcp);
-
-    private void OnMcpCallAudited(ToolAuditEntry entry) => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshMcp);
 
     private void BuildLayout()
     {
@@ -262,28 +245,8 @@ public sealed class SettingsPage : UserControl
         aiTab.Children.Add(llmCard.Host);
         RefreshProviderManager();
 
-        // ---------- MCP 服务 ----------
-        var mcpCard = Card("Vox.Settings.Mcp.Title", "Vox.Settings.Mcp.Desc");
-        var mcpOpen = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
-        mcpOpen[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Mcp.Configure");
-        mcpOpen.Click += (_, _) => _shell.ShowPage("mcp");
-        mcpCard.Add(Row("Vox.Settings.Mcp.Status", new StackPanel
-        {
-            Orientation = Orientation.Horizontal, Spacing = 8,
-            Children = { _mcpDot, _mcpState, mcpOpen },
-        }));
-        var confirmWrites = new TextBlock
-        {
-            FontSize = 11.5,
-            Text = T(AppState.Instance.Settings.McpConfirmWrites
-                ? "Vox.Settings.Mcp.ConfirmWritesOn"
-                : "Vox.Settings.Mcp.ConfirmWritesOff"),
-        };
-        Res(confirmWrites, TextBlock.ForegroundProperty, "VoxMuted");
-        mcpCard.Add(Row("Vox.Settings.Mcp.ConfirmWrites", confirmWrites));
-        aiTab.Children.Add(mcpCard.Host);
-
         // ---------- 关于 ----------
+        // （MCP 服务卡已移除：AI 分区不再重复 MCP 配置入口，2026-11-14 用户反馈；全部能力在左侧 MCP 服务页）
         // 描述行版本号实时取程序集 InformationalVersion（i18n 只留 {0} 占位）：旧串把 0.2.0-preview.4
         // 写死在四份语言 JSON、早已落后实际版本（2026-11-13）。
         var aboutCard = Card("Vox.Settings.About.Title", showTitle: false, desc: AboutVersionDesc());
@@ -771,23 +734,6 @@ public sealed class SettingsPage : UserControl
             list.Children.Add(row);
         }
         return list;
-    }
-
-    private void RefreshMcp()
-    {
-        var settings = AppState.Instance.Settings;
-        var running = McpService.IsRunning;
-        Res(_mcpDot, Border.BackgroundProperty, running ? "VoxOk" : "VoxFaint");
-        if (running)
-        {
-            var today = Vox.Core.ToolAuditStore.List(limit: 5000).Count(e => e.Time.Date == DateTime.Today);
-            _mcpState.Text = TF("Vox.Settings.Mcp.Running", settings.McpPort, McpService.Clients.Count, today);
-        }
-        else
-        {
-            _mcpState.Text = T(settings.McpEnabled ? "Vox.Settings.Mcp.Stopped" : "Vox.Settings.Mcp.Disabled");
-        }
-        Res(_mcpState, TextBlock.ForegroundProperty, running ? "VoxFg" : "VoxFaint");
     }
 
     private async Task TestLlmAsync(string providerId, string model)
