@@ -130,14 +130,6 @@
         <div class="wsrc" id="paneSrc">
           <div class="edscroll"><div class="gutter" id="gutter"></div><div class="elines" id="elines"></div></div>
           <div class="savestate pill" id="saveState" style="display:none"><b>已保存</b></div>
-          <button class="ai-trigger" id="btnAi" aria-expanded="false"><span class="spark">✦</span>AI 会话</button>
-          <section class="ai-pop ai-chat" id="aiPop" hidden>
-            <div class="ai-head">✦ AI 会话<span class="ai-model mono" id="aiModel" title="当前模型 · 设置页可换">glm-5.3-flash</span><span class="ai-clear" id="aiClear" title="清空会话">清空</span><span class="x" id="aiClose">×</span></div>
-            <div class="ai-ctx" id="aiCtx" hidden></div>
-            <div class="ai-msgs" id="aiMsgs"></div>
-            <div class="ai-chips"><span class="chip">续写本节</span><span class="chip">润色改写</span><span class="chip">生成摘要 description</span><span class="chip">起标题</span><span class="chip">翻译英文</span><span class="chip">图片补 alt</span></div>
-            <div class="ai-row"><input class="input" id="aiInput" placeholder="基于上下文提问或下指令，回车发送…"><button class="btn sm primary" id="aiSend">发送</button></div>
-          </section>
         </div>
         <div class="modeseg-float"><div class="seg" id="modeSeg">
           <button data-m="src" class="active">源码</button><button data-m="split">分屏</button><button data-m="prev">预览</button><button data-m="map">导图</button>
@@ -598,6 +590,15 @@
   </section>
 </div><!-- /main -->
 </div><!-- /app-body -->
+  <button class="ai-trigger" id="btnAi" aria-expanded="false"><span class="spark">✦</span>AI 会话</button>
+  <section class="ai-pop ai-chat" id="aiPop" hidden>
+    <div class="ai-head">✦ AI 会话<span class="ai-page mono" id="aiPage" title="AI 感知的当前工作区">写作</span><span class="ai-model mono" id="aiModel" title="当前模型 · 设置页可换">glm-5.3-flash</span><span class="ai-clear" id="aiClear" title="清空会话">清空</span><span class="x" id="aiClose">×</span></div>
+    <div class="ai-ctx" id="aiCtx" hidden></div>
+    <div class="ai-msgs" id="aiMsgs"></div>
+    <div class="ai-chips"><span class="chip">续写本节</span><span class="chip">润色改写</span><span class="chip">生成摘要 description</span><span class="chip">起标题</span><span class="chip">翻译英文</span><span class="chip">图片补 alt</span></div>
+    <div class="ai-row"><input class="input" id="aiInput" placeholder="基于上下文提问或下指令，回车发送…"><button class="btn sm primary" id="aiSend">发送</button></div>
+  </section>
+
 </div><!-- /appwin -->
 
 <!-- ============ 弹层：新建文章向导 ============ -->
@@ -821,15 +822,21 @@ draft: true
   <div class="mf"><button class="btn" onclick="closeModal('mAbout')">关闭</button><button class="btn primary" onclick="closeModal('mAbout');openUpdateCheck()">检查更新…</button></div>
 </div></div>
 
+<!-- 全局 AI 会话（2026-11-14 重设计）：shell 级悬浮，全部工作区可用；上下文随当前工作区注入；
+     Agent 化——意图执行（新建/改名/删除文章、图片清理、发布状态等）复用 MCP 工具，操作以结果卡片回显 -->
+
 <div id="toastWrap" class="toast-wrap" role="status" aria-live="polite"></div>
 
 <script>
 const $=id=>document.getElementById(id);
 /* ---------- 视图切换 ---------- */
 const titles={write:['写作','dotnet-native-aot-win7-skia-dependency.md'],library:['文章库','37 篇 · 全库浏览与筛选'],images:['图片库','259 张图片 · 引用与未引用管理'],publish:['发布中心','多平台矩阵 · 发布前检查'],site:['站点数据','site/*.json · 仅 zh-CN'],mcp:['MCP 服务','本机 AI 接口 · 18 个工具 · 调用审计'],settings:['设置']};
+var aiPageNames={write:"写作",library:"文章库",images:"图片库",publish:"发布中心",site:"站点数据",mcp:"MCP 服务",settings:"设置"};
 document.querySelectorAll('.nav .it').forEach(it=>it.onclick=()=>{
   document.querySelectorAll('.nav .it').forEach(x=>x.classList.toggle('active',x===it));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+it.dataset.view));
+  var pg=document.getElementById('aiPage');
+  if(pg&&aiPageNames)pg.textContent=aiPageNames[it.dataset.view]||it.dataset.view;
 });
 /* ---------- 分屏模式 ---------- */
 const panes={src:document.getElementById('paneSrc'),prev:document.getElementById('panePrev'),map:document.getElementById('paneMap')};
@@ -3139,10 +3146,12 @@ function aiOpen(open){
   if(open){aiSyncModel();aiScroll();$('aiInput').focus();}
 }
 function aiSeed(){
-  aiNote('会话已就绪 · 模型走设置页「大模型」通道 · 正文选中文字（或右键选段落）→「添加到会话」→ 直接提问');
-  var tool='<div class="ai-tool"><span class="badge ok">ok</span><span class="mono">article_list</span><span>关键词 SkiaSharp · 返回 2 / 37 · 0.4s</span></div>';
-  var u=document.createElement('div');u.className='ai-msg user';u.innerHTML='<div>库里有哪几篇提到 SkiaSharp？</div>';
-  var b=document.createElement('div');b.className='ai-msg bot';b.innerHTML=tool+'<div>2 篇：<br>1.《.NET Native AOT 依赖 Win7：Skia 依赖链排查记》（当前文章）；<br>2.《Avalonia 自绘控件的渲染管线剖析》—— 渲染层引用了 Skia。<br>改写/续写类指令会先出 diff 预览，采纳才写入正文。</div>';
+  aiNote('会话已就绪 · 全工作区可用：提问、下指令（新建/改名/删除文章、图片清理、发布…），操作以结果卡片回显');
+  // 意图执行示例：article_create 工具卡片 + 操作结果卡片（原型口径：工具调用以 .ai-tool 回显，写操作附打开入口）
+  var tool='<div class="ai-tool"><span class="badge ok">ok</span><span class="mono">article_create</span><span>标题「.NET 11 新特性速览」 · 落位 2026/11 · 0.2s</span></div>';
+  var act='<div class="ai-act"><span class="badge ok">已创建</span><span class="mono vlink" title="点击文件名打开（实现内）">2026/11/dotnet-11-highlights.md</span><span>正文 1,024 字 · 草稿</span></div>';
+  var u=document.createElement('div');u.className='ai-msg user';u.innerHTML='<div>写一篇 .NET 11 新特性速览的文章，1000 字左右</div>';
+  var b=document.createElement('div');b.className='ai-msg bot';b.innerHTML=tool+act+'<div>已按你的要求创建草稿（见上卡片，点击文件名打开）。要点：C# 14 / AOT 改进 / ASP.NET 合并运行时。需要扩充某一节直接说。</div>';
   $('aiMsgs').appendChild(u);$('aiMsgs').appendChild(b);aiScroll();
 }
 $('btnAi').onclick=function(e){e.stopPropagation();aiOpen($('aiPop').hidden);};
