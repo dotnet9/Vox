@@ -92,7 +92,7 @@ public static class McpCatalog
               "path":{"type":"string","description":"图片仓库相对路径"}},
              "required":["path"]}
             """),
-        new("image_import", "image", "入库新图：网图下载 · 落位年月目录", false, false,
+        new("image_import", "image", "把网图下载入库（用户给 URL 要求下载/保存/入库图片时必用此工具，下载后落位年月目录）", false, false,
             """
             {"type":"object","properties":{
               "url":{"type":"string","description":"http(s) 图片地址"},

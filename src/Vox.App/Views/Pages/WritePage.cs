@@ -4959,7 +4959,9 @@ public sealed class WritePage : UserControl
     }
 
     private const string AiChatSystemSuffix =
-        "\n这是编辑器内的多轮会话：回答保持简洁、直接可用；若给出改写文本，只输出新文本本身，不要解释。";
+        "\n这是编辑器内的多轮会话：回答保持简洁、直接可用；若给出改写文本，只输出新文本本身，不要解释。" +
+        "\n涉及仓库操作（文章/图片/发布/Git）必须调用对应工具执行，严禁在未调用工具时向用户断言操作已完成；" +
+        "工具结果含错误或被拒绝时必须如实转述失败原因，不得编造成功结果。";
 
     private const int AiContextBudget = 30000; // 全文轮附加预算（Trae 口径上限；glm-5.3-flash 1M 上下文成本可忽略）
 
