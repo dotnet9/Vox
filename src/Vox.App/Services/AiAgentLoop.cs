@@ -64,9 +64,7 @@ public static class AiAgentLoop
     public static readonly string[] AllowedTools =
     [
         "article_list", "article_read", "article_search", "article_meta", "article_create",
-        // image_import 暂缓开放（2026-11-15 实测）：带 preview 的确认卡存在点击失效缺陷，
-        // 修复确认卡交互后再开放（工具实现与描述已就绪）。
-        "image_list", "image_usage",
+        "image_list", "image_usage", "image_import",
         "publish_status", "publish_check",
         "git_status", "git_commit", "git_push",
         "outline_read", "stats_summary",
