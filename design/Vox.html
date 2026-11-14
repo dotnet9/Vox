@@ -3148,7 +3148,7 @@ function aiOpen(open){
 function aiSeed(){
   aiNote('会话已就绪 · 全工作区可用：提问、下指令（新建/改名/删除文章、图片清理、发布…），操作以结果卡片回显');
   // 意图执行示例：article_create 工具卡片 + 操作结果卡片（原型口径：工具调用以 .ai-tool 回显，写操作附打开入口）
-  var tool='<div class="ai-tool"><span class="badge ok">ok</span><span class="mono">article_create</span><span>标题「.NET 11 新特性速览」 · 落位 2026/11 · 0.2s</span></div>';
+  var tool='<div class="ai-tool" title="点击打开文章（实现口径：文章卡开编辑器，图片卡跳图库，git/发布卡跳发布中心）"><span class="badge ok">ok</span><span class="mono">article_create</span><span>标题「.NET 11 新特性速览」 · 落位 2026/11 · 0.2s</span></div>';
   var act='<div class="ai-act"><span class="badge ok">已创建</span><span class="mono vlink" title="点击文件名打开（实现内）">2026/11/dotnet-11-highlights.md</span><span>正文 1,024 字 · 草稿</span></div>';
   var u=document.createElement('div');u.className='ai-msg user';u.innerHTML='<div>写一篇 .NET 11 新特性速览的文章，1000 字左右</div>';
   var b=document.createElement('div');b.className='ai-msg bot';b.innerHTML=tool+act+'<div>已按你的要求创建草稿（见上卡片，点击文件名打开）。要点：C# 14 / AOT 改进 / ASP.NET 合并运行时。需要扩充某一节直接说。</div>';
