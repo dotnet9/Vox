@@ -553,6 +553,8 @@
   "Vox.Library.Rename.Unchanged": "The name is unchanged",
   "Vox.Library.Rename.Failed": "Rename failed: {0}",
   "Vox.Library.Rename.ReopenFailed": "Renamed, but the editor could not be re-pointed automatically (reopen from the library)",
+  "Vox.Ai.Generating.Elapsed": "Generating… {0}s",
+  "Vox.Ai.Reasoning.ThinkingElapsed": "Thinking… {0}s",
   "Vox.Mcp.Audit.Start": "Service started",
   "Vox.Mcp.Audit.Stop": "Service stopped",
   "Vox.Mcp.Audit.Stopped": "Stopped",

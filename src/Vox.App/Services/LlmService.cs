@@ -143,7 +143,7 @@ public static class LlmService
         string system,
         IReadOnlyList<LlmChatTurn> turns,
         Action<string> onDelta,
-        int maxTokens = 1400,
+        int maxTokens = 8192, // glm-5.x 思考计入 max_tokens：1400 被 26 秒思考烧尽致 content 空（2026-11-14 实测"模型没有返回内容"根因），8192 给思考+正文留足预算
         TimeSpan? timeout = null,
         bool disableThinking = false,
         Action<string>? onReasoning = null,

@@ -553,6 +553,8 @@
   "Vox.Library.Rename.Unchanged": "名前は変更されていません",
   "Vox.Library.Rename.Failed": "名前変更に失敗：{0}",
   "Vox.Library.Rename.ReopenFailed": "変更は完了しましたが、エディタを自動で再リンクできませんでした（ライブラリから開き直してください）",
+  "Vox.Ai.Generating.Elapsed": "生成中… {0} 秒",
+  "Vox.Ai.Reasoning.ThinkingElapsed": "思考中… {0} 秒",
   "Vox.Mcp.Audit.Start": "サービス開始",
   "Vox.Mcp.Audit.Stop": "サービス停止",
   "Vox.Mcp.Audit.Stopped": "停止済み",

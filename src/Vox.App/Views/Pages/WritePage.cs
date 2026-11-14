@@ -4497,10 +4497,20 @@ public sealed class WritePage : UserControl
         _aiCts = new CancellationTokenSource();
 
         var botBody = AddAiBotBubble();
-        // 等待指示（原型三点动画的位置）：首段增量到达即摘除，网络首字延迟期间气泡不再空白
+        // 等待指示（ZCode「工作中 N 秒」口径）：实时计时；思考开始即让位（思考折叠条接管状态），
+        // 正文首增量摘除，流结束必摘（此前失败/停止分支不摘，占位残留在失败气泡里 2026-11-14 修复）。
         var pending = new TextBlock { Text = T("Vox.Ai.Generating"), FontSize = Fs(10.5) };
         Res(pending, TextBlock.ForegroundProperty, "VoxFaint");
         botBody.Children.Add(pending);
+        var pendingStart = DateTime.UtcNow;
+        var pendingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        pendingTimer.Tick += (_, _) => pending.Text = TF("Vox.Ai.Generating.Elapsed", (int)(DateTime.UtcNow - pendingStart).TotalSeconds);
+        pendingTimer.Start();
+        void RemovePending()
+        {
+            pendingTimer.Stop();
+            pending.IsVisible = false;
+        }
         // 思考折叠条（Trae/ZCode 口径）：推理模型（GLM reasoning_content / Anthropic thinking_delta）的思考增量
         // 汇总在此，思考中常显、正文到达后折叠；点击头部随时展开回看。
         var reasoning = BuildAiReasoningRow(botBody);
@@ -4521,14 +4531,18 @@ public sealed class WritePage : UserControl
                 // 网络线程回调：UI 侧摘等待指示 + 视口跟随流式内容（原型每个流式 tick 都滚到底）
                 Dispatcher.UIThread.Post(() =>
                 {
-                    pending.IsVisible = false;
+                    RemovePending();
                     reasoning.OnContentStarted();
                     if (_aiFollowTail) _aiMsgScroll.ScrollToEnd(); // 用户上滚阅读时暂停贴底，滚回底部自动恢复
                 });
             },
             cancellationToken: _aiCts.Token,
             disableThinking: !_aiThinking, // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
-            onReasoning: chunk => Dispatcher.UIThread.Post(() => reasoning.OnReasoning(chunk))); // 思考开关仅 GLM 生效（LlmService 仅 GLM 附带私有参数）
+            onReasoning: chunk => Dispatcher.UIThread.Post(() =>
+            {
+                RemovePending(); // 思考开始即让位（折叠条接管状态；与占位同显会被误读为重叠）
+                reasoning.OnReasoning(chunk);
+            }));
         stream.Complete();
         var partial = string.Empty;
         lock (gate)
@@ -4536,6 +4550,7 @@ public sealed class WritePage : UserControl
             partial = full.ToString();
         }
         var stopped = generation != _aiGeneration;
+        RemovePending(); // 失败/停止/完成全路径摘除占位（2026-11-14 修复残留）
         reasoning.OnFinished(result.Elapsed, stopped);
         _aiBusy = false;
         SetAiBusy(false);
@@ -4608,6 +4623,7 @@ public sealed class WritePage : UserControl
         private readonly Stopwatch _watch = Stopwatch.StartNew();
         private long _frozenSeconds = -1;
         private bool _expanded;
+        private readonly DispatcherTimer _liveTimer; // 思考中实时秒数（ZCode「工作中 N 秒」口径，2026-11-14）
 
         private readonly Border _content;
         private readonly TextBlock _contentText;
@@ -4641,6 +4657,20 @@ public sealed class WritePage : UserControl
                 },
             };
             _label = new TextBlock { Text = T("Vox.Ai.Reasoning.Thinking"), FontSize = _fontSize, VerticalAlignment = VerticalAlignment.Center };
+            _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _liveTimer.Tick += (_, _) =>
+            {
+                if (_frozenSeconds >= 0)
+                {
+                    _liveTimer.Stop();
+                    return;
+                }
+                lock (_gate)
+                {
+                    if (_text.Length == 0) return; // 思考未开始不动
+                }
+                _label.Text = TF("Vox.Ai.Reasoning.ThinkingElapsed", (long)_watch.Elapsed.TotalSeconds);
+            };
             _chevron = new LucideIcon { Kind = LucideIconKind.ChevronDown, Width = 12, Height = 12, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Center };
             var icon = new LucideIcon { Kind = LucideIconKind.BrainCog, Width = 14, Height = 14, StrokeThickness = 1.8, VerticalAlignment = VerticalAlignment.Center };
             Res(icon, LucideIcon.ForegroundProperty, "VoxMuted");
@@ -4676,11 +4706,13 @@ public sealed class WritePage : UserControl
                 _contentText.Text = _text.ToString();
             }
             Host.IsVisible = true;
+            _liveTimer.Start(); // 思考中实时秒数
         }
 
         /// <summary>正文首增量到达：折叠思考并定格用时（重复调用无副作用）。</summary>
         public void OnContentStarted()
         {
+            _liveTimer.Stop();
             if (_frozenSeconds >= 0) return;
             lock (_gate)
             {
@@ -4694,6 +4726,7 @@ public sealed class WritePage : UserControl
         /// <summary>流落定：停止态或无思考时收尾（隐藏行/定格标签），用户手动展开的保持展开。</summary>
         public void OnFinished(TimeSpan total, bool stopped)
         {
+            _liveTimer.Stop();
             lock (_gate)
             {
                 if (_text.Length == 0) return;

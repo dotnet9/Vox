@@ -553,6 +553,8 @@
   "Vox.Library.Rename.Unchanged": "名稱未變化",
   "Vox.Library.Rename.Failed": "重新命名失敗：{0}",
   "Vox.Library.Rename.ReopenFailed": "重新命名完成，但未能自動回指寫作頁（請從文章庫重新開啟）",
+  "Vox.Ai.Generating.Elapsed": "正在產生… {0} 秒",
+  "Vox.Ai.Reasoning.ThinkingElapsed": "思考中… {0} 秒",
   "Vox.Mcp.Audit.Start": "啟動服務",
   "Vox.Mcp.Audit.Stop": "停止服務",
   "Vox.Mcp.Audit.Stopped": "已停止",
