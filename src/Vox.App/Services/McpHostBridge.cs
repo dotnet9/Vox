@@ -36,7 +36,17 @@ public sealed class McpHostBridge : IMcpHost
             completion.TrySetResult(false);
             Dispatcher.UIThread.Post(() => Shell?.CloseModal());
         });
-        return await completion.Task.ConfigureAwait(false);
+        try
+        {
+            // 5 分钟无响应自动拒绝并撤卡（2026-11-15）：确认卡长期无人处理时不得永久挂起工具调用，
+            // 也不得留下僵尸弹层阻断后续确认（外部客户端有自己的请求超时，应用内直调此前无兜底）。
+            return await completion.Task.WaitAsync(TimeSpan.FromMinutes(5), ct).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            Dispatcher.UIThread.Post(() => Shell?.CloseModal());
+            return false;
+        }
     }
 
     /// <summary>外部写入后整库重扫（页面/索引/发布缓存随之刷新），与界面内保存同口径。</summary>
