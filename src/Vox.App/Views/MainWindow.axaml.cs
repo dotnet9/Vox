@@ -1078,12 +1078,13 @@ public partial class MainWindow : Window
 
     private string _currentKey = "write";
 
+    /// <summary>当前工作区 key（全局 AI 会话的页面感知依据）。</summary>
+    public string CurrentPageKey => _currentKey;
+
     public void ShowPage(string key)
     {
         _currentKey = key;
         PageHost.Content = GetPage(key);
-        System.IO.File.AppendAllText(@"D:\github\temp_files\uia\host-state.log",
-            "[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] ShowPage " + key + ": AiGlobalHost.Content=" + (AiGlobalHost.Content?.GetType().Name ?? "null") + Environment.NewLine);
         MarkActive(key);
     }
 

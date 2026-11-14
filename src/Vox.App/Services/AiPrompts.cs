@@ -10,6 +10,19 @@ public static class AiPrompts
 
     public static readonly string[] PresetKeys = ["Continue", "Polish", "Summary", "Title", "Translate", "Alt"];
 
+    /// <summary>工作区帮助注册表（全局 AI 会话页面感知，2026-11-14）：key 对应 MainWindow 工作区。
+    /// 内容对齐《软件操作手册》各章——AI 回答"这个界面怎么用"时以此为据，不臆测。</summary>
+    public static readonly IReadOnlyDictionary<string, string> PageHelp = new Dictionary<string, string>
+    {
+        ["write"] = "写作工作台：左侧文章列表（搜索/年月树），中部源码/分屏/预览/导图四态，右侧元数据/大纲/图片面板；自动保存，Ctrl+S 手动保存；正文选中文字可加入 AI 会话作为引用上下文",
+        ["library"] = "文章库：统计卡（篇数/字数/图片/待发布）、筛选（年份/分类/状态/平台）、搜索（Ctrl+F）、表格列排序、行操作（编辑/重命名/删除）、分页；重命名与删除均为 Git 工作区操作可回滚",
+        ["images"] = "图片库：统计、筛选（年份/引用/格式）、排序（路径/文件名/大小/引用数）、搜索、缩略图墙（点选批量操作：复制路径/删除）、引用详情、未引用图片清理、图片入库（本地/网图 URL）",
+        ["publish"] = "发布中心：网站 Git 同步（变更列表/diff/提交信息/提交推送，Ctrl+Enter 快捷提交）、多平台状态矩阵（点击文章名跳编辑）、发布前检查、发布历史（双击行打开发布框）；平台 API 未配置时降级复制助手",
+        ["site"] = "站点数据：site/*.json 左列表 + 右表格/原文编辑；脏标记（标题●）与切换守卫防丢失，Ctrl+S 保存；删除供应商/条目走确认流",
+        ["mcp"] = "MCP 服务：服务启停与端口/令牌配置（本机 127.0.0.1，Bearer 鉴权）、授权范围、客户端接入、工具目录、调用审计（分页筛导出）；写操作确认策略",
+        ["settings"] = "设置：仓库/自动保存/大纲序号、链接策略（引用形态/域名映射）、Git 凭据、平台账户、模型供应商管理（添加供应商→配 Key→启用）、AI 助手开关、外观/语言/密度",
+    };
+
     public const string SystemPrompt =
         "你是资深中文技术博客编辑，为作者的 Markdown 文章提供可直接采用的改稿结果。" +
         "严格遵守：只输出结果本身，不解释、不加前后缀、不包裹代码围栏（除非原文就是代码）；保持 Markdown 结构与技术术语准确。";

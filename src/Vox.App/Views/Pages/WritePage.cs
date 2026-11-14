@@ -4960,8 +4960,18 @@ public sealed class WritePage : UserControl
     private string BuildAiChatUserContent(string input)
     {
         var builder = new StringBuilder(input);
+        var pageKey = _shell.CurrentPageKey;
         var body = _editorView.Text ?? string.Empty;
         var map = BuildArticleMap(body);
+
+        // 非写作页（全局会话）：注入当前界面帮助，模型据此回答"这个界面怎么用"；
+        // 文章正文/选区仅在写作页相关——其他页不附正文，避免无关上下文。
+        if (pageKey != "write")
+        {
+            if (AiPrompts.PageHelp.TryGetValue(pageKey, out var help))
+                builder.Append("\n\n[当前界面] ").Append(help);
+            return builder.ToString();
+        }
 
         if (_aiCtx.Count == 0)
         {
