@@ -218,8 +218,9 @@ public sealed class PublishPage : UserControl
         _changeCount.VerticalAlignment = VerticalAlignment.Center;
         _checkAll.VerticalAlignment = VerticalAlignment.Center;
         changeHead.Children.Add(_checkAll.Dock(Dock.Right));
-        changeHead.Children.Add(_changeCount.Dock(Dock.Left));
+        // 原型口径：标题在前、计数徽标紧随（Changes 0），Dock.Left 按添加顺序排列
         changeHead.Children.Add(title);
+        changeHead.Children.Add(_changeCount.Dock(Dock.Left));
         _checkAll.IsCheckedChanged += (_, _) =>
         {
             if (_syncingCheckAll) return;
