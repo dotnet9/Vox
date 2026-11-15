@@ -25,6 +25,7 @@ public sealed class SiteDataPage : UserControl
     private string? _selectedFile;
     private JsonObject? _root;
     private string? _originalJson;
+    private bool _wrappedArray; // 顶层是数组时包装为 {"__top": [...]} 复用数组编辑器，保存时解包
     private bool _dirty; // 编辑未保存标记：单元格回写/原文改动/增删行置位，切换守卫与自动保存依据
 
     public SiteDataPage(MainWindow shell)
@@ -212,17 +213,18 @@ public sealed class SiteDataPage : UserControl
             }
         }
         // 主数组为空（行已删光）或非数组结构：内存态直接进原文编辑，不再回读磁盘
+        var rawSnapshot = _root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         var raw = new TextBox
         {
             Classes = { "vinput" },
-            Text = _root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
+            Text = rawSnapshot,
             AcceptsReturn = true, IsReadOnly = false,
             FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace"),
             FontSize = 11, MinHeight = 320,
             TextWrapping = TextWrapping.NoWrap,
             Tag = "raw",
         };
-        raw.TextChanged += (_, _) => _dirty = true;
+        raw.TextChanged += (_, _) => { if (raw.Text != rawSnapshot) _dirty = true; };
         _contentHost.Children.Add(raw);
         MarkDirty();
     }
@@ -238,6 +240,7 @@ public sealed class SiteDataPage : UserControl
     {
         _selectedFile = relativePath;
         _root = null;
+        _wrappedArray = false;
         _dirty = false;
         _warnHost.Children.Clear(); // 切换文件清空上次的保存校验提醒
         foreach (var child in _navHost.Children.OfType<Button>())
@@ -268,7 +271,18 @@ public sealed class SiteDataPage : UserControl
         try
         {
             var node = JsonNode.Parse(File.ReadAllText(localPath));
-            if (node is JsonObject root) _root = root;
+            // 顶层数组的站点文件（categories/friend-links 等就是数组）此前直接判「解析失败」不可编辑——
+            // 包装成单键对象复用数组编辑器，保存时解包还原顶层结构（2026-11-15 实测缺陷）。
+            _wrappedArray = false;
+            if (node is JsonObject root)
+            {
+                _root = root;
+            }
+            else if (node is JsonArray topArray)
+            {
+                _root = new JsonObject { ["__top"] = topArray.DeepClone() };
+                _wrappedArray = true;
+            }
         }
         catch
         {
@@ -292,17 +306,19 @@ public sealed class SiteDataPage : UserControl
         }
 
         // 其他结构：原文编辑
+        var originalRaw = File.ReadAllText(localPath);
         var text = new TextBox
         {
             Classes = { "vinput" },
-            Text = File.ReadAllText(localPath),
+            Text = originalRaw,
             AcceptsReturn = true, IsReadOnly = false,
             FontFamily = Avalonia.Media.FontFamily.Parse("Geist Mono, Cascadia Code, Consolas, monospace"),
             FontSize = 11, MinHeight = 320,
             TextWrapping = TextWrapping.NoWrap,
             Tag = "raw",
         };
-        text.TextChanged += (_, _) => MarkDirty();
+        // 挂树后模板初始化会触发一次噪声 TextChanged（值等于初始文本）：比对初始内容，只有真改过才标脏
+        text.TextChanged += (_, _) => { if (text.Text != originalRaw) MarkDirty(); };
         _contentHost.Children.Add(text);
     }
 
@@ -377,8 +393,15 @@ public sealed class SiteDataPage : UserControl
                     Text = element[prop]?.ToString() ?? string.Empty,
                 };
                 var captured = element;
+                // 编辑判定用 TextChanged 置位、LostFocus 仅消费：切换文件时容器 Clear 让旧单元格
+                // detach 也会触发 LostFocus——无编辑守卫下会被误标脏，下次切换就弹「放弃修改」
+                // （2026-11-15 用户实测：只切文件未改任何内容却确认框频出）。
+                var edited = false;
+                box.TextChanged += (_, _) => edited = true;
                 box.LostFocus += (_, _) =>
                 {
+                    if (!edited) return; // 只是焦点路过（含重建引发的 detach），无编辑不回写不标脏
+                    edited = false;
                     // 回写口径修复：此前仅「空白或纯数字」才回写——友链名称/URL 等文本编辑全部丢失，
                     // 且数字一律写成字符串。现按原值类型保真：原数字且可解析则保持数字，其余写字符串。
                     if (string.IsNullOrWhiteSpace(box.Text))
@@ -603,7 +626,10 @@ public sealed class SiteDataPage : UserControl
             }
             else if (_root != null)
             {
-                json = _root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+                // 包装态（顶层数组文件）：只输出数组本身，保持磁盘文件顶层结构不变
+                json = _wrappedArray && _root["__top"] is JsonArray top
+                    ? top.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+                    : _root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             }
             else
             {
