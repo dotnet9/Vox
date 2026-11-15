@@ -37,7 +37,7 @@ public sealed class PublishPage : UserControl
     private readonly StackPanel _siteTab = new();
     private readonly StackPanel _matrixTab = new();
     private readonly StackPanel _checkTab = new();
-    private readonly TextBlock _pubSummary = new();
+    private readonly StackPanel _pubSummary = new() { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
     private readonly TKCode.Arc.SegmentedControl _tabs = new() { HorizontalAlignment = HorizontalAlignment.Left };
 
     // git 标签
@@ -45,8 +45,8 @@ public sealed class PublishPage : UserControl
     private readonly Border _aheadBadge = new() { Classes = { "badge", "ok" }, IsVisible = false, Child = new TextBlock() };
     private readonly Border _behindBadge = new() { Classes = { "badge", "warn" }, IsVisible = false, Child = new TextBlock() };
     private readonly TextBlock _syncState = new();
-    private readonly ArcButton _pullButton = new() { Variant = ArcButtonVariant.Secondary, IsVisible = false };
-    private readonly ArcButton _pushButton = new() { Variant = ArcButtonVariant.Primary, IsVisible = false };
+    private readonly ArcButton _pullButton = new() { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, IsVisible = false };
+    private readonly ArcButton _pushButton = new() { Variant = ArcButtonVariant.Primary, Size = ArcControlSize.Small, IsVisible = false };
     private readonly Border _changeCount = new() { Classes = { "badge" }, Child = new TextBlock { Text = "0" } };
     private readonly CheckBox _checkAll = new() { Classes = { "vcheck" }, IsChecked = true };
     private StackPanel _changeList = new();
@@ -148,8 +148,6 @@ public sealed class PublishPage : UserControl
         };
 
         var tabsRow = new DockPanel { Margin = new Thickness(0, 0, 0, 12), Children = { seg } };        var summaryHost = new DockPanel { Children = { _pubSummary } };
-        Res(_pubSummary, TextBlock.ForegroundProperty, "VoxMuted");
-        _pubSummary.FontSize = 11.5;
         tabsRow.Children.Add(summaryHost.Dock(Dock.Right));
 
         root.Children.Add(tabsRow.Dock(Dock.Top));
@@ -182,6 +180,7 @@ public sealed class PublishPage : UserControl
         Res(fork, TextBlock.ForegroundProperty, "VoxMuted");
         _branchName.FontWeight = FontWeight.SemiBold;
         _branchName.FontSize = 12.5;
+        _branchName.FontFamily = new Avalonia.Media.FontFamily("Geist Mono, Cascadia Code, Consolas, monospace"); // 分支名用 mono 字体（原型口径）
         var mainBadge = new Border { Classes = { "badge" }, Child = _branchName };
         branchRow.Children.Add(fork);
         branchRow.Children.Add(mainBadge);
@@ -200,7 +199,8 @@ public sealed class PublishPage : UserControl
             Margin = new Thickness(0, 0, 0, 14),
             Child = new DockPanel
             {
-                Children = { _pullButton.Dock(Dock.Right), _pushButton.Dock(Dock.Right), branchRow },
+                // Dock.Right 先添加者在最右：推送靠右、拉取在其左（原型口径）
+                Children = { _pushButton.Dock(Dock.Right), _pullButton.Dock(Dock.Right), branchRow },
             },
         };
         Res(top, Border.BackgroundProperty, "VoxSurface");
@@ -265,6 +265,18 @@ public sealed class PublishPage : UserControl
             HorizontalAlignment = HorizontalAlignment.Right,
             Children = { _diffModeSwitch },
         };
+        // diff 空态占位：未选文件时的 faint 提示（RenderDiff 填充时 Children.Clear 自然覆盖）
+        var diffPlaceholder = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 320,
+            Margin = new Thickness(0, 16, 0, 16),
+        };
+        diffPlaceholder[!TextBlock.TextProperty] = I18n.Bind("Vox.Sync.Diff.Placeholder");
+        Res(diffPlaceholder, TextBlock.ForegroundProperty, "VoxFaint");
+        _diffHost.Children.Add(diffPlaceholder);
         var diffScroll = new ScrollViewer { MaxHeight = 260, Content = _diffHost };
         diffBorder.Child = new DockPanel { Children = { diffToggle.Dock(Dock.Top), diffScroll } };
 
@@ -333,6 +345,7 @@ public sealed class PublishPage : UserControl
         var detailButton = new ArcButton
         {
             Variant = ArcButtonVariant.Ghost,
+            Size = ArcControlSize.Small,
             Margin = new Thickness(0, 6, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Left,
         };
@@ -1592,22 +1605,21 @@ public sealed class PublishPage : UserControl
         };
         hint[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Matrix.Hint");
         Res(hint, TextBlock.ForegroundProperty, "VoxFaint");
+        // 图例说明：去胶囊化（无底色无边框，仅 muted 文本 + 少量内边距）
         var hintPill = new Border
         {
-            Padding = new Thickness(12, 9),
-            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(4, 0),
             Margin = new Thickness(0, 10, 0, 0),
             Child = hint,
         };
-        Res(hintPill, Border.BackgroundProperty, "VoxSurface2");
         _matrixTab.Children.Add(hintPill);
     }
 
-    /// <summary>汇总卡（原型 .vox-pub-stat：padding 13×15 · 圆角 10 · n 1.65rem/700 · k 0.76rem muted）。</summary>
+    /// <summary>汇总卡（原型 .vox-pub-stat：padding 13×15 · 圆角 10 · n 19px/600 · k 0.76rem muted）。</summary>
     private static Border StatCard(TextBlock number, string labelKey)
     {
-        number.FontSize = 21.5;
-        number.FontWeight = FontWeight.Bold;
+        number.FontSize = 19;
+        number.FontWeight = FontWeight.SemiBold;
         Res(number, TextBlock.ForegroundProperty, "VoxFg");
         var label = new TextBlock { FontSize = 10, Margin = new Thickness(0, 3, 0, 0) };
         label[!TextBlock.TextProperty] = I18n.Bind(labelKey);
@@ -1624,10 +1636,10 @@ public sealed class PublishPage : UserControl
         return card;
     }
 
-    /// <summary>待处理任务队列卡（原型 .vox-pub-queue/-h/-task：圆角 10 · 头 13×15 surface-2 · 行 12×15 hover）。</summary>
+    /// <summary>待处理任务队列卡（原型 .vox-pub-queue/-h/-task：圆角 12 · 头 13×15 surface-2 · 行 12×15 hover）。</summary>
     private void BuildQueueCard()
     {
-        _queueCard.CornerRadius = new CornerRadius(10);
+        _queueCard.CornerRadius = new CornerRadius(12);
         _queueCard.Margin = new Thickness(0, 0, 0, 16);
         Res(_queueCard, Border.BackgroundProperty, "VoxSurface");
         Res(_queueCard, Border.BorderBrushProperty, "VoxLine");
@@ -1640,7 +1652,7 @@ public sealed class PublishPage : UserControl
         var orderHint = new TextBlock { FontSize = 10.5, Margin = new Thickness(10, 0, 0, 0) };
         orderHint[!TextBlock.TextProperty] = I18n.Bind("Vox.Publish.Queue.Hint");
         Res(orderHint, TextBlock.ForegroundProperty, "VoxMuted");
-        _queueViewAll = new ArcButton { Variant = ArcButtonVariant.Secondary, FontSize = 11 };
+        _queueViewAll = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, FontSize = 11 };
         _queueViewAll.Click += (_, _) =>
         {
             // 跳矩阵并带筛选：切到多平台标签 + 状态筛选切到「仅待处理」
@@ -1714,6 +1726,7 @@ public sealed class PublishPage : UserControl
             var button = new ArcButton
             {
                 Variant = status == PublishStatus.Error ? ArcButtonVariant.Danger : ArcButtonVariant.Primary,
+                Size = ArcControlSize.Small,
                 FontSize = 11,
                 Content = status switch
                 {
@@ -1859,7 +1872,7 @@ public sealed class PublishPage : UserControl
             }
 
             var ops = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 14, 0) };
-            var publishButton = new ArcButton { Variant = ArcButtonVariant.Primary, Content = T("Vox.Publish.Action.Publish") };
+            var publishButton = new ArcButton { Variant = ArcButtonVariant.Primary, Size = ArcControlSize.Small, Content = T("Vox.Publish.Action.Publish") };
             publishButton.Click += (_, _) => _shell.ShowModal(new PublishDialog(_shell, article));
             ops.Children.Add(publishButton);
             grid.Children.Add(ops);
@@ -1995,7 +2008,7 @@ public sealed class PublishPage : UserControl
                     "Draft" => T("Vox.Publish.Check.View"),
                     _ => T("Vox.Publish.Check.View"),
                 };
-                action = new ArcButton { Variant = ArcButtonVariant.Primary, Content = label };
+                action = new ArcButton { Variant = ArcButtonVariant.Primary, Size = ArcControlSize.Small, Content = label };
                 var capturedKey = rule.Key;
                 action.Click += (_, _) =>
                 {
@@ -2339,11 +2352,36 @@ public sealed class PublishPage : UserControl
         var stale = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Stale));
         var off = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Off));
         var err = rows.Sum(r => r.Channels.Count(c => c.Status == PublishStatus.Error));
-        _pubSummary.Text = TF("Vox.Publish.Summary", ok, stale, off, err);
+        // 汇总条：4 组彩色计数（点用语义色、数字 SemiBold、标签 muted），替代单条 muted 文本
+        _pubSummary.Children.Clear();
+        _pubSummary.Children.Add(SummaryGroup(StatusGlyph(PublishStatus.Ok), ok, "VoxOk", "Vox.Publish.Status.Ok"));
+        _pubSummary.Children.Add(SummaryGroup(StatusGlyph(PublishStatus.Stale), stale, "VoxWarn", "Vox.Publish.Status.Stale"));
+        _pubSummary.Children.Add(SummaryGroup(StatusGlyph(PublishStatus.Off), off, "VoxMuted", "Vox.Publish.Status.Off"));
+        _pubSummary.Children.Add(SummaryGroup(StatusGlyph(PublishStatus.Error), err, "VoxDanger", "Vox.Publish.Status.Error"));
         // 四状态汇总卡与汇总条同源（原型 .vox-pub-overview）
         _statOk.Text = ok.ToString();
         _statStale.Text = stale.ToString();
         _statOff.Text = off.ToString();
         _statErr.Text = err.ToString();
+    }
+
+    /// <summary>汇总条单组彩色计数：语义色点 + SemiBold 数字 + muted 标签（文案/颜色随主题热切换）。</summary>
+    private static StackPanel SummaryGroup(string glyph, int count, string glyphColor, string labelKey)
+    {
+        var dot = new TextBlock { Text = glyph, FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
+        Res(dot, TextBlock.ForegroundProperty, glyphColor);
+        var num = new TextBlock
+        {
+            Text = count.ToString(), FontSize = 11.5, FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(num, TextBlock.ForegroundProperty, "VoxFg");
+        var label = new TextBlock { Text = T(labelKey), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
+        Res(label, TextBlock.ForegroundProperty, "VoxMuted");
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 4,
+            Children = { dot, num, label },
+        };
     }
 }

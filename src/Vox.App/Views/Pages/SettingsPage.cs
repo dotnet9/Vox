@@ -168,7 +168,7 @@ public sealed class SettingsPage : UserControl
         var normalizeInfo = new TextBlock();
         normalizeInfo[!TextBlock.TextProperty] = I18n.Bind("Vox.Settings.Link.NormalizeHint");
         Res(normalizeInfo, TextBlock.ForegroundProperty, "VoxMuted");
-        var gotoCheck = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
+        var gotoCheck = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(10, 0, 0, 0) };
         gotoCheck[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Link.GotoCheck");
         gotoCheck.Click += (_, _) => _shell.ShowPage("publish");
         linkCard.Add(Row("Vox.Settings.Link.NormalizeRow", new StackPanel
@@ -181,7 +181,7 @@ public sealed class SettingsPage : UserControl
         // ---------- git 与凭据 ----------
         var gitCard = Card("Vox.Settings.Git.Title", "Vox.Settings.Git.CardDesc");
         _patInfo.FontSize = 12;
-        var patTest = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(8, 0, 0, 0) };
+        var patTest = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(8, 0, 0, 0) };
         patTest[!ArcButton.ContentProperty] = I18n.Bind("Vox.Common.Action.Test");
         patTest.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.Git.TestInPublish"));
         gitCard.Add(Row("Vox.Settings.Git.Pat", new StackPanel
@@ -217,7 +217,7 @@ public sealed class SettingsPage : UserControl
         llmCard.Add(managerGrid);
 
         // 描述行右侧挂"添加供应商"（ZCode 口径：页头右上，2026-11-14 用户反馈从底部移上来）
-        var addProvider = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small };
+        var addProvider = new ArcButton { Variant = ArcButtonVariant.Primary, Size = ArcControlSize.Small };
         addProvider[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Llm.AddProvider");
         var addProviderPop = new ArcPopover { Placement = ArcPopoverPlacement.Bottom, Alignment = ArcPopoverAlignment.End };
         ArcPopover.SetAttach(addProvider, addProviderPop);
@@ -263,7 +263,7 @@ public sealed class SettingsPage : UserControl
         // 描述行版本号实时取程序集 InformationalVersion（i18n 只留 {0} 占位）：旧串把 0.2.0-preview.4
         // 写死在四份语言 JSON、早已落后实际版本（2026-11-13）。
         var aboutCard = Card("Vox.Settings.About.Title", showTitle: false, desc: AboutVersionDesc());
-        var checkUpdate = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
+        var checkUpdate = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(10, 0, 0, 0) };
         checkUpdate[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.About.CheckUpdate");
         // 检查更新与标题栏药丸/帮助菜单共用同一更新会话（单一数据源）：开窗恢复现场或重新检查。
         checkUpdate.Click += (_, _) => Services.UpdateSession.Instance.OpenFromMenu();
@@ -272,7 +272,7 @@ public sealed class SettingsPage : UserControl
             Orientation = Orientation.Horizontal,
             Children = { Desc("Vox.Settings.About.Update"), checkUpdate },
         }));
-        var uninstall = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
+        var uninstall = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(10, 0, 0, 0) };
         uninstall[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.About.Uninstall");
         uninstall.Click += (_, _) => _shell.ShowToast(T("Vox.Settings.About.UninstallHint"));
         aboutCard.Add(Row("Vox.Settings.About.UninstallRow", new StackPanel
@@ -427,21 +427,17 @@ public sealed class SettingsPage : UserControl
 
     private Control PlatformRow(string nameKey, string detailKey, bool configured)
     {
-        var info = new TextBlock { FontSize = 12 };
+        var info = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         info[!TextBlock.TextProperty] = I18n.Bind(detailKey);
         Res(info, TextBlock.ForegroundProperty, "VoxMuted");
-        var stateText = new TextBlock();
-        stateText[!TextBlock.TextProperty] = I18n.Bind(configured ? "Vox.Settings.Platform.Configured" : "Vox.Settings.Platform.NotConfigured");
-        var stateBadge = new Border
-        {
-            Classes = { "badge", configured ? "ok" : string.Empty },
-            Margin = new Thickness(8, 0, 0, 0),
-            Child = stateText,
-        };
-        var configure = new ArcButton { Variant = ArcButtonVariant.Secondary, Margin = new Thickness(10, 0, 0, 0) };
+        var stateText = new TextBlock { Text = T(configured ? "Vox.Settings.Platform.Configured" : "Vox.Settings.Platform.NotConfigured") };
+        // 状态是小徽标（badge 类），不是与动作按钮等高的胶囊：空字符串 class 会污染样式匹配，分支显式添加
+        var stateBadge = new Border { Classes = { "badge" }, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = stateText };
+        if (configured) stateBadge.Classes.Add("ok");
+        var configure = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         configure[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Platform.Configure");
         configure.Click += (_, _) => _shell.ShowModal(new PlatformCfgModal(_shell));
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { info, stateBadge, configure } };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center, Children = { info, stateBadge, configure } };
         return Row(nameKey, row);
     }
 
@@ -597,27 +593,32 @@ public sealed class SettingsPage : UserControl
             }
             RefreshProviderList();
         };
-        host.Children.Add(keyBox);
+        var test = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        test[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Llm.Test");
+        var firstModel = provider.Models.FirstOrDefault() ?? "gpt-4o";
+        test.Click += async (_, _) => await TestLlmAsync(provider.Id, firstModel);
+        // 原型口径：测试连接与 Key 同行（btn sm 紧跟输入），不再孤占一行
+        var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Children = { keyBox, test } };
+        host.Children.Add(keyRow);
         var keyHint = new TextBlock { Text = T("Vox.Settings.Llm.StoredIn"), FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0) };
         Res(keyHint, TextBlock.ForegroundProperty, "VoxFaint");
         host.Children.Add(keyHint);
 
-        var testRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
-        var test = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small };
-        test[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Llm.Test");
-        var firstModel = provider.Models.FirstOrDefault() ?? "gpt-4o";
-        test.Click += async (_, _) => await TestLlmAsync(provider.Id, firstModel);
-        testRow.Children.Add(test);
-        host.Children.Add(testRow);
-
         host.Children.Add(FieldLabel("Vox.Settings.Llm.ModelsLabel"));
+        // 模型清单 chip 化（ZCode 口径）：圆角胶囊 + mono 名 + 紧凑 ×，替代"裸文本 + 大按钮"行
+        var chipPanel = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
         foreach (var model in provider.Models.ToList())
         {
-            var modelRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 2, 0, 0) };
-            var modelName = new TextBlock { Text = model, FontFamily = new Avalonia.Media.FontFamily("Cascadia Code, Geist Mono, Consolas, monospace"), FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
+            var modelName = new TextBlock
+            {
+                Text = model,
+                FontFamily = new Avalonia.Media.FontFamily("Cascadia Code, Geist Mono, Consolas, monospace"),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0),
+            };
             Res(modelName, TextBlock.ForegroundProperty, "VoxFg");
-            modelRow.Children.Add(modelName);
-            var removeModel = new ArcButton { Variant = ArcButtonVariant.Ghost, Size = ArcControlSize.Small, Content = "\u00d7" };
+            var removeModel = new ArcButton { Variant = ArcButtonVariant.Text, Content = "\u00d7", FontSize = 12, Margin = new Thickness(6, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center };
             removeModel.Click += (_, _) =>
             {
                 if (provider.Models.Count <= 1)
@@ -633,15 +634,22 @@ public sealed class SettingsPage : UserControl
                 }
                 RefreshProviderDetail();
             };
-            Grid.SetColumn(removeModel, 1);
-            modelRow.Children.Add(removeModel);
-            host.Children.Add(modelRow);
+            var chip = new Border
+            {
+                Classes = { "badge" },
+                Margin = new Thickness(0, 0, 6, 6),
+                Padding = new Thickness(0, 0, 4, 0),
+                Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { modelName, removeModel } },
+            };
+            chipPanel.Children.Add(chip);
         }
-        var addModelRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 6, 0, 0) };
-        var addModelBox = new TextBox { Classes = { "vinput" }, FontSize = 11.5 };
+        host.Children.Add(chipPanel);
+
+        var addModelRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 4, 0, 0) };
+        var addModelBox = new TextBox { Classes = { "vinput" }, FontSize = 11.5, MinHeight = 36 };
         addModelBox[!TextBox.PlaceholderTextProperty] = I18n.Bind("Vox.Settings.Llm.ModelNamePh");
         addModelRow.Children.Add(addModelBox);
-        var addModel = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(6, 0, 0, 0) };
+        var addModel = new ArcButton { Variant = ArcButtonVariant.Secondary, Size = ArcControlSize.Small, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         addModel[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Llm.AddModel");
         addModel.Click += (_, _) =>
         {
@@ -653,6 +661,7 @@ public sealed class SettingsPage : UserControl
                 return;
             }
             provider.Models.Add(model);
+            addModelBox.Text = string.Empty;
             SaveProviders();
             RefreshProviderDetail();
         };
@@ -660,7 +669,8 @@ public sealed class SettingsPage : UserControl
         addModelRow.Children.Add(addModel);
         host.Children.Add(addModelRow);
 
-        var remove = new ArcButton { Variant = ArcButtonVariant.Ghost, Size = ArcControlSize.Small, Margin = new Thickness(0, 14, 0, 0) };
+        // 危险动作有明确视觉语义：Danger + Small + 左对齐（此前 Ghost 文本居中，看起来像标题）
+        var remove = new ArcButton { Variant = ArcButtonVariant.Danger, Size = ArcControlSize.Small, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 16, 0, 0) };
         remove[!ArcButton.ContentProperty] = I18n.Bind("Vox.Settings.Llm.RemoveProvider");
         remove.Click += async (_, _) =>
         {

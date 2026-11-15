@@ -67,6 +67,7 @@ public sealed class McpPage : UserControl
     };
     private readonly Dictionary<McpAccessScope, Border> _scopeCards = new();
     private readonly Dictionary<McpAccessScope, RadioButton> _scopeRadios = new();
+    private readonly Dictionary<McpAccessScope, TextBlock> _scopeTitles = new();
     private readonly ToggleButton _confirmSwitch = new() { Classes = { "vswitch" } };
     private readonly ToggleButton _gitSwitch = new() { Classes = { "vswitch" } };
     private readonly TextBlock _resBadge = new() { FontSize = 10 };
@@ -78,7 +79,7 @@ public sealed class McpPage : UserControl
     private readonly TextBlock _clientPath = new() { FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _clientConfig = new()
     {
-        FontSize = 10.5, FontFamily = MonoFont, TextWrapping = TextWrapping.NoWrap,
+        FontSize = 10, FontFamily = MonoFont, TextWrapping = TextWrapping.NoWrap,
     };
     private readonly TextBlock _testOut = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
     private readonly StackPanel _onlineHost = new();
@@ -232,7 +233,7 @@ public sealed class McpPage : UserControl
         var title = new TextBlock { FontSize = 13.5, FontWeight = FontWeight.SemiBold };
         title[!TextBlock.TextProperty] = I18n.Bind(titleKey);
         body.Children.Add(title);
-        var desc = new TextBlock { FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
+        var desc = new TextBlock { FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
         desc[!TextBlock.TextProperty] = I18n.Bind(descKey);
         Res(desc, TextBlock.ForegroundProperty, "VoxFaint");
         body.Children.Add(desc);
@@ -240,7 +241,8 @@ public sealed class McpPage : UserControl
         return (border, body.Children.Add);
     }
 
-    private Control Row(string labelKey, Control value)
+    /// <param name="lastRow">卡片末行不画底边线（原型 srow 虚线近似为浅色实线 + 末行无线，UI 审计 2026-11-15）。</param>
+    private Control Row(string labelKey, Control value, bool lastRow = false)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("130,*") };
         var label = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
@@ -252,7 +254,7 @@ public sealed class McpPage : UserControl
         value.VerticalAlignment = VerticalAlignment.Center;
         value.Margin = new Thickness(0, 9, 0, 9);
 
-        var line = new Border { Child = grid, BorderThickness = new Thickness(0, 0, 0, 1) };
+        var line = new Border { Child = grid, BorderThickness = lastRow ? new Thickness(0) : new Thickness(0, 0, 0, 1) };
         Res(line, Border.BorderBrushProperty, "VoxLine");
         return line;
     }
@@ -266,11 +268,12 @@ public sealed class McpPage : UserControl
 
     private static Border Badge(string text, string? variant = null)
     {
+        // 字号交给 .badge 样式的 TextElement.FontSize（UI 审计 2026-11-15，与 10.5 口径统一）
         var badge = new Border
         {
             Classes = { "badge" },
             HorizontalAlignment = HorizontalAlignment.Left,
-            Child = new TextBlock { Text = text, FontSize = 10 },
+            Child = new TextBlock { Text = text },
         };
         if (!string.IsNullOrEmpty(variant)) badge.Classes.Add(variant);
         return badge;
@@ -281,7 +284,7 @@ public sealed class McpPage : UserControl
         var border = new Border
         {
             CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(12, 10),
+            Padding = new Thickness(14, 14),
             Child = maxHeight > 0
                 ? new ScrollViewer { Content = child, MaxHeight = maxHeight }
                 : child,
@@ -413,7 +416,7 @@ public sealed class McpPage : UserControl
         endpointCopy.Click += (_, _) => CopyText(McpService.Endpoint, "Vox.Mcp.Config.Copied");
         endpointRow.Children.Add(endpointValue);
         endpointRow.Children.Add(endpointCopy);
-        config.Add(Row("Vox.Mcp.Config.Endpoint", endpointRow));
+        config.Add(Row("Vox.Mcp.Config.Endpoint", endpointRow, lastRow: true));
         config.Host.VerticalAlignment = VerticalAlignment.Top;
         cols.Children.Add(config.Host);
 
@@ -428,7 +431,7 @@ public sealed class McpPage : UserControl
 
         var security = Card("Vox.Mcp.Security.Title", "Vox.Mcp.Security.Desc");
         security.Add(Row("Vox.Mcp.Security.Confirm", SwitchRow(_confirmSwitch, "Vox.Mcp.Security.ConfirmDesc", ToggleConfirm)));
-        security.Add(Row("Vox.Mcp.Security.Git", BuildGitRow()));
+        security.Add(Row("Vox.Mcp.Security.Git", BuildGitRow(), lastRow: true));
         right.Children.Add(security.Host);
         cols.Children.Add(right);
         Grid.SetColumn(right, 1);
@@ -450,7 +453,7 @@ public sealed class McpPage : UserControl
         var promptCol = new StackPanel { Spacing = 6, Margin = new Thickness(16, 0, 0, 0) };
         var promptHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         promptHead.Children.Add(new TextBlock { Text = "Prompts", FontSize = 11, FontWeight = FontWeight.SemiBold });
-        promptHead.Children.Add(new Border { Classes = { "badge" }, Child = new TextBlock { Text = McpCatalog.Prompts.Count.ToString(), FontSize = 10 } });
+        promptHead.Children.Add(new Border { Classes = { "badge" }, Child = new TextBlock { Text = McpCatalog.Prompts.Count.ToString() } });
         promptCol.Children.Add(promptHead);
         var chips = new WrapPanel();
         foreach (var prompt in McpCatalog.Prompts)
@@ -505,6 +508,7 @@ public sealed class McpPage : UserControl
 
         var title = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold };
         title[!TextBlock.TextProperty] = I18n.Bind(titleKey);
+        _scopeTitles[scope] = title;
         var desc = new TextBlock { FontSize = 10.5, TextWrapping = TextWrapping.Wrap };
         desc[!TextBlock.TextProperty] = I18n.Bind(descKey);
         Res(desc, TextBlock.ForegroundProperty, "VoxMuted");
@@ -550,6 +554,11 @@ public sealed class McpPage : UserControl
             var selected = scope == current;
             Res(card, Border.BorderBrushProperty, selected ? "VoxAccent" : "VoxLine");
             Res(card, Border.BackgroundProperty, selected ? "VoxAccentSoft" : "VoxSurface");
+            // 选中卡标题用强调色、未选中恢复默认前景（UI 审计 2026-11-15，与边框/底色口径一致）
+            if (_scopeTitles.TryGetValue(scope, out var title))
+            {
+                Res(title, TextBlock.ForegroundProperty, selected ? "VoxAccent" : "VoxFg");
+            }
             if (_scopeRadios.TryGetValue(scope, out var radio)) radio.IsChecked = selected;
         }
     }
@@ -568,10 +577,11 @@ public sealed class McpPage : UserControl
         var pagehead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
         var title = new TextBlock { FontSize = 16, FontWeight = FontWeight.SemiBold };
         title[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Clients.Title");
-        var sub = new TextBlock { FontSize = 11.5, Margin = new Thickness(0, 2, 0, 0) };
+        var sub = new TextBlock { FontSize = 11.5, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         sub[!TextBlock.TextProperty] = I18n.Bind("Vox.Mcp.Clients.Sub");
         Res(sub, TextBlock.ForegroundProperty, "VoxFaint");
-        pagehead.Children.Add(new StackPanel { Children = { title, sub } });
+        // 原型 pagehead 是同行内联（UI 审计 2026-11-15）：标题 + 副题横排
+        pagehead.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { title, sub } });
         _clientsTab.Children.Add(pagehead);
 
         var cols = new Grid { ColumnDefinitions = new ColumnDefinitions("1.15*,1*") };
@@ -1021,19 +1031,36 @@ public sealed class McpPage : UserControl
 
     private Control ToolGroup(string group, IReadOnlyList<McpToolDescriptor> tools, VoxSettings settings)
     {
-        var host = new StackPanel { Spacing = 6, Margin = new Thickness(0, 0, 0, 14) };
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        head.Children.Add(new Border
+        // 工具组卡（原型 .toolgroup）：clip 圆角卡整体包住「surface-2 表头带 + 表格」，
+        // 组名与数量徽章并入卡内表头带，替代卡外独立标题行（UI 审计 2026-11-15）。
+        // 数量徽章：mono 字族 + accent 软底/前景（底色沿用 .badge.accent 变体）+ 圆角 7 小块，
+        // 字号/内边距交给 .badge 样式。
+        var countText = new TextBlock { Text = tools.Count.ToString(), FontFamily = MonoFont };
+        Res(countText, TextBlock.ForegroundProperty, "VoxAccent");
+        var countBadge = new Border
         {
             Classes = { "badge", "accent" },
-            Child = new TextBlock { Text = tools.Count.ToString(), FontSize = 10 },
-        });
+            CornerRadius = new CornerRadius(7), // 覆盖样式里的药丸半径
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = countText,
+        };
         var name = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
         name[!TextBlock.TextProperty] = I18n.Bind(GroupKey(group));
-        head.Children.Add(name);
-        host.Children.Add(head);
-        host.Children.Add(ToolGrid(tools, settings));
-        return host;
+        var head = new Border { Padding = new Thickness(15, 9), BorderThickness = new Thickness(0, 0, 0, 1) };
+        Res(head, Border.BackgroundProperty, "VoxSurface2");
+        Res(head, Border.BorderBrushProperty, "VoxLine");
+        head.Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { name, countBadge } };
+
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            ClipToBounds = true,
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 0, 14), // 与原组间距口径一致（叠加 _toolHost 的 Spacing）
+            Child = new StackPanel { Children = { head, ToolGrid(tools, settings) } },
+        };
+        Res(card, Border.BorderBrushProperty, "VoxLine");
+        return card;
     }
 
     private DataGrid ToolGrid(IReadOnlyList<McpToolDescriptor> tools, VoxSettings settings)
@@ -1054,9 +1081,8 @@ public sealed class McpPage : UserControl
             ItemsSource = rows,
         };
         Res(grid, TemplatedControl.BackgroundProperty, "VoxSurface");
-        Res(grid, TemplatedControl.BorderBrushProperty, "VoxLine");
-        grid.BorderThickness = new Thickness(1);
-        grid.CornerRadius = new CornerRadius(12);
+        // 描边与圆角由外层 clip 卡（ToolGroup）提供，表格自身不再自带（UI 审计 2026-11-15）
+        grid.BorderThickness = new Thickness(0);
         grid.Columns.Add(Column<ToolRowModel>(T("Vox.Mcp.Tools.Column.Tool"), new DataGridLength(170),
             row => CellText(row.Name, 11, MonoFont, "VoxFg", false)));
         grid.Columns.Add(Column<ToolRowModel>(T("Vox.Mcp.Tools.Column.Desc"), new DataGridLength(1, DataGridLengthUnitType.Star),

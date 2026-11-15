@@ -34,7 +34,7 @@ public sealed class ImagesPage : UserControl
     private readonly Controls.MiniSelect _refFilter = new();
     private readonly Controls.MiniSelect _formatFilter = new();
     private readonly Controls.MiniSelect _sortFilter = new(); // 排序入口（2026-11-13 此前固定按路径）
-    private readonly ArcInput _search = new() { Width = 200, IsLabelVisible = false };
+    private readonly ArcInput _search = new() { Width = 220, IsLabelVisible = false };
     private readonly WrapPanel _grid = new() { Orientation = Orientation.Horizontal };
     private Grid? _emptyOverlay; // 空态覆盖层：WrapPanel 子项不拉伸，直接塞 grid 会贴左上（2026-11-13 截图发现）
     private readonly ScrollViewer _gridScroll = new();
@@ -103,10 +103,13 @@ public sealed class ImagesPage : UserControl
         var filters = new DockPanel();
         _search.Dock(Dock.Right);
         filters.Children.Add(_search);
-        var selects = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left };
+        // selects 改 WrapPanel 折行：横向 StackPanel 在窄窗口下溢出裁切，与 LibraryPage 同口径（UI 审计偏差修复）；
+        // 本 Avalonia 版本的 WrapPanel 无 Spacing，沿用 8px 间距改为逐项右边距。
+        var selects = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var f in new[] { _yearFilter, _refFilter, _formatFilter, _sortFilter })
         {
             f.SelectionChanged += _ => Rebuild();
+            f.Margin = new Thickness(0, 0, 8, 0);
             selects.Children.Add(f);
         }
         filters.Children.Add(selects);
@@ -353,7 +356,8 @@ public sealed class ImagesPage : UserControl
         {
             Classes = { "badge", image.IsMissing ? "danger" : image.IsOrphan ? "warn" : "accent" },
             Child = new TextBlock { Text = badge, FontSize = 10 },
-            HorizontalAlignment = HorizontalAlignment.Left,
+            // 移到右上：左上让位给勾选钮，避免两角标重叠（UI 审计偏差修复）
+            HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(6),
         };
@@ -371,9 +375,10 @@ public sealed class ImagesPage : UserControl
         {
             Classes = { "pick" },
             Content = picked ? "✓" : string.Empty,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            // 勾选钮放左上（原型口径）；flag 角标移右上错开（UI 审计偏差修复）
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(6),
+            Margin = new Thickness(8),
         };
         ToolTip.SetTip(pick, T("Vox.Images.Batch.Pick"));
         // 修复重挂载崩溃：thumb.Child 尚挂在 thumb 上，先摘下再统一包进 thumbPanel（Arc 下 Avalonia 双亲抛错）。
@@ -622,7 +627,8 @@ public sealed class ImagesPage : UserControl
         if (_detailPanel != null) _detailPanel.IsVisible = true;
 
         // 预览
-        var preview = new Border { Height = 150, CornerRadius = new CornerRadius(10), ClipToBounds = true, Child = BuildThumbVisual(image), Margin = new Thickness(0, 0, 0, 10) };
+        var preview = new Border { Height = 150, CornerRadius = new CornerRadius(10), ClipToBounds = true, BorderThickness = new Thickness(1), Child = BuildThumbVisual(image), Margin = new Thickness(0, 0, 0, 10) };
+        Res(preview, Border.BorderBrushProperty, "VoxLine");
         if (!image.IsMissing)
         {
             var root = AppState.Instance.CurrentRepoRoot;
@@ -721,17 +727,40 @@ public sealed class ImagesPage : UserControl
 
     private Button OpButton(string label, bool primary, Action action, bool danger = false)
     {
-        var button = new Button { Classes = { "btn", primary ? "primary" : danger ? "danger" : string.Empty }, Content = label, HorizontalAlignment = HorizontalAlignment.Stretch };
+        // 面板操作按钮紧凑档（btn sm 口径）：28 高 + 10/4 内边距 + 11.5 字号（UI 审计偏差修复）
+        var button = new Button { Classes = { "btn", primary ? "primary" : danger ? "danger" : string.Empty }, Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, MinHeight = 28, Padding = new Thickness(10, 4), FontSize = 11.5 };
         button.Click += (_, _) => action();
         return button;
     }
 
-    private StackPanel KvRow(string key, string value)
+    private Border KvRow(string key, string value)
     {
-        var row = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-        row.Children.Add(new TextBlock { Text = key, FontSize = 10 });
-        Res(row.Children[0], TextBlock.ForegroundProperty, "VoxFaint");
-        row.Children.Add(new TextBlock { Text = value, FontSize = 11, FontFamily = new FontFamily("Consolas, monospace"), TextWrapping = TextWrapping.Wrap });
+        // 原型 .kv 两列口径：左标签 faint、右值 mono 右对齐，行底 1px VoxLine 分隔（UI 审计偏差修复）；
+        // 返回类型 StackPanel → Border，四处调用均为 Children.Add，签名兼容无需改动。
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        var label = new TextBlock { Text = key, FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+        Res(label, TextBlock.ForegroundProperty, "VoxFaint");
+        grid.Children.Add(label);
+        Grid.SetColumn(label, 0);
+        var valueBlock = new TextBlock
+        {
+            Text = value,
+            FontSize = 11,
+            FontFamily = new FontFamily("Geist Mono, Cascadia Code, Consolas, monospace"),
+            TextAlignment = TextAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        grid.Children.Add(valueBlock);
+        Grid.SetColumn(valueBlock, 1);
+        var row = new Border
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+            Padding = new Thickness(0, 5),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = grid,
+        };
+        Res(row, Border.BorderBrushProperty, "VoxLine");
         return row;
     }
 

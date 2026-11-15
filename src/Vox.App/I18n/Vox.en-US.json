@@ -1244,6 +1244,7 @@
   "Vox.Ai.ToolArticleNotFound": "Not found in library: {0}",
   "Vox.Ai.ToolOpenImages": "Open image library",
   "Vox.Ai.ToolOpenPublish": "Open publish center",
+  "Vox.Library.RowContextMenuTip": "Right-click: rename / delete",
   "Vox.App.Confirm.ExitTitle": "Unsaved changes",
   "Vox.App.Confirm.ExitMsg": "The current article has unsaved body or metadata changes. They will be lost on exit.",
   "Vox.App.Confirm.ExitOk": "Discard and exit",

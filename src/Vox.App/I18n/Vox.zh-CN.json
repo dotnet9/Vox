@@ -1244,6 +1244,7 @@
   "Vox.Ai.ToolArticleNotFound": "未在文章库中找到：{0}",
   "Vox.Ai.ToolOpenImages": "打开图片库",
   "Vox.Ai.ToolOpenPublish": "打开发布中心",
+  "Vox.Library.RowContextMenuTip": "右键：重命名 / 删除",
   "Vox.App.Confirm.ExitTitle": "有未保存的修改",
   "Vox.App.Confirm.ExitMsg": "当前文章存在未保存的正文或元数据修改，退出后将丢失。",
   "Vox.App.Confirm.ExitOk": "丢弃并退出",

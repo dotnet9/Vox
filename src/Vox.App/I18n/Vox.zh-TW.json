@@ -1243,6 +1243,7 @@
   "Vox.Ai.ToolArticleNotFound": "文章庫中未找到：{0}",
   "Vox.Ai.ToolOpenImages": "開啟圖片庫",
   "Vox.Ai.ToolOpenPublish": "開啟發布中心",
+  "Vox.Library.RowContextMenuTip": "右鍵：重新命名 / 刪除",
   "Vox.App.Confirm.ExitTitle": "有未儲存的修改",
   "Vox.App.Confirm.ExitMsg": "目前文章存在未儲存的正文或元資料修改，退出後將遺失。",
   "Vox.App.Confirm.ExitOk": "捨棄並退出",

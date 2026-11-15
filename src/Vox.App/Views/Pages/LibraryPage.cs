@@ -93,6 +93,8 @@ public sealed class LibraryPage : UserControl
             Rebuild();
             ScheduleSearch(); // 索引重建后按当前关键词重跑正文扫描（ScheduleSearch 先取消在途结果）
         });
+        // 明暗/强调/密度热切换整档替换资源后，统计卡渐变（快照色）手动重取（页面随 MainWindow 缓存，与 app 同生命周期）
+        Application.Current!.ResourcesChanged += (_, _) => ReapplyStatGradients();
         Rebuild();
     }
 
@@ -155,12 +157,18 @@ public sealed class LibraryPage : UserControl
                 ScheduleSearch(); // 防抖：键入期间只重置计时器，不读盘、不重建
             }
         };
-        host.Children.Add(filters);
+        // 筛选容器盒（原型 .filters）：surface-2 底 + 1px 描边圆角盒，替代裸排（UI 审计 2026-11-15）
+        var filterBox = new Border { CornerRadius = new CornerRadius(9), Padding = new Thickness(11, 10) };
+        Res(filterBox, Border.BackgroundProperty, "VoxSurface2");
+        Res(filterBox, Border.BorderBrushProperty, "VoxLine");
+        filterBox.BorderThickness = new Thickness(1);
+        filterBox.Child = filters;
+        host.Children.Add(filterBox);
         // 评审修订（原型 D6）：生效筛选 chips（可单删/全清）+ 匹配计数。
         host.Children.Add(_chipsHost);
 
         // 表格 + 分页脚（同一圆角容器，原型 .tblwrap 口径）
-        var tableWrap = new Border { CornerRadius = new CornerRadius(12), ClipToBounds = true };
+        var tableWrap = new Border { CornerRadius = new CornerRadius(10), ClipToBounds = true };
         Res(tableWrap, Border.BackgroundProperty, "VoxSurface");
         Res(tableWrap, Border.BorderBrushProperty, "VoxLine");
         tableWrap.BorderThickness = new Thickness(1);
@@ -308,12 +316,12 @@ public sealed class LibraryPage : UserControl
             MinHeight = 82,
             MinWidth = 0,
         };
-        Res(card, Border.BackgroundProperty, "VoxSurface");
+        ApplyStatGradient(card); // 渐变底替代纯色（原型 .stat 口径，见方法注释）
         Res(card, Border.BorderBrushProperty, "VoxLine");
         card.BorderThickness = new Thickness(1);
         var labelBlock = new TextBlock { Text = label, FontSize = 10, Margin = new Thickness(0, 2, 0, 0) };
         Res(labelBlock, TextBlock.ForegroundProperty, "VoxFaint");
-        card.Child = new StackPanel
+        var content = new StackPanel
         {
             Children =
             {
@@ -321,8 +329,46 @@ public sealed class LibraryPage : UserControl
                 labelBlock,
             },
         };
+        // 左侧 accent 竖条（原型 .stat 的左侧色条）：2px 圆角窄条，随强调色热切换
+        var bar = new Border { Width = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 1, 10, 1) };
+        Res(bar, Border.BackgroundProperty, "VoxAccent");
+        card.Child = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            Children = { bar, content },
+        };
+        Grid.SetColumn(content, 1);
         return card;
     }
+
+    /// <summary>统计卡渐变底（原型 .stat 的 145° 表面渐变，VoxSurface → VoxSurface2）：
+    /// GradientStop 只收 Color，画刷资源经 TryGetBrush 取当前主题值；明暗/强调/密度热切换
+    /// （整档字典单次替换）后由构造函数挂的 ResourcesChanged 钩子重取（ReapplyStatGradients）。</summary>
+    private void ApplyStatGradient(Border card)
+    {
+        var from = TryGetBrush("VoxSurface") is ISolidColorBrush a ? a.Color : Colors.Transparent;
+        var to = TryGetBrush("VoxSurface2") is ISolidColorBrush b ? b.Color : Colors.Transparent;
+        card.Background = new LinearGradientBrush
+        {
+            // 145° 方向：相对坐标 0.21,0.09 → 0.79,0.91（左上偏水平进、右下偏垂直出）
+            StartPoint = new RelativePoint(0.21, 0.09, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0.79, 0.91, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(from, 0),
+                new GradientStop(to, 1),
+            },
+        };
+    }
+
+    /// <summary>主题热切换后统计卡渐变重新取色（卡片是快照色，不随 DynamicResource 自动更新）。</summary>
+    private void ReapplyStatGradients()
+    {
+        foreach (var card in _statsHost.Children.OfType<Border>()) ApplyStatGradient(card);
+    }
+
+    private static Avalonia.Media.IBrush? TryGetBrush(string key) =>
+        Avalonia.Application.Current!.TryFindResource(key, out var value) && value is Avalonia.Media.IBrush brush ? brush : null;
 
     private void RebuildFilters()
     {
@@ -461,7 +507,7 @@ public sealed class LibraryPage : UserControl
         _libGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
         _libGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
         _libGrid.FontSize = 12;
-        _libGrid.RowHeight = 36;
+        _libGrid.RowHeight = 43;
         _libGrid.MinHeight = 0;
         _libGrid.MaxHeight = 600;
         _libGrid.BorderThickness = new Thickness(0);
@@ -475,14 +521,14 @@ public sealed class LibraryPage : UserControl
         dateCol.SortMemberPath = "Date";
         _libGrid.Columns.Add(dateCol);
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Category"), new DataGridLength(110), row => Cell(string.Join("、", row.Article.Meta.Categories), true)));
-        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Tags"), new DataGridLength(150), row => Cell(string.Join(" · ", row.Article.Meta.Tags), true)));
+        _libGrid.Columns.Add(Column(T("Vox.Library.Column.Tags"), new DataGridLength(130), row => Cell(string.Join(" · ", row.Article.Meta.Tags), true)));
         // 评审修订（原型 D5）：字数右对齐（tabular-nums 由字体等宽口径承担）。
-        var wordsCell = Column(T("Vox.Library.Column.Words"), new DataGridLength(72), row => Cell(row.Article.WordCount.ToString("N0"), false));
+        var wordsCell = Column(T("Vox.Library.Column.Words"), new DataGridLength(72), row => Cell(row.Article.WordCount.ToString("N0"), false, right: true), rightHeader: true);
         wordsCell.SortMemberPath = "WordCount";
         _libGrid.Columns.Add(wordsCell);
         // 评审修订（原型 D5）：四个平台状态点列合并为单列「分发」，逐点 tooltip 带平台名与说明。
         _libGrid.Columns.Add(Column(T("Vox.Library.Column.Distribution"), new DataGridLength(112), DistributionCell));
-        _libGrid.Columns.Add(Column(string.Empty, new DataGridLength(148), ActionCell));
+        _libGrid.Columns.Add(Column(string.Empty, new DataGridLength(132), ActionCell));
 
         // 列排序（2026-11-13 此前 CanUserSortColumns=false 只能按日期倒序一种口径）：
         // 模板列没有内建排序，走 Sorting 事件手工排底层列表（排序键在 RebuildTable 应用）。
@@ -514,15 +560,23 @@ public sealed class LibraryPage : UserControl
         };
     }
 
-    private static DataGridTemplateColumn Column(string header, DataGridLength width, Func<LibRowModel, Control> cell)
-        => new()
+    /// <param name="rightHeader">表头右对齐（字数列）：以右对齐 TextBlock 作表头内容，随模板拉伸填满列宽。</param>
+    private static DataGridTemplateColumn Column(string header, DataGridLength width, Func<LibRowModel, Control> cell, bool rightHeader = false)
+    {
+        object headerContent = header;
+        if (rightHeader)
         {
-            Header = header,
+            headerContent = new TextBlock { Text = header, TextAlignment = TextAlignment.Right };
+        }
+        return new DataGridTemplateColumn
+        {
+            Header = headerContent,
             Width = width,
             CellTemplate = new FuncDataTemplate<LibRowModel>((row, _) => row is null ? new TextBlock() : cell(row)),
         };
+    }
 
-    private static TextBlock Cell(string text, bool trim)
+    private static TextBlock Cell(string text, bool trim, bool right = false)
     {
         var block = new TextBlock
         {
@@ -530,6 +584,7 @@ public sealed class LibraryPage : UserControl
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(14, 4, 12, 4),
+            TextAlignment = right ? TextAlignment.Right : TextAlignment.Left,
             TextTrimming = trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
         };
         Res(block, TextBlock.ForegroundProperty, "VoxMuted");
@@ -627,23 +682,28 @@ public sealed class LibraryPage : UserControl
 
     private Control ActionCell(LibRowModel row)
     {
+        // 原型口径：行内只有「编辑 + 发布…」两钮；重命名/删除收进行右键菜单（2026-11-15 对照审计）
         var edit = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Edit") };
         edit.Click += async (_, _) => await EditAsync(row.Article);
-        var rename = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Library.Action.Rename") };
-        rename.Click += (_, _) => _ = RenameArticleAsync(row.Article);
-        var delete = new Button { Classes = { "btn", "sm", "ghost" }, Content = T("Vox.Common.Action.Delete") };
-        delete.Click += (_, _) => _ = DeleteArticleAsync(row.Article);
         var publish = new Button { Classes = { "btn", "sm", "primary" }, Content = T("Vox.Library.Action.Publish") };
         publish.Click += (_, _) => _shell.ShowModal(new Dialogs.PublishDialog(_shell, row.Article));
-        return new StackPanel
+
+        var renameItem = new MenuItem { Header = T("Vox.Library.Action.Rename") };
+        renameItem.Click += (_, _) => _ = RenameArticleAsync(row.Article);
+        var deleteItem = new MenuItem { Header = T("Vox.Common.Action.Delete") };
+        deleteItem.Click += (_, _) => _ = DeleteArticleAsync(row.Article);
+        var ops = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 4,
+            Spacing = 6,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 2, 12, 2),
-            Children = { edit, rename, delete, publish },
+            Children = { edit, publish },
         };
+        TKCode.Arc.Tooltip.SetTip(ops, T("Vox.Library.RowContextMenuTip"));
+        ops.ContextMenu = new ContextMenu { Items = { renameItem, deleteItem } };
+        return ops;
     }
 
     /// <summary>文章删除（Git 工作区删除，推送前可回滚；2026-11-14 补文档管理核心缺口）：

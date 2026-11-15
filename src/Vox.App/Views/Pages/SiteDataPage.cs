@@ -71,7 +71,9 @@ public sealed class SiteDataPage : UserControl
 
         var nav = new Border
         {
-            Width = 218, Padding = new Thickness(8), VerticalAlignment = VerticalAlignment.Stretch, MinHeight = 160,
+            Width = 218, Padding = new Thickness(8), VerticalAlignment = VerticalAlignment.Top, MinHeight = 160,
+            // 与右侧内容栏拉开 14px 间距：DockPanel 直接相邻会让两边框贴合（UI 审计偏差修复）
+            Margin = new Thickness(0, 0, 14, 0),
             CornerRadius = new CornerRadius(12),
         };
         Res(nav, Border.BackgroundProperty, "VoxSurface");
@@ -122,7 +124,7 @@ public sealed class SiteDataPage : UserControl
                 {
                     Classes = { "badge" },
                     VerticalAlignment = VerticalAlignment.Center,
-                    Child = new TextBlock { Text = count.ToString(), FontSize = 9.5 },
+                    Child = new TextBlock { Text = count.ToString() }, // 字号交给 .badge 样式（10.5），不再在此覆盖
                 }.Dock(Dock.Right));
             }
             content.Children.Add(new TextBlock { Text = name, FontSize = 11, Classes = { "mono" }, VerticalAlignment = VerticalAlignment.Center });
@@ -132,6 +134,7 @@ public sealed class SiteDataPage : UserControl
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Padding = new Thickness(10, 7),
+                MinHeight = 28,
                 FontSize = 11,
                 Tag = file,
             };
@@ -351,11 +354,20 @@ public sealed class SiteDataPage : UserControl
             headerGrid.Children.Add(countHead);
             Grid.SetColumn(countHead, properties.Count);
         }
-        _contentHost.Children.Add(headerGrid);
+        // 表头包一层 Border：VoxSurface2 背景 + 底部 1px VoxLine 分隔线，替代裸 faint 文本（UI 审计偏差修复）
+        var headerBorder = new Border
+        {
+            Padding = new Thickness(14, 9),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = headerGrid,
+        };
+        Res(headerBorder, Border.BackgroundProperty, "VoxSurface2");
+        Res(headerBorder, Border.BorderBrushProperty, "VoxLine");
+        _contentHost.Children.Add(headerBorder);
 
         foreach (var element in array.OfType<JsonObject>())
         {
-            var row = new Grid { ColumnDefinitions = NewColumns(), Margin = new Thickness(0, 4, 0, 0) };
+            var row = new Grid { ColumnDefinitions = NewColumns() };
             for (var index = 0; index < properties.Count; index++)
             {
                 var prop = properties[index];
@@ -411,7 +423,15 @@ public sealed class SiteDataPage : UserControl
             };
             row.Children.Add(remove);
             Grid.SetColumn(remove, withCount ? properties.Count + 1 : properties.Count);
-            _contentHost.Children.Add(row);
+            // 行容器包 Border：底部 1px VoxLine 分隔线，上下 7 内边距替代原 4px 上边距间距 hack（UI 审计偏差修复）
+            var rowBorder = new Border
+            {
+                Padding = new Thickness(0, 7),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Child = row,
+            };
+            Res(rowBorder, Border.BorderBrushProperty, "VoxLine");
+            _contentHost.Children.Add(rowBorder);
         }
 
         var addRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0), Spacing = 10 };

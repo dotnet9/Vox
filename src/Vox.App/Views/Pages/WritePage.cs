@@ -3585,15 +3585,31 @@ public sealed class WritePage : UserControl
         {
             Classes = { "btn", "ghost", "sm" },
             Content = "×",
-            FontSize = Fs(14),
-            Padding = new Thickness(8, 0, 8, 2),
+            FontSize = Fs(15),
+            Padding = new Thickness(6, 0, 6, 2),
         };
         close.Click += (_, _) => _aiPop.IsVisible = false;
         head.Children.Add(close.Dock(Dock.Right));
-        var clear = new Button { Classes = { "btn", "ghost", "sm" }, VerticalAlignment = VerticalAlignment.Center };
-        clear[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Chat.Clear");
-        clear.Click += (_, _) => _ = ClearAiChatConfirmAsync();
-        head.Children.Add(clear.Dock(Dock.Right));
+        // 原型 .ai-clear：细线框小胶囊（10px 字、radius 99），弱化于导出/关闭（2026-11-15 对照审计）
+        var clearLabel = new TextBlock { FontSize = Fs(10), Cursor = new Cursor(StandardCursorType.Hand), VerticalAlignment = VerticalAlignment.Center };
+        clearLabel[!TextBlock.TextProperty] = I18n.Bind("Vox.Ai.Chat.Clear");
+        Res(clearLabel, TextBlock.ForegroundProperty, "VoxMuted");
+        var clearPill = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(99),
+            Padding = new Thickness(9, 2),
+            Margin = new Thickness(0, 0, 10, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = clearLabel,
+        };
+        Res(clearPill, Border.BorderBrushProperty, "VoxLine");
+        clearPill.PointerPressed += (_, e) =>
+        {
+            e.Handled = true;
+            _ = ClearAiChatConfirmAsync();
+        };
+        head.Children.Add(clearPill.Dock(Dock.Right));
         var export = new Button { Classes = { "btn", "ghost", "sm" }, VerticalAlignment = VerticalAlignment.Center };
         export[!Button.ContentProperty] = I18n.Bind("Vox.Ai.Export");
         export.Click += (_, _) => _ = ExportAiChatAsync();
@@ -3605,7 +3621,17 @@ public sealed class WritePage : UserControl
             FontWeight = FontWeight.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Res(spark, TextBlock.ForegroundProperty, "VoxAccent");
+        // 原型 .spark：22×22 accent 方块白字圆角 7 的徽章，替代裸字符（2026-11-15 对照审计）
+        var sparkBadge = new Border
+        {
+            Width = 22,
+            Height = 22,
+            CornerRadius = new CornerRadius(7),
+            Child = spark,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Res(sparkBadge, Border.BackgroundProperty, "VoxAccent");
+        Res(spark, TextBlock.ForegroundProperty, "VoxOnAccent");
         var titleLabel = new TextBlock
         {
             FontSize = Fs(12.5),
@@ -3617,22 +3643,17 @@ public sealed class WritePage : UserControl
         head.Children.Add(new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 5,
-            Children = { spark, titleLabel },
+            Spacing = 7,
+            Children = { sparkBadge, titleLabel },
         });
 
         _aiCtxList = new WrapPanel();
         _aiCtxBar = new Border
         {
-            Padding = new Thickness(8, 5),
-            CornerRadius = new CornerRadius(8),
-            BorderThickness = new Thickness(1),
             Margin = new Thickness(0, 8, 0, 0),
             IsVisible = false,
             Child = _aiCtxList,
         };
-        Res(_aiCtxBar, Border.BackgroundProperty, "VoxAccentSoft");
-        Res(_aiCtxBar, Border.BorderBrushProperty, "VoxLine");
 
         _aiMsgList = new StackPanel { Spacing = 10 };
         _aiMsgScroll = new ScrollViewer
@@ -3712,7 +3733,7 @@ public sealed class WritePage : UserControl
         {
             Width = savedWidth,
             Padding = new Thickness(14, 12, 14, 14),
-            CornerRadius = new CornerRadius(14),
+            CornerRadius = new CornerRadius(16),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
@@ -4207,8 +4228,8 @@ public sealed class WritePage : UserControl
         Res(body.Children[^1], TextBlock.ForegroundProperty, "VoxFg");
         var bubble = new Border
         {
-            Padding = new Thickness(9, 7),
-            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(9, 12),
+            CornerRadius = new CornerRadius(12),
             BorderThickness = new Thickness(1),
             MaxWidth = 420,
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -4227,8 +4248,8 @@ public sealed class WritePage : UserControl
         var body = new StackPanel { Spacing = 6 };
         var bubble = new Border
         {
-            Padding = new Thickness(9, 7),
-            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(9, 12),
+            CornerRadius = new CornerRadius(12),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Stretch, // 填满面板宽：拖宽后长 Markdown 不再窄条（2026-11-13）
             Child = body,
